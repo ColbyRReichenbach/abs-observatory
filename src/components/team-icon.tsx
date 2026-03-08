@@ -8,6 +8,8 @@ type TeamIconProps = {
     size?: number;
     className?: string;
     backgroundColor?: string;
+    noShadow?: boolean;
+    loading?: 'lazy' | 'eager';
 };
 
 /**
@@ -20,6 +22,8 @@ export function TeamIcon({
     size = 32,
     className = "",
     backgroundColor,
+    noShadow = false,
+    loading = 'lazy',
 }: TeamIconProps) {
     // Resolve branding automatically if color is missing
     const branding = resolveTeamBranding({ teamId });
@@ -30,7 +34,7 @@ export function TeamIcon({
 
     return (
         <div
-            className={`relative flex items-center justify-center rounded-full overflow-hidden shadow-xl transition-all duration-500 ease-out border border-white/10 ${className}`}
+            className={`relative flex items-center justify-center rounded-full overflow-hidden transition-all duration-500 ease-out border border-white/10 ${noShadow ? '' : 'shadow-xl'} ${className}`}
             style={{
                 width: size,
                 height: size,
@@ -47,8 +51,8 @@ export function TeamIcon({
                 <img
                     src={logoUrl}
                     alt={`${name} Logo`}
-                    className="w-full h-full object-contain transition-all duration-500 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]"
-                    loading="lazy"
+                    className={`w-full h-full object-contain transition-all duration-500 ${noShadow ? '' : 'drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]'}`}
+                    loading={loading}
                 />
             </div>
         </div>

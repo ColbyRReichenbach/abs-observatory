@@ -1,6 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => "/teams/111",
+}));
+
 vi.mock("@/lib/data", () => ({
   getTeamSummary: vi.fn(async () => ({
     teamId: 111,
@@ -43,6 +49,15 @@ vi.mock("@/lib/data", () => ({
     secondaryColor: "#0C2340",
     logoSvgUrl: "https://example.com/bos.svg",
   })),
+  getTeamAggression: vi.fn(async () => []),
+  getTeamSchedule: vi.fn(async () => []),
+  getTeamUmpireMatchups: vi.fn(async () => []),
+  getTeamHitterEyeHeatmap: vi.fn(async () => []),
+  getTeamPitchingBailouts: vi.fn(async () => []),
+  getTeamInningEfficiency: vi.fn(async () => [
+    { inning: 1, category: "Offensive", overturnRate: 0.6, sampleSize: 3 },
+    { inning: 1, category: "Defensive", overturnRate: 0.5, sampleSize: 2 },
+  ]),
 }));
 
 import TeamPage from "@/app/teams/[teamId]/page";
@@ -56,9 +71,10 @@ describe("team detail page", () => {
     const html = renderToStaticMarkup(page);
 
     expect(html).toContain("Boston Red Sox");
-    expect(html).toContain("Recent Challenge Trend");
-    expect(html).toContain("Home / Away Split");
-    expect(html).toContain("New York Yankees");
-    expect(html).toContain("home");
+    expect(html).toContain("Challenge");
+    expect(html).toContain("Trajectory");
+    expect(html).toContain("Location Variance");
+    expect(html).toContain("ABS analytics breakdown");
+    expect(html).toContain("Home");
   });
 });

@@ -15,6 +15,8 @@ export type LiveGameCard = {
   awayScore: number | null;
   homeAbsRemaining: number;
   awayAbsRemaining: number;
+  homeTeamColor?: string | null;
+  awayTeamColor?: string | null;
   challengeCount: number;
   inning?: number | null;
   inningHalf?: string | null;
@@ -48,6 +50,57 @@ export type ChallengeEvent = {
   pz: number | null;
   strikeZoneTop: number | null;
   strikeZoneBottom: number | null;
+  countBefore?: string | null;
+  countAfter?: string | null;
+  umpireCount?: string | null;
+  impactType?: string | null;
+  impactSummary?: string | null;
+  locationSource?: string | null;
+  inferenceMethod?: string | null;
+  inferenceConfidence?: string | null;
+};
+
+export type PitchTimelineEntry = {
+  gamePk: number;
+  atBatIndex: number;
+  pitchNumber: number;
+  playEventIndex: number | null;
+  inning: number | null;
+  halfInning: string | null;
+  batterId: number | null;
+  batterName: string | null;
+  pitcherId: number | null;
+  pitcherName: string | null;
+  calledCode: string | null;
+  calledDescription: string | null;
+  playDescription: string | null;
+  pitchTypeCode: string | null;
+  pitchType: string | null;
+  startSpeed: number | null;
+  spinRate: number | null;
+  px: number | null;
+  pz: number | null;
+  strikeZoneTop: number | null;
+  strikeZoneBottom: number | null;
+  zone: number | null;
+  countBefore: string | null;
+  countAfter: string | null;
+  umpireCount: string | null;
+  outsBefore: number | null;
+  outsAfter: number | null;
+  basesStateBefore: string | null;
+  basesStateAfter: string | null;
+  isInPlay: boolean;
+  endedPlateAppearance: boolean;
+  challengeId: string | null;
+  challengePlayerName: string | null;
+  challengeTeamId: number | null;
+  isOverturned: boolean | null;
+  locationSource?: string | null;
+  inferenceMethod?: string | null;
+  inferenceConfidence?: string | null;
+  impactType: string;
+  impactSummary: string;
 };
 
 export type UmpireSummary = {
@@ -101,6 +154,12 @@ export type TeamIdentity = {
   primaryColor: string | null;
   secondaryColor: string | null;
   logoSvgUrl: string | null;
+  wins?: number;
+  losses?: number;
+  divisionRank?: number;
+  wildCardRank?: number;
+  divisionName?: string | null;
+  leagueName?: string | null;
 };
 
 export type TeamTrendPoint = {
@@ -116,6 +175,18 @@ export type TeamTrendPoint = {
   usedFailed: number;
   challengesTotal: number;
   remaining: number;
+};
+
+export type TeamTrendSparklinePoint = {
+  teamId: number;
+  values: number[];
+};
+
+export type TeamInningEfficiencyCell = {
+  inning: number;
+  category: "Offensive" | "Defensive";
+  overturnRate: number;
+  sampleSize: number;
 };
 
 export type TeamSideSplit = {
@@ -138,6 +209,20 @@ export type AIQueryResponse = {
   rows: unknown[];
 };
 
+export type AIChatResponse = {
+  conversationId: string;
+  answer: string;
+  toolResults: Array<{ toolName: string; payload: unknown }>;
+  citations: string[];
+  safetyDisposition: "allowed" | "blocked";
+  confidence: "low" | "medium" | "high";
+  status?: "complete" | "queued";
+  jobRunId?: string;
+  pollAfterSeconds?: number;
+  code?: string;
+  error?: string;
+};
+
 export type PregameIntel = {
   umpireId: number | null;
   umpireName: string | null;
@@ -156,6 +241,29 @@ export type PregameIntel = {
     highZoneAccuracy: number;
     overallAccuracy: number;
   };
+  zoneBriefing: Array<{
+    bucket: "up_glove" | "up_arm" | "down_glove" | "down_arm";
+    challenges: number;
+    overturnRate: number;
+  }>;
+  challengeTiming: {
+    home: number[];
+    away: number[];
+    leagueAverage: number[];
+  };
+  teamHistoryVsUmpire: {
+    home: {
+      games: number;
+      challenges: number;
+      overturnRate: number;
+    };
+    away: {
+      games: number;
+      challenges: number;
+      overturnRate: number;
+    };
+    leagueAverage: number;
+  };
 };
 
 export type GameReport = {
@@ -163,6 +271,17 @@ export type GameReport = {
   generatedAt: string;
   narrativeMd: string;
   chartSpec: unknown;
+};
+
+export type GameHubGame = {
+  gamepk: number;
+  statusabstract: string;
+  homescore: number | null;
+  awayscore: number | null;
+  homeabbreviation: string | null;
+  awayabbreviation: string | null;
+  homeprimarycolor: string | null;
+  awayprimarycolor: string | null;
 };
 
 export type GameLiveStatus = {
@@ -200,10 +319,16 @@ export type HomeChallengeMoment = {
   gameLabel: string;
   inning: number | null;
   halfInning: string | null;
+  balls: number | null;
+  strikes: number | null;
+  umpireCount?: string | null;
+  playerName: string | null;
+  pitchNumber: number | null;
   calledDescription: string | null;
   challengeTeamName: string | null;
   isOverturned: boolean;
   leverageScore: number;
+  gameStatus: string;
 };
 
 export interface UmpireTrendPoint {
@@ -217,3 +342,54 @@ export interface UmpireTrendPoint {
   challengedCount: number;
   overturnedCount: number;
 }
+
+export type UmpirePerformanceDNA = {
+  rhythm: Array<{
+    inning: number;
+    total: number;
+    overturned: number;
+    accuracy: number;
+  }>;
+  extremes: Array<{
+    challengeId: string;
+    gamePk: number;
+    inning: number;
+    px: number;
+    pz: number;
+    szTop: number;
+    szBottom: number;
+    isOverturned: boolean;
+    calledDescription: string | null;
+    missDistance: number;
+  }>;
+};
+
+export type TeamScheduleGame = {
+  gamePk: number;
+  gameDate: string;
+  status: string;
+  homeTeamId: number;
+  awayTeamId: number;
+  homeAbbr: string;
+  awayAbbr: string;
+  homeLogoUrl: string;
+  awayLogoUrl: string;
+};
+
+/** D-8: Per-pitch-type challenge breakdown for an umpire */
+export type UmpirePitchTypeBreakdown = {
+  pitchTypeCode: string;
+  pitchTypeName: string;
+  challengedCount: number;
+  overturnedCount: number;
+  overturnRate: number;
+};
+
+/** D-7: One data point per season for umpire season-over-season chart */
+export type UmpireSeasonTrendPoint = {
+  season: number;
+  challengedCalls: number;
+  overturnedCalls: number;
+  overturnRate: number;
+  gamesWorked: number;
+};

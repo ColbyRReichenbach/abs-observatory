@@ -7,16 +7,26 @@ import type { LiveGameCard } from "@/lib/types";
 
 export function HomeExpandableGrid({ games }: { games: LiveGameCard[] }) {
     const [expanded, setExpanded] = useState(false);
+    const gameCount = games.length;
+    const isEmpty = gameCount === 0;
 
     return (
         <>
             <div className="flex justify-center mt-4">
                 <button
-                    onClick={() => setExpanded(!expanded)}
-                    className="px-6 py-2 rounded-full bg-black text-white font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-xl shadow-black/10 flex items-center gap-2"
+                    onClick={() => !isEmpty && setExpanded(!expanded)}
+                    className={`px-6 py-2 rounded-full font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${isEmpty
+                        ? "bg-gray-200 text-gray-400 cursor-default"
+                        : "bg-black text-white hover:scale-105 active:scale-95 shadow-xl shadow-black/10"
+                        }`}
+                    disabled={isEmpty}
                 >
-                    {expanded ? "Collapse" : "Expand Games"}
-                    {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    {isEmpty
+                        ? "No Games Today"
+                        : expanded
+                            ? "Collapse"
+                            : `▸ See All ${gameCount} Games`}
+                    {!isEmpty && (expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </button>
             </div>
 
@@ -25,10 +35,12 @@ export function HomeExpandableGrid({ games }: { games: LiveGameCard[] }) {
                 <section className="mt-32 mb-40 animate-in fade-in slide-in-from-top-4 duration-500">
                     <div className="mb-14 flex items-end justify-between border-b border-gray-100 pb-8">
                         <div>
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600 mb-2 block">Live Dashboard</span>
-                            <h2 className="text-5xl font-display uppercase tracking-tighter text-gray-900">
-                                Active Matchups
-                            </h2>
+                            <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
+                                Live Dashboard
+                            </h4>
+                            <p className="text-5xl font-display leading-none text-gray-900">
+                                Active <span className="text-gray-400 italic">Matchups</span>
+                            </p>
                         </div>
                     </div>
 

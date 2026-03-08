@@ -1,36 +1,31 @@
 "use client";
 
-import { useMemo } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
-
-// Simulated historical distribution for PreGame scouting
-const INNINGS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+import { ChartTooltip } from "@/components/ui/chart-tooltip";
 
 export function ChallengeDistributionTimeline({
     homeTeamName,
     awayTeamName,
+    homeData,
+    awayData,
+    leagueAverage,
     homeColor = "#3b82f6",
     awayColor = "#8b5cf6"
 }: {
     homeTeamName: string;
     awayTeamName: string;
+    homeData: number[];
+    awayData: number[];
+    leagueAverage: number[];
     homeColor?: string;
     awayColor?: string;
 }) {
-    const data = useMemo(() => {
-        return INNINGS.map(inning => {
-            // Mocking the frequency curve of when teams challenge during the game.
-            // Usually challenges spike in the 1st/2nd and 7th-9th innings
-            const lateBiasHome = inning >= 7 ? Math.random() * 5 + 5 : Math.random() * 3 + 1;
-            const earlyBiasAway = inning <= 3 ? Math.random() * 6 + 4 : Math.random() * 2 + 1;
-
-            return {
-                inning: `Inning ${inning}`,
-                [homeTeamName]: Math.round(lateBiasHome),
-                [awayTeamName]: Math.round(earlyBiasAway),
-            };
-        });
-    }, [homeTeamName, awayTeamName]);
+    const data = Array.from({ length: 9 }, (_, index) => ({
+        inning: `Inning ${index + 1}`,
+        [homeTeamName]: homeData[index] ?? 0,
+        [awayTeamName]: awayData[index] ?? 0,
+        leagueAverage: leagueAverage[index] ?? 0,
+    }));
 
     return (
         <div className="mt-8 panel p-6 shadow-2xl shadow-black/[0.02] border border-gray-50 bg-white">
@@ -43,7 +38,7 @@ export function ChallengeDistributionTimeline({
 
             <div className="h-[300px] w-full mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <AreaChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
                         <defs>
                             <linearGradient id="colorHome" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor={homeColor} stopOpacity={0.8} />
@@ -68,11 +63,30 @@ export function ChallengeDistributionTimeline({
                             tick={{ fill: "#9ca3af", fontSize: 10, fontWeight: 700 }}
                         />
                         <Tooltip
-                            contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }}
-                            itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
-                            labelStyle={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af', marginBottom: '8px' }}
+                            content={({ active, payload, label }) => {
+                                if (!active || !payload?.length) return null;
+                                return (
+                                    <ChartTooltip
+                                        title={String(label ?? "")}
+                                        extra={payload.map((item) => ({
+                                            label: String(item.name ?? ""),
+                                            value: Number(item.value ?? 0).toFixed(1),
+                                            color: String(item.color ?? ""),
+                                        }))}
+                                    />
+                                );
+                            }}
                         />
                         <Legend wrapperStyle={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginTop: '20px' }} />
+                        <Area
+                            type="monotone"
+                            dataKey="leagueAverage"
+                            stroke="rgba(0,0,0,0.25)"
+                            strokeDasharray="4 4"
+                            fillOpacity={0}
+                            strokeWidth={1.5}
+                            name="League Avg"
+                        />
                         <Area
                             type="monotone"
                             dataKey={homeTeamName}

@@ -1,3 +1,16 @@
+DROP VIEW IF EXISTS mart_weekly_editorial_summary CASCADE;
+DROP VIEW IF EXISTS mart_daily_editorial_summary CASCADE;
+DROP VIEW IF EXISTS mart_pitch_type_count_baselines CASCADE;
+DROP VIEW IF EXISTS mart_zone_outcome_baselines CASCADE;
+DROP VIEW IF EXISTS mart_count_state_delta_baselines CASCADE;
+DROP VIEW IF EXISTS mart_count_state_baselines CASCADE;
+DROP VIEW IF EXISTS mart_game_play_events CASCADE;
+DROP VIEW IF EXISTS mart_game_pitch_timeline CASCADE;
+DROP VIEW IF EXISTS mart_game_abs_timeline CASCADE;
+DROP VIEW IF EXISTS mart_umpire_abs_daily CASCADE;
+DROP VIEW IF EXISTS mart_team_abs_daily CASCADE;
+DROP VIEW IF EXISTS mart_abs_events_enriched CASCADE;
+
 CREATE OR REPLACE VIEW mart_abs_events_enriched AS
 SELECT
   c.challenge_id,
@@ -32,10 +45,23 @@ SELECT
   c.pitcher_id,
   c.pitcher_name,
   c.pitch_number,
+  c.inferred_pitch_number,
+  COALESCE(c.pitch_number, c.inferred_pitch_number) AS effective_pitch_number,
   c.px,
   c.pz,
+  COALESCE(c.px, c.inferred_px) AS effective_px,
+  COALESCE(c.pz, c.inferred_pz) AS effective_pz,
   c.strike_zone_top,
   c.strike_zone_bottom,
+  COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) AS effective_strike_zone_top,
+  COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS effective_strike_zone_bottom,
+  c.gameday_x,
+  c.gameday_y,
+  COALESCE(c.gameday_x, c.inferred_gameday_x) AS effective_gameday_x,
+  COALESCE(c.gameday_y, c.inferred_gameday_y) AS effective_gameday_y,
+  c.inference_method,
+  c.inference_confidence,
+  c.location_source,
   c.challenged_at,
   hp.official_id AS home_plate_umpire_id,
   hp.official_name AS home_plate_umpire_name
@@ -96,6 +122,263 @@ SELECT
   away_score,
   balls,
   strikes,
-  outs
+  outs,
+  COALESCE(pitch_number, inferred_pitch_number) AS effective_pitch_number,
+  COALESCE(px, inferred_px) AS effective_px,
+  COALESCE(pz, inferred_pz) AS effective_pz,
+  location_source,
+  inference_method,
+  inference_confidence
 FROM abs_challenges
 ORDER BY game_pk, challenged_at;
+
+CREATE OR REPLACE VIEW mart_game_pitch_timeline AS
+WITH challenge_impacts AS (
+  SELECT
+    c.challenge_id,
+    c.game_pk,
+    c.at_bat_index,
+    COALESCE(c.pitch_number, c.inferred_pitch_number) AS effective_pitch_number,
+    c.is_overturned,
+    CASE
+      WHEN COALESCE(c.pitch_number, c.inferred_pitch_number) IS NULL THEN 'non_pitch_review'
+      WHEN c.is_overturned = FALSE THEN 'confirmed'
+      WHEN p.ended_plate_appearance = TRUE
+        AND (
+          (p.strikes_before = 2 AND LOWER(COALESCE(c.called_description, p.called_description, '')) LIKE '%strike%')
+          OR (p.balls_before = 3 AND LOWER(COALESCE(c.called_description, p.called_description, '')) LIKE '%ball%')
+        )
+        THEN 'direct_ending_impact'
+      WHEN p.balls_before IS NOT NULL
+        AND p.strikes_before IS NOT NULL
+        AND (p.balls_before IS DISTINCT FROM p.balls_after OR p.strikes_before IS DISTINCT FROM p.strikes_after)
+        THEN 'direct_count_impact'
+      ELSE 'downstream_inferred_impact'
+    END AS impact_type,
+    CASE
+      WHEN c.pitch_number IS NULL THEN 'Review happened at the at-bat level without a tracked pitch event.'
+      WHEN c.is_overturned = FALSE THEN 'Call was confirmed after review.'
+      WHEN p.ended_plate_appearance = TRUE
+        AND (
+          (p.strikes_before = 2 AND LOWER(COALESCE(c.called_description, p.called_description, '')) LIKE '%strike%')
+          OR (p.balls_before = 3 AND LOWER(COALESCE(c.called_description, p.called_description, '')) LIKE '%ball%')
+        )
+        THEN 'The overturned call directly changed whether the plate appearance ended.'
+      WHEN p.balls_before IS NOT NULL
+        AND p.strikes_before IS NOT NULL
+        AND (p.balls_before IS DISTINCT FROM p.balls_after OR p.strikes_before IS DISTINCT FROM p.strikes_after)
+        THEN 'The overturned call changed the count before the plate appearance finished.'
+      ELSE 'The overturned call preceded the later result, but the downstream impact is inferred rather than direct.'
+    END AS impact_summary
+  FROM abs_challenges c
+  LEFT JOIN pitches p
+    ON p.game_pk = c.game_pk
+   AND p.at_bat_index = c.at_bat_index
+   AND p.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
+)
+SELECT
+  p.game_pk,
+  p.at_bat_index,
+  p.pitch_number,
+  p.play_event_index,
+  p.inning,
+  p.half_inning,
+  p.batter_id,
+  p.batter_name,
+  p.pitcher_id,
+  p.pitcher_name,
+  p.called_code,
+  p.called_description,
+  p.play_description,
+  p.pitch_type_code,
+  p.pitch_type_description,
+  p.start_speed,
+  p.end_speed,
+  p.spin_rate,
+  p.px,
+  p.pz,
+  p.strike_zone_top,
+  p.strike_zone_bottom,
+  p.zone,
+  p.is_ball,
+  p.is_strike,
+  p.is_in_play,
+  p.ended_plate_appearance,
+  p.balls_before,
+  p.strikes_before,
+  p.outs_before,
+  p.balls_after,
+  p.strikes_after,
+  p.outs_after,
+  p.bases_state_before,
+  p.bases_state_after,
+  p.home_score_before,
+  p.away_score_before,
+  p.home_score_after,
+  p.away_score_after,
+  c.challenge_id,
+  c.challenge_team_id,
+  c.challenge_team_side,
+  c.challenge_player_id,
+  c.challenge_player_name,
+  c.is_overturned,
+  c.location_source,
+  c.inference_method,
+  c.inference_confidence,
+  COALESCE(ci.impact_type, 'not_challenged') AS impact_type,
+  COALESCE(ci.impact_summary, 'Pitch was not challenged.') AS impact_summary
+FROM pitches p
+LEFT JOIN abs_challenges c
+  ON c.game_pk = p.game_pk
+ AND c.at_bat_index = p.at_bat_index
+ AND COALESCE(c.pitch_number, c.inferred_pitch_number) = p.pitch_number
+LEFT JOIN challenge_impacts ci
+  ON ci.challenge_id = c.challenge_id;
+
+CREATE OR REPLACE VIEW mart_game_play_events AS
+SELECT
+  e.game_pk,
+  e.at_bat_index,
+  e.play_event_index,
+  e.pitch_number,
+  e.inning,
+  e.half_inning,
+  e.batter_id,
+  e.batter_name,
+  e.pitcher_id,
+  e.pitcher_name,
+  e.event_type,
+  e.event_code,
+  e.description,
+  e.is_pitch,
+  e.is_in_play,
+  e.has_review,
+  e.balls_before,
+  e.strikes_before,
+  e.outs_before,
+  e.balls_after,
+  e.strikes_after,
+  e.outs_after,
+  e.bases_state_before,
+  e.bases_state_after,
+  e.home_score_before,
+  e.away_score_before,
+  e.home_score_after,
+  e.away_score_after
+FROM play_events e;
+
+CREATE OR REPLACE VIEW mart_count_state_baselines AS
+WITH terminal_pitches AS (
+  SELECT DISTINCT ON (p.game_pk, p.at_bat_index)
+    p.game_pk,
+    p.at_bat_index,
+    p.balls_before,
+    p.strikes_before,
+    a.event_type,
+    a.event_description
+  FROM pitches p
+  JOIN at_bats a
+    ON a.game_pk = p.game_pk
+   AND a.at_bat_index = p.at_bat_index
+  WHERE p.ended_plate_appearance = TRUE
+  ORDER BY p.game_pk, p.at_bat_index, p.pitch_number DESC
+)
+SELECT
+  balls_before,
+  strikes_before,
+  COUNT(*) AS plate_appearances,
+  COUNT(*) FILTER (WHERE event_type IN ('single', 'double', 'triple', 'home_run')) AS hits,
+  COUNT(*) FILTER (WHERE event_type IN ('walk', 'intent_walk')) AS walks,
+  COUNT(*) FILTER (WHERE event_type = 'strikeout') AS strikeouts,
+  COUNT(*) FILTER (WHERE event_type NOT IN ('walk', 'intent_walk', 'hit_by_pitch', 'sac_bunt', 'sac_fly', 'catcher_interf')) AS official_at_bats,
+  CASE
+    WHEN COUNT(*) FILTER (WHERE event_type NOT IN ('walk', 'intent_walk', 'hit_by_pitch', 'sac_bunt', 'sac_fly', 'catcher_interf')) > 0
+      THEN COUNT(*) FILTER (WHERE event_type IN ('single', 'double', 'triple', 'home_run'))::NUMERIC
+        / COUNT(*) FILTER (WHERE event_type NOT IN ('walk', 'intent_walk', 'hit_by_pitch', 'sac_bunt', 'sac_fly', 'catcher_interf'))
+    ELSE 0
+  END AS batting_average
+FROM terminal_pitches
+GROUP BY balls_before, strikes_before;
+
+CREATE OR REPLACE VIEW mart_count_state_delta_baselines AS
+SELECT
+  balls_before,
+  strikes_before,
+  balls_after,
+  strikes_after,
+  COUNT(*) AS pitch_count,
+  COUNT(*) FILTER (WHERE challenge_id IS NOT NULL) AS challenged_pitch_count,
+  COUNT(*) FILTER (WHERE is_overturned = TRUE) AS overturned_pitch_count
+FROM mart_game_pitch_timeline
+GROUP BY balls_before, strikes_before, balls_after, strikes_after;
+
+CREATE OR REPLACE VIEW mart_zone_outcome_baselines AS
+SELECT
+  zone,
+  pitch_type_code,
+  pitch_type_description,
+  COUNT(*) AS pitch_count,
+  COUNT(*) FILTER (WHERE is_strike = TRUE) AS strike_count,
+  COUNT(*) FILTER (WHERE is_ball = TRUE) AS ball_count,
+  COUNT(*) FILTER (WHERE challenge_id IS NOT NULL) AS challenged_pitch_count,
+  COUNT(*) FILTER (WHERE is_overturned = TRUE) AS overturned_pitch_count
+FROM mart_game_pitch_timeline
+GROUP BY zone, pitch_type_code, pitch_type_description;
+
+CREATE OR REPLACE VIEW mart_pitch_type_count_baselines AS
+SELECT
+  pitch_type_code,
+  pitch_type_description,
+  balls_before,
+  strikes_before,
+  COUNT(*) AS pitch_count,
+  AVG(start_speed)::NUMERIC AS avg_start_speed,
+  AVG(spin_rate)::NUMERIC AS avg_spin_rate,
+  COUNT(*) FILTER (WHERE challenge_id IS NOT NULL) AS challenged_pitch_count
+FROM mart_game_pitch_timeline
+GROUP BY pitch_type_code, pitch_type_description, balls_before, strikes_before;
+
+CREATE OR REPLACE VIEW mart_daily_editorial_summary AS
+SELECT
+  g.game_date::date AS summary_date,
+  COUNT(DISTINCT g.game_pk) AS games_tracked,
+  COUNT(c.challenge_id) AS challenges_total,
+  COUNT(*) FILTER (WHERE c.is_overturned = TRUE) AS overturns_total,
+  CASE
+    WHEN COUNT(c.challenge_id) > 0
+      THEN COUNT(*) FILTER (WHERE c.is_overturned = TRUE)::NUMERIC / COUNT(c.challenge_id)
+    ELSE 0
+  END AS overturn_rate,
+  COUNT(DISTINCT c.challenge_team_id) FILTER (WHERE c.challenge_id IS NOT NULL) AS teams_challenging,
+  AVG(team_summary.challenges_total)::NUMERIC AS avg_team_challenges,
+  COALESCE(JSONB_AGG(
+    DISTINCT JSONB_BUILD_OBJECT(
+      'teamId', team_summary.team_id,
+      'teamSide', team_summary.team_side,
+      'usedSuccessful', team_summary.used_successful,
+      'usedFailed', team_summary.used_failed,
+      'remaining', team_summary.remaining
+    )
+  ) FILTER (WHERE team_summary.team_id IS NOT NULL), '[]'::jsonb) AS team_summaries
+FROM games g
+LEFT JOIN abs_challenges c ON c.game_pk = g.game_pk
+LEFT JOIN team_abs_game_summary team_summary ON team_summary.game_pk = g.game_pk
+GROUP BY g.game_date::date;
+
+CREATE OR REPLACE VIEW mart_weekly_editorial_summary AS
+SELECT
+  DATE_TRUNC('week', g.game_date AT TIME ZONE 'UTC')::date AS week_start,
+  COUNT(DISTINCT g.game_pk) AS games_tracked,
+  COUNT(c.challenge_id) AS challenges_total,
+  COUNT(*) FILTER (WHERE c.is_overturned = TRUE) AS overturns_total,
+  CASE
+    WHEN COUNT(c.challenge_id) > 0
+      THEN COUNT(*) FILTER (WHERE c.is_overturned = TRUE)::NUMERIC / COUNT(c.challenge_id)
+    ELSE 0
+  END AS overturn_rate,
+  AVG(daily.challenges_total)::NUMERIC AS avg_daily_challenges,
+  AVG(daily.overturn_rate)::NUMERIC AS avg_daily_overturn_rate
+FROM games g
+LEFT JOIN abs_challenges c ON c.game_pk = g.game_pk
+LEFT JOIN mart_daily_editorial_summary daily ON daily.summary_date = g.game_date::date
+GROUP BY DATE_TRUNC('week', g.game_date AT TIME ZONE 'UTC')::date;

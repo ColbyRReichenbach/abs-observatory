@@ -21,7 +21,6 @@ describe("TeamMotifHero", () => {
     expect(html).toContain("Game 123");
     expect(html).toContain("NYY at BOS");
     expect(html).toContain("Fenway Park");
-    expect(html).toContain("Green Monster");
+    expect(html).toContain("Boston Red Sox Logo");
   });
 });
-

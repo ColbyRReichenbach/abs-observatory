@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import argparse
+import hashlib
+import json
 import os
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -15,6 +17,7 @@ load_dotenv()
 
 API_BASE = "https://statsapi.mlb.com/api/v1"
 API_BASE_V11 = "https://statsapi.mlb.com/api/v1.1"
+FINAL_PITCH_CALLED_TAKES = {"BALL", "CALLED STRIKE", "BALL IN DIRT"}
 
 
 def _bases_state(play: Dict[str, Any]) -> str:
@@ -30,6 +33,58 @@ def _parse_iso(s: Optional[str]) -> Optional[datetime]:
     if not s:
         return None
     return datetime.fromisoformat(s.replace("Z", "+00:00"))
+
+
+def _normalize_count_state(
+    balls: Optional[int],
+    strikes: Optional[int],
+    outs: Optional[int],
+) -> Dict[str, Optional[int]]:
+    return {
+        "balls": balls,
+        "strikes": strikes,
+        "outs": outs,
+    }
+
+
+def _derive_after_count(
+    before: Dict[str, Optional[int]],
+    event: Dict[str, Any],
+    is_last_pitch: bool,
+) -> Dict[str, Optional[int]]:
+    event_count = event.get("count") or {}
+    details = event.get("details") or {}
+
+    after_balls = event_count.get("balls")
+    after_strikes = event_count.get("strikes")
+    after_outs = event_count.get("outs")
+
+    if after_balls is None:
+        after_balls = before.get("balls")
+        if details.get("isBall") and not is_last_pitch and after_balls is not None:
+            after_balls = min(after_balls + 1, 4)
+
+    if after_strikes is None:
+        after_strikes = before.get("strikes")
+        if details.get("isStrike") and not is_last_pitch and after_strikes is not None:
+            code = ((details.get("call") or {}).get("code") or details.get("code") or "").upper()
+            if code == "F" and before.get("strikes") == 2:
+                after_strikes = before.get("strikes")
+            else:
+                after_strikes = min(after_strikes + 1, 3)
+
+    if after_outs is None:
+        after_outs = before.get("outs")
+
+    return _normalize_count_state(after_balls, after_strikes, after_outs)
+
+
+def _score_from_result(play: Dict[str, Any], previous: Dict[str, int]) -> Dict[str, int]:
+    result = play.get("result") or {}
+    return {
+        "home": int(result.get("homeScore", previous["home"])),
+        "away": int(result.get("awayScore", previous["away"])),
+    }
 
 
 def fetch_schedule(start_date: str, end_date: str, game_type: str = "S,R") -> List[int]:
@@ -51,6 +106,19 @@ def fetch_schedule(start_date: str, end_date: str, game_type: str = "S,R") -> Li
 def fetch_game_feed(game_pk: int) -> Dict[str, Any]:
     url = f"{API_BASE_V11}/game/{game_pk}/feed/live"
     return requests.get(url, timeout=30).json()
+
+
+def store_source_snapshot(cur, source_name: str, entity_key: str, payload: Dict[str, Any]) -> None:
+    payload_text = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    payload_hash = hashlib.sha256(payload_text.encode("utf-8")).hexdigest()
+    cur.execute(
+        """
+        INSERT INTO ops.source_snapshots (source_name, entity_key, payload_hash, payload)
+        VALUES (%s, %s, %s, %s)
+        ON CONFLICT DO NOTHING
+        """,
+        (source_name, entity_key, payload_hash, Json(payload)),
+    )
 
 
 def upsert_game(cur, feed: Dict[str, Any]) -> None:
@@ -165,17 +233,27 @@ def _challenge_from_review(
     challenge_level: str,
     pitch_number: Optional[int],
     pitch_event: Optional[Dict[str, Any]],
+    count_state: Optional[Dict[str, Optional[int]]] = None,
+    bases_state: Optional[str] = None,
+    inferred_pitch: Optional[Dict[str, Any]] = None,
 ) -> Optional[Tuple[Any, ...]]:
     if not review:
         return None
 
     matchup = play.get("matchup", {})
-    count = play.get("count", {})
+    count = count_state or play.get("count", {})
     about = play.get("about", {})
     result = play.get("result", {})
 
     pitch_data = (pitch_event or {}).get("pitchData", {})
     coords = pitch_data.get("coordinates", {})
+    location_source = "unresolved"
+    if coords.get("pX") is not None and coords.get("pZ") is not None:
+        location_source = "reviewed_pitch_px_pz"
+    elif coords.get("x") is not None and coords.get("y") is not None:
+        location_source = "reviewed_pitch_xy_only"
+    elif inferred_pitch:
+        location_source = inferred_pitch.get("location_source") or "unresolved"
 
     dedupe_key = f"{game_pk}:{about.get('atBatIndex')}:{pitch_number if pitch_number is not None else 'na'}:{review.get('challengeTeamId')}:{review.get('isOverturned')}:{challenge_level}"
 
@@ -216,30 +294,119 @@ def _challenge_from_review(
         matchup.get("pitcher", {}).get("fullName"),
         result.get("homeScore"),
         result.get("awayScore"),
-        _bases_state(play),
+        bases_state or _bases_state(play),
         coords.get("pX"),
         coords.get("pZ"),
         pitch_data.get("strikeZoneTop"),
         pitch_data.get("strikeZoneBottom"),
         _parse_iso(about.get("endTime")),
+        coords.get("x"),
+        coords.get("y"),
+        (inferred_pitch or {}).get("pitch_number"),
+        (inferred_pitch or {}).get("play_event_index"),
+        (inferred_pitch or {}).get("px"),
+        (inferred_pitch or {}).get("pz"),
+        (inferred_pitch or {}).get("strike_zone_top"),
+        (inferred_pitch or {}).get("strike_zone_bottom"),
+        (inferred_pitch or {}).get("zone"),
+        (inferred_pitch or {}).get("gameday_x"),
+        (inferred_pitch or {}).get("gameday_y"),
+        (inferred_pitch or {}).get("method"),
+        (inferred_pitch or {}).get("confidence"),
+        location_source,
     )
 
 
-def upsert_plays(cur, game_pk: int, feed: Dict[str, Any]) -> int:
+def _is_walk_like_result(result: Dict[str, Any]) -> bool:
+    event_type = (result.get("eventType") or "").lower()
+    return event_type in {"walk", "intent_walk"}
+
+
+def _is_strikeout_like_result(result: Dict[str, Any]) -> bool:
+    event_type = (result.get("eventType") or "").lower()
+    description = (result.get("description") or "").lower()
+    return event_type in {"strikeout", "strikeout_double_play"} or "called out on strikes" in description or "strikes out" in description
+
+
+def _infer_at_bat_review_pitch(play: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    play_events = play.get("playEvents", [])
+    pitch_events: List[Tuple[int, Dict[str, Any]]] = [
+        (event_index, event)
+        for event_index, event in enumerate(play_events)
+        if event.get("isPitch") and event.get("pitchNumber") is not None
+    ]
+    if not pitch_events:
+        return None
+
+    play_event_index, pitch_event = pitch_events[-1]
+    details = pitch_event.get("details", {})
+    pitch_data = pitch_event.get("pitchData", {})
+    coords = pitch_data.get("coordinates", {})
+    description = (details.get("description") or "").strip()
+    normalized_description = description.upper()
+    call_code = ((details.get("call") or {}).get("code") or details.get("code") or "").upper()
+    if normalized_description not in FINAL_PITCH_CALLED_TAKES and call_code not in {"B", "*B", "C"}:
+        return None
+
+    result = play.get("result", {})
+    confidence = "medium"
+    if _is_walk_like_result(result) and "BALL" in normalized_description:
+        confidence = "high"
+    elif _is_strikeout_like_result(result) and "STRIKE" in normalized_description:
+        confidence = "high"
+
+    location_source = "unresolved"
+    if coords.get("pX") is not None and coords.get("pZ") is not None:
+        location_source = "inferred_final_pitch_px_pz"
+    elif coords.get("x") is not None and coords.get("y") is not None:
+        location_source = "inferred_final_pitch_xy_only"
+
+    return {
+        "pitch_number": pitch_event.get("pitchNumber"),
+        "play_event_index": play_event_index,
+        "px": coords.get("pX"),
+        "pz": coords.get("pZ"),
+        "strike_zone_top": pitch_data.get("strikeZoneTop"),
+        "strike_zone_bottom": pitch_data.get("strikeZoneBottom"),
+        "zone": pitch_data.get("zone"),
+        "gameday_x": coords.get("x"),
+        "gameday_y": coords.get("y"),
+        "method": "at_bat_final_pitch_called_take",
+        "confidence": confidence,
+        "location_source": location_source,
+    }
+
+
+def _extract_game_rows(
+    game_pk: int, feed: Dict[str, Any]
+) -> Tuple[List[Tuple[Any, ...]], List[Tuple[Any, ...]], List[Tuple[Any, ...]], List[Tuple[Any, ...]]]:
     plays = feed.get("liveData", {}).get("plays", {}).get("allPlays", [])
     rows_at_bat = []
+    rows_play_event = []
     rows_pitch = []
     rows_challenge = []
 
     home_team_id = feed.get("gameData", {}).get("teams", {}).get("home", {}).get("id")
     away_team_id = feed.get("gameData", {}).get("teams", {}).get("away", {}).get("id")
-
     for play in plays:
         about = play.get("about", {})
         result = play.get("result", {})
         matchup = play.get("matchup", {})
         count = play.get("count", {})
         at_bat_index = about.get("atBatIndex")
+        play_events = play.get("playEvents", [])
+        first_event_count = next((ev.get("count") for ev in play_events if ev.get("count")), {}) or {}
+
+        current_count = _normalize_count_state(
+            0,
+            0,
+            first_event_count.get("outs", count.get("outs")),
+        )
+        current_score = {
+            "home": int(result.get("homeScore") or 0),
+            "away": int(result.get("awayScore") or 0),
+        }
+        bases_state = _bases_state(play)
 
         play["homeTeamId"] = home_team_id
         play["awayTeamId"] = away_team_id
@@ -263,24 +430,87 @@ def upsert_plays(cur, game_pk: int, feed: Dict[str, Any]) -> int:
                 count.get("outs"),
                 bool(about.get("isComplete", False)),
                 bool(about.get("isScoringPlay", False)),
+                bases_state,
+                bases_state,
+                current_score["home"],
+                current_score["away"],
+                result.get("homeScore", current_score["home"]),
+                result.get("awayScore", current_score["away"]),
             )
         )
 
         at_bat_review = play.get("reviewDetails")
         if at_bat_review:
-            row = _challenge_from_review(game_pk, play, at_bat_review, "at_bat", None, None)
+            inferred_pitch = _infer_at_bat_review_pitch(play)
+            row = _challenge_from_review(
+                game_pk,
+                play,
+                at_bat_review,
+                "at_bat",
+                None,
+                None,
+                current_count,
+                bases_state,
+                inferred_pitch,
+            )
             if row:
                 rows_challenge.append(row)
 
-        for ev in play.get("playEvents", []):
-            if not ev.get("isPitch"):
-                continue
+        for event_index, ev in enumerate(play_events):
+            is_pitch = bool(ev.get("isPitch"))
             pitch_data = ev.get("pitchData", {})
             details = ev.get("details", {})
             coords = pitch_data.get("coordinates", {})
             breaks = pitch_data.get("breaks", {})
             pitch_number = ev.get("pitchNumber")
-            if pitch_number is None:
+            is_last_event = event_index == len(play_events) - 1
+            after_count = _derive_after_count(current_count, ev, is_pitch and is_last_event)
+            score_after = _score_from_result(play, current_score) if is_last_event else dict(current_score)
+            event_type = details.get("eventType") or result.get("eventType")
+            event_code = (details.get("call") or {}).get("code") or details.get("code")
+            event_description = (details.get("call") or {}).get("description") or details.get("description") or result.get("description")
+            is_in_play = bool(details.get("isInPlay") or (event_code and str(event_code).upper() == "X"))
+            has_review = bool(details.get("hasReview", False) or ev.get("reviewDetails"))
+
+            rows_play_event.append(
+                (
+                    game_pk,
+                    at_bat_index,
+                    event_index,
+                    pitch_number,
+                    about.get("inning"),
+                    about.get("halfInning"),
+                    matchup.get("batter", {}).get("id"),
+                    matchup.get("batter", {}).get("fullName"),
+                    matchup.get("pitcher", {}).get("id"),
+                    matchup.get("pitcher", {}).get("fullName"),
+                    event_type,
+                    event_code,
+                    event_description,
+                    is_pitch,
+                    is_in_play,
+                    has_review,
+                    _parse_iso(ev.get("startTime")) or _parse_iso(about.get("startTime")),
+                    _parse_iso(ev.get("endTime")) or _parse_iso(about.get("endTime")),
+                    current_count.get("balls"),
+                    current_count.get("strikes"),
+                    current_count.get("outs"),
+                    after_count.get("balls"),
+                    after_count.get("strikes"),
+                    after_count.get("outs"),
+                    bases_state,
+                    bases_state,
+                    current_score["home"],
+                    current_score["away"],
+                    score_after["home"],
+                    score_after["away"],
+                    Json(ev),
+                )
+            )
+
+            if not is_pitch or pitch_number is None:
+                current_count = after_count
+                current_score = score_after
                 continue
 
             rows_pitch.append(
@@ -288,8 +518,16 @@ def upsert_plays(cur, game_pk: int, feed: Dict[str, Any]) -> int:
                     game_pk,
                     at_bat_index,
                     pitch_number,
+                    event_index,
+                    about.get("inning"),
+                    about.get("halfInning"),
+                    matchup.get("batter", {}).get("id"),
+                    matchup.get("batter", {}).get("fullName"),
+                    matchup.get("pitcher", {}).get("id"),
+                    matchup.get("pitcher", {}).get("fullName"),
                     (details.get("call") or {}).get("code") or details.get("code"),
-                    (details.get("call") or {}).get("description") or details.get("description"),
+                    event_description,
+                    event_description,
                     details.get("isBall"),
                     details.get("isStrike"),
                     (details.get("type") or {}).get("code"),
@@ -302,15 +540,51 @@ def upsert_plays(cur, game_pk: int, feed: Dict[str, Any]) -> int:
                     pitch_data.get("strikeZoneTop"),
                     pitch_data.get("strikeZoneBottom"),
                     pitch_data.get("zone"),
-                    bool(details.get("hasReview", False)),
+                    has_review,
+                    is_in_play,
+                    is_last_event,
+                    current_count.get("balls"),
+                    current_count.get("strikes"),
+                    current_count.get("outs"),
+                    after_count.get("balls"),
+                    after_count.get("strikes"),
+                    after_count.get("outs"),
+                    bases_state,
+                    bases_state,
+                    current_score["home"],
+                    current_score["away"],
+                    score_after["home"],
+                    score_after["away"],
+                    coords.get("x"),
+                    coords.get("y"),
                 )
             )
 
             event_review = ev.get("reviewDetails")
             if event_review:
-                row = _challenge_from_review(game_pk, play, event_review, "pitch", pitch_number, ev)
+                row = _challenge_from_review(
+                    game_pk,
+                    play,
+                    event_review,
+                    "pitch",
+                    pitch_number,
+                    ev,
+                    current_count,
+                    bases_state,
+                )
                 if row:
                     rows_challenge.append(row)
+
+            current_count = after_count
+            current_score = score_after
+
+    return rows_at_bat, rows_play_event, rows_pitch, rows_challenge
+
+
+def upsert_plays(cur, game_pk: int, feed: Dict[str, Any]) -> int:
+    rows_at_bat, rows_play_event, rows_pitch, rows_challenge = _extract_game_rows(game_pk, feed)
+
+    cur.execute("DELETE FROM at_bats WHERE game_pk = %s", (game_pk,))
 
     execute_batch(
         cur,
@@ -318,8 +592,10 @@ def upsert_plays(cur, game_pk: int, feed: Dict[str, Any]) -> int:
         INSERT INTO at_bats (
           game_pk, at_bat_index, inning, half_inning, start_time, end_time,
           batter_id, batter_name, pitcher_id, pitcher_name, event_type,
-          event_description, balls, strikes, outs, is_complete, is_scoring_play
-        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+          event_description, balls, strikes, outs, is_complete, is_scoring_play,
+          bases_state_start, bases_state_end, home_score_start, away_score_start,
+          home_score_end, away_score_end
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         ON CONFLICT (game_pk, at_bat_index) DO UPDATE SET
           inning = EXCLUDED.inning,
           half_inning = EXCLUDED.half_inning,
@@ -330,7 +606,13 @@ def upsert_plays(cur, game_pk: int, feed: Dict[str, Any]) -> int:
           strikes = EXCLUDED.strikes,
           outs = EXCLUDED.outs,
           is_complete = EXCLUDED.is_complete,
-          is_scoring_play = EXCLUDED.is_scoring_play
+          is_scoring_play = EXCLUDED.is_scoring_play,
+          bases_state_start = EXCLUDED.bases_state_start,
+          bases_state_end = EXCLUDED.bases_state_end,
+          home_score_start = EXCLUDED.home_score_start,
+          away_score_start = EXCLUDED.away_score_start,
+          home_score_end = EXCLUDED.home_score_end,
+          away_score_end = EXCLUDED.away_score_end
         """,
         rows_at_bat,
         page_size=500,
@@ -339,14 +621,64 @@ def upsert_plays(cur, game_pk: int, feed: Dict[str, Any]) -> int:
     execute_batch(
         cur,
         """
+        INSERT INTO play_events (
+          game_pk, at_bat_index, play_event_index, pitch_number, inning, half_inning,
+          batter_id, batter_name, pitcher_id, pitcher_name, event_type, event_code,
+          description, is_pitch, is_in_play, has_review, start_time, end_time,
+          balls_before, strikes_before, outs_before, balls_after, strikes_after, outs_after,
+          bases_state_before, bases_state_after, home_score_before, away_score_before,
+          home_score_after, away_score_after, raw_payload
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        ON CONFLICT (game_pk, at_bat_index, play_event_index) DO UPDATE SET
+          pitch_number = EXCLUDED.pitch_number,
+          event_type = EXCLUDED.event_type,
+          event_code = EXCLUDED.event_code,
+          description = EXCLUDED.description,
+          is_pitch = EXCLUDED.is_pitch,
+          is_in_play = EXCLUDED.is_in_play,
+          has_review = EXCLUDED.has_review,
+          balls_before = EXCLUDED.balls_before,
+          strikes_before = EXCLUDED.strikes_before,
+          outs_before = EXCLUDED.outs_before,
+          balls_after = EXCLUDED.balls_after,
+          strikes_after = EXCLUDED.strikes_after,
+          outs_after = EXCLUDED.outs_after,
+          bases_state_before = EXCLUDED.bases_state_before,
+          bases_state_after = EXCLUDED.bases_state_after,
+          home_score_before = EXCLUDED.home_score_before,
+          away_score_before = EXCLUDED.away_score_before,
+          home_score_after = EXCLUDED.home_score_after,
+          away_score_after = EXCLUDED.away_score_after,
+          raw_payload = EXCLUDED.raw_payload
+        """,
+        rows_play_event,
+        page_size=1000,
+    )
+
+    execute_batch(
+        cur,
+        """
         INSERT INTO pitches (
-          game_pk, at_bat_index, pitch_number, called_code, called_description,
+          game_pk, at_bat_index, pitch_number, play_event_index, inning, half_inning,
+          batter_id, batter_name, pitcher_id, pitcher_name, called_code, called_description, play_description,
           is_ball, is_strike, pitch_type_code, pitch_type_description, start_speed,
-          end_speed, spin_rate, px, pz, strike_zone_top, strike_zone_bottom, zone, has_review
-        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+          end_speed, spin_rate, px, pz, strike_zone_top, strike_zone_bottom, zone, has_review,
+          is_in_play, ended_plate_appearance, balls_before, strikes_before, outs_before,
+          balls_after, strikes_after, outs_after, bases_state_before, bases_state_after,
+          home_score_before, away_score_before, home_score_after, away_score_after,
+          gameday_x, gameday_y
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         ON CONFLICT (game_pk, at_bat_index, pitch_number) DO UPDATE SET
+          play_event_index = EXCLUDED.play_event_index,
+          inning = EXCLUDED.inning,
+          half_inning = EXCLUDED.half_inning,
+          batter_id = EXCLUDED.batter_id,
+          batter_name = EXCLUDED.batter_name,
+          pitcher_id = EXCLUDED.pitcher_id,
+          pitcher_name = EXCLUDED.pitcher_name,
           called_code = EXCLUDED.called_code,
           called_description = EXCLUDED.called_description,
+          play_description = EXCLUDED.play_description,
           is_ball = EXCLUDED.is_ball,
           is_strike = EXCLUDED.is_strike,
           pitch_type_code = EXCLUDED.pitch_type_code,
@@ -359,7 +691,23 @@ def upsert_plays(cur, game_pk: int, feed: Dict[str, Any]) -> int:
           strike_zone_top = EXCLUDED.strike_zone_top,
           strike_zone_bottom = EXCLUDED.strike_zone_bottom,
           zone = EXCLUDED.zone,
-          has_review = EXCLUDED.has_review
+          has_review = EXCLUDED.has_review,
+          is_in_play = EXCLUDED.is_in_play,
+          ended_plate_appearance = EXCLUDED.ended_plate_appearance,
+          balls_before = EXCLUDED.balls_before,
+          strikes_before = EXCLUDED.strikes_before,
+          outs_before = EXCLUDED.outs_before,
+          balls_after = EXCLUDED.balls_after,
+          strikes_after = EXCLUDED.strikes_after,
+          outs_after = EXCLUDED.outs_after,
+          bases_state_before = EXCLUDED.bases_state_before,
+          bases_state_after = EXCLUDED.bases_state_after,
+          home_score_before = EXCLUDED.home_score_before,
+          away_score_before = EXCLUDED.away_score_before,
+          home_score_after = EXCLUDED.home_score_after,
+          away_score_after = EXCLUDED.away_score_after,
+          gameday_x = EXCLUDED.gameday_x,
+          gameday_y = EXCLUDED.gameday_y
         """,
         rows_pitch,
         page_size=1000,
@@ -374,14 +722,31 @@ def upsert_plays(cur, game_pk: int, feed: Dict[str, Any]) -> int:
           review_type, in_progress, called_code, called_description, inning, half_inning,
           balls, strikes, outs, batter_id, batter_name, pitcher_id, pitcher_name,
           home_score, away_score, bases_state, px, pz, strike_zone_top, strike_zone_bottom,
-          challenged_at
-        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+          challenged_at, gameday_x, gameday_y, inferred_pitch_number, inferred_play_event_index,
+          inferred_px, inferred_pz, inferred_strike_zone_top, inferred_strike_zone_bottom,
+          inferred_zone, inferred_gameday_x, inferred_gameday_y, inference_method,
+          inference_confidence, location_source
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         ON CONFLICT (dedupe_key) DO UPDATE SET
           is_overturned = EXCLUDED.is_overturned,
           in_progress = EXCLUDED.in_progress,
           called_code = EXCLUDED.called_code,
           called_description = EXCLUDED.called_description,
-          challenged_at = EXCLUDED.challenged_at
+          challenged_at = EXCLUDED.challenged_at,
+          gameday_x = EXCLUDED.gameday_x,
+          gameday_y = EXCLUDED.gameday_y,
+          inferred_pitch_number = EXCLUDED.inferred_pitch_number,
+          inferred_play_event_index = EXCLUDED.inferred_play_event_index,
+          inferred_px = EXCLUDED.inferred_px,
+          inferred_pz = EXCLUDED.inferred_pz,
+          inferred_strike_zone_top = EXCLUDED.inferred_strike_zone_top,
+          inferred_strike_zone_bottom = EXCLUDED.inferred_strike_zone_bottom,
+          inferred_zone = EXCLUDED.inferred_zone,
+          inferred_gameday_x = EXCLUDED.inferred_gameday_x,
+          inferred_gameday_y = EXCLUDED.inferred_gameday_y,
+          inference_method = EXCLUDED.inference_method,
+          inference_confidence = EXCLUDED.inference_confidence,
+          location_source = EXCLUDED.location_source
         """,
         rows_challenge,
         page_size=250,
@@ -446,6 +811,7 @@ def write_snapshot(cur, game_pk: int, feed: Dict[str, Any]) -> None:
 
 def ingest_game(cur, game_pk: int) -> Tuple[int, bool]:
     feed = fetch_game_feed(game_pk)
+    store_source_snapshot(cur, "mlb_statsapi.feed_live", f"game:{game_pk}", feed)
     upsert_game(cur, feed)
     upsert_officials(cur, game_pk, feed)
     upsert_abs_counters(cur, game_pk, feed)

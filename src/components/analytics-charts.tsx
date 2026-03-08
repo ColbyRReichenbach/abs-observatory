@@ -1,54 +1,105 @@
 "use client";
 
 import { useMemo } from "react";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { TeamTrendPoint, UmpireTrendPoint } from "@/lib/types";
+import {
+    Area,
+    AreaChart,
+    CartesianGrid,
+    Legend,
+    Line,
+    LineChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from "recharts";
 import { format } from "date-fns";
+import type { TeamTrendPoint, UmpireTrendPoint } from "@/lib/types";
+import { ChartTooltip, ChartTooltipRow } from "@/components/ui/chart-tooltip";
 
+/* ── S3-5: Dual-line Team Trajectory Chart ── */
 export function TeamTrendChart({ data, teamColor }: { data: TeamTrendPoint[]; teamColor: string }) {
-    // We need to map the data so recharts can consume it smoothly
     const formattedData = useMemo(() => {
-        return data.map((d) => ({
-            date: format(new Date(d.gameDate), "MMM d"),
-            successPct: d.challengesTotal > 0 ? (d.usedSuccessful / d.challengesTotal) * 100 : 0,
-            challenges: d.challengesTotal,
-            successful: d.usedSuccessful,
-            opponent: d.opponentName,
-        })).reverse(); // oldest to newest usually looks better on charts left-to-right
+        return data
+            .map((d) => ({
+                date: format(new Date(d.gameDate), "MMM d"),
+                successPct: d.challengesTotal > 0 ? (d.usedSuccessful / d.challengesTotal) * 100 : 0,
+                failPct: d.challengesTotal > 0 ? (d.usedFailed / d.challengesTotal) * 100 : 0,
+                challenges: d.challengesTotal,
+                successful: d.usedSuccessful,
+                failed: d.usedFailed,
+                opponent: d.opponentName,
+            }))
+            .reverse();
     }, [data]);
 
-    if (!formattedData.length) return <div className="text-gray-400 text-sm p-4">No data</div>;
+    if (!formattedData.length)
+        return <div className="text-gray-400 text-sm p-4">No data</div>;
 
     return (
         <div className="h-[250px] w-full mt-6">
             <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={formattedData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                    <defs>
-                        <linearGradient id="colorSuccess" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor={teamColor} stopOpacity={0.3} />
-                            <stop offset="95%" stopColor={teamColor} stopOpacity={0} />
-                        </linearGradient>
-                    </defs>
+                <LineChart data={formattedData} margin={{ top: 15, right: 15, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
-                    <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: "#9ca3af" }} dy={10} />
-                    <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: "#9ca3af" }} dx={-10} tickFormatter={(val) => `${val}%`} />
+                    <XAxis
+                        dataKey="date"
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fontSize: 10, fill: "#9ca3af" }}
+                        dy={10}
+                    />
+                    <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fontSize: 10, fill: "#9ca3af" }}
+                        dx={-10}
+                        tickFormatter={(val) => `${val}%`}
+                    />
                     <Tooltip
                         content={({ active, payload }) => {
                             if (active && payload && payload.length) {
-                                const data = payload[0].payload;
+                                const d = payload[0].payload;
                                 return (
-                                    <div className="bg-white p-3 rounded-2xl shadow-xl border border-gray-100">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">{data.date} vs {data.opponent}</p>
-                                        <p className="text-2xl font-display" style={{ color: teamColor }}>{data.successPct.toFixed(0)}%</p>
-                                        <p className="text-xs font-bold text-gray-500 mt-1">{data.successful} / {data.challenges} Overturns</p>
-                                    </div>
-                                )
+                                    <ChartTooltip
+                                        title={`${d.date} vs ${d.opponent}`}
+                                        extra={[
+                                            { label: "Success Rate", value: `${d.successPct.toFixed(0)}%`, color: teamColor },
+                                            { label: "Failure Rate", value: `${d.failPct.toFixed(0)}%`, color: "#d70015" },
+                                            { label: "Total Challenges", value: d.challenges },
+                                        ]}
+                                    />
+                                );
                             }
                             return null;
                         }}
                     />
-                    <Area type="monotone" dataKey="successPct" stroke={teamColor} strokeWidth={3} fillOpacity={1} fill="url(#colorSuccess)" />
-                </AreaChart>
+                    <Legend
+                        verticalAlign="top"
+                        height={28}
+                        wrapperStyle={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 800 }}
+                    />
+                    {/* Offensive success line */}
+                    <Line
+                        type="monotone"
+                        dataKey="successPct"
+                        name="Success %"
+                        stroke={teamColor}
+                        strokeWidth={2.5}
+                        dot={false}
+                        activeDot={{ r: 4, strokeWidth: 2, fill: "white" }}
+                    />
+                    {/* Failure / loss line */}
+                    <Line
+                        type="monotone"
+                        dataKey="failPct"
+                        name="Failure %"
+                        stroke="#d70015"
+                        strokeWidth={1.5}
+                        strokeDasharray="4 4"
+                        dot={false}
+                        activeDot={{ r: 3, strokeWidth: 2, fill: "white" }}
+                    />
+                </LineChart>
             </ResponsiveContainer>
         </div>
     );
@@ -56,46 +107,73 @@ export function TeamTrendChart({ data, teamColor }: { data: TeamTrendPoint[]; te
 
 export function UmpireAccuracyChart({ data }: { data: UmpireTrendPoint[] }) {
     const formattedData = useMemo(() => {
-        return data.map((d) => ({
-            date: format(new Date(d.gameDate), "MMM d"),
-            accuracy: d.accuracy * 100,
-            overturned: d.overturnedCount,
-            challenged: d.challengedCount
-        })).reverse();
+        return data
+            .map((d) => ({
+                date: format(new Date(d.gameDate), "MMM d"),
+                accuracy: d.accuracy * 100,
+                overturned: d.overturnedCount,
+                challenged: d.challengedCount,
+            }))
+            .reverse();
     }, [data]);
 
-    if (!formattedData.length) return <div className="text-gray-400 text-sm p-4">No data</div>;
+    if (!formattedData.length)
+        return <div className="text-gray-400 text-sm p-4">No data</div>;
 
     return (
         <div className="h-[250px] w-full mt-6">
             <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={formattedData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                <AreaChart data={formattedData} margin={{ top: 15, right: 15, left: 0, bottom: 5 }}>
+                    <defs>
+                        <linearGradient id="colorAccuracy" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                        </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
-                    <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: "#9ca3af" }} dy={10} />
-                    <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: "#9ca3af" }} dx={-10} tickFormatter={(val) => `${val}%`} domain={[0, 100]} />
+                    <XAxis
+                        dataKey="date"
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fontSize: 10, fill: "#9ca3af" }}
+                        dy={10}
+                    />
+                    <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fontSize: 10, fill: "#9ca3af" }}
+                        dx={-10}
+                        tickFormatter={(val) => `${val}%`}
+                        domain={[0, 100]}
+                    />
                     <Tooltip
-                        cursor={{ fill: 'rgba(0,0,0,0.02)' }}
                         content={({ active, payload }) => {
                             if (active && payload && payload.length) {
-                                const data = payload[0].payload;
+                                const d = payload[0].payload;
                                 return (
-                                    <div className="bg-white p-3 rounded-2xl shadow-xl border border-gray-100">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">{data.date}</p>
-                                        <p className="text-2xl font-display text-blue-600">{data.accuracy.toFixed(1)}%</p>
-                                        <p className="text-xs font-bold text-gray-500 mt-1">{data.overturned} Overturned / {data.challenged} Challenges</p>
-                                    </div>
-                                )
+                                    <ChartTooltip
+                                        title={d.date}
+                                        value={`${d.accuracy.toFixed(1)}%`}
+                                        label="Accuracy"
+                                        extra={[
+                                            { label: "Overturned", value: d.overturned },
+                                            { label: "Challenged", value: d.challenged },
+                                        ]}
+                                    />
+                                );
                             }
                             return null;
                         }}
                     />
-                    <Bar
+                    <Area
+                        type="monotone"
                         dataKey="accuracy"
-                        fill="#3b82f6"
-                        radius={[4, 4, 0, 0]}
-                        maxBarSize={40}
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                        fillOpacity={1}
+                        fill="url(#colorAccuracy)"
                     />
-                </BarChart>
+                </AreaChart>
             </ResponsiveContainer>
         </div>
     );

@@ -1,6 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => "/game/123",
+}));
+
 vi.mock("@/lib/data", () => ({
   getGame: vi.fn(async () => ({
     gamepk: 123,
@@ -89,12 +95,16 @@ import GamePage from "@/app/game/[gamePk]/page";
 
 describe("game page route", () => {
   it("renders game shell for a known game id", async () => {
-    const element = await GamePage({ params: Promise.resolve({ gamePk: "123" }) });
+    const element = await GamePage({
+      params: Promise.resolve({ gamePk: "123" }),
+      searchParams: Promise.resolve({}),
+    });
     const html = renderToStaticMarkup(element);
 
-    expect(html).toContain("Game 123");
-    expect(html).toContain("New York Yankees at Boston Red Sox");
-    expect(html).toContain("Fenway Park");
     expect(html).toContain("Game scoreboard");
+    expect(html).toContain("BOS");
+    expect(html).toContain("NYY");
+    expect(html).toContain("Fenway Park");
+    expect(html).toContain("Live");
   });
 });

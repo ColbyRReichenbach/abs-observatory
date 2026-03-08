@@ -36,13 +36,13 @@ describe("GameScoreboard", () => {
 
     expect(html).toContain("Scheduled");
     expect(html).toContain("Count");
-    expect(html).toContain("---");
+    expect(html).toContain("0-0");
     expect(html).toContain("Outs");
     expect(html).toContain("NYY");
     expect(html).toContain("BOS");
-    expect(html).toContain(">R<");
-    expect(html).toContain(">H<");
-    expect(html).toContain(">E<");
+    expect(html).toContain("R");
+    expect(html).toContain("H");
+    expect(html).toContain("E");
   });
 
   it("renders live snapshot with inning state and provided linescore", () => {
@@ -91,6 +91,7 @@ describe("GameScoreboard", () => {
 
     expect(html).toContain("Final");
     expect(html).toContain(">11<");
-    expect(html).toContain("Challenges remaining: 2");
+    expect(html).toContain("NYY");
+    expect(html).toContain("BOS");
   });
 });

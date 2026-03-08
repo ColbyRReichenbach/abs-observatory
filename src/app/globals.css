@@ -81,6 +81,26 @@
   outline-offset: 4px;
 }
 
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: 1rem;
+  z-index: 1000;
+  padding: 0.75rem 1rem;
+  border-radius: 999px;
+  background: var(--surface-0);
+  color: var(--ink-0);
+  border: 1px solid var(--border-medium);
+  text-decoration: none;
+  font-weight: 700;
+  transform: translateY(-200%);
+  transition: transform var(--motion-fast) var(--motion-ease-standard);
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -105,7 +125,7 @@ body {
   transition: all var(--motion-mid) var(--motion-ease-spring);
   box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.02),
-    0 8px 24px rgba(0, 0, 0, 0.04);
+    0 10px 24px -4px rgba(0, 0, 0, 0.04);
 }
 
 .panel:hover {
@@ -113,8 +133,8 @@ body {
   border-color: var(--border-medium);
   transform: translateY(-4px) scale(1.005);
   box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.02),
-    0 24px 48px rgba(0, 0, 0, 0.08);
+    0 4px 6px -1px rgba(0, 0, 0, 0.02),
+    0 25px 50px -12px rgba(0, 0, 0, 0.15);
 }
 
 /* ── Typography ── */
@@ -214,4 +234,16 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--surface-4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

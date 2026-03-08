@@ -7,6 +7,7 @@ Public-facing MLB ABS challenge analytics app.
 - Postgres (Supabase-compatible schema)
 - Python ETL for MLB StatsAPI ingestion
 - OpenAI API for guarded NL-to-SQL and report narratives
+- Clerk-ready auth plumbing for profiles, comments, and AI history
 
 ## Implemented V1 Surfaces
 - `/` live + recent games overview
@@ -20,10 +21,12 @@ Public-facing MLB ABS challenge analytics app.
 ## Database Setup
 1. Create a Postgres database.
 2. Copy `.env.example` to `.env.local` and set `DATABASE_URL`.
+3. Optional: add Clerk credentials for authenticated profile/comment flows.
 3. Apply schema + seed + views:
 
 ```bash
 npm run db:schema
+npm run db:smoke
 ```
 
 ## ETL Setup
@@ -81,6 +84,8 @@ npm run dev
 
 ```bash
 npm run test
+npm run test:e2e
+npm run etl:test
 npm run lint
 npm run build
 ```
@@ -119,3 +124,14 @@ Launch and case-study assets:
   - `allPlays[].reviewDetails`
   - `allPlays[].playEvents[].reviewDetails`
 - Team metadata is locally seeded for deterministic logos/colors.
+- New production backend foundation APIs:
+  - `/api/me`
+  - `/api/profile`
+  - `/api/articles`
+  - `/api/comments`
+  - `/api/ai/chat`
+  - `/api/webhooks/clerk`
+- When Clerk is not configured, authenticated endpoints can be exercised in development with request headers such as:
+  - `x-dev-user-id`
+  - `x-dev-user-email`
+  - `x-dev-user-name`

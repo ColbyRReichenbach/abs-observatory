@@ -36,18 +36,16 @@ const challenge: ChallengeEvent = {
 describe("StrikeZonePlot", () => {
   it("renders non-color legend labels and marker short code", () => {
     const html = renderToStaticMarkup(<StrikeZonePlot challenges={[challenge]} />);
-    expect(html).toContain("B-&gt;S Ball to Strike");
-    expect(html).toContain("S-&gt;B Strike to Ball");
-    expect(html).toContain("CFM Confirmed");
-    expect(html).toContain("OT Other Overturned");
-    // Marker short code uses unicode arrow
-    expect(html).toContain("B\u2192S");
+    expect(html).toContain("Strike (Corrected)");
+    expect(html).toContain("Ball (Corrected)");
+    expect(html).toContain("Confirmed");
+    expect(html).toContain("Overturned");
+    expect(html).toContain(">K<");
   });
 
   it("renders optional count and pitch overlays", () => {
     const html = renderToStaticMarkup(<StrikeZonePlot challenges={[challenge]} showCountOverlay showPitchOverlay />);
     expect(html).toContain("2-1");
-    expect(html).toContain("#5 Slider");
+    expect(html).toContain("Slider");
   });
 });
-

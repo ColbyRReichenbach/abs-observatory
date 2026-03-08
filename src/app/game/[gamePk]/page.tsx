@@ -1,18 +1,24 @@
 import { notFound } from "next/navigation";
 
-import { ChallengeExplorer } from "@/components/challenge-explorer";
-import { ChallengeValueCard } from "@/components/challenge-value-card";
 import { GameShell } from "@/components/game-shell";
-import { getGame, getGameAbsCounters, getGameChallenges, getGameLiveStatus, getTeamSummary } from "@/lib/data";
+import { getGame, getGameAbsCounters, getGameChallenges, getGameLiveStatus } from "@/lib/data";
 import { PregameScoutingReport } from "@/components/game-hub/pregame-hub";
 import { LiveWarRoom } from "@/components/game-hub/live-hub";
 import { PostgameAAR } from "@/components/game-hub/postgame-hub";
 import { GameHubRouter } from "@/components/game-hub/game-hub-router";
+import { BackPill } from "@/components/ui/back-pill";
 
 export const dynamic = "force-dynamic";
 
-export default async function GamePage({ params }: { params: Promise<{ gamePk: string }> }) {
+export default async function GamePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ gamePk: string }>;
+  searchParams: Promise<{ challengeId?: string }>;
+}) {
   const { gamePk } = await params;
+  const { challengeId } = await searchParams;
   const gameId = Number(gamePk);
   const [game, challenges, counters, liveStatus] = await Promise.all([
     getGame(gameId),
@@ -22,10 +28,6 @@ export default async function GamePage({ params }: { params: Promise<{ gamePk: s
   ]);
 
   if (!game) return notFound();
-  const [homeSummary, awaySummary] = await Promise.all([
-    getTeamSummary(Number(game.hometeamid)),
-    getTeamSummary(Number(game.awayteamid)),
-  ]);
   const latest = challenges.at(-1);
   const defaultRemaining =
     latest?.challengeTeamId && counters
@@ -52,48 +54,17 @@ export default async function GamePage({ params }: { params: Promise<{ gamePk: s
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-8">
+      <BackPill label="Schedule" useHistory />
       <GameHubRouter status={game.statusabstract} />
       <GameShell game={game} liveStatus={liveStatus} counters={counters} />
 
       {isPregame ? (
         <PregameScoutingReport game={game} />
       ) : isFinal ? (
-        <PostgameAAR game={game} challenges={challenges} />
+        <PostgameAAR game={game} challenges={challenges} initialChallengeId={challengeId} />
       ) : (
-        <LiveWarRoom game={game} challenges={challenges} liveStatus={liveStatus} counters={counters} />
+        <LiveWarRoom game={game} challenges={challenges} liveStatus={liveStatus} counters={counters} initialChallengeId={challengeId} />
       )}
     </main>
-  );
-}
-
-function PreviewCard({
-  title,
-  challenges,
-  overturnRate,
-  avgRemaining,
-}: {
-  title: string;
-  challenges: number;
-  overturnRate: number;
-  avgRemaining: number;
-}) {
-  return (
-    <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-infield)] p-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--ink-1)]">{title}</p>
-      <div className="mt-3 grid grid-cols-3 gap-3">
-        <div>
-          <p className="text-[9px] uppercase tracking-[0.08em] text-[var(--ink-3)]">Challenges</p>
-          <p className="mt-1 font-display text-xl text-[var(--ink-0)]">{challenges}</p>
-        </div>
-        <div>
-          <p className="text-[9px] uppercase tracking-[0.08em] text-[var(--ink-3)]">Overturn Rate</p>
-          <p className="mt-1 font-display text-xl text-[var(--ink-0)]">{(overturnRate * 100).toFixed(1)}%</p>
-        </div>
-        <div>
-          <p className="text-[9px] uppercase tracking-[0.08em] text-[var(--ink-3)]">Avg Remaining</p>
-          <p className="mt-1 font-display text-xl text-[var(--ink-0)]">{avgRemaining.toFixed(2)}</p>
-        </div>
-      </div>
-    </div>
   );
 }

@@ -1,198 +1,237 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-    Send,
-    Zap,
-    Activity,
-    Share2
-} from "lucide-react";
-import { AiBSIcon } from "@/components/ui/aibs-icon";
-import { BaseballSpinner } from "@/components/baseball-spinner";
+import { AnimatePresence, motion } from "framer-motion";
+import { Activity, AlertCircle, FileText, Loader2, Send } from "lucide-react";
 
-function XIcon({ size = 18, className = "" }: { size?: number, className?: string }) {
-    return (
-        <svg
-            width={size}
-            height={size}
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            className={className}
-        >
-            <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932 6.064-6.932zm-1.294 19.497h2.039L6.482 3.239H4.293L17.607 20.65z" />
-        </svg>
-    );
-}
+import { BaseballSpinner } from "@/components/baseball-spinner";
+import { AiBSIcon } from "@/components/ui/aibs-icon";
+import type { AIChatResponse } from "@/lib/types";
 
 export function AIBSVisualizerChat({
-    context,
-    teamColor = "#007aff"
+  context,
+  teamColor = "#007aff",
 }: {
-    context: string,
-    teamColor?: string
+  context: string;
+  teamColor?: string;
 }) {
-    const [query, setQuery] = useState("");
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [result, setResult] = useState<{ query: string; id: string } | null>(null);
+  const [query, setQuery] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [result, setResult] = useState<{
+    query: string;
+    answer: string;
+    citations: string[];
+    toolResults: Array<{ toolName: string; payload: unknown }>;
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!query.trim()) return;
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!query.trim()) return;
 
-        setIsGenerating(true);
-        setResult(null);
+    setIsGenerating(true);
+    setResult(null);
+    setError(null);
 
-        // Simulate AI visualization generation
-        setTimeout(() => {
-            setIsGenerating(false);
-            setResult({
-                query: query,
-                id: Math.random().toString(36).substring(7)
-            });
-            setQuery("");
-        }, 2200);
-    };
+    try {
+      const prompt = `For ${context}, propose one useful chart or table for this question and explain the baseball takeaway using only AiBS data. Question: ${query.trim()}`;
+      const response = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: prompt, delivery: "sync" }),
+      });
+      const payload = (await response.json()) as AIChatResponse;
 
-    const handleShare = (platform: string) => {
-        const text = `Check out this custom ${context} visualization I generated on ABS Observatory!`;
-        const url = window.location.href;
+      if (!response.ok || payload.safetyDisposition === "blocked") {
+        setError(payload.error || payload.answer || "Unable to generate a visualization brief right now.");
+        return;
+      }
 
-        if (platform === 'x') {
-            window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
-        } else if (platform === 'copy') {
-            navigator.clipboard.writeText(url);
-            alert("Link copied to clipboard!");
-        }
-    };
+      setResult({
+        query,
+        answer: payload.answer,
+        citations: payload.citations,
+        toolResults: payload.toolResults,
+      });
+      setQuery("");
+    } catch {
+      setError("Unable to generate a visualization brief right now.");
+    } finally {
+      setIsGenerating(false);
+    }
+  }
 
-    return (
-        <section className="mt-20 pb-32 w-full max-w-5xl mx-auto px-4">
-            <div className="flex flex-col gap-8">
-                <div className="flex items-center gap-4">
-                    <div className="h-px flex-1 bg-gray-100" />
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 whitespace-nowrap">
-                        Visualize your own ideas
-                    </p>
-                    <div className="h-px flex-1 bg-gray-100" />
-                </div>
+  return (
+    <section className="mt-20 mx-auto w-full max-w-5xl px-4 pb-32">
+      <div className="flex flex-col gap-8">
+        <div className="flex items-center gap-4">
+          <div className="h-px flex-1 bg-gray-100" />
+          <p className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">
+            Visualize your own ideas
+          </p>
+          <div className="h-px flex-1 bg-gray-100" />
+        </div>
 
-                <div className="relative group">
-                    <div className="panel p-2 pl-6 bg-white shadow-xl shadow-black/[0.02] border border-gray-100 rounded-full flex items-center gap-4 transition-all focus-within:border-gray-200 focus-within:shadow-lg focus-within:shadow-black/[0.04]">
-                        <div className="shrink-0 -ml-2 text-blue-500">
-                            <AiBSIcon size={20} showTextOnHover />
-                        </div>
-                        <form onSubmit={handleSubmit} className="flex-1 flex items-center">
-                            <input
-                                type="text"
-                                value={query}
-                                onChange={(e) => setQuery(e.target.value)}
-                                placeholder={`Ask aiBS to generate a visual for ${context} you're interested in...`}
-                                className="w-full bg-transparent border-0 !outline-none focus:outline-none focus:ring-0 focus:border-transparent focus:shadow-none focus-visible:outline-none focus-visible:ring-0 focus-visible:border-transparent [box-shadow:none_!important] [outline:none_!important] [-webkit-tap-highlight-color:transparent] text-sm font-medium text-gray-900 placeholder:text-gray-400 placeholder:opacity-50"
-                            />
-                            <button
-                                type="submit"
-                                disabled={isGenerating || !query.trim()}
-                                className="px-6 py-2.5 rounded-full bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-black active:scale-95 transition-all flex items-center gap-2 disabled:opacity-30 disabled:pointer-events-none"
-                            >
-                                {isGenerating ? (
-                                    <>
-                                        <Zap size={12} className="animate-spin" />
-                                        <span>Generating</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Send size={12} />
-                                        <span>Visualize</span>
-                                    </>
-                                )}
-                            </button>
-                        </form>
-                    </div>
-                </div>
-
-                <AnimatePresence mode="wait">
-                    {isGenerating && (
-                        <motion.div
-                            key="generating"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="py-12"
-                        >
-                            <BaseballSpinner />
-                        </motion.div>
-                    )}
-
-                    {result && (
-                        <motion.div
-                            key="result"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="w-full"
-                        >
-                            <div className="panel p-0 bg-white shadow-2xl shadow-black/[0.05] border border-gray-100 overflow-hidden rounded-[2.5rem]">
-                                {/* Header Area */}
-                                <div className="px-10 py-8 border-b border-gray-50 flex justify-between items-center">
-                                    <div>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1">Generated Visualization</p>
-                                        <h4 className="text-xl font-display uppercase tracking-tight text-gray-900">"{result.query}"</h4>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => handleShare('x')}
-                                            className="p-3 rounded-2xl bg-gray-50 text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-all border border-transparent hover:border-gray-200"
-                                        >
-                                            <XIcon size={16} />
-                                        </button>
-                                        <button
-                                            onClick={() => handleShare('copy')}
-                                            className="px-6 py-3 rounded-2xl bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-3 hover:bg-black transition-all"
-                                        >
-                                            <Share2 size={14} />
-                                            Share Link
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Placeholder Graph Area */}
-                                <div className="aspect-[21/9] w-full bg-gray-50 relative flex items-center justify-center p-20">
-                                    <div className="absolute inset-0 opacity-[0.03] bg-[repeating-linear-gradient(45deg,transparent,transparent_20px,black_20px,black_21px)]" />
-                                    <div className="relative text-center">
-                                        <div className="w-20 h-20 rounded-full bg-white shadow-xl flex items-center justify-center mx-auto mb-6">
-                                            <Activity className="text-blue-500" size={32} />
-                                        </div>
-                                        <p className="text-2xl font-display uppercase tracking-tight text-gray-900 mb-2">Visualizing Dataset...</p>
-                                        <p className="text-sm font-medium text-gray-400 max-w-xs mx-auto">AI is rendering situational clusters and trend vectors based on the {context} schema.</p>
-                                    </div>
-                                </div>
-
-                                {/* Metadata/Footer */}
-                                <div className="px-10 py-6 bg-gray-50/50 border-t border-gray-50 flex flex-col md:flex-row justify-between items-center gap-4">
-                                    <div className="flex items-center gap-6">
-                                        <div className="flex items-center gap-2">
-                                            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                                            <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Model: aiBS-4-Turbo</p>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="h-2 w-2 rounded-full bg-blue-500" />
-                                            <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Context: {context}</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-center md:text-right">
-                                        <p className="text-[10px] font-bold text-gray-400 italic">
-                                            Built via <span className="text-blue-600 not-italic font-black">aiBS</span> a creation by <span className="text-gray-900 not-italic font-black">Colby Reichenbach</span>
-                                        </p>
-                                        <p className="text-[8px] font-black uppercase tracking-widest text-gray-300 mt-1">
-                                            ABS Observatory &copy; 2026 • Verified Authenticity
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+        <div className="relative group">
+          <div className="panel flex items-center gap-4 rounded-full border border-gray-100 bg-white p-2 pl-6 shadow-xl shadow-black/[0.02] transition-all focus-within:border-gray-200 focus-within:shadow-lg focus-within:shadow-black/[0.04]">
+            <div className="shrink-0 -ml-2 text-blue-500">
+              <AiBSIcon size={20} showTextOnHover />
             </div>
-        </section>
-    );
+            <form onSubmit={handleSubmit} className="flex flex-1 items-center">
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={`Ask aiBS for a chart brief about ${context}...`}
+                className="w-full bg-transparent border-0 !outline-none text-sm font-medium text-gray-900 placeholder:text-gray-400 placeholder:opacity-50 focus:border-transparent focus:outline-none focus:ring-0 focus:shadow-none focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-0 [box-shadow:none_!important] [outline:none_!important] [-webkit-tap-highlight-color:transparent]"
+              />
+              <motion.button
+                type="submit"
+                disabled={isGenerating || !query.trim()}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.95 }}
+                className="flex items-center gap-2 rounded-full bg-gray-900 px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-black disabled:pointer-events-none disabled:opacity-30"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 size={12} className="animate-spin" />
+                    <span>Generating Brief</span>
+                  </>
+                ) : (
+                  <>
+                    <Send size={12} />
+                    <span>Get Brief</span>
+                  </>
+                )}
+              </motion.button>
+            </form>
+          </div>
+        </div>
+
+        {error ? (
+          <div className="panel flex items-start gap-3 rounded-3xl border border-red-100 bg-red-50 px-5 py-4 text-sm text-red-700">
+            <AlertCircle size={18} className="mt-0.5 shrink-0" />
+            <p>{error}</p>
+          </div>
+        ) : null}
+
+        <AnimatePresence mode="wait">
+          {isGenerating ? (
+            <motion.div
+              key="generating"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="py-12"
+            >
+              <BaseballSpinner />
+            </motion.div>
+          ) : null}
+
+          {result ? (
+            <motion.div
+              key="result"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full"
+            >
+              <div className="panel overflow-hidden rounded-[2.5rem] border border-gray-100 bg-white p-0 shadow-2xl shadow-black/[0.05]">
+                <div className="flex items-center justify-between gap-6 border-b border-gray-50 px-10 py-8">
+                  <div>
+                    <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-blue-600">
+                      Visualization Brief
+                    </p>
+                    <h4 className="text-xl font-display uppercase tracking-tight text-gray-900">
+                      &ldquo;{result.query}&rdquo;
+                    </h4>
+                  </div>
+                  <div className="rounded-2xl bg-gray-50 px-4 py-3 text-right">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Context</p>
+                    <p className="text-xs font-bold text-gray-700">{context}</p>
+                  </div>
+                </div>
+
+                <div className="grid gap-8 bg-gray-50 px-10 py-10 lg:grid-cols-[1.3fr_0.7fr]">
+                  <div>
+                    <div className="mb-4 flex items-center gap-3">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm">
+                        <Activity className="text-blue-500" size={22} />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                          Recommended Output
+                        </p>
+                        <p className="text-lg font-display uppercase tracking-tight text-gray-900">
+                          Analyst Brief
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-sm leading-relaxed text-gray-700">{result.answer}</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="rounded-3xl border border-gray-200 bg-white p-5">
+                      <div className="mb-3 flex items-center gap-2">
+                        <FileText size={14} className="text-gray-500" />
+                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                          Sources Used
+                        </p>
+                      </div>
+                      {result.toolResults.length ? (
+                        <ul className="space-y-2 text-xs font-semibold text-gray-700">
+                          {result.toolResults.map((tool) => (
+                            <li
+                              key={tool.toolName}
+                              className="flex items-center justify-between gap-3 border-b border-gray-100 pb-2 last:border-b-0 last:pb-0"
+                            >
+                              <span>{tool.toolName}</span>
+                              <span
+                                className="rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-white"
+                                style={{ backgroundColor: teamColor }}
+                              >
+                                Live
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-xs text-gray-500">No tool outputs were attached to this brief.</p>
+                      )}
+                    </div>
+
+                    <div className="rounded-3xl border border-gray-200 bg-white p-5">
+                      <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                        Citations
+                      </p>
+                      {result.citations.length ? (
+                        <ul className="space-y-2 text-xs text-gray-600">
+                          {result.citations.map((citation) => (
+                            <li key={citation}>{citation}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-xs text-gray-500">This brief did not return explicit citations.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-center justify-between gap-4 border-t border-gray-50 bg-gray-50/50 px-10 py-6 md:flex-row">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                      Text Brief Only
+                    </p>
+                  </div>
+                  <p className="text-center text-[10px] font-bold italic text-gray-400 md:text-right">
+                    aiBS can recommend what to visualize here, but shared chart rendering is not enabled yet.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </div>
+    </section>
+  );
 }

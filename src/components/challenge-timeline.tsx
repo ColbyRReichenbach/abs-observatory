@@ -11,9 +11,8 @@ export function ChallengeTimeline({ challenges }: { challenges: ChallengeEvent[]
         {challenges.map((c) => (
           <div
             key={c.challengeId}
-            className={`rounded-lg border px-3 py-2 text-sm ${
-              c.isOverturned ? "border-emerald-300/50 bg-emerald-400/10" : "border-rose-300/50 bg-rose-400/10"
-            }`}
+            className={`rounded-lg border px-3 py-2 text-sm ${c.isOverturned ? "border-emerald-300/50 bg-emerald-400/10" : "border-rose-300/50 bg-rose-400/10"
+              }`}
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <strong className="text-white">
@@ -24,7 +23,7 @@ export function ChallengeTimeline({ challenges }: { challenges: ChallengeEvent[]
               </span>
             </div>
             <p className="mt-1 text-xs text-white/80">
-              {c.halfInning} {c.inning} | Count {c.balls}-{c.strikes}, {c.outs} outs | {c.batterName} vs {c.pitcherName}
+              {c.halfInning} {c.inning} | Count {c.umpireCount || `${c.balls}-${c.strikes}`}, {c.outs} outs | {c.batterName} vs {c.pitcherName}
             </p>
           </div>
         ))}

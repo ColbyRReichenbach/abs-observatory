@@ -3,6 +3,10 @@ import Link from "next/link";
 
 import { ChallengeHashes } from "@/components/challenge-hashes";
 import { TeamIcon } from "@/components/team-icon";
+import { LocalTime } from "@/components/local-time";
+import { useMemo } from "react";
+import { resolveTeamBranding } from "@/lib/team-branding";
+
 import type { LiveGameCard } from "@/lib/types";
 
 export function GameCard({ game }: { game: LiveGameCard }) {
@@ -32,6 +36,7 @@ export function GameCard({ game }: { game: LiveGameCard }) {
           name={game.awayTeamName}
           runs={game.awayScore}
           absRemaining={game.awayAbsRemaining}
+          teamColor={game.awayTeamColor ?? undefined}
           isWinning={
             game.awayScore !== null &&
             game.homeScore !== null &&
@@ -49,6 +54,7 @@ export function GameCard({ game }: { game: LiveGameCard }) {
           name={game.homeTeamName}
           runs={game.homeScore}
           absRemaining={game.homeAbsRemaining}
+          teamColor={game.homeTeamColor ?? undefined}
           isWinning={
             game.homeScore !== null &&
             game.awayScore !== null &&
@@ -62,7 +68,13 @@ export function GameCard({ game }: { game: LiveGameCard }) {
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-black uppercase tracking-widest text-[#2d5a27]/60">{game.challengeCount} Challenges</span>
         </div>
-        <span className="text-[11px] font-bold text-blue-600 uppercase tracking-tighter">{game.detailedState ?? "Scheduled"}</span>
+        {game.status === "Preview" ? (
+          <span className="text-[11px] font-mono font-bold text-gray-500 tracking-tight">
+            <LocalTime dateStr={game.gameDate} showDate={true} />
+          </span>
+        ) : (
+          <span className="text-[11px] font-bold text-blue-600 uppercase tracking-tighter">{game.detailedState ?? "Scheduled"}</span>
+        )}
       </div>
     </Link>
   );
@@ -89,6 +101,7 @@ function TeamRow({
   name,
   runs,
   absRemaining,
+  teamColor,
   isWinning,
 }: {
   teamId: number;
@@ -96,8 +109,12 @@ function TeamRow({
   name: string;
   runs: number | null;
   absRemaining: number;
+  teamColor?: string;
   isWinning: boolean;
 }) {
+  const branding = useMemo(() => resolveTeamBranding({ teamId, primaryColor: teamColor }), [teamId, teamColor]);
+  const activeColor = teamColor ?? branding.tokens.teamPrimary;
+
   return (
     <div className="flex items-center justify-between py-2.5">
       <div className="flex items-center gap-4">
@@ -111,7 +128,7 @@ function TeamRow({
           <span className={`text-lg font-black tracking-tight leading-none ${isWinning ? "text-gray-900" : "text-gray-400"}`}>
             {name}
           </span>
-          <ChallengeHashes remaining={absRemaining} />
+          <ChallengeHashes remaining={absRemaining} activeColor={activeColor} />
         </div>
       </div>
       <span className={`font-display text-4xl leading-none tracking-tighter ${isWinning ? "text-gray-900" : "text-gray-400"}`}>

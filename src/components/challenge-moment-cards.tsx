@@ -20,7 +20,7 @@ export function ChallengeMomentCards({ moments }: { moments: HomeChallengeMoment
         {moments.slice(0, 6).map((moment) => (
           <Link
             key={moment.challengeId}
-            href={`/game/${moment.gamePk}`}
+            href={`/game/${moment.gamePk}?challengeId=${moment.challengeId}#abs-explorer`}
             className="panel panel-interactive group relative overflow-hidden p-4 transition-all duration-[var(--motion-mid)]"
           >
             {/* Leverage indicator bar */}
@@ -46,6 +46,9 @@ export function ChallengeMomentCards({ moments }: { moments: HomeChallengeMoment
 
             <p className="mt-1.5 text-xs text-[var(--ink-2)]">
               {moment.halfInning ?? ""} {moment.inning ?? "-"} | {moment.challengeTeamName ?? "Unknown team"}
+              <span className="ml-2 font-mono text-[var(--ink-3)] font-black">
+                {moment.umpireCount || `${moment.balls ?? 0}-${moment.strikes ?? 0}`}
+              </span>
             </p>
 
             {moment.calledDescription ? (

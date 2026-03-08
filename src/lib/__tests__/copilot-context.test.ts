@@ -7,7 +7,11 @@ describe("copilot context", () => {
     expect(inferCopilotContext("/")).toEqual({ scope: "global", range: undefined });
     expect(inferCopilotContext("/game/123")).toEqual({ scope: "game", entityId: "123", range: undefined });
     expect(inferCopilotContext("/teams/111", { range: "30d" })).toEqual({ scope: "team", entityId: "111", range: "30d" });
-    expect(inferCopilotContext("/umpires/77", { range: "all" })).toEqual({ scope: "umpire", entityId: "77", range: "all" });
+    expect(inferCopilotContext("/umpires/77", { range: "all" })).toEqual({
+      scope: "umpire",
+      entityId: "77",
+      range: undefined,
+    });
   });
 
   it("formats context window and injects scoped prompt", () => {
@@ -20,4 +24,3 @@ describe("copilot context", () => {
     expect(prompt).toContain("What is the overturn rate?");
   });
 });
-

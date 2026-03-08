@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import type { PregameIntel } from "@/lib/types";
+import { ChartTooltip } from "@/components/ui/chart-tooltip";
 
 export function MatchupRadarChart({
     intel,
@@ -17,45 +18,45 @@ export function MatchupRadarChart({
     homeColor?: string;
     awayColor?: string;
 }) {
+    /* S3-9: Team-only axes — removed duplicated umpire tendency axes.
+     * Axes now differentiate the two teams rather than repeating identical umpire data. */
     const data = useMemo(() => {
         return [
             {
-                aspect: "Offensive Aggression",
+                aspect: "Offensive Challenges",
                 [homeTeamName]: intel.homeTeam.offensiveChallenges,
                 [awayTeamName]: intel.awayTeam.offensiveChallenges,
-                fullMark: Math.max(intel.homeTeam.offensiveChallenges, intel.awayTeam.offensiveChallenges, 10)
+                fullMark: Math.max(intel.homeTeam.offensiveChallenges, intel.awayTeam.offensiveChallenges, 10),
             },
             {
-                aspect: "Defensive Aggression",
+                aspect: "Defensive Challenges",
                 [homeTeamName]: intel.homeTeam.defensiveChallenges,
                 [awayTeamName]: intel.awayTeam.defensiveChallenges,
-                fullMark: Math.max(intel.homeTeam.defensiveChallenges, intel.awayTeam.defensiveChallenges, 10)
+                fullMark: Math.max(intel.homeTeam.defensiveChallenges, intel.awayTeam.defensiveChallenges, 10),
             },
             {
-                aspect: "Challenge Success %",
+                aspect: "Success Rate %",
                 [homeTeamName]: intel.homeTeam.successRate * 100,
                 [awayTeamName]: intel.awayTeam.successRate * 100,
-                fullMark: 100
+                fullMark: 100,
             },
             {
-                aspect: "Ump High-Zone Strike %",
-                [homeTeamName]: intel.umpireTendency.highZoneAccuracy * 100,
-                [awayTeamName]: intel.umpireTendency.highZoneAccuracy * 100,
-                fullMark: 100
+                aspect: "Total Volume",
+                [homeTeamName]: intel.homeTeam.offensiveChallenges + intel.homeTeam.defensiveChallenges,
+                [awayTeamName]: intel.awayTeam.offensiveChallenges + intel.awayTeam.defensiveChallenges,
+                fullMark: Math.max(
+                    intel.homeTeam.offensiveChallenges + intel.homeTeam.defensiveChallenges,
+                    intel.awayTeam.offensiveChallenges + intel.awayTeam.defensiveChallenges,
+                    10,
+                ),
             },
-            {
-                aspect: "Ump Low-Zone Strike %",
-                [homeTeamName]: intel.umpireTendency.lowZoneAccuracy * 100,
-                [awayTeamName]: intel.umpireTendency.lowZoneAccuracy * 100,
-                fullMark: 100
-            }
         ];
     }, [intel, homeTeamName, awayTeamName]);
 
     return (
         <div className="h-[250px] w-full mt-4">
             <ResponsiveContainer width="100%" height="100%">
-                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={data}>
+                <RadarChart cx="50%" cy="50%" outerRadius="65%" data={data} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                     <PolarGrid stroke="rgba(0,0,0,0.05)" />
                     <PolarAngleAxis
                         dataKey="aspect"
@@ -63,9 +64,21 @@ export function MatchupRadarChart({
                     />
                     <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={false} axisLine={false} />
                     <Tooltip
-                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }}
-                        itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
-                        labelStyle={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af', marginBottom: '8px' }}
+                        content={({ active, payload, label }) => {
+                            if (active && payload && payload.length) {
+                                return (
+                                    <ChartTooltip
+                                        title={String(label ?? '')}
+                                        extra={payload.map((entry) => ({
+                                            label: String(entry.name),
+                                            value: typeof entry.value === 'number' ? entry.value.toFixed(1) : String(entry.value ?? ''),
+                                            color: String(entry.color ?? ''),
+                                        }))}
+                                    />
+                                );
+                            }
+                            return null;
+                        }}
                     />
                     <Legend wrapperStyle={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800 }} />
                     <Radar

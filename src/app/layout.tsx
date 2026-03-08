@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Bebas_Neue, IBM_Plex_Mono, Inter } from "next/font/google";
 import { Suspense } from "react";
 
+import { AuthProvider } from "@/components/auth-provider";
 import { ContextualCopilotFAB } from "@/components/contextual-copilot-fab";
 import { Nav } from "@/components/nav";
 
@@ -34,15 +35,19 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body className={`${bebas.variable} ${inter.variable} ${plexMono.variable}`}>
-        <Nav />
-        <main>
-          {children}
-        </main>
-        <Suspense fallback={null}>
-          <ContextualCopilotFAB />
-        </Suspense>
+        <AuthProvider>
+          <a href="#main-content" className="skip-link">
+            Skip to main content
+          </a>
+          <Nav />
+          <main id="main-content">
+            {children}
+          </main>
+          <Suspense fallback={null}>
+            <ContextualCopilotFAB />
+          </Suspense>
+        </AuthProvider>
       </body>
     </html>
   );
 }
-

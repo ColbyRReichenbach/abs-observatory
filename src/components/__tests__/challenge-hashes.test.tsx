@@ -24,4 +24,43 @@ describe("ChallengeHashes", () => {
     expect(html).toContain("data-active=\"1\"");
     expect(html).toContain("data-active=\"0\"");
   });
+
+  // ── New: Three-state outcome tests ──
+
+  it("returns won styling with green color token", () => {
+    const won = getChallengeHashClass(true, undefined, 'won');
+    expect(won.className).toContain("state-overturned-bs");
+    expect(won.outcome).toBe('won');
+  });
+
+  it("returns lost styling with ink-3 color token", () => {
+    const lost = getChallengeHashClass(true, undefined, 'lost');
+    expect(lost.className).toContain("ink-3");
+    expect(lost.outcome).toBe('lost');
+  });
+
+  it("returns default active styling when outcome is null", () => {
+    const active = getChallengeHashClass(true, undefined, null);
+    expect(active.className).toContain("accent-warm");
+    expect(active.outcome).toBeNull();
+  });
+
+  it("renders ✓ SVG for won outcome", () => {
+    const html = renderToStaticMarkup(
+      <ChallengeHashes remaining={2} outcomes={['won', null]} />
+    );
+    expect(html).toContain('data-outcome="won"');
+    expect(html).toContain('data-outcome="none"');
+    // Check the checkmark path is present
+    expect(html).toContain("M2.5 6.5L5 9L9.5 3.5");
+  });
+
+  it("renders ✕ SVG for lost outcome", () => {
+    const html = renderToStaticMarkup(
+      <ChallengeHashes remaining={2} outcomes={['lost', null]} />
+    );
+    expect(html).toContain('data-outcome="lost"');
+    // Check the X path is present
+    expect(html).toContain("M3 3L9 9M9 3L3 9");
+  });
 });

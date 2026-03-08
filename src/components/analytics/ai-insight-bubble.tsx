@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight, X } from "lucide-react";
@@ -15,12 +15,14 @@ export function AIInsightBubble({
 }) {
     const [isOpen, setIsOpen] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
-    const [mounted, setMounted] = useState(false);
     const [position, setPosition] = useState({ top: 0, left: 0 });
     const [anchorRect, setAnchorRect] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
     const bubbleRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => setMounted(true), []);
+    const mounted = useSyncExternalStore(
+        () => () => undefined,
+        () => true,
+        () => false,
+    );
 
     useEffect(() => {
         const handleEscape = (e: KeyboardEvent) => {
@@ -145,19 +147,36 @@ export function AIInsightBubble({
                                         />
                                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{title}</span>
                                     </div>
-                                    <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-black transition-colors">
+                                    <motion.button
+                                        onClick={() => setIsOpen(false)}
+                                        whileTap={{ scale: 0.9 }}
+                                        className="text-gray-400 hover:text-black transition-colors"
+                                    >
                                         <X size={16} />
-                                    </button>
+                                    </motion.button>
                                 </div>
 
                                 <div className="text-sm font-medium text-gray-700 leading-relaxed text-balance">
                                     <p>{insight}</p>
                                 </div>
 
-                                <div className="mt-8 flex items-center gap-2 group/btn cursor-pointer">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 transition-all group-hover/btn:mr-2">Ask Follow Up</span>
+                                <motion.div
+                                    whileTap={{ scale: 0.98 }}
+                                    className="mt-8 flex items-center gap-2 group/btn cursor-pointer"
+                                    onClick={() => {
+                                        setIsOpen(false);
+                                        window.dispatchEvent(
+                                            new CustomEvent("open-copilot", {
+                                                detail: { prefill: insight },
+                                            }),
+                                        );
+                                    }}
+                                >
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 transition-all group-hover/btn:mr-2">
+                                        Ask Follow Up
+                                    </span>
                                     <ChevronRight size={12} className="text-blue-600" />
-                                </div>
+                                </motion.div>
                             </motion.div>
                         </div>
                     )}

@@ -17,20 +17,19 @@ export function DynamicLeverageMeter({
     homeColor?: string,
     awayColor?: string
 }) {
-
-    // Simulated active Win Probability calculated from current score diff and inning
     const activeProbability = useMemo(() => {
-        const scoreDiff = homeScore - awayScore;
-        // Extremely basic mock for probability: base 50, +/- 5% per run diff, accelerated by inning length
-        const inningModifier = inning / 9;
-        let prob = 50 + (scoreDiff * 5 * (1 + inningModifier));
-        return Math.max(5, Math.min(95, prob)); // constrain 5-95%
-    }, [homeScore, awayScore, inning]);
+        const totalRuns = homeScore + awayScore;
+        if (totalRuns === 0) return 50;
+        return (homeScore / totalRuns) * 100;
+    }, [homeScore, awayScore]);
+
+    const runDifferential = homeScore - awayScore;
+    const leaderLabel = runDifferential === 0 ? "Game tied" : runDifferential > 0 ? "Home leads" : "Away leads";
 
     const data = useMemo(() => {
         return [
             { name: 'Away Base', value: 100, fill: '#f3f4f6' }, // Background track
-            { name: 'Home Win Prob', value: activeProbability, fill: homeColor },
+            { name: 'Home Run Share', value: activeProbability, fill: homeColor },
         ];
     }, [activeProbability, homeColor]);
 
@@ -76,7 +75,7 @@ export function DynamicLeverageMeter({
 
             <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center justify-center text-center">
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">
-                    Live Win Probability
+                    Score State
                 </span>
                 <div className="flex items-baseline gap-1">
                     <motion.span
@@ -89,15 +88,21 @@ export function DynamicLeverageMeter({
                     </motion.span>
                     <span className="text-xl font-bold text-gray-400">%</span>
                 </div>
+                <p className="mt-2 text-[11px] font-semibold text-gray-500">
+                    Home share of scored runs through inning {inning}
+                </p>
+                <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                    {leaderLabel} • Run diff {runDifferential > 0 ? "+" : ""}{runDifferential}
+                </p>
 
                 <div className="flex items-center gap-4 mt-6">
                     <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: awayColor }} />
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Away ({(100 - activeProbability).toFixed(1)}%)</span>
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Away Runs ({awayScore})</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: homeColor }} />
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Home ({activeProbability.toFixed(1)}%)</span>
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Home Runs ({homeScore})</span>
                     </div>
                 </div>
             </div>

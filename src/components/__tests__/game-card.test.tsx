@@ -28,10 +28,10 @@ describe("GameCard", () => {
   it("renders preview scoreboard state", () => {
     const html = renderToStaticMarkup(<GameCard game={baseGame} />);
     expect(html).toContain("Preview");
-    expect(html).toContain("Scheduled");
-    expect(html).toContain("NYY");
-    expect(html).toContain("BOS");
-    expect(html).toContain("0 challenges");
+    expect(html).toContain("Mar 5");
+    expect(html).toContain("New York Yankees");
+    expect(html).toContain("Boston Red Sox");
+    expect(html).toContain("0 Challenges");
   });
 
   it("renders live scoreboard state", () => {
@@ -70,8 +70,7 @@ describe("GameCard", () => {
       />,
     );
     expect(html).toContain("Final");
-    expect(html).toContain("5 challenges");
+    expect(html).toContain("5 Challenges");
     expect(html).toContain(">6<");
   });
 });
-

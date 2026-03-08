@@ -13,16 +13,12 @@ export function InningIcon({ inning, half, className = "" }: InningIconProps) {
     const isTop = half?.toLowerCase() === "top";
     return (
         <div className={`flex flex-col items-center leading-none ${className}`}>
-            {isTop ? (
-                <ChevronUp size={10} className="text-blue-600 mb-[-2px]" strokeWidth={3} />
-            ) : (
-                <div className="h-2.5" />
+            {isTop && (
+                <ChevronUp size={10} className="text-blue-600 -mb-1" strokeWidth={3} />
             )}
-            <span className="text-[11px] font-black font-mono">{inning}</span>
-            {!isTop ? (
-                <ChevronDown size={10} className="text-blue-600 mt-[-2px]" strokeWidth={3} />
-            ) : (
-                <div className="h-2.5" />
+            <span className="text-[11px] font-black font-mono leading-none py-0.5">{inning}</span>
+            {!isTop && (
+                <ChevronDown size={10} className="text-blue-600 -mt-1" strokeWidth={3} />
             )}
         </div>
     );

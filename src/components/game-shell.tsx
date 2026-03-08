@@ -7,6 +7,7 @@ import type { GameLiveStatus } from "@/lib/types";
 type GameShellProps = {
   game: {
     gamepk: number;
+    gamedate: string;
     statusabstract: string;
     statusdetailed: string | null;
     hometeamid: number;
@@ -49,6 +50,7 @@ export function GameShell({ game, liveStatus, counters }: GameShellProps) {
           eyebrow={`Game ${game.gamepk}`}
           title={`${game.awayteamname} at ${game.hometeamname}`}
           subtitle={game.venue ?? "Venue N/A"}
+          dateStr={game.gamedate}
         />
       </MotionIn>
 

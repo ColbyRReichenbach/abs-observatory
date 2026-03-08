@@ -1,11 +1,13 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useState, useMemo } from "react";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, isToday, parseISO } from "date-fns";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, ExternalLink, Play, Clock, CheckCircle2 } from "lucide-react";
 import { TeamIcon } from "@/components/team-icon";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { LocalTime } from "@/components/local-time";
 
 type Game = {
     gamePk: number;
@@ -55,7 +57,7 @@ export function LeagueCalendar({
     }, [games]);
 
     return (
-        <div className="panel p-0 overflow-hidden" style={{ "--calendar-accent": primaryColor } as any}>
+        <div className="panel p-0 overflow-hidden" style={{ "--calendar-accent": primaryColor } as CSSProperties}>
             {/* Header */}
             <div className="flex items-center justify-between px-10 py-10 border-b border-gray-100">
                 <div className="flex items-center gap-6">
@@ -63,10 +65,12 @@ export function LeagueCalendar({
                         <CalendarIcon size={24} />
                     </div>
                     <div>
-                        <h3 className="text-3xl font-display uppercase tracking-tight text-gray-900">
-                            {format(currentMonth, "MMMM yyyy")}
-                        </h3>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mt-1">Full Season Interactive Schedule</p>
+                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
+                            Full Season Schedule
+                        </h4>
+                        <p className="text-3xl font-display leading-none text-gray-900">
+                            {format(currentMonth, "MMMM")} <span className="text-gray-400">{format(currentMonth, "yyyy")}</span>
+                        </p>
                     </div>
                 </div>
 
@@ -130,11 +134,17 @@ export function LeagueCalendar({
                                         </span>
                                     </div>
 
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-50">
                                         <GameStatusIndicator status={game.status} />
-                                        <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">
-                                            {game.status}
-                                        </span>
+                                        {game.status === 'Preview' || game.status === 'Scheduled' ? (
+                                            <span className="text-[9px] font-mono font-bold text-gray-400">
+                                                <LocalTime dateStr={game.gameDate} />
+                                            </span>
+                                        ) : (
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                                                {game.status}
+                                            </span>
+                                        )}
                                     </div>
                                 </Link>
                             )}

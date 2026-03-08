@@ -4,11 +4,17 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 
 const TEAM_BACKDROPS: Record<number, string> = {
-    112: "/backdrops/cubs.png", // Cubs
-    147: "/backdrops/yankees.png", // Yankees
-    121: "/backdrops/mets.png", // Mets
-    111: "/backdrops/redsox.png", // Red Sox
-    119: "/backdrops/dodgers.png", // Dodgers
+    110: "/backdrops/orioles_v2.png",   // Orioles
+    111: "/backdrops/redsox_v2.png",    // Red Sox
+    112: "/backdrops/cubs_v2.png",      // Cubs
+    113: "/backdrops/reds_v2.png",      // Reds
+    114: "/backdrops/guardians_v2.png", // Guardians
+    115: "/backdrops/rockies_v2.png",   // Rockies
+    117: "/backdrops/astros_v2.png",    // Astros
+    118: "/backdrops/royals_v2.png",    // Royals
+    119: "/backdrops/dodgers_v2.png",   // Dodgers
+    120: "/backdrops/nationals_v2.png", // Nationals
+    121: "/backdrops/mets_v2.png",      // Mets
 };
 
 export function TeamMotifBackdrop({

@@ -23,3 +23,41 @@ export async function sql<T extends QueryResultRow>(query: string, values: unkno
     client.release();
   }
 }
+
+export async function sqlOne<T extends QueryResultRow>(
+  query: string,
+  values: unknown[] = [],
+): Promise<T | null> {
+  const rows = await sql<T>(query, values);
+  return rows[0] ?? null;
+}
+
+export async function sqlExec(query: string, values: unknown[] = []): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query(query, values);
+  } finally {
+    client.release();
+  }
+}
+
+export async function withTransaction<T>(
+  callback: (query: <R extends QueryResultRow>(statement: string, values?: unknown[]) => Promise<R[]>) => Promise<T>,
+): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const query = async <R extends QueryResultRow>(statement: string, values: unknown[] = []) => {
+      const result = await client.query<R>(statement, values);
+      return result.rows;
+    };
+    const value = await callback(query);
+    await client.query("COMMIT");
+    return value;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}

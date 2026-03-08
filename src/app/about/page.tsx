@@ -2,23 +2,24 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { FlipCard } from "@/components/about/flip-card";
 
 export default function AboutPage() {
     return (
-        <div className="min-h-screen bg-[#fcf9f2] text-[#2c2c2c] selection:bg-[#d4b483] selection:text-white pb-32">
+        <div className="min-h-screen bg-[#fcf9f2] text-[#2c2c2c] selection:bg-[#d4b483] selection:text-white pt-24 pb-32">
             {/* Newspaper Header */}
-            <header className="pt-20 pb-12 border-b-4 border-double border-[#2c2c2c] max-w-6xl mx-auto px-6 text-center">
+            <header className="pt-8 pb-12 border-b-4 border-double border-[#2c2c2c] max-w-6xl mx-auto px-6 text-center">
                 <div className="flex justify-between items-center mb-6 text-[10px] font-bold uppercase tracking-[0.3em] border-b border-black/10 pb-2">
                     <span>Vol. MMXXVI • No. 01</span>
                     <span>Cooperstown, NY</span>
                     <span>Spring 2026</span>
                 </div>
                 <h1 className="text-7xl md:text-9xl font-display uppercase tracking-tighter leading-none mb-4">
-                    The ABS <span className="italic">Gazette</span>
+                    The Absolute <span className="italic font-serif">Observer</span>
                 </h1>
                 <div className="h-1 bg-black w-full my-4" />
                 <p className="text-lg font-serif italic max-w-2xl mx-auto leading-tight">
-                    "Dedicated to the preservation of the strike zone and the advancement of algorithmic precision in the Great American Pastime."
+                    &ldquo;Dedicated to the preservation of the strike zone and the advancement of algorithmic precision in the Great American Pastime.&rdquo;
                 </p>
             </header>
 
@@ -58,43 +59,39 @@ export default function AboutPage() {
                             The Starting Battery
                         </h3>
                         <div className="flex flex-wrap justify-center gap-12">
-                            <motion.div
-                                whileHover={{ rotate: -2, y: -10, scale: 1.05 }}
-                                className="relative group cursor-help"
-                            >
-                                <div className="absolute inset-0 bg-black/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                                <div className="relative w-64 h-80 rounded-2xl overflow-hidden shadow-2xl shadow-black/20 border-8 border-white p-2 bg-[#f4e4bc]">
-                                    <Image
-                                        src="/images/about/architect.png"
-                                        alt="The Architect"
-                                        fill
-                                        className="object-cover"
-                                    />
-                                </div>
-                                <div className="mt-4 text-center">
-                                    <h4 className="font-display text-2xl uppercase">The Architect</h4>
-                                    <p className="text-[10px] uppercase font-bold text-blue-800">UI / UX / STRATEGY</p>
-                                </div>
-                            </motion.div>
+                            <FlipCard
+                                title="The Architect"
+                                subtitle="UI / UX / STRATEGY"
+                                imageSrc="/images/about/architect.png"
+                                imageAlt="The Architect"
+                                subtitleColor="text-blue-800"
+                                linkHref="/about/architect"
+                                rotateDegree={-2}
+                                stats={[
+                                    { label: "Design Sys", value: "V2.4" },
+                                    { label: "Components", value: "84" },
+                                    { label: "Motion", value: "Framer" },
+                                    { label: "Aesthetic", value: "Modern" }
+                                ]}
+                                description="Constructs responsive, dynamic interfaces ensuring front-office executives and casual fans alike can parse data in real-time."
+                            />
 
-                            <motion.div
-                                whileHover={{ rotate: 2, y: -10, scale: 1.05 }}
-                                className="relative group cursor-help"
-                            >
-                                <div className="absolute inset-0 bg-black/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                                <div className="relative w-64 h-80 rounded-2xl overflow-hidden shadow-2xl shadow-black/20 border-8 border-white p-2 bg-[#f4e4bc]">
-                                    <Image
-                                        src="/images/about/brain.png"
-                                        alt="The Brain"
-                                        fill
-                                        className="object-cover"
-                                    />
-                                </div>
-                                <div className="mt-4 text-center">
-                                    <h4 className="font-display text-2xl uppercase">The Brain</h4>
-                                    <p className="text-[10px] uppercase font-bold text-red-800">AI / DATA / CORE</p>
-                                </div>
-                            </motion.div>
+                            <FlipCard
+                                title="The Brain"
+                                subtitle="AI / DATA / CORE"
+                                imageSrc="/images/about/brain.png"
+                                imageAlt="The Brain"
+                                subtitleColor="text-red-800"
+                                linkHref="/about/brain"
+                                rotateDegree={2}
+                                stats={[
+                                    { label: "Pipelines", value: "Active" },
+                                    { label: "Throughput", value: "10k/s" },
+                                    { label: "Models", value: "v4" },
+                                    { label: "Latency", value: "<50ms" }
+                                ]}
+                                description="Ingests high-frequency telemetry data from every ballpark, evaluating umpire accuracy with unrelenting objectivity."
+                            />
                         </div>
                     </section>
                 </div>
@@ -106,7 +103,7 @@ export default function AboutPage() {
                             By Local Recommendation
                         </h3>
                         <p className="text-xs italic leading-tight text-center">
-                            "We highly recommend users engage with the <b>AiBS Copilot</b> for any queries regarding zone infractions or umpire efficiency metrics."
+                            &ldquo;We highly recommend users engage with the <b>AiBS Copilot</b> for any queries regarding zone infractions or umpire efficiency metrics.&rdquo;
                         </p>
                     </div>
 
@@ -130,6 +127,26 @@ export default function AboutPage() {
                                     <span className="text-[#8b0000] font-black">98.4% ACC</span>
                                 </div>
                             ))}
+                        </div>
+                    </section>
+
+                    <section className="border border-black/15 bg-white/70 p-6 rounded-2xl">
+                        <h3 className="text-xs font-black uppercase tracking-widest border-b-2 border-black pb-2 mb-4">
+                            Launch Disclosures
+                        </h3>
+                        <div className="space-y-4 text-xs leading-relaxed font-serif">
+                            <p>
+                                MLB club names, logos, marks, and related media remain the property of MLB and the respective clubs.
+                                AiBS provides analysis and attribution, but does not claim ownership of league or club marks.
+                            </p>
+                            <p>
+                                Commenting and AI use require verified authentication. Comments are plain text only, links are blocked,
+                                and abuse can lead to moderation action, AI suspension, or account review.
+                            </p>
+                            <p>
+                                AI answers are limited to baseball and AiBS analytics contexts. Private account routes remain uncached,
+                                and users can purge AI history or delete their account from the authenticated profile flows.
+                            </p>
                         </div>
                     </section>
                 </div>

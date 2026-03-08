@@ -1,16 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 
-type QueryResult = {
-  answer: string;
-  sql: string;
-  sources: string[];
-  confidence: "low" | "medium" | "high";
-  rows: Record<string, unknown>[];
-  error?: string;
-  hint?: string;
-};
+import { inferCopilotContext } from "@/lib/copilot-context";
+import type { AIChatResponse } from "@/lib/types";
 
 const CONFIDENCE_COLORS = {
   high: "var(--accent-primary)",
@@ -19,21 +13,24 @@ const CONFIDENCE_COLORS = {
 };
 
 export default function QueryPage() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [question, setQuestion] = useState("Which teams have the highest ABS overturn rate this week?");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<QueryResult | null>(null);
+  const [result, setResult] = useState<AIChatResponse | null>(null);
+  const context = inferCopilotContext(pathname, { range: searchParams.get("range") ?? undefined });
 
   async function runQuery(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setResult(null);
     try {
-      const res = await fetch("/api/query", {
+      const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ message: question, context, delivery: "sync" }),
       });
-      const payload = (await res.json()) as QueryResult;
+      const payload = (await res.json()) as AIChatResponse;
       setResult(payload);
     } finally {
       setLoading(false);
@@ -51,10 +48,10 @@ export default function QueryPage() {
             Natural Language Interface
           </p>
           <h1 className="mt-3 text-4xl font-display uppercase tracking-[0.06em] text-[var(--ink-0)]">
-            AI Query Explorer
+            AI Copilot Explorer
           </h1>
           <p className="mt-2 text-sm text-[var(--ink-2)]">
-            Guarded NL-to-SQL over approved ABS semantic views.
+            Typed-tool baseball analysis over approved AiBS data sources.
           </p>
         </div>
       </div>
@@ -87,12 +84,6 @@ export default function QueryPage() {
               {result.error}
             </div>
           ) : null}
-          {result.hint ? (
-            <div className="border-b border-[var(--accent-warm)]/20 bg-[var(--accent-warm-soft)] px-5 py-3 text-sm text-[var(--accent-warm)]">
-              {result.hint}
-            </div>
-          ) : null}
-
           <div className="p-5 space-y-4">
             {result.answer ? (
               <p className="text-sm leading-relaxed text-[var(--ink-0)]">{result.answer}</p>
@@ -114,28 +105,17 @@ export default function QueryPage() {
               </div>
             ) : null}
 
-            {result.sources?.length ? (
+            {result.citations?.length ? (
               <p className="text-[11px] text-[var(--ink-3)]">
-                Sources: {result.sources.join(", ")}
+                Sources: {result.citations.join(", ")}
               </p>
             ) : null}
 
-            {result.sql ? (
+            {result.toolResults?.length ? (
               <div>
-                <p className="mb-2 text-[10px] uppercase tracking-[0.1em] text-[var(--ink-3)]">Generated SQL</p>
-                <pre className="overflow-x-auto rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-infield)] p-3 text-xs font-mono text-[var(--accent-primary)]">
-                  {result.sql}
-                </pre>
-              </div>
-            ) : null}
-
-            {result.rows?.length ? (
-              <div>
-                <p className="mb-2 text-[10px] uppercase tracking-[0.1em] text-[var(--ink-3)]">
-                  Results ({Math.min(result.rows.length, 20)} rows)
-                </p>
-                <pre className="max-h-64 overflow-auto rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-infield)] p-3 text-xs font-mono text-[var(--ink-1)]">
-                  {JSON.stringify(result.rows.slice(0, 20), null, 2)}
+                <p className="mb-2 text-[10px] uppercase tracking-[0.1em] text-[var(--ink-3)]">Tool Results</p>
+                <pre className="overflow-x-auto rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-infield)] p-3 text-xs font-mono text-[var(--ink-1)]">
+                  {JSON.stringify(result.toolResults, null, 2)}
                 </pre>
               </div>
             ) : null}

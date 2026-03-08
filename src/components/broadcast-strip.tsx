@@ -4,38 +4,29 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { InningIcon } from "@/components/inning-icon";
+import { LocalTime } from "@/components/local-time";
 
 import type { HomeChallengeMoment, LiveGameCard } from "@/lib/types";
 
 type BroadcastStripProps = {
-  games: LiveGameCard[];
   moments: HomeChallengeMoment[];
 };
 
-export function BroadcastStrip({ games, moments }: BroadcastStripProps) {
+export function BroadcastStrip({ moments }: BroadcastStripProps) {
   const items = useMemo(() => {
-    const gameItems = games.slice(0, 8).map((game) => ({
-      key: `g-${game.gamePk}`,
-      href: `/game/${game.gamePk}`,
-      label: `${game.awayTeamAbbreviation} vs ${game.homeTeamAbbreviation}`,
-      score: `${game.awayScore ?? 0}-${game.homeScore ?? 0}`,
-      tag: game.status,
-      inning: game.inning,
-      half: game.inningHalf,
-      type: "Matchup",
-    }));
-    const momentItems = moments.slice(0, 8).map((moment) => ({
+    return moments.map((moment) => ({
       key: `m-${moment.challengeId}`,
-      href: `/game/${moment.gamePk}`,
-      label: `${moment.gameLabel || "ABS Challenge"}`,
+      href: `/game/${moment.gamePk}?challengeId=${moment.challengeId}#abs-explorer`,
+      label: `${moment.playerName || "Player"} — (${moment.umpireCount || `${moment.balls ?? 0}-${moment.strikes ?? 0}`}) count in ${moment.halfInning === "Top" ? "Top" : "Bottom"} ${moment.inning || "?"}`,
+      subLabel: moment.gameLabel,
       score: `${moment.isOverturned ? "Overturned" : "Confirmed"}`,
-      tag: "Challenge",
+      tag: moment.gameStatus,
+      dateStr: null,
       inning: moment.inning,
       half: moment.halfInning,
-      type: "Moment",
+      type: "Challenge",
     }));
-    return [...gameItems, ...momentItems];
-  }, [games, moments]);
+  }, [moments]);
 
   // Double items for seamless loop
   const marqueeItems = [...items, ...items];
@@ -49,9 +40,9 @@ export function BroadcastStrip({ games, moments }: BroadcastStripProps) {
 
       <motion.div
         className="flex items-center gap-12 whitespace-nowrap px-12"
-        animate={{ x: [0, -items.length * 360] }}
+        animate={{ x: [0, -items.length * 400] }}
         transition={{
-          duration: items.length * 10,
+          duration: Math.max(items.length * 6, 20),
           repeat: Infinity,
           ease: "linear",
         }}
@@ -65,21 +56,31 @@ export function BroadcastStrip({ games, moments }: BroadcastStripProps) {
           >
             <div className="flex items-center gap-3">
               <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${item.tag === 'Live' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-gray-50 text-gray-400 border-gray-100'}`}>
-                {item.tag}
+                {item.tag === 'Live' ? 'Live' : item.tag === 'Final' ? 'Final' : item.tag}
               </span>
-              <span className="text-[14px] font-black tracking-tight text-gray-900 group-hover/item:text-blue-600 transition-colors">
-                {item.label}
-              </span>
+              <div className="flex flex-col">
+                <span className="text-[13px] font-black tracking-tight text-gray-900 group-hover/item:text-blue-600 transition-colors">
+                  {item.label}
+                </span>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400">
+                  {item.subLabel}
+                </span>
+              </div>
             </div>
 
             <div className="flex items-center gap-4 bg-white/50 px-3 py-1 rounded-lg border border-gray-100 shadow-sm">
-              <span className="font-mono text-xs font-bold text-blue-600">{item.score}</span>
-              {item.inning && (
-                <InningIcon inning={item.inning} half={item.half ?? ""} className="scale-75" />
+              <span className={`font-mono text-[10px] font-black uppercase tracking-tight ${item.score === 'Overturned' ? 'text-blue-600' : 'text-gray-400'}`}>
+                {item.score}
+              </span>
+              {item.tag === 'Live' && item.inning && (
+                <div className="flex items-center gap-1">
+                  <div className="w-px h-3 bg-gray-200" />
+                  <InningIcon inning={item.inning} half={item.half ?? ""} className="scale-75" />
+                </div>
               )}
             </div>
 
-            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-300">
+            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--ink-4)] opacity-50">
               {item.type}
             </span>
 

@@ -2,16 +2,21 @@
 
 import { AlertCircle, Target, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import type { UmpirePerformanceDNA } from "@/lib/types";
 
-export function ExtremeMissesSection({ extremes }: { extremes: any[] }) {
+export function ExtremeMissesSection({ extremes }: { extremes: UmpirePerformanceDNA["extremes"] }) {
     if (!extremes || extremes.length === 0) return null;
 
     return (
         <section className="mt-12">
-            <div className="mb-8 overflow-hidden">
-                <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-orange-600 mb-2">Hall of Infamy</h2>
-                <p className="text-3xl font-display uppercase tracking-tight text-gray-900">Extreme Miss Highlights</p>
-                <p className="text-sm text-gray-500 mt-2">Ranked by distance from the closest point of the strike zone.</p>
+            <div className="mb-8">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-orange-600 mb-1">
+                    Hall of Infamy
+                </h4>
+                <p className="text-3xl font-display leading-none text-gray-900">
+                    Extreme <span className="text-gray-400 italic">Miss Highlights</span>
+                </p>
+                <p className="text-xs text-gray-400 mt-3 font-medium uppercase tracking-widest">Ranked by zone distance</p>
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -37,7 +42,7 @@ export function ExtremeMissesSection({ extremes }: { extremes: any[] }) {
 
                         <div className="mb-6">
                             <p className="text-sm font-bold text-gray-900 mb-1">{miss.calledDescription || "Pitch Event"}</p>
-                            <p className="text-[10px] text-gray-400 font-medium">Inning {miss.inning} • {miss.missDistance.toFixed(2)}" from Zone</p>
+                            <p className="text-[10px] text-gray-400 font-medium">Inning {miss.inning} • {miss.missDistance.toFixed(2)}&quot; from Zone</p>
                         </div>
 
                         <Link

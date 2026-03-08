@@ -9,6 +9,7 @@ import { isToday, isBefore, isAfter, startOfDay } from "date-fns";
 import { TeamIcon } from "@/components/team-icon";
 import { LeagueCalendar } from "@/components/analytics/league-calendar";
 import { ExpandableAiBSButton } from "@/components/ui/aibs-icon";
+import { LocalTime } from "@/components/local-time";
 
 export type ScheduleGame = {
     gamePk: number;
@@ -131,7 +132,7 @@ export function TeamScheduleMorph({
                                     </div>
                                 </button>
                             </div>
-                            <LeagueCalendar games={schedule as any} teamId={teamId} primaryColor={primaryColor} />
+                            <LeagueCalendar games={schedule} teamId={teamId} primaryColor={primaryColor} />
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -144,9 +145,6 @@ function GameCard({ game, teamId }: { game: ScheduleGame, teamId: number }) {
     const isLive = game.status === "Live";
     const isPast = game.status === "Final" || game.status === "Completed";
     const date = new Date(game.gameDate);
-    const opponentId = game.homeTeamId === teamId ? game.awayTeamId : game.homeTeamId;
-    const opponentAbbr = game.homeTeamId === teamId ? game.awayAbbr : game.homeAbbr;
-    const isHome = game.homeTeamId === teamId;
 
     return (
         <Link
@@ -160,7 +158,7 @@ function GameCard({ game, teamId }: { game: ScheduleGame, teamId: number }) {
             )}
 
             <div className="flex justify-between items-start mb-6">
-                <span className={`text-[10px] font-bold uppercase tracking-widest ${isLive ? 'text-red-600' : 'text-gray-400'}`}>
+                <span suppressHydrationWarning className={`text-[10px] font-bold uppercase tracking-widest ${isLive ? 'text-red-600' : 'text-gray-400'}`}>
                     {date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
                 </span>
 
@@ -175,21 +173,21 @@ function GameCard({ game, teamId }: { game: ScheduleGame, teamId: number }) {
                         Final
                     </span>
                 ) : (
-                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 text-[8px] font-black uppercase tracking-widest">
+                    <span suppressHydrationWarning className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 text-[9px] font-mono font-bold tracking-tight whitespace-nowrap">
                         <Clock size={10} />
-                        Future
+                        <LocalTime dateStr={game.gameDate} showDate={false} />
                     </span>
                 )}
             </div>
 
-            <div className="flex flex-col items-center justify-center gap-3 py-2">
-                <div className="flex items-center gap-4">
-                    {!isHome && <span className="text-[10px] font-black text-gray-300">@</span>}
-                    <TeamIcon teamId={opponentId} name={opponentAbbr} size={56} className="shadow-2xl group-hover:scale-110 transition-transform duration-300" />
-                    {isHome && <span className="text-[10px] font-black text-gray-300">vs</span>}
+            <div className="flex flex-col items-center justify-center gap-1 py-1">
+                <div className="flex items-center justify-center gap-3">
+                    <TeamIcon teamId={game.awayTeamId} name={game.awayAbbr} size={48} className="shadow-lg transition-transform group-hover:translate-x-1.5" />
+                    <span className="text-[10px] font-black text-gray-300">@</span>
+                    <TeamIcon teamId={game.homeTeamId} name={game.homeAbbr} size={48} className="shadow-lg transition-transform group-hover:-translate-x-1.5" />
                 </div>
-                <span className="text-xl font-display uppercase tracking-tight text-gray-900 mt-2">
-                    {opponentAbbr}
+                <span className="text-lg font-display uppercase tracking-tight text-gray-900 mt-2">
+                    {game.awayAbbr} <span className="text-gray-300 font-sans text-[11px] mx-1">@</span> {game.homeAbbr}
                 </span>
             </div>
 

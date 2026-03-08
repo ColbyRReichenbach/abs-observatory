@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 
 import { resolveTeamBranding } from "@/lib/team-branding";
 import { TeamIcon } from "@/components/team-icon";
+import { LocalTime } from "@/components/local-time";
 
 type TeamMotifHeroProps = {
   teamId: number;
@@ -18,6 +19,19 @@ type TeamMotifHeroProps = {
   awayTeamId?: number;
   awayTeamName?: string;
   awayLogoSvgUrl?: string | null;
+  dateStr?: string | null;
+  wins?: number;
+  losses?: number;
+  divisionRank?: number;
+  wildCardRank?: number;
+  divisionName?: string | null;
+  leagueName?: string | null;
+};
+
+const getOrdinal = (n: number) => {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
 };
 
 export function TeamMotifHero({
@@ -33,6 +47,13 @@ export function TeamMotifHero({
   awayTeamId,
   awayTeamName,
   awayLogoSvgUrl,
+  dateStr,
+  wins,
+  losses,
+  divisionRank,
+  wildCardRank,
+  divisionName,
+  leagueName,
 }: TeamMotifHeroProps) {
   const branding = resolveTeamBranding({
     teamId,
@@ -74,12 +95,41 @@ export function TeamMotifHero({
             </div>
           )}
 
-          <h1 className="text-6xl md:text-8xl font-display uppercase tracking-[-0.04em] text-gray-900 leading-[1.2] mb-10 py-4 overflow-visible">
+          <h1 className="text-6xl md:text-8xl font-display uppercase tracking-[-0.04em] text-gray-900 leading-[1.2] mb-2 py-4 overflow-visible flex items-baseline gap-6 flex-wrap">
             {title ?? teamName}
+            {wins !== undefined && losses !== undefined && (
+              <span className="text-3xl md:text-5xl font-display text-gray-400/60 tracking-normal normal-case">
+                {wins}–{losses}
+              </span>
+            )}
           </h1>
 
+          {(divisionName || divisionRank || leagueName) && (
+            <div className="flex items-center gap-4 mb-8">
+              <span className="text-[11px] font-black uppercase tracking-[0.15em] text-blue-600 bg-blue-500/5 px-3 py-1 rounded-lg border border-blue-500/10 backdrop-blur-sm">
+                {divisionRank ? `${getOrdinal(divisionRank)} in ` : ""}{leagueName && divisionName ? `${leagueName} ${divisionName}` : divisionName || leagueName || ""}
+              </span>
+              {wildCardRank && (
+                <span className="text-[11px] font-black uppercase tracking-[0.15em] text-gray-400">
+                  WC RANK: {wildCardRank}
+                </span>
+              )}
+            </div>
+          )}
+
           {subtitle ? (
-            <p className="text-xl md:text-2xl font-medium text-gray-500 max-w-xl leading-tight tracking-tight text-balance">{subtitle}</p>
+            <div className="flex flex-col gap-1">
+              <p className="text-xl md:text-2xl font-medium text-gray-500 max-w-xl leading-tight tracking-tight text-balance">{subtitle}</p>
+              {dateStr && (
+                <p className="text-sm font-mono font-bold text-gray-400">
+                  <LocalTime dateStr={dateStr} showDate={true} />
+                </p>
+              )}
+            </div>
+          ) : dateStr ? (
+            <p className="text-sm font-mono font-bold text-gray-400">
+              <LocalTime dateStr={dateStr} showDate={true} />
+            </p>
           ) : null}
         </div>
 

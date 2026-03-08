@@ -159,6 +159,8 @@ export function GameScoreboard({
   );
 }
 
+type TeamBranding = ReturnType<typeof resolveTeamBranding>;
+
 function ScoreRow({
   team,
   side,
@@ -172,7 +174,7 @@ function ScoreRow({
   inningCells: number[];
   innings: InningLine[];
   currentInning?: number | null;
-  brand: any;
+  brand: TeamBranding;
 }) {
   const abbreviation = team.abbreviation?.trim() || team.name;
   const accentColor = brand.tokens.teamPrimary;

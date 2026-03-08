@@ -11,18 +11,17 @@ const ZONE_W = 200;
 const ZONE_H = 230;
 
 export const UmpireHeatmap = memo(function UmpireHeatmap({ intel }: { intel: PregameIntel }) {
-    // In a real iteration, we'd map intelligence zones directly to matrix coordinates.
-    // Using highZoneAccuracy / lowZoneAccuracy heuristics to simulate a thermal overlay here.
-    const highRatio = intel.umpireTendency.highZoneAccuracy;
-    const lowRatio = intel.umpireTendency.lowZoneAccuracy;
+    const zoneRate = (bucket: PregameIntel["zoneBriefing"][number]["bucket"]) =>
+        intel.zoneBriefing.find((entry) => entry.bucket === bucket)?.overturnRate ?? (1 - intel.umpireTendency.overallAccuracy);
 
-    // We map a "hotter" red opacity if the umpire is less accurate (more blown calls)
-    const highGlowIntensity = Math.max(0, (1 - highRatio) * 4); // Max blown
-    const lowGlowIntensity = Math.max(0, (1 - lowRatio) * 4);
+    const topLeft = Math.max(0, zoneRate("up_glove") * 4);
+    const topRight = Math.max(0, zoneRate("up_arm") * 4);
+    const bottomLeft = Math.max(0, zoneRate("down_glove") * 4);
+    const bottomRight = Math.max(0, zoneRate("down_arm") * 4);
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 border border-gray-100 rounded-3xl overflow-hidden shadow-inner">
-            <div className="flex-1 p-12 relative flex items-center justify-center min-h-[500px]">
+        <div className="flex flex-col w-full bg-slate-50 border border-gray-100 rounded-3xl overflow-hidden shadow-inner">
+            <div className="flex-1 p-8 relative flex items-center justify-center">
                 <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full max-w-[420px]">
                     <defs>
                         {/* Base Field radial */}
@@ -31,15 +30,20 @@ export const UmpireHeatmap = memo(function UmpireHeatmap({ intel }: { intel: Pre
                             <stop offset="100%" stopColor="transparent" />
                         </radialGradient>
 
-                        {/* High Zone Error Glow */}
-                        <radialGradient id="highError" cx="50%" cy="10%">
-                            <stop offset="0%" stopColor={`rgba(239,68,68,${highGlowIntensity})`} />
+                        <radialGradient id="topLeftError" cx="30%" cy="20%">
+                            <stop offset="0%" stopColor={`rgba(239,68,68,${topLeft})`} />
                             <stop offset="100%" stopColor="transparent" />
                         </radialGradient>
-
-                        {/* Low Zone Error Glow */}
-                        <radialGradient id="lowError" cx="50%" cy="90%">
-                            <stop offset="0%" stopColor={`rgba(239,68,68,${lowGlowIntensity})`} />
+                        <radialGradient id="topRightError" cx="70%" cy="20%">
+                            <stop offset="0%" stopColor={`rgba(239,68,68,${topRight})`} />
+                            <stop offset="100%" stopColor="transparent" />
+                        </radialGradient>
+                        <radialGradient id="bottomLeftError" cx="30%" cy="80%">
+                            <stop offset="0%" stopColor={`rgba(239,68,68,${bottomLeft})`} />
+                            <stop offset="100%" stopColor="transparent" />
+                        </radialGradient>
+                        <radialGradient id="bottomRightError" cx="70%" cy="80%">
+                            <stop offset="0%" stopColor={`rgba(239,68,68,${bottomRight})`} />
                             <stop offset="100%" stopColor="transparent" />
                         </radialGradient>
                     </defs>
@@ -48,8 +52,10 @@ export const UmpireHeatmap = memo(function UmpireHeatmap({ intel }: { intel: Pre
                     <rect x="0" y="0" width={WIDTH} height={HEIGHT} fill="url(#fieldGlow)" />
 
                     {/* Thermal Zones Overlay */}
-                    <rect x={ZONE_X} y={ZONE_Y - 50} width={ZONE_W} height={ZONE_H / 2} fill="url(#highError)" />
-                    <rect x={ZONE_X} y={ZONE_Y + (ZONE_H / 2) + 50} width={ZONE_W} height={ZONE_H / 2} fill="url(#lowError)" />
+                    <rect x={ZONE_X} y={ZONE_Y} width={ZONE_W / 2} height={ZONE_H / 2} fill="url(#topLeftError)" />
+                    <rect x={ZONE_X + (ZONE_W / 2)} y={ZONE_Y} width={ZONE_W / 2} height={ZONE_H / 2} fill="url(#topRightError)" />
+                    <rect x={ZONE_X} y={ZONE_Y + (ZONE_H / 2)} width={ZONE_W / 2} height={ZONE_H / 2} fill="url(#bottomLeftError)" />
+                    <rect x={ZONE_X + (ZONE_W / 2)} y={ZONE_Y + (ZONE_H / 2)} width={ZONE_W / 2} height={ZONE_H / 2} fill="url(#bottomRightError)" />
 
                     {/* Strike zone box outlines */}
                     <rect

@@ -24,3 +24,4 @@
 - [ ] Final demo clip exported.
 - [ ] Case study draft completed.
 - [ ] Architecture diagram included.
+- [ ] Legal, privacy, moderation, and MLB-rights disclosures published.

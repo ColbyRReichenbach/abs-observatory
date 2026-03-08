@@ -5,7 +5,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "node",
-    exclude: ["tests/visual/**", "node_modules/**"],
+    exclude: ["tests/e2e/**", "tests/visual/**", "node_modules/**"],
   },
   resolve: {
     alias: {

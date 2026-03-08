@@ -13,11 +13,38 @@ import { InningIcon } from "@/components/inning-icon";
 import { AIStatInsight } from "@/components/ai-stat-insight";
 import { AtBatContextCard } from "@/components/game-hub/at-bat-context-card";
 
-export function ChallengeExplorer({ challenges }: { challenges: ChallengeEvent[] }) {
+export function ChallengeExplorer({
+  challenges,
+  initialChallengeId = null
+}: {
+  challenges: ChallengeEvent[],
+  initialChallengeId?: string | null
+}) {
   const [pitchType, setPitchType] = useState<string>("all");
   const [batter, setBatter] = useState<string>("all");
   const [pitcher, setPitcher] = useState<string>("all");
-  const [selectedChallengeId, setSelectedChallengeId] = useState<string | null>(challenges[0]?.challengeId ?? null);
+  const [selectedChallengeId, setSelectedChallengeId] = useState<string | null>(
+    initialChallengeId ?? challenges[0]?.challengeId ?? null
+  );
+
+  useEffect(() => {
+    if (initialChallengeId) {
+      setSelectedChallengeId(initialChallengeId);
+      // Also reset filters so the selected pitch is visible
+      const target = challenges.find(c => c.challengeId === initialChallengeId);
+      if (target) {
+        setPitchType("all");
+        setBatter("all");
+        setPitcher("all");
+
+        // Force scroll for better DX when deep linking
+        setTimeout(() => {
+          const el = document.getElementById("abs-explorer");
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 300);
+      }
+    }
+  }, [initialChallengeId, challenges]);
   const [hoveredChallengeId, setHoveredChallengeId] = useState<string | null>(null);
   const [zoneMode, setZoneMode] = useState<ZoneMode>("actual");
   const [showCountOverlay, setShowCountOverlay] = useState(false);
@@ -48,23 +75,16 @@ export function ChallengeExplorer({ challenges }: { challenges: ChallengeEvent[]
   const selectedIndex = filtered.findIndex((challenge) => challenge.challengeId === selected?.challengeId);
   const focusedChallengeId = hoveredChallengeId ?? selected?.challengeId ?? null;
 
-  // Mock AI Stat data based on selection
   const aiInsight = useMemo(() => {
     if (!selected) return null;
-    const isOverturned = selected.isOverturned;
     return {
-      batterName: selected.batterName ?? "Unknown",
-      pitcherName: selected.pitcherName ?? "Unknown",
-      verdict: isOverturned ? "Overturn" : "Confirmation",
-      impactDescription: isOverturned
-        ? `The overturn to a ball extended the plate appearance. Historical data suggests the batter's expected wOBA increases by .085 in this specific count shift.`
-        : `The confirmed strike maintained pitcher leverage. Expected strikeout probability surged to 72% following this assessment.`,
-      splitData: {
-        label: "PROBABILITY OF REACHING BASE",
-        before: ".245",
-        after: isOverturned ? ".315" : ".180",
-        trend: isOverturned ? "up" as const : "down" as const,
-      }
+      title: `${selected.batterName ?? "Batter"} vs ${selected.pitcherName ?? "Pitcher"}`,
+      verdict: selected.isOverturned ? "Call Overturned" : "Call Confirmed",
+      impactDescription: selected.impactSummary ?? "No additional impact summary is available for this challenge.",
+      countBefore: selected.countBefore ?? null,
+      countAfter: selected.countAfter ?? null,
+      umpireCount: selected.umpireCount ?? null,
+      impactType: selected.impactType ?? null,
     };
   }, [selected]);
 
@@ -86,16 +106,16 @@ export function ChallengeExplorer({ challenges }: { challenges: ChallengeEvent[]
   }, [replayEnabled, replaySpeed, selectedIndex, filtered]);
 
   return (
-    <section className="panel overflow-hidden border-white/5 bg-white/[0.01] shadow-2xl">
+    <section id="abs-explorer" className="panel overflow-hidden border-gray-100 bg-white shadow-2xl !rounded-r-none">
       {/* Toolbar */}
-      <div className="border-b border-white/5 px-6 py-5 bg-white/5">
+      <div className="border-b border-gray-100 px-6 py-5 bg-white/80 backdrop-blur-md">
         <div className="flex flex-wrap items-end gap-6">
           <Filter label="Pitch Type" value={pitchType} onChange={setPitchType} options={pitchTypes} />
           <Filter label="Batter" value={batter} onChange={setBatter} options={batters} />
           <Filter label="Pitcher" value={pitcher} onChange={setPitcher} options={pitchers} />
 
           {/* Zone mode toggle */}
-          <fieldset className="flex items-center gap-1 rounded-full border border-white/10 p-0.5 bg-white/5">
+          <fieldset className="flex items-center gap-1 rounded-full border border-gray-200 p-0.5 bg-white shadow-sm">
             <legend className="sr-only">Zone Mode</legend>
             <ModeButton active={zoneMode === "actual"} onClick={() => setZoneMode("actual")}>
               Actual
@@ -110,14 +130,14 @@ export function ChallengeExplorer({ challenges }: { challenges: ChallengeEvent[]
         <div className="mt-5 flex flex-wrap items-center gap-6">
           {/* Overlays */}
           <div className="flex items-center gap-4">
-            <label className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--ink-3)] cursor-pointer select-none transition-colors hover:text-[var(--ink-1)]">
+            <label className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--ink-2)] cursor-pointer select-none transition-colors hover:text-[var(--ink-0)]">
               <input type="checkbox" checked={showCountOverlay} onChange={(e) => setShowCountOverlay(e.target.checked)}
-                className="h-3.5 w-3.5 rounded border-white/20 bg-white/5 accent-blue-500" />
+                className="h-3.5 w-3.5 rounded border-gray-200 bg-white accent-blue-500" />
               Count Map
             </label>
-            <label className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--ink-3)] cursor-pointer select-none transition-colors hover:text-[var(--ink-1)]">
+            <label className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--ink-2)] cursor-pointer select-none transition-colors hover:text-[var(--ink-0)]">
               <input type="checkbox" checked={showPitchOverlay} onChange={(e) => setShowPitchOverlay(e.target.checked)}
-                className="h-3.5 w-3.5 rounded border-white/20 bg-white/5 accent-blue-500" />
+                className="h-3.5 w-3.5 rounded border-gray-200 bg-white accent-blue-500" />
               Pitch Info
             </label>
           </div>
@@ -125,7 +145,7 @@ export function ChallengeExplorer({ challenges }: { challenges: ChallengeEvent[]
           <div className="h-4 w-px bg-white/10 hidden md:block" />
 
           {/* Replay controls */}
-          <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2 py-1.5 shadow-inner">
+          <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-2 py-1.5 shadow-sm">
             <ReplayButton
               onClick={() => {
                 const previousIndex = stepReplayIndex(selectedIndex, "prev", filtered.length);
@@ -136,16 +156,18 @@ export function ChallengeExplorer({ challenges }: { challenges: ChallengeEvent[]
             >
               <svg width="12" height="12" viewBox="0 0 10 10" fill="currentColor"><path d="M6 2L2 5l4 3V2z" /></svg>
             </ReplayButton>
-            <button
+            <motion.button
               type="button"
               onClick={() => setReplayEnabled((prev) => !prev)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               className={`rounded-full px-5 py-1.5 text-[10px] font-black uppercase tracking-widest shadow-lg transition-all ${replayEnabled
                 ? "bg-red-500 text-white shadow-red-500/20"
                 : "bg-blue-500 text-white shadow-blue-500/20 hover:scale-105"
                 }`}
             >
               {replayEnabled ? "Pause" : "Play Sequence"}
-            </button>
+            </motion.button>
             <ReplayButton
               onClick={() => {
                 const nextIndex = stepReplayIndex(selectedIndex, "next", filtered.length);
@@ -176,7 +198,7 @@ export function ChallengeExplorer({ challenges }: { challenges: ChallengeEvent[]
       {/* Main content */}
       <div className="grid gap-0 lg:grid-cols-[1.2fr_0.8fr]">
         {/* Strike zone */}
-        <div className="border-b border-white/5 lg:border-b-0 lg:border-r relative bg-black/20">
+        <div className="border-b border-gray-100 lg:border-b-0 lg:border-r bg-white">
           <StrikeZonePlot
             challenges={filtered}
             selectedChallengeId={selected?.challengeId ?? null}
@@ -190,13 +212,24 @@ export function ChallengeExplorer({ challenges }: { challenges: ChallengeEvent[]
         </div>
 
         {/* Detail panel */}
-        <div className="flex flex-col bg-white/[0.02]">
+        <div className="flex flex-col bg-slate-50/50">
           {/* Selected pitch detail */}
-          <div className="border-b border-white/5 p-6 shadow-sm">
-            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--ink-3)] flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-              Decision Analysis
-            </h3>
+          <div className="border-b border-gray-100 p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
+                  Forensic Insights
+                </h4>
+                <p className="text-xl font-display leading-none text-gray-900">
+                  Decision <span className="text-gray-400">Analysis</span>
+                </p>
+              </div>
+              {selected && (selected.px === null || selected.pz === null) && (
+                <span className="text-[9px] font-black uppercase tracking-widest text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                  Telemetry Unavailable
+                </span>
+              )}
+            </div>
             {selected ? (
               <motion.div
                 key={selected.challengeId}
@@ -220,7 +253,12 @@ export function ChallengeExplorer({ challenges }: { challenges: ChallengeEvent[]
                   </div>
                   <div className="flex flex-col gap-1 ml-auto text-right">
                     <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--ink-3)]">Count</span>
-                    <span className="text-sm font-bold text-[var(--ink-1)]">{selected.balls}-{selected.strikes} • {selected.outs} Out</span>
+                    <span className="text-sm font-bold text-[var(--ink-1)]">
+                      {selected.umpireCount && selected.countAfter && selected.umpireCount !== selected.countAfter
+                        ? `${selected.umpireCount} → ${selected.countAfter}`
+                        : (selected.umpireCount || selected.countAfter || `${selected.balls}-${selected.strikes}`)}
+                      {" "} • {selected.outs} Out
+                    </span>
                   </div>
                 </div>
 
@@ -258,7 +296,7 @@ export function ChallengeExplorer({ challenges }: { challenges: ChallengeEvent[]
                     whileTap={reduceMotion ? undefined : { scale: 0.98 }}
                     className={`w-full rounded-xl border px-4 py-3 text-left transition-all ${focusedChallengeId === c.challengeId
                       ? "border-blue-500 bg-blue-500/10 shadow-[0_0_12px_rgba(59,130,246,0.1)]"
-                      : "border-white/5 bg-white/5 hover:bg-white/[0.08] hover:border-white/10"
+                      : "border-gray-100 bg-white hover:bg-gray-50 hover:border-gray-200"
                       }`}
                   >
                     <div className="flex items-center justify-between">
@@ -271,7 +309,7 @@ export function ChallengeExplorer({ challenges }: { challenges: ChallengeEvent[]
                       {c.batterName ?? "Batter"} vs {c.pitcherName ?? "Pitcher"}
                     </div>
                     <div className="mt-1 text-[10px] text-[var(--ink-3)] font-medium">
-                      {c.pitchType ?? "Pitch"} • {c.balls}-{c.strikes}
+                      {c.pitchType ?? "Pitch"} • {c.umpireCount || `${c.balls ?? 0}-${c.strikes ?? 0}`}
                     </div>
                   </motion.button>
 
@@ -328,7 +366,7 @@ function Filter({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-xs font-bold text-[var(--ink-1)] focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer hover:bg-white/[0.08]"
+        className="bg-white border border-gray-200 rounded-lg px-4 py-2 text-xs font-bold text-[var(--ink-1)] focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer hover:bg-gray-50 shadow-sm"
       >
         {options.map((opt) => (
           <option key={opt} value={opt} className="bg-[#0a0a0a]">
@@ -342,29 +380,30 @@ function Filter({
 
 function ModeButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onClick}
+      whileTap={{ scale: 0.9 }}
       className={`rounded-full px-5 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${active
         ? "bg-blue-500 text-white shadow-lg shadow-blue-500/20"
-        : "bg-transparent text-[var(--ink-3)] hover:text-white hover:bg-white/5"
+        : "bg-transparent text-[var(--ink-3)] hover:text-blue-600 hover:bg-blue-50"
         }`}
     >
       {children}
-    </button>
+    </motion.button>
   );
 }
 
 function ReplayButton({ onClick, label, children }: { onClick: () => void; label: string; children: React.ReactNode }) {
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onClick}
       aria-label={label}
-      className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--ink-3)] hover:text-white hover:bg-white/10 transition-all active:scale-90"
+      whileTap={{ scale: 0.8 }}
+      className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--ink-3)] hover:text-blue-600 hover:bg-blue-50 transition-all"
     >
       {children}
-    </button>
+    </motion.button>
   );
 }
-
