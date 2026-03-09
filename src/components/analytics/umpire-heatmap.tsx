@@ -1,20 +1,46 @@
 "use client";
 
-import { useMemo } from "react";
-import { motion } from "framer-motion";
+import { useMemo, useState } from "react";
+import { AnimatePresence } from "framer-motion";
+import { ChartTooltip } from "@/components/ui/chart-tooltip";
+
+type UmpireZoneBucket = {
+    zone: string;
+    challenges: number;
+    overturnRate: number;
+};
+
+const ZONE_CARDS = [
+    { zone: "up", label: "Upper Edge" },
+    { zone: "arm", label: "Arm Side" },
+    { zone: "glove", label: "Glove Side" },
+    { zone: "down", label: "Lower Edge" },
+] as const;
 
 export function UmpireHeatmap({
     zoneBuckets,
     size = 300
 }: {
-    zoneBuckets: Array<{ zone: string, challenges: number, overturnRate: number }>,
+    zoneBuckets: UmpireZoneBucket[],
     size?: number
 }) {
-    // Map our zones (up, down, glove, arm) to a 2x2 grid for simplicity or a more complex 3x3 if needed
-    // Current buckets are: up, down, glove, arm
+    const [hoveredZone, setHoveredZone] = useState<string | null>(null);
+    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
-    const getRate = (z: string) => zoneBuckets.find(b => b.zone === z)?.overturnRate ?? 0;
-    const getChallenges = (z: string) => zoneBuckets.find(b => b.zone === z)?.challenges ?? 0;
+    const handleMouseMove = (e: React.MouseEvent) => {
+        setMousePos({ x: e.clientX, y: e.clientY });
+    };
+
+    const zoneMap = useMemo(() => {
+        const map = new Map<string, UmpireZoneBucket>();
+        zoneBuckets.forEach((bucket) => {
+            map.set(bucket.zone, bucket);
+        });
+        return map;
+    }, [zoneBuckets]);
+
+    const getBucket = (zone: string) =>
+        zoneMap.get(zone) ?? { zone, challenges: 0, overturnRate: 0 };
 
     const getColor = (rate: number) => {
         if (rate >= 0.6) return "rgba(239, 68, 68, 0.4)"; // Red
@@ -24,61 +50,53 @@ export function UmpireHeatmap({
     };
 
     return (
-        <div className="relative flex items-center justify-center p-8 bg-slate-50/50 rounded-[2.5rem] border border-gray-100 shadow-inner overflow-hidden">
+        <div
+            className="relative flex items-center justify-center p-8 bg-slate-50/50 rounded-[2.5rem] border border-gray-100 shadow-inner overflow-hidden cursor-crosshair"
+            onMouseMove={handleMouseMove}
+        >
             <div
-                className="relative border-4 border-gray-900/10 rounded-2xl bg-white shadow-2xl flex flex-col"
+                className="relative border-4 border-gray-900/10 rounded-2xl bg-white shadow-2xl grid grid-cols-2 gap-2 overflow-hidden p-2"
                 style={{ width: size, height: size * 1.2 }}
             >
-                {/* Top Half */}
-                <div className="flex-1 flex border-b-2 border-dashed border-gray-100">
-                    {/* Top Glove (Up-Left) */}
-                    <div
-                        className="flex-1 flex flex-col items-center justify-center transition-colors duration-500 border-r-2 border-dashed border-gray-100 group"
-                        style={{ backgroundColor: getColor(getRate('up') * 0.8 + getRate('glove') * 0.2) }}
-                    >
-                        <span className="text-[10px] font-black opacity-40 group-hover:opacity-100 uppercase">Up-Glove</span>
-                    </div>
-                    {/* Top Arm (Up-Right) */}
-                    <div
-                        className="flex-1 flex flex-col items-center justify-center transition-colors duration-500 group"
-                        style={{ backgroundColor: getColor(getRate('up') * 0.8 + getRate('arm') * 0.2) }}
-                    >
-                        <span className="text-[10px] font-black opacity-40 group-hover:opacity-100 uppercase">Up-Arm</span>
-                    </div>
-                </div>
-
-                {/* Bottom Half */}
-                <div className="flex-1 flex">
-                    {/* Bottom Glove (Down-Left) */}
-                    <div
-                        className="flex-1 flex flex-col items-center justify-center transition-colors duration-500 border-r-2 border-dashed border-gray-100 group"
-                        style={{ backgroundColor: getColor(getRate('down') * 0.8 + getRate('glove') * 0.2) }}
-                    >
-                        <span className="text-[10px] font-black opacity-40 group-hover:opacity-100 uppercase">Down-Glove</span>
-                    </div>
-                    {/* Bottom Arm (Down-Right) */}
-                    <div
-                        className="flex-1 flex flex-col items-center justify-center transition-colors duration-500 group"
-                        style={{ backgroundColor: getColor(getRate('down') * 0.8 + getRate('arm') * 0.2) }}
-                    >
-                        <span className="text-[10px] font-black opacity-40 group-hover:opacity-100 uppercase">Down-Arm</span>
-                    </div>
-                </div>
+                {ZONE_CARDS.map(({ zone, label }) => {
+                    const bucket = getBucket(zone);
+                    return (
+                        <div
+                            key={zone}
+                            className="flex flex-col items-center justify-center rounded-xl transition-colors duration-500 group border border-gray-100/80"
+                            style={{ backgroundColor: getColor(bucket.overturnRate) }}
+                            onMouseEnter={() => setHoveredZone(zone)}
+                            onMouseLeave={() => setHoveredZone(null)}
+                        >
+                            <span className="text-[10px] font-black opacity-60 group-hover:opacity-100 uppercase text-center px-3">
+                                {label}
+                            </span>
+                            <span className="mt-1 text-xs font-mono font-bold text-gray-900">
+                                {(bucket.overturnRate * 100).toFixed(0)}%
+                            </span>
+                            <span className="mt-1 text-[8px] font-black uppercase tracking-widest text-gray-500">
+                                {bucket.challenges} CHL
+                            </span>
+                        </div>
+                    );
+                })}
 
                 {/* Home Plate Icon */}
                 <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-16 h-8 bg-white border border-gray-200 clip-path-plate shadow-sm" style={{ clipPath: 'polygon(0% 0%, 100% 0%, 100% 60%, 50% 100%, 0% 60%)' }} />
             </div>
-
-            <div className="absolute bottom-6 right-6 flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-red-500" />
-                    <span className="text-[8px] font-black uppercase text-gray-400 tracking-tighter">High Overturn</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span className="text-[8px] font-black uppercase text-gray-400 tracking-tighter">Low Overturn</span>
-                </div>
-            </div>
+            {/* Floating Tooltip Layer */}
+            <AnimatePresence>
+                {hoveredZone && (
+                    <ChartTooltip
+                        usePortal
+                        portalProps={mousePos}
+                        title={`Zone: ${ZONE_CARDS.find((card) => card.zone === hoveredZone)?.label ?? hoveredZone.toUpperCase()}`}
+                        value={getBucket(hoveredZone).challenges}
+                        subValueLabel="Challenges"
+                        extra={[{ label: "Overturn Rate", value: `${(getBucket(hoveredZone).overturnRate * 100).toFixed(2)}%` }]}
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 }

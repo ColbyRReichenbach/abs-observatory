@@ -6,10 +6,20 @@ const { sqlMock, sqlOneMock, withTransactionMock } = vi.hoisted(() => ({
   withTransactionMock: vi.fn(),
 }));
 
+const { getTeamLeaderboardModelMock, getUmpireLeaderboardModelMock } = vi.hoisted(() => ({
+  getTeamLeaderboardModelMock: vi.fn(),
+  getUmpireLeaderboardModelMock: vi.fn(),
+}));
+
 vi.mock("@/lib/db", () => ({
   sql: sqlMock,
   sqlOne: sqlOneMock,
   withTransaction: withTransactionMock,
+}));
+
+vi.mock("@/lib/data", () => ({
+  getTeamLeaderboardModel: getTeamLeaderboardModelMock,
+  getUmpireLeaderboardModel: getUmpireLeaderboardModelMock,
 }));
 
 import { generateDailyAutoArticle, getArticleBySlug } from "@/lib/server/articles";
@@ -20,6 +30,41 @@ describe("editorial article generation", () => {
     sqlMock.mockReset();
     sqlOneMock.mockReset();
     withTransactionMock.mockReset();
+    getTeamLeaderboardModelMock.mockReset();
+    getUmpireLeaderboardModelMock.mockReset();
+    getTeamLeaderboardModelMock.mockResolvedValue([
+      {
+        teamId: 147,
+        teamName: "New York Yankees",
+        gamesTracked: 12,
+        usedSuccessful: 8,
+        usedFailed: 4,
+        challengesTotal: 12,
+        avgRemaining: 0.9,
+        overturnRate: 0.667,
+        style: "Clutch",
+        orgStyleLabel: "Opportunistic",
+        styleConfidence: "high",
+        styleScores: { Clutch: 82, Calculated: 60, "Trigger-Happy": 45, Passive: 20 },
+      },
+    ]);
+    getUmpireLeaderboardModelMock.mockResolvedValue([
+      {
+        umpireId: 11,
+        umpireName: "Test Umpire",
+        challengedCalls: 20,
+        overturnedCalls: 10,
+        confirmedCalls: 10,
+        overturnRate: 0.5,
+        gamesWorked: 10,
+        reportCardScore: 42,
+        grade: "D",
+        fanDescriptor: "Erratic",
+        orgDescriptor: "Elevated risk",
+        confidence: "medium",
+        riskTier: "Elevated",
+      },
+    ]);
   });
 
   it("publishes a daily auto article when evidence-backed marts are present", async () => {
@@ -36,7 +81,27 @@ describe("editorial article generation", () => {
     sqlMock
       .mockResolvedValueOnce([{ teamid: 147, wins: 12, losses: 5 }])
       .mockResolvedValueOnce([{ teamid: 147, leagueid: 104, divisionrank: 1, wins: 12, losses: 5 }])
-      .mockResolvedValueOnce([{ teamid: 147, leagueid: 104, divisionrank: 2, wins: 11, losses: 5 }]);
+      .mockResolvedValueOnce([{ teamid: 147, leagueid: 104, divisionrank: 2, wins: 11, losses: 5 }])
+      .mockResolvedValueOnce([
+        {
+          challengeid: "c-1",
+          gamepk: 123,
+          challengedat: "2026-03-05T03:10:00Z",
+          inning: 8,
+          balls: 3,
+          strikes: 2,
+          outs: 2,
+          basesstate: "110",
+          homescore: 4,
+          awayscore: 4,
+          challengeteamname: "New York Yankees",
+          challengeplayername: "Aaron Judge",
+          calleddescription: "Called Strike",
+          isoverturned: true,
+          impacttype: "direct_ending_impact",
+          missdistance: 0.31,
+        },
+      ]);
 
     const queryMock = vi.fn(async (statement: string) => {
       if (statement.includes("RETURNING generation_run_id AS generationRunId")) {
@@ -89,6 +154,7 @@ describe("editorial article generation", () => {
     sqlMock
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
     const queryMock = vi.fn(async (statement: string) => {
@@ -131,7 +197,27 @@ describe("editorial article generation", () => {
     sqlMock
       .mockResolvedValueOnce([{ teamid: 147, wins: 12, losses: 5 }])
       .mockResolvedValueOnce([{ teamid: 147, leagueid: 104, divisionrank: 1, wins: 12, losses: 5 }])
-      .mockResolvedValueOnce([{ teamid: 147, leagueid: 104, divisionrank: 2, wins: 11, losses: 5 }]);
+      .mockResolvedValueOnce([{ teamid: 147, leagueid: 104, divisionrank: 2, wins: 11, losses: 5 }])
+      .mockResolvedValueOnce([
+        {
+          challengeid: "c-1",
+          gamepk: 123,
+          challengedat: "2026-03-05T03:10:00Z",
+          inning: 8,
+          balls: 3,
+          strikes: 2,
+          outs: 2,
+          basesstate: "110",
+          homescore: 4,
+          awayscore: 4,
+          challengeteamname: "New York Yankees",
+          challengeplayername: "Aaron Judge",
+          calleddescription: "Called Strike",
+          isoverturned: true,
+          impacttype: "direct_ending_impact",
+          missdistance: 0.31,
+        },
+      ]);
 
     const queryMock = vi.fn(async (statement: string) => {
       if (statement.includes("RETURNING generation_run_id AS generationRunId")) {

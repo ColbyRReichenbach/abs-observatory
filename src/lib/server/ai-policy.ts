@@ -1,5 +1,6 @@
 import type { CopilotContext } from "@/lib/copilot-context";
 import { COPILOT_RANGES } from "@/lib/copilot-context";
+import { estimateAiCostUsd } from "./ai-pricing";
 
 export const AI_MAX_MESSAGE_CHARS = 1200;
 export const AI_MAX_ESTIMATED_INPUT_TOKENS = 600;
@@ -154,10 +155,12 @@ export function postProcessAnswer(answer: string, citations: string[]): string {
 }
 
 export function estimateCostUsd(modelName: string, inputTokens: number, outputTokens: number): number {
-  const rates = modelName.includes("mini")
-    ? { input: 0.0000004, output: 0.0000016 }
-    : { input: 0.00000125, output: 0.000005 };
-  return Number((inputTokens * rates.input + outputTokens * rates.output).toFixed(6));
+  return estimateAiCostUsd({
+    provider: "openai",
+    modelName,
+    inputTokens,
+    outputTokens,
+  });
 }
 
 export function buildAiErrorPayload(error: AiPolicyError) {

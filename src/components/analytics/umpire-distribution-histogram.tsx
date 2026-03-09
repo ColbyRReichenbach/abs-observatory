@@ -64,7 +64,7 @@ export function UmpireDistributionHistogram({ data, onBucketClick }: Props) {
     const avgBucketIdx = Math.min(Math.floor((avgRate * 100) / BUCKET_SIZE), buckets.length - 1);
 
     return (
-        <div className="panel overflow-hidden border-gray-100 bg-white shadow-2xl shadow-black/[0.03] p-6 mb-8">
+        <div className="panel overflow-visible border-gray-100 bg-white shadow-2xl shadow-black/[0.03] p-6 mb-8">
             <div className="mb-6">
                 <h4 className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mb-1">
                     Accuracy Distribution
@@ -105,14 +105,21 @@ export function UmpireDistributionHistogram({ data, onBucketClick }: Props) {
                             }}
                         />
                         <Tooltip
+                            wrapperStyle={{ zIndex: 10001 }}
+                            allowEscapeViewBox={{ x: true, y: true }}
                             content={({ active, payload }) => {
                                 if (active && payload && payload.length) {
                                     const d = payload[0].payload as UmpireBucket;
                                     return (
                                         <ChartTooltip
                                             title={d.rangeLabel}
-                                            value={`${d.count} umpire${d.count !== 1 ? "s" : ""}`}
-                                            label={d.umpireNames.slice(0, 3).join(", ") + (d.umpireNames.length > 3 ? "…" : "")}
+                                            value={d.count}
+                                            subValueLabel={`Umpire${d.count !== 1 ? "s" : ""}`}
+                                            extra={[{
+                                                label: "Featured",
+                                                value: d.umpireNames.slice(0, 3).join(", ") + (d.umpireNames.length > 3 ? "…" : ""),
+                                                mono: false
+                                            }]}
                                         />
                                     );
                                 }

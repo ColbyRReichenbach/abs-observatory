@@ -1,14 +1,49 @@
 "use client";
 
-import { motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import { ArticleDetail } from "@/lib/server/articles";
+import { AIFeedback } from "@/components/ai-feedback";
 import { FlipCard } from "@/components/about/flip-card";
 import { StandingsPulse } from "@/components/articles/standings-pulse";
 import { DynamicChart } from "@/components/articles/dynamic-chart";
 
 interface GazetteArticleProps {
     article: ArticleDetail;
+}
+
+type GazetteAuditEvidence = {
+    umpireName?: string;
+    stability?: string;
+    wpaSwing?: string;
+    accuracy?: string;
+    reversed?: string;
+    context?: string;
+};
+
+type GazetteChartEvidence = {
+    chartType?: "line" | "bar" | "pie";
+    data?: Array<Record<string, string | number | null>>;
+    xAxisKey?: string;
+    yAxisKey?: string;
+    chartTitle?: string;
+};
+
+type StandingsPulseTeam = {
+    rank: number;
+    name: string;
+    abbreviation: string;
+    record: string;
+    movement: "up" | "down" | "same";
+    movementValue?: number;
+};
+
+type GazetteStandingsEvidence = {
+    al?: StandingsPulseTeam[];
+    nl?: StandingsPulseTeam[];
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null;
 }
 
 export function GazetteArticle({ article }: GazetteArticleProps) {
@@ -34,6 +69,9 @@ export function GazetteArticle({ article }: GazetteArticleProps) {
                 <p className="text-lg font-serif italic max-w-2xl mx-auto leading-tight">
                     &ldquo;{article.dek || "Dedicated to the preservation of the strike zone and the advancement of algorithmic precision."}&rdquo;
                 </p>
+                <h2 className="mt-8 text-4xl font-display uppercase tracking-tight leading-none text-[#2c2c2c] md:text-5xl">
+                    {article.title}
+                </h2>
 
                 {article.authorName && (
                     <div className="mt-8 flex items-center justify-center gap-4">
@@ -65,7 +103,7 @@ export function GazetteArticle({ article }: GazetteArticleProps) {
 
                         // Desktop Slot: Audit Desk (Umpire Analysis)
                         if (section.sectionKey === "audit_desk") {
-                            const evidence = section.evidencePayload as any;
+                            const evidence = (isRecord(section.evidencePayload) ? section.evidencePayload : null) as GazetteAuditEvidence | null;
                             return (
                                 <section key={section.sectionId} className="mb-16 bg-white/40 p-10 rounded-3xl border border-black/5 shadow-inner">
                                     <span className="block text-xs font-black uppercase tracking-[0.5em] text-gray-400 mb-8 text-center underline underline-offset-8">THE AUDIT DESK</span>
@@ -87,7 +125,7 @@ export function GazetteArticle({ article }: GazetteArticleProps) {
                                             rotateDegree={1}
                                             stats={[
                                                 { label: "Stability", value: evidence?.stability || "Audit" },
-                                                { label: "WPA Swing", value: evidence?.wpaSwing || "TBD" },
+                                                { label: "ECS Index", value: evidence?.wpaSwing || "TBD" },
                                                 { label: "Success %", value: evidence?.accuracy || "92.1%" },
                                                 { label: "Reversed", value: evidence?.reversed || "N/A" }
                                             ]}
@@ -105,7 +143,7 @@ export function GazetteArticle({ article }: GazetteArticleProps) {
 
                         // Desktop Slot: Data Lab (Charts / Infographics)
                         if (section.sectionKey === "data_lab") {
-                            const evidence = section.evidencePayload as any;
+                            const evidence = (isRecord(section.evidencePayload) ? section.evidencePayload : null) as GazetteChartEvidence | null;
                             return (
                                 <section key={section.sectionId} className="mb-16 border-l-8 border-black pl-8">
                                     <span className="block text-xs font-black uppercase tracking-widest text-blue-900 mb-4">The Data Lab</span>
@@ -187,9 +225,20 @@ export function GazetteArticle({ article }: GazetteArticleProps) {
                         <div className="h-px bg-black/10 w-12 mx-auto" />
                     </div>
 
+                    <section className="border border-black/15 bg-white/70 p-6 rounded-2xl">
+                        <AIFeedback
+                            surface="article"
+                            targetType="article"
+                            targetId={article.articleId}
+                            articleId={article.articleId}
+                            metadata={{ articleType: article.articleType, slug: article.slug }}
+                            prompt="Article quality"
+                        />
+                    </section>
+
                     {/* Standings Pulse Desk */}
                     {article.sections.filter(s => s.sectionKey === "standings_pulse").map(s => {
-                        const evidence = s.evidencePayload as any;
+                        const evidence = (isRecord(s.evidencePayload) ? s.evidencePayload : null) as GazetteStandingsEvidence | null;
                         if (!evidence?.al || !evidence?.nl) return null;
                         return (
                             <StandingsPulse
@@ -218,7 +267,7 @@ export function GazetteArticle({ article }: GazetteArticleProps) {
                         </h3>
                         <div className="space-y-4 text-xs leading-relaxed font-serif">
                             <p>
-                                Performance data based on Optical Tracking V4. Calculations include Win Probability Added (WPA) as calculated by the ABS Lab.
+                                Performance data is based on Optical Tracking V4. Challenge value references use AiBS estimated leverage and estimated challenge swing, not a true win-probability model.
                             </p>
                         </div>
                     </section>

@@ -1,5 +1,5 @@
 import { sql } from "@/lib/db";
-import { computeChallengeLeverageScore, rankChallengeMoments } from "@/lib/home-moments";
+import { buildHomeChallengeMoments, buildTeamLeaderboardEntries, buildUmpireLeaderboardEntries } from "@/lib/page-models";
 import { getCacheKey, withCachedValue } from "@/lib/server/scale";
 import type {
   ChallengeEvent,
@@ -10,6 +10,7 @@ import type {
   PitchTimelineEntry,
   RangeKey,
   SituationalFilters,
+  TeamLeaderboardEntry,
   TeamIdentity,
   TeamInningEfficiencyCell,
   TeamSideSplit,
@@ -17,6 +18,7 @@ import type {
   TeamTrendSparklinePoint,
   TeamScheduleGame,
   TeamTrendPoint,
+  UmpireLeaderboardEntry,
   UmpirePitchTypeBreakdown,
   UmpireProfile,
   UmpirePerformanceDNA,
@@ -51,6 +53,12 @@ function situationalWhere(filters?: SituationalFilters, alias = "c"): { clause: 
 
   if (filters.result === "overturned") clauses.push(`${alias}.is_overturned = TRUE`);
   else if (filters.result === "confirmed") clauses.push(`${alias}.is_overturned = FALSE`);
+
+  if (filters.side === "offense") {
+    clauses.push(`((g.home_team_id = ${alias}.challenge_team_id AND ${alias}.half_inning = 'bottom') OR (g.away_team_id = ${alias}.challenge_team_id AND ${alias}.half_inning = 'top'))`);
+  } else if (filters.side === "defense") {
+    clauses.push(`((g.home_team_id = ${alias}.challenge_team_id AND ${alias}.half_inning = 'top') OR (g.away_team_id = ${alias}.challenge_team_id AND ${alias}.half_inning = 'bottom'))`);
+  }
 
   // Leverage is tricky to do in SQL directly with the formula, 
   // but we can approximate for now if needed.
@@ -169,6 +177,8 @@ export async function getHomeChallengeMoments(limit = 8): Promise<HomeChallengeM
     gamestatus: string;
     balls: number | null;
     strikes: number | null;
+    outs: number | null;
+    basesstate: string | null;
     playername: string | null;
     pitchnumber: number | null;
     balls_before: number | null;
@@ -193,6 +203,8 @@ export async function getHomeChallengeMoments(limit = 8): Promise<HomeChallengeM
       g.status_abstract AS gameStatus,
       c.balls,
       c.strikes,
+      c.outs,
+      c.bases_state AS basesState,
       c.challenge_player_name AS playerName,
       COALESCE(c.pitch_number, c.inferred_pitch_number) AS pitchNumber,
       p.balls_before,
@@ -222,15 +234,15 @@ export async function getHomeChallengeMoments(limit = 8): Promise<HomeChallengeM
     calledDescription: r.calleddescription,
     challengeTeamName: r.challengeteamname,
     isOverturned: r.isoverturned,
-    leverageScore: computeChallengeLeverageScore({
-      inning: r.inning,
-      homeScore: r.homescore,
-      awayScore: r.awayscore,
-      isOverturned: r.isoverturned,
-    }),
+    leverageScore: 0,
     gameStatus: r.gamestatus,
     balls: r.balls,
     strikes: r.strikes,
+    outs: r.outs,
+    basesState: r.basesstate,
+    homeScore: r.homescore,
+    awayScore: r.awayscore,
+    impactType: null,
     umpireCount: (() => {
       if (r.balls_before === null || r.strikes_before === null) return null;
       if (!r.isoverturned) return r.balls_after === null || r.strikes_after === null ? null : `${r.balls_after}-${r.strikes_after}`;
@@ -242,7 +254,7 @@ export async function getHomeChallengeMoments(limit = 8): Promise<HomeChallengeM
     pitchNumber: r.pitchnumber,
   }));
 
-  return rankChallengeMoments(moments);
+  return buildHomeChallengeMoments(moments);
 }
 
 export async function getGame(gamePk: number) {
@@ -779,7 +791,7 @@ export async function getUmpireLeaderboard(range: RangeKey = "season"): Promise<
   );
 
   return rows.map((r) => ({
-    umpireId: r.umpireid,
+    umpireId: Number(r.umpireid),
     umpireName: r.umpirename,
     challengedCalls: Number(r.challengedcalls),
     overturnedCalls: Number(r.overturnedcalls),
@@ -787,6 +799,64 @@ export async function getUmpireLeaderboard(range: RangeKey = "season"): Promise<
     overturnRate: Number(r.overturnrate),
     gamesWorked: Number(r.gamesworked),
   }));
+}
+
+async function getUmpireRubricMetrics(range: RangeKey = "season") {
+  const window = rangeWhere(range, "g.game_date");
+  const rows = await sql<{
+    umpireid: number;
+    overturnratevariance: number | null;
+    recentoverturnrate: number | null;
+  }>(
+    `
+    WITH filtered AS (
+      SELECT
+        s.umpire_id AS umpireId,
+        s.game_pk,
+        s.challenged_calls,
+        s.overturned_calls,
+        CASE
+          WHEN s.challenged_calls > 0 THEN s.overturned_calls::NUMERIC / s.challenged_calls
+          ELSE NULL
+        END AS gameOverturnRate,
+        ROW_NUMBER() OVER (
+          PARTITION BY s.umpire_id
+          ORDER BY g.game_date DESC, s.game_pk DESC
+        ) AS recentRank
+      FROM umpire_abs_game_summary s
+      JOIN games g ON g.game_pk = s.game_pk
+      WHERE ${window.clause}
+    )
+    SELECT
+      umpireId,
+      COALESCE(STDDEV_POP(gameOverturnRate), 0)::NUMERIC AS overturnRateVariance,
+      CASE
+        WHEN SUM(challenged_calls) FILTER (WHERE recentRank <= 5) > 0
+          THEN SUM(overturned_calls) FILTER (WHERE recentRank <= 5)::NUMERIC
+            / SUM(challenged_calls) FILTER (WHERE recentRank <= 5)
+        ELSE NULL
+      END AS recentOverturnRate
+    FROM filtered
+    GROUP BY umpireId
+    `,
+    window.params,
+  );
+
+  return new Map(
+    rows.map((row) => [
+      Number(row.umpireid),
+      {
+        umpireId: Number(row.umpireid),
+        overturnRateVariance: Number(row.overturnratevariance ?? 0),
+        recentOverturnRate: row.recentoverturnrate === null ? null : Number(row.recentoverturnrate),
+      },
+    ]),
+  );
+}
+
+export async function getUmpireLeaderboardModel(range: RangeKey = "season"): Promise<UmpireLeaderboardEntry[]> {
+  const [umpires, metrics] = await Promise.all([getUmpireLeaderboard(range), getUmpireRubricMetrics(range)]);
+  return buildUmpireLeaderboardEntries(umpires, metrics);
 }
 
 export async function getUmpireSummary(
@@ -831,7 +901,7 @@ export async function getUmpireSummary(
   const r = rows[0];
   if (!r) return null;
   return {
-    umpireId: r.umpireid,
+    umpireId: Number(r.umpireid),
     umpireName: r.umpirename,
     challengedCalls: Number(r.challengedcalls),
     overturnedCalls: Number(r.overturnedcalls),
@@ -997,8 +1067,18 @@ export async function getTeamLeaderboard(range: RangeKey = "season"): Promise<Te
     window.params,
   );
 
-  return rows.map((r) => ({
-    teamId: r.teamid,
+  // Deduplicate teams by name (taking the one with the most challenges) to prevent duplicates like CWS or SD
+  const uniqueTeamsMap = new Map();
+  for (const r of rows) {
+    if (!uniqueTeamsMap.has(r.teamname) || Number(r.challengestotal) > Number(uniqueTeamsMap.get(r.teamname).challengestotal)) {
+      uniqueTeamsMap.set(r.teamname, r);
+    }
+  }
+
+  const uniqueRows = Array.from(uniqueTeamsMap.values());
+
+  return uniqueRows.map((r) => ({
+    teamId: Number(r.teamid),
     teamName: r.teamname,
     gamesTracked: Number(r.gamestracked),
     usedSuccessful: Number(r.usedsuccessful),
@@ -1007,6 +1087,54 @@ export async function getTeamLeaderboard(range: RangeKey = "season"): Promise<Te
     avgRemaining: Number(r.avgremaining),
     overturnRate: Number(r.overturnrate),
   }));
+}
+
+async function getTeamStyleMetrics(range: RangeKey = "season") {
+  const window = rangeWhere(range, "g.game_date");
+  const rows = await sql<{
+    teamid: number;
+    lateleverageshare: number | null;
+    earlylowleverageshare: number | null;
+  }>(
+    `
+    SELECT
+      c.challenge_team_id AS teamId,
+      AVG(
+        CASE
+          WHEN c.inning >= 7 OR ABS(COALESCE(c.home_score, 0) - COALESCE(c.away_score, 0)) <= 2 THEN 1.0
+          ELSE 0.0
+        END
+      )::NUMERIC AS lateLeverageShare,
+      AVG(
+        CASE
+          WHEN c.inning <= 3 AND ABS(COALESCE(c.home_score, 0) - COALESCE(c.away_score, 0)) >= 3 THEN 1.0
+          ELSE 0.0
+        END
+      )::NUMERIC AS earlyLowLeverageShare
+    FROM abs_challenges c
+    JOIN games g ON g.game_pk = c.game_pk
+    WHERE c.challenge_team_id IS NOT NULL
+      AND ${window.clause}
+    GROUP BY c.challenge_team_id
+    `,
+    window.params,
+  );
+
+  return new Map(
+    rows.map((row) => [
+      Number(row.teamid),
+      {
+        teamId: Number(row.teamid),
+        lateLeverageShare: Number(row.lateleverageshare ?? 0),
+        earlyLowLeverageShare: Number(row.earlylowleverageshare ?? 0),
+      },
+    ]),
+  );
+}
+
+export async function getTeamLeaderboardModel(range: RangeKey = "season"): Promise<TeamLeaderboardEntry[]> {
+  const [teams, styleMetrics] = await Promise.all([getTeamLeaderboard(range), getTeamStyleMetrics(range)]);
+  return buildTeamLeaderboardEntries(teams, styleMetrics);
 }
 
 export async function getTeamSummary(
@@ -1053,7 +1181,7 @@ export async function getTeamSummary(
   const r = rows[0];
   if (!r) return null;
   return {
-    teamId: r.teamid,
+    teamId: Number(r.teamid),
     teamName: r.teamname,
     gamesTracked: Number(r.gamestracked),
     usedSuccessful: Number(r.usedsuccessful),
@@ -1267,7 +1395,7 @@ export async function getTeamInningEfficiency(
     SELECT
       c.inning,
       CASE
-        WHEN (g.home_team_id = $1 AND c.half_inning = 'Bottom') OR (g.away_team_id = $1 AND c.half_inning = 'Top')
+        WHEN (g.home_team_id = $1 AND c.half_inning = 'bottom') OR (g.away_team_id = $1 AND c.half_inning = 'top')
           THEN 'Offensive'
         ELSE 'Defensive'
       END AS category,
@@ -1347,13 +1475,29 @@ export async function getGameReport(gamePk: number): Promise<GameReport | null> 
   const rows = await sql<{
     gamepk: number;
     generatedat: string;
+    model_name: string | null;
+    generation_id: string | null;
     narrativemd: string;
     chart_spec: unknown;
   }>(
     `
-    SELECT game_pk, generated_at, narrative_md, chart_spec
-    FROM game_reports
-    WHERE game_pk = $1
+    SELECT
+      r.game_pk,
+      r.generated_at,
+      r.model_name,
+      ge.generation_id,
+      r.narrative_md,
+      r.chart_spec
+    FROM game_reports r
+    LEFT JOIN LATERAL (
+      SELECT generation_id
+      FROM ai.generation_events
+      WHERE target_type = 'game_report'
+        AND target_id = r.game_pk::text
+      ORDER BY created_at DESC
+      LIMIT 1
+    ) ge ON TRUE
+    WHERE r.game_pk = $1
     `,
     [gamePk],
   );
@@ -1363,6 +1507,8 @@ export async function getGameReport(gamePk: number): Promise<GameReport | null> 
   return {
     gamePk: r.gamepk,
     generatedAt: r.generatedat,
+    modelName: r.model_name,
+    generationId: r.generation_id,
     narrativeMd: r.narrativemd,
     chartSpec: r.chart_spec,
   };
@@ -1461,17 +1607,13 @@ export async function getTeamAggression(
       AND ${window.clause}
       AND ${situational.clause}
     GROUP BY 1
-    UNION ALL
-    SELECT
-      CASE WHEN (g.home_team_id = $1 AND c.half_inning = 'Bottom') OR (g.away_team_id = $1 AND c.half_inning = 'Top') THEN 'Offense' ELSE 'Defense' END AS category,
-      COUNT(*) AS count,
-      AVG(CASE WHEN c.is_overturned THEN 1.0 ELSE 0.0 END)::NUMERIC AS overturn_rate
-    FROM abs_challenges c
-    JOIN games g ON g.game_pk = c.game_pk
-    WHERE c.challenge_team_id = $1
-      AND ${window.clause}
-      AND ${situational.clause}
-    GROUP BY 1
+    ORDER BY 
+      MIN(CASE 
+        WHEN c.inning <= 3 THEN 1 
+        WHEN c.inning BETWEEN 4 AND 6 THEN 2 
+        WHEN c.inning BETWEEN 7 AND 9 THEN 3 
+        ELSE 4 
+      END) ASC
     `,
     [teamId, ...window.params, ...situational.params],
   );
@@ -1937,10 +2079,6 @@ export async function getTeamHitterEyeHeatmap(
       FROM abs_challenges c
       JOIN games g ON g.game_pk = c.game_pk
       WHERE c.challenge_team_id = $1
-        AND (
-          (g.home_team_id = $1 AND c.half_inning = 'Bottom') OR
-          (g.away_team_id = $1 AND c.half_inning = 'Top')
-        )
         AND COALESCE(c.px, c.inferred_px) IS NOT NULL
         AND COALESCE(c.pz, c.inferred_pz) IS NOT NULL
         AND COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) IS NOT NULL
@@ -1987,8 +2125,8 @@ export async function getTeamPitchingBailouts(
     JOIN games g ON g.game_pk = c.game_pk
     WHERE c.challenge_team_id = $1
       AND (
-        (g.home_team_id = $1 AND c.half_inning = 'Top') OR
-        (g.away_team_id = $1 AND c.half_inning = 'Bottom')
+        (g.home_team_id = $1 AND c.half_inning = 'top') OR
+        (g.away_team_id = $1 AND c.half_inning = 'bottom')
       )
       AND ${window.clause}
       AND ${situational.clause}

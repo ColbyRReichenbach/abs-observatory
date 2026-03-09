@@ -2,6 +2,7 @@
 
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
+import { buildLinearAxis, formatNumberTick } from "@/components/analytics/chart-axis";
 
 export function ChallengeDistributionTimeline({
     homeTeamName,
@@ -9,6 +10,8 @@ export function ChallengeDistributionTimeline({
     homeData,
     awayData,
     leagueAverage,
+    title = "Historic Challenge Timing",
+    description = "Aggregated timeline illustrating the typical inning distribution where each team opts to use their ABS challenges.",
     homeColor = "#3b82f6",
     awayColor = "#8b5cf6"
 }: {
@@ -17,6 +20,8 @@ export function ChallengeDistributionTimeline({
     homeData: number[];
     awayData: number[];
     leagueAverage: number[];
+    title?: string;
+    description?: string;
     homeColor?: string;
     awayColor?: string;
 }) {
@@ -26,14 +31,22 @@ export function ChallengeDistributionTimeline({
         [awayTeamName]: awayData[index] ?? 0,
         leagueAverage: leagueAverage[index] ?? 0,
     }));
+    const allValues = [...homeData, ...awayData, ...leagueAverage].filter((value) => Number.isFinite(value));
+    const yStep = allValues.length > 0 && Math.max(...allValues) <= 2 ? 0.5 : 1;
+    const yAxis = buildLinearAxis(allValues, {
+        step: yStep,
+        padding: yStep / 2,
+        min: 0,
+        minSpan: yStep * 3,
+    });
 
     return (
         <div className="mt-8 panel p-6 shadow-2xl shadow-black/[0.02] border border-gray-50 bg-white">
             <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-4 flex w-full justify-start items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Historic Challenge Timing
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {title}
             </h4>
             <p className="text-sm text-gray-500 mb-6 text-balance">
-                Aggregated timeline illustrating the typical inning distribution where each team opts to use their ABS challenges.
+                {description}
             </p>
 
             <div className="h-[300px] w-full mt-4">
@@ -58,9 +71,12 @@ export function ChallengeDistributionTimeline({
                             dy={10}
                         />
                         <YAxis
+                            domain={yAxis.domain}
+                            ticks={yAxis.ticks}
                             axisLine={false}
                             tickLine={false}
                             tick={{ fill: "#9ca3af", fontSize: 10, fontWeight: 700 }}
+                            tickFormatter={(value) => formatNumberTick(value, yStep < 1 ? 1 : 0)}
                         />
                         <Tooltip
                             content={({ active, payload, label }) => {
@@ -70,7 +86,7 @@ export function ChallengeDistributionTimeline({
                                         title={String(label ?? "")}
                                         extra={payload.map((item) => ({
                                             label: String(item.name ?? ""),
-                                            value: Number(item.value ?? 0).toFixed(1),
+                                            value: formatNumberTick(Number(item.value ?? 0), 1),
                                             color: String(item.color ?? ""),
                                         }))}
                                     />

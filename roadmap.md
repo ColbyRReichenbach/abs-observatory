@@ -3,6 +3,7 @@
 This file is the canonical execution tracker for backend, data, editorial, AI, and ship-readiness work.
 
 Primary references:
+- [product-source-of-truth.md](./product-source-of-truth.md)
 - [plan.md](./plan.md)
 - [stack-selection.md](./stack-selection.md)
 - [ai-backend-plan.md](./ai-backend-plan.md)

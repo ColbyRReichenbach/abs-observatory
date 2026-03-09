@@ -4,6 +4,7 @@ import { useMemo, useState, useRef, useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Send } from "lucide-react";
+import { AIFeedback } from "@/components/ai-feedback";
 import { AiBSIcon } from "@/components/ui/aibs-icon";
 
 import { inferCopilotContext } from "@/lib/copilot-context";
@@ -26,6 +27,9 @@ type Message = {
   confidence?: Confidence;
   citations?: string[];
   toolResults?: Array<{ toolName: string; payload: unknown }>;
+  conversationId?: string;
+  assistantMessageId?: string | null;
+  generationId?: string | null;
 };
 
 /** Baseball arcing across the typing bubble — replaces spinner */
@@ -167,7 +171,7 @@ export function ContextualCopilotFAB() {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: q, context, delivery: "sync" }),
+        body: JSON.stringify({ message: q, context, delivery: "sync", surface: "copilot" }),
       });
       const payload = (await res.json()) as AIChatResponse;
       setMessages((prev) => [
@@ -178,6 +182,9 @@ export function ContextualCopilotFAB() {
           confidence: payload.confidence as Confidence | undefined,
           citations: payload.citations,
           toolResults: payload.toolResults,
+          conversationId: payload.conversationId,
+          assistantMessageId: payload.assistantMessageId ?? null,
+          generationId: payload.generationId ?? null,
         },
       ]);
     } catch {
@@ -387,6 +394,20 @@ export function ContextualCopilotFAB() {
                         </div>
                       </details>
                     )}
+
+                    {msg.role === "ai" && msg.assistantMessageId ? (
+                      <AIFeedback
+                        surface="copilot"
+                        targetType="ai_message"
+                        targetId={msg.assistantMessageId}
+                        generationId={msg.generationId}
+                        conversationId={msg.conversationId}
+                        messageId={msg.assistantMessageId}
+                        metadata={{ pathname }}
+                        prompt="Copilot quality"
+                        className="pt-1"
+                      />
+                    ) : null}
                   </div>
                 </motion.div>
               ))}

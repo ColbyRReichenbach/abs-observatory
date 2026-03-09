@@ -8,14 +8,20 @@ import type { ViewMode } from "@/lib/view-mode";
  * S8: Client toggle for Fan/Org mode.
  * Updates the cookie and the URL param so the server resolves the new mode on next request.
  */
-export function ViewModeToggle({ mode }: { mode: ViewMode }) {
+export function ViewModeToggle({ initialMode }: { initialMode?: ViewMode }) {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const [isPending, startTransition] = useTransition();
 
+    // Deduce active mode: URL param > initialMode > cookie > "fan"
+    const paramMode = searchParams.get("view");
+    const activeMode: ViewMode = (paramMode === "fan" || paramMode === "org")
+        ? paramMode
+        : initialMode || "fan";
+
     const toggle = useCallback(() => {
-        const next: ViewMode = mode === "fan" ? "org" : "fan";
+        const next: ViewMode = activeMode === "fan" ? "org" : "fan";
 
         // Update cookie
         document.cookie = `aibs_view_mode=${next};path=/;max-age=${60 * 60 * 24 * 365};SameSite=Lax`;
@@ -26,7 +32,9 @@ export function ViewModeToggle({ mode }: { mode: ViewMode }) {
         startTransition(() => {
             router.push(`${pathname}?${params.toString()}`);
         });
-    }, [mode, pathname, searchParams, router]);
+    }, [activeMode, pathname, searchParams, router]);
+
+    const mode = activeMode;
 
     return (
         <button
@@ -37,16 +45,16 @@ export function ViewModeToggle({ mode }: { mode: ViewMode }) {
         >
             <span
                 className={`rounded-full px-3 py-1.5 transition-all ${mode === "fan"
-                        ? "bg-blue-600 text-white shadow-sm"
-                        : "text-gray-400 hover:text-gray-600"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-gray-400 hover:text-gray-600"
                     }`}
             >
                 Fan
             </span>
             <span
                 className={`rounded-full px-3 py-1.5 transition-all ${mode === "org"
-                        ? "bg-gray-900 text-white shadow-sm"
-                        : "text-gray-400 hover:text-gray-600"
+                    ? "bg-gray-900 text-white shadow-sm"
+                    : "text-gray-400 hover:text-gray-600"
                     }`}
             >
                 Org

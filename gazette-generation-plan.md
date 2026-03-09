@@ -1,5 +1,7 @@
 # The Absolute Observer Gazette Plan
 
+> Gazette product decisions are now anchored in [product-source-of-truth.md](./product-source-of-truth.md). This file remains a focused editorial workflow reference.
+
 This is the aligned editorial plan for the backend we actually have in this repo.
 
 Companion references:

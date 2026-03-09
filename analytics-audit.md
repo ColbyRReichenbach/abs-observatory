@@ -1,4 +1,6 @@
 # ABS Observatory — Analytics Design Audit v3
+> Superseded as a source-of-truth planning document by [product-source-of-truth.md](./product-source-of-truth.md). Keep this file for historical audit context only.
+
 *Revised: March 5, 2026 — v3 incorporates feedback on strike zone chart placement, scatter plot logos, status-aware schedule indicators, and articles UX*
 
 ---

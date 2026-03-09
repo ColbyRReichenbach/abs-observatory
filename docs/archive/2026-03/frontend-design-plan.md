@@ -1,5 +1,7 @@
 # ABS Observatory Frontend Design Plan (Baseball-first, Apple-like execution)
 
+> Archived in March 2026. Canonical product decisions now live in [../../../product-source-of-truth.md](../../../product-source-of-truth.md).
+
 ## 1) Objective
 Design a production-grade MLB ABS analytics interface that feels:
 - unmistakably baseball-native (MLB/Savant/Gameday DNA)

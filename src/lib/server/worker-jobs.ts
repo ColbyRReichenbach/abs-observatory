@@ -3,6 +3,7 @@ import { promisify } from "node:util";
 
 import { generateDailyAutoArticle } from "./articles";
 import { executeQueuedChatJob } from "./ai-chat";
+import { classifyFeedback } from "./ai-feedback-classifier";
 import {
   claimQueuedJobs,
   type JobPayloadByType,
@@ -38,6 +39,14 @@ async function processAiHeavyChat(job: QueuedJob<"ai_heavy_chat">): Promise<JobP
   };
 }
 
+async function processAiFeedbackClassification(job: QueuedJob<"ai_feedback_classification">): Promise<JobProcessorResult> {
+  const result = await classifyFeedback(job.payload.feedbackId);
+  return {
+    summary: "AI feedback classified.",
+    payload: result,
+  };
+}
+
 async function processArticleDailyAuto(job: QueuedJob<"article_daily_auto">): Promise<JobProcessorResult> {
   const article = await generateDailyAutoArticle(job.payload.sourceDate, {
     jobRunId: job.jobRunId,
@@ -68,6 +77,7 @@ const JOB_PROCESSORS: {
   [K in JobType]: (job: QueuedJob<K>) => Promise<JobProcessorResult>;
 } = {
   ai_heavy_chat: processAiHeavyChat,
+  ai_feedback_classification: processAiFeedbackClassification,
   article_daily_auto: processArticleDailyAuto,
   enrichment_sync_standings: processStandingsSync,
   enrichment_sync_savant_weekly: processSavantWeekly,

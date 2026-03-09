@@ -513,12 +513,18 @@ CREATE TABLE IF NOT EXISTS editorial.generation_steps (
   step_key TEXT NOT NULL,
   agent_name TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'queued',
+  provider TEXT,
   model_name TEXT,
+  generation_id UUID,
   conversation_id UUID,
   input_payload JSONB,
   output_payload JSONB,
   error_message TEXT,
   tool_call_count INTEGER NOT NULL DEFAULT 0,
+  input_tokens INTEGER,
+  output_tokens INTEGER,
+  estimated_cost_usd NUMERIC,
+  latency_ms INTEGER,
   prompt_tokens INTEGER,
   completion_tokens INTEGER,
   cost_usd NUMERIC,
@@ -718,6 +724,75 @@ CREATE TABLE IF NOT EXISTS ai.usage_ledger (
   CONSTRAINT ai_usage_ledger_plan_check CHECK (plan_code IN ('free', 'tier1', 'tier2', 'tier3'))
 );
 
+CREATE TABLE IF NOT EXISTS ai.generation_events (
+  generation_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES product.users(user_id) ON DELETE SET NULL,
+  session_id TEXT,
+  surface_key TEXT NOT NULL,
+  surface_detail TEXT,
+  target_type TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  route_scope TEXT,
+  route_entity_id TEXT,
+  conversation_id UUID REFERENCES ai.conversations(conversation_id) ON DELETE SET NULL,
+  message_id UUID REFERENCES ai.messages(message_id) ON DELETE SET NULL,
+  article_id UUID,
+  game_pk BIGINT REFERENCES games(game_pk) ON DELETE SET NULL,
+  provider TEXT NOT NULL,
+  model_name TEXT NOT NULL,
+  prompt_version TEXT,
+  input_tokens INTEGER NOT NULL DEFAULT 0,
+  output_tokens INTEGER NOT NULL DEFAULT 0,
+  total_tokens INTEGER NOT NULL DEFAULT 0,
+  estimated_cost_usd NUMERIC NOT NULL DEFAULT 0,
+  latency_ms INTEGER,
+  status TEXT NOT NULL,
+  cache_hit BOOLEAN NOT NULL DEFAULT FALSE,
+  metadata JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT ai_generation_events_status_check CHECK (status IN ('succeeded', 'fallback', 'failed', 'cached'))
+);
+
+CREATE TABLE IF NOT EXISTS ai.feedback (
+  feedback_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  actor_key TEXT NOT NULL,
+  user_id UUID REFERENCES product.users(user_id) ON DELETE SET NULL,
+  session_id TEXT,
+  surface TEXT NOT NULL,
+  target_type TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  sentiment TEXT NOT NULL,
+  generation_id UUID REFERENCES ai.generation_events(generation_id) ON DELETE SET NULL,
+  conversation_id UUID REFERENCES ai.conversations(conversation_id) ON DELETE SET NULL,
+  message_id UUID REFERENCES ai.messages(message_id) ON DELETE SET NULL,
+  article_id UUID,
+  game_pk BIGINT REFERENCES games(game_pk) ON DELETE SET NULL,
+  comment TEXT,
+  classification_status TEXT NOT NULL DEFAULT 'pending',
+  classification_bucket TEXT,
+  classification_confidence NUMERIC,
+  classification_notes TEXT,
+  review_status TEXT NOT NULL DEFAULT 'new',
+  review_notes TEXT,
+  reviewed_by_user_id UUID REFERENCES product.users(user_id) ON DELETE SET NULL,
+  reviewed_at TIMESTAMPTZ,
+  override_bucket TEXT,
+  metadata JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT ai_feedback_sentiment_check CHECK (sentiment IN ('up', 'down')),
+  CONSTRAINT ai_feedback_classification_status_check CHECK (classification_status IN ('pending', 'classified', 'skipped')),
+  CONSTRAINT ai_feedback_review_status_check CHECK (review_status IN ('new', 'triaged', 'resolved')),
+  CONSTRAINT ai_feedback_unique_actor_target UNIQUE (actor_key, surface, target_type, target_id)
+);
+
+ALTER TABLE IF EXISTS ai.feedback
+  ADD COLUMN IF NOT EXISTS review_status TEXT NOT NULL DEFAULT 'new',
+  ADD COLUMN IF NOT EXISTS review_notes TEXT,
+  ADD COLUMN IF NOT EXISTS reviewed_by_user_id UUID REFERENCES product.users(user_id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS override_bucket TEXT;
+
 CREATE TABLE IF NOT EXISTS ops.audit_log (
   audit_log_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   actor_user_id UUID REFERENCES product.users(user_id) ON DELETE SET NULL,
@@ -858,6 +933,17 @@ CREATE INDEX IF NOT EXISTS idx_ai_user_entitlements_plan ON ai.user_entitlements
 CREATE INDEX IF NOT EXISTS idx_ai_usage_ledger_user_day ON ai.usage_ledger (user_id, usage_day DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_usage_ledger_user_month ON ai.usage_ledger (user_id, usage_month DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_usage_ledger_month_model ON ai.usage_ledger (usage_month, model_name);
+CREATE INDEX IF NOT EXISTS idx_ai_generation_events_created ON ai.generation_events (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_generation_events_surface_created ON ai.generation_events (surface_key, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_generation_events_provider_model_created ON ai.generation_events (provider, model_name, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_generation_events_target_created ON ai.generation_events (target_type, target_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_generation_events_game_created ON ai.generation_events (game_pk, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_generation_events_article_created ON ai.generation_events (article_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_feedback_surface_created ON ai.feedback (surface, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_feedback_sentiment_created ON ai.feedback (sentiment, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_feedback_target_created ON ai.feedback (target_type, target_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_feedback_review_status_created ON ai.feedback (review_status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_feedback_override_bucket_created ON ai.feedback (override_bucket, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ops_job_runs_status_ready ON ops.job_runs (status, queue_class, run_after, started_at);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_ops_job_runs_idempotency ON ops.job_runs (idempotency_key) WHERE idempotency_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_ops_webhook_deliveries_provider_processed ON ops.webhook_deliveries (provider, processed_at DESC);

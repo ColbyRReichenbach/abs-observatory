@@ -1,5 +1,7 @@
 # Gazette Persona And Model Plan
 
+> Persona selection and model policy defer to [product-source-of-truth.md](./product-source-of-truth.md). Keep this file as the Gazette-specific execution appendix.
+
 This document defines how each Gazette persona should work, which layers stay deterministic, which layers get LLM access, and the expected token and cost profile.
 
 It is the reference for future technical specs and implementation.

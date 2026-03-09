@@ -211,6 +211,9 @@ export type AIQueryResponse = {
 
 export type AIChatResponse = {
   conversationId: string;
+  assistantMessageId?: string | null;
+  generationId?: string | null;
+  modelName?: string;
   answer: string;
   toolResults: Array<{ toolName: string; payload: unknown }>;
   citations: string[];
@@ -269,6 +272,8 @@ export type PregameIntel = {
 export type GameReport = {
   gamePk: number;
   generatedAt: string;
+  modelName?: string | null;
+  generationId?: string | null;
   narrativeMd: string;
   chartSpec: unknown;
 };
@@ -321,6 +326,8 @@ export type HomeChallengeMoment = {
   halfInning: string | null;
   balls: number | null;
   strikes: number | null;
+  outs?: number | null;
+  basesState?: string | null;
   umpireCount?: string | null;
   playerName: string | null;
   pitchNumber: number | null;
@@ -329,6 +336,11 @@ export type HomeChallengeMoment = {
   isOverturned: boolean;
   leverageScore: number;
   gameStatus: string;
+  homeScore?: number | null;
+  awayScore?: number | null;
+  impactType?: string | null;
+  controversyScore?: number;
+  reasonChips?: ControversyReasonChip[];
 };
 
 export interface UmpireTrendPoint {
@@ -392,4 +404,63 @@ export type UmpireSeasonTrendPoint = {
   overturnedCalls: number;
   overturnRate: number;
   gamesWorked: number;
+};
+
+export type ConfidenceBand = "low" | "medium" | "high";
+
+export type UmpireGrade = "A" | "B" | "C" | "D" | "F";
+
+export type UmpireFanDescriptor = "Reliable" | "Balanced" | "Uneasy" | "Erratic" | "Chaotic";
+
+export type UmpireOrgDescriptor =
+  | "Low-risk profile"
+  | "Stable profile"
+  | "Monitor"
+  | "Elevated risk"
+  | "High-risk profile";
+
+export type TeamStyle = "Clutch" | "Calculated" | "Trigger-Happy" | "Passive";
+
+export type TeamStyleOrgLabel =
+  | "Opportunistic"
+  | "Disciplined"
+  | "Aggressive"
+  | "Conservative";
+
+export type ControversyReasonChip =
+  | "Late Inning"
+  | "Extras"
+  | "Tie Game"
+  | "One-Run Game"
+  | "Full Count"
+  | "Bases Loaded"
+  | "RISP"
+  | "Two Outs"
+  | "Direct Impact"
+  | "Overturned"
+  | "Confirmed"
+  | "Borderline Zone"
+  | "Far Off Plate";
+
+export type OrgRiskTier = "Low" | "Moderate" | "Elevated" | "High";
+
+export type TeamLeaderboardEntry = TeamSummary & {
+  style: TeamStyle;
+  orgStyleLabel: TeamStyleOrgLabel;
+  styleConfidence: ConfidenceBand;
+  styleScores: Record<TeamStyle, number>;
+  challengeRatePerGame: number;
+  lateLeverageShare: number;
+  earlyLowLeverageShare: number;
+};
+
+export type UmpireLeaderboardEntry = UmpireSummary & {
+  reportCardScore: number;
+  grade: UmpireGrade;
+  fanDescriptor: UmpireFanDescriptor;
+  orgDescriptor: UmpireOrgDescriptor;
+  confidence: ConfidenceBand;
+  riskTier: OrgRiskTier;
+  overturnRateVariance: number;
+  recentOverturnRate: number | null;
 };

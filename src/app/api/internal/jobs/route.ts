@@ -8,6 +8,12 @@ export const runtime = "nodejs";
 
 const enqueueSchema = z.discriminatedUnion("jobType", [
   z.object({
+    jobType: z.literal("ai_feedback_classification"),
+    payload: z.object({
+      feedbackId: z.string().uuid(),
+    }),
+  }),
+  z.object({
     jobType: z.literal("article_daily_auto"),
     payload: z.object({
       sourceDate: z.string(),

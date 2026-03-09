@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { formatLeverageBucketLabel, getEstimatedLeverageBucket } from "@/lib/estimated-leverage";
 import type { HomeChallengeMoment } from "@/lib/types";
 
 export function ChallengeMomentCards({ moments }: { moments: HomeChallengeMoment[] }) {
@@ -10,7 +11,7 @@ export function ChallengeMomentCards({ moments }: { moments: HomeChallengeMoment
           Top ABS Moments
         </h2>
         <span className="text-[10px] uppercase tracking-[0.12em] text-[var(--ink-3)]">
-          Ranked by leverage
+          Ranked by moment score
         </span>
       </div>
       {moments.length === 0 ? (
@@ -35,7 +36,7 @@ export function ChallengeMomentCards({ moments }: { moments: HomeChallengeMoment
 
             <div className="flex items-start justify-between gap-2">
               <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--ink-3)]">
-                Leverage {moment.leverageScore.toFixed(2)}
+                {formatLeverageBucketLabel(getEstimatedLeverageBucket(moment.leverageScore))}
               </span>
               <span className={`status-chip text-[9px] ${moment.isOverturned ? "status-chip-final" : "status-chip-live"}`}>
                 {moment.isOverturned ? "Overturned" : "Confirmed"}

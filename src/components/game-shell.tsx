@@ -1,8 +1,9 @@
 import { GameScoreboard } from "@/components/game-scoreboard";
+import { MatchupBackdrop } from "@/components/game-hub/matchup-backdrop";
 import { LiveStatusStrip } from "@/components/live-status-strip";
 import { MotionIn } from "@/components/motion-in";
-import { TeamMotifHero } from "@/components/team-motif-hero";
 import type { GameLiveStatus } from "@/lib/types";
+import type { MatchupBackdropState } from "@/lib/team-backdrops";
 
 type GameShellProps = {
   game: {
@@ -34,23 +35,41 @@ type GameShellProps = {
 };
 
 export function GameShell({ game, liveStatus, counters }: GameShellProps) {
+  const backdropState: MatchupBackdropState =
+    game.statusabstract === "Final" || game.statusabstract === "Game Over"
+      ? "final"
+      : game.statusabstract === "Preview" || game.statusabstract === "Warmup"
+        ? "pregame"
+        : "live";
+  const winnerTeamId =
+    game.homescore == null || game.awayscore == null || game.homescore === game.awayscore
+      ? null
+      : game.homescore > game.awayscore
+        ? Number(game.hometeamid)
+        : Number(game.awayteamid);
+
   return (
     <>
       <MotionIn>
-        <TeamMotifHero
-          teamId={Number(game.hometeamid)}
-          teamName={game.hometeamname}
-          abbreviation={game.homeabbreviation}
-          primaryColor={game.homeprimarycolor}
-          secondaryColor={game.homesecondarycolor}
-          logoSvgUrl={game.homelogosvgurl}
+        <MatchupBackdrop
+          gamePk={Number(game.gamepk)}
+          state={backdropState}
+          status={game.statusabstract}
+          homeTeamId={Number(game.hometeamid)}
+          homeTeamName={game.hometeamname}
+          homeAbbreviation={game.homeabbreviation}
+          homePrimaryColor={game.homeprimarycolor}
+          homeSecondaryColor={game.homesecondarycolor}
+          homeLogoSvgUrl={game.homelogosvgurl}
           awayTeamId={Number(game.awayteamid)}
           awayTeamName={game.awayteamname}
+          awayAbbreviation={game.awayabbreviation}
           awayLogoSvgUrl={game.awaylogosvgurl}
           eyebrow={`Game ${game.gamepk}`}
           title={`${game.awayteamname} at ${game.hometeamname}`}
           subtitle={game.venue ?? "Venue N/A"}
           dateStr={game.gamedate}
+          winnerTeamId={winnerTeamId}
         />
       </MotionIn>
 

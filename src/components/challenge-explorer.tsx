@@ -29,19 +29,24 @@ export function ChallengeExplorer({
 
   useEffect(() => {
     if (initialChallengeId) {
-      setSelectedChallengeId(initialChallengeId);
-      // Also reset filters so the selected pitch is visible
       const target = challenges.find(c => c.challengeId === initialChallengeId);
       if (target) {
-        setPitchType("all");
-        setBatter("all");
-        setPitcher("all");
+        const resetTimer = window.setTimeout(() => {
+          setSelectedChallengeId(initialChallengeId);
+          setPitchType("all");
+          setBatter("all");
+          setPitcher("all");
+        }, 0);
 
-        // Force scroll for better DX when deep linking
-        setTimeout(() => {
+        const scrollTimer = window.setTimeout(() => {
           const el = document.getElementById("abs-explorer");
           if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
         }, 300);
+
+        return () => {
+          window.clearTimeout(resetTimer);
+          window.clearTimeout(scrollTimer);
+        };
       }
     }
   }, [initialChallengeId, challenges]);
@@ -275,7 +280,7 @@ export function ChallengeExplorer({
                 </div>
 
                 {aiInsight && (
-                  <AIStatInsight {...aiInsight} />
+                  <AIStatInsight {...aiInsight} insightId={selected.challengeId} />
                 )}
               </motion.div>
             ) : (

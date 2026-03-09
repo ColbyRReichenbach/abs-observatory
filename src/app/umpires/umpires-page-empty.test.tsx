@@ -8,7 +8,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/lib/data", () => ({
-  getUmpireLeaderboard: vi.fn(async () => []),
+  getUmpireLeaderboardModel: vi.fn(async () => []),
 }));
 
 import UmpiresPage from "@/app/umpires/page";

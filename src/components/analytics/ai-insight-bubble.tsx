@@ -4,15 +4,28 @@ import { useState, useRef, useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight, X } from "lucide-react";
+import { AIFeedback } from "@/components/ai-feedback";
 import { AiBSIcon, ExpandableAiBSButton } from "@/components/ui/aibs-icon";
+import { useAiArtifactGeneration } from "@/lib/use-ai-artifact";
 
 export function AIInsightBubble({
     insight,
-    title = "AI Insight"
+    title = "AI Insight",
+    insightId,
+    metadata,
 }: {
     insight: string;
     title?: string;
+    insightId: string;
+    metadata?: Record<string, unknown>;
 }) {
+    const generationId = useAiArtifactGeneration({
+        surfaceKey: "chart_insight",
+        surfaceDetail: "insight_bubble",
+        targetType: "chart_insight",
+        targetId: insightId,
+        metadata: metadata ?? null,
+    });
     const [isOpen, setIsOpen] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const [position, setPosition] = useState({ top: 0, left: 0 });
@@ -159,6 +172,16 @@ export function AIInsightBubble({
                                 <div className="text-sm font-medium text-gray-700 leading-relaxed text-balance">
                                     <p>{insight}</p>
                                 </div>
+
+                                <AIFeedback
+                                    surface="chart_insight"
+                                    targetType="chart_insight"
+                                    targetId={insightId}
+                                    generationId={generationId}
+                                    metadata={metadata}
+                                    prompt="Insight quality"
+                                    className="mt-6"
+                                />
 
                                 <motion.div
                                     whileTap={{ scale: 0.98 }}

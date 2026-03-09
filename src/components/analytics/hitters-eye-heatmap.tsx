@@ -1,6 +1,8 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ChartTooltip } from "@/components/ui/chart-tooltip";
 
 export type HittersEyeZone = "Top-L" | "Top-M" | "Top-R" | "Mid-L" | "Mid-M" | "Mid-R" | "Bot-L" | "Bot-M" | "Bot-R";
 
@@ -18,82 +20,134 @@ const ZONE_LAYOUT: HittersEyeZone[][] = [
 
 export function HittersEyeHeatmap({
     data,
-    teamColor = "#007aff",
+    viewMode = "fan",
 }: {
-    data: HeatmapData[];
+    data: { all: HeatmapData[]; offense: HeatmapData[]; defense: HeatmapData[] };
     teamColor?: string;
+    viewMode?: "fan" | "org";
 }) {
-    // Determine the max volume for opacity scaling
-    const maxVolume = Math.max(...data.map(d => d.challenges), 1);
+    const [viewSide, setViewSide] = useState<"all" | "offense" | "defense">("all");
+    const [hoveredZone, setHoveredZone] = useState<HittersEyeZone | null>(null);
+    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
-    // Create a quick lookup dictionary
+    const handleMouseMove = (e: React.MouseEvent) => {
+        setMousePos({ x: e.clientX, y: e.clientY });
+    };
+
+    const activeData = data[viewSide] || [];
+    const maxVolume = Math.max(...activeData.map(d => d.challenges), 1);
+
     const zoneMap: Record<string, HeatmapData> = {};
-    data.forEach(d => {
+    activeData.forEach(d => {
         zoneMap[d.zone] = d;
     });
 
     return (
-        <div className="relative w-full max-w-[320px] aspect-[4/5] mx-auto p-4 flex flex-col items-center justify-center">
-            {/* Visual indicator of the plate at the bottom */}
-            <div className="absolute bottom-0 w-3/4 h-4 bg-gray-200" style={{ clipPath: "polygon(0 0, 100% 0, 85% 100%, 15% 100%)" }} />
-
-            <div className="relative w-full h-full border-2 border-[var(--ink-4)] grid grid-rows-3 grid-cols-3 z-10 bg-white/5 backdrop-blur-sm shadow-inner rounded-md overflow-hidden">
-                {ZONE_LAYOUT.flatMap((row, r) =>
-                    row.map((zoneKey, c) => {
-                        const cellData = zoneMap[zoneKey];
-                        const volume = cellData?.challenges || 0;
-                        const rate = cellData?.overturnRate || 0;
-
-                        // Relative opacity based on volume (min 0.05 so it's visible, max 0.8)
-                        const opacity = volume > 0 ? Math.max(0.1, (volume / maxVolume) * 0.8) : 0;
-
-                        // Color scale based on accuracy
-                        let gradientClass = "from-gray-400 to-gray-500";
-                        if (volume > 0) {
-                            if (rate >= 0.6) gradientClass = "from-emerald-400 to-emerald-500";
-                            else if (rate >= 0.4) gradientClass = "from-amber-400 to-amber-500";
-                            else gradientClass = "from-red-400 to-red-500";
-                        }
-
-                        return (
+        <div className="w-full flex flex-col items-center">
+            {/* Filter Toggle */}
+            <div className="flex bg-gray-50 border border-gray-100 rounded-full p-1 mb-6 mt-2 relative z-10 shadow-inner">
+                {["all", "offense", "defense"].map((side) => (
+                    <button
+                        key={side}
+                        onClick={() => setViewSide(side as "all" | "offense" | "defense")}
+                        className={`relative px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-full transition-colors z-10 ${viewSide === side ? "text-white" : "text-gray-400 hover:text-gray-900"}`}
+                    >
+                        {viewSide === side && (
                             <motion.div
-                                key={zoneKey}
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                whileInView={{ opacity: 1, scale: 1 }}
-                                viewport={{ once: true }}
-                                transition={{ delay: (r * 3 + c) * 0.05 }}
-                                className={`relative border border-[var(--ink-4)] flex flex-col items-center justify-center group overflow-hidden ${volume === 0 ? "bg-[var(--ink-5)] text-transparent" : "bg-[var(--ink-5)] cursor-default"}`}
-                            >
-                                {/* The colored overlay showing heatmap intensity */}
-                                <div
-                                    className={`absolute inset-0 bg-gradient-to-br ${gradientClass} transition-opacity duration-500 ease-out`}
-                                    style={{ opacity }}
-                                />
-
-                                {/* Numbers overlaid on top */}
-                                {volume > 0 && (
-                                    <div className="relative z-10 flex flex-col items-center text-center">
-                                        <span className={`text-2xl font-display tracking-tighter ${rate >= 0.5 ? "text-white" : "text-gray-900"} drop-shadow-md`}>
-                                            {(rate * 100).toFixed(0)}%
-                                        </span>
-                                        <span className={`text-[9px] font-black uppercase tracking-widest ${rate >= 0.5 ? "text-white/80" : "text-gray-900/60"}`}>
-                                            {volume} CHL
-                                        </span>
-                                    </div>
-                                )}
-
-                                {/* Hover Glass effect for detail */}
-                                {volume > 0 && (
-                                    <div className="absolute inset-x-0 bottom-0 top-auto translate-y-full group-hover:translate-y-0 transition-transform bg-black/80 backdrop-blur-md p-1.5 flex flex-col items-center justify-center h-1/2">
-                                        <span className="text-[8px] font-semibold text-white/50 uppercase tracking-widest leading-tight">Successful</span>
-                                        <span className="text-xs font-mono font-bold text-white">{Math.round(rate * volume)}</span>
-                                    </div>
-                                )}
-                            </motion.div>
-                        );
-                    })
-                )}
+                                layoutId="hitter-eye-bubble"
+                                className="absolute inset-0 bg-blue-600 rounded-full -z-10 shadow-md"
+                                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                            />
+                        )}
+                        {side}
+                    </button>
+                ))}
             </div>
-        </div>
+
+            <div
+                className="relative w-full max-w-[320px] aspect-[4/5] p-4 flex flex-col items-center justify-center cursor-crosshair"
+                onMouseMove={handleMouseMove}
+            >
+                {/* Visual indicator of the plate at the bottom */}
+                <div className="absolute bottom-0 w-3/4 h-4 bg-gray-200" style={{ clipPath: "polygon(0 0, 100% 0, 85% 100%, 15% 100%)" }} />
+
+                <div className="relative w-full h-full border-2 border-[var(--ink-4)] grid grid-rows-3 grid-cols-3 z-0 bg-white shadow-inner rounded-xl overflow-hidden">
+                    {ZONE_LAYOUT.map((row, r) =>
+                        row.map((zoneKey, c) => {
+                            const cellData = zoneMap[zoneKey];
+                            const volume = cellData?.challenges || 0;
+                            const rate = cellData?.overturnRate || 0;
+
+                            const isHovered = hoveredZone === zoneKey && volume > 0;
+
+                            let gradientClass = "from-gray-200 to-gray-300";
+                            if (volume > 0) {
+                                if (rate >= 0.8) gradientClass = "from-emerald-600 to-emerald-700 text-white";
+                                else if (rate >= 0.6) gradientClass = "from-emerald-400 to-emerald-500 text-white";
+                                else if (rate >= 0.4) gradientClass = "from-amber-400 to-amber-500 text-white";
+                                else if (rate >= 0.2) gradientClass = "from-red-400 to-red-500 text-white";
+                                else gradientClass = "from-red-600 to-red-700 text-white";
+                            }
+
+                            return (
+                                <div
+                                    key={zoneKey}
+                                    onMouseEnter={() => setHoveredZone(zoneKey)}
+                                    onMouseLeave={() => setHoveredZone(null)}
+                                    className={`relative border border-gray-100 flex flex-col items-center justify-center group ${volume === 0 ? "bg-gray-50 text-transparent" : "bg-white cursor-default"} ${isHovered ? "z-[9999]" : "z-10"}`}
+                                >
+                                    <div
+                                        className={`absolute inset-0 bg-gradient-to-br ${gradientClass} transition-all duration-300 ease-out`}
+                                    />
+
+                                    {volume > 0 && (
+                                        <div className="relative z-10 flex flex-col items-center text-center pointer-events-none">
+                                            <span className="text-[13px] font-mono font-bold drop-shadow-sm">
+                                                {(rate * 100).toFixed(0)}%
+                                            </span>
+                                            <span className="text-[8px] font-black uppercase tracking-widest opacity-80">
+                                                {volume} CHL
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+
+                {/* Floating Tooltip Layer */}
+                <AnimatePresence>
+                    {hoveredZone && zoneMap[hoveredZone] && zoneMap[hoveredZone].challenges > 0 && (
+                        <ChartTooltip
+                            usePortal
+                            portalProps={mousePos}
+                            title={`Zone: ${hoveredZone}`}
+                            value={zoneMap[hoveredZone].challenges}
+                            subValueLabel="Challenges"
+                            extra={[
+                                { label: "Overturn Rate", value: `${(zoneMap[hoveredZone].overturnRate * 100).toFixed(2)}%` },
+                                { label: "Successful", value: Math.round(zoneMap[hoveredZone].overturnRate * zoneMap[hoveredZone].challenges), color: "#10b981" },
+                                { label: "Failed", value: zoneMap[hoveredZone].challenges - Math.round(zoneMap[hoveredZone].overturnRate * zoneMap[hoveredZone].challenges), color: "#ef4444" },
+                            ]}
+                        />
+                    )}
+                </AnimatePresence>
+            </div>
+
+            <p className="text-[10px] text-gray-400 text-center uppercase tracking-[0.2em] font-black mt-6">
+                {viewMode === "org" ? (
+                    <>
+                        Where this lineup challenges
+                        {viewSide === "offense" ? " while hitting" : viewSide === "defense" ? " while fielding" : " (overall)"}
+                    </>
+                ) : (
+                    <>
+                        Pitch locations challenged
+                        {viewSide === "offense" ? " while batting" : viewSide === "defense" ? " on defense" : " (all sides)"}
+                    </>
+                )}
+            </p>
+        </div >
     );
 }

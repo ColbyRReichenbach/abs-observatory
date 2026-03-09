@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Activity, AlertCircle, FileText, Loader2, Send } from "lucide-react";
 
+import { AIFeedback } from "@/components/ai-feedback";
 import { BaseballSpinner } from "@/components/baseball-spinner";
 import { AiBSIcon } from "@/components/ui/aibs-icon";
 import type { AIChatResponse } from "@/lib/types";
@@ -22,6 +23,9 @@ export function AIBSVisualizerChat({
     answer: string;
     citations: string[];
     toolResults: Array<{ toolName: string; payload: unknown }>;
+    conversationId: string;
+    assistantMessageId: string | null;
+    generationId: string | null;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,7 +42,7 @@ export function AIBSVisualizerChat({
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: prompt, delivery: "sync" }),
+        body: JSON.stringify({ message: prompt, delivery: "sync", surface: "visualizer" }),
       });
       const payload = (await response.json()) as AIChatResponse;
 
@@ -52,6 +56,9 @@ export function AIBSVisualizerChat({
         answer: payload.answer,
         citations: payload.citations,
         toolResults: payload.toolResults,
+        conversationId: payload.conversationId,
+        assistantMessageId: payload.assistantMessageId ?? null,
+        generationId: payload.generationId ?? null,
       });
       setQuery("");
     } catch {
@@ -66,7 +73,7 @@ export function AIBSVisualizerChat({
       <div className="flex flex-col gap-8">
         <div className="flex items-center gap-4">
           <div className="h-px flex-1 bg-gray-100" />
-          <p className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">
+          <p className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.3em] text-gray-600">
             Visualize your own ideas
           </p>
           <div className="h-px flex-1 bg-gray-100" />
@@ -83,7 +90,7 @@ export function AIBSVisualizerChat({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={`Ask aiBS for a chart brief about ${context}...`}
-                className="w-full bg-transparent border-0 !outline-none text-sm font-medium text-gray-900 placeholder:text-gray-400 placeholder:opacity-50 focus:border-transparent focus:outline-none focus:ring-0 focus:shadow-none focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-0 [box-shadow:none_!important] [outline:none_!important] [-webkit-tap-highlight-color:transparent]"
+                className="w-full bg-transparent border-0 !outline-none text-sm font-medium text-gray-900 placeholder:text-gray-600 focus:border-transparent focus:outline-none focus:ring-0 focus:shadow-none focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-0 [box-shadow:none_!important] [outline:none_!important] [-webkit-tap-highlight-color:transparent]"
               />
               <motion.button
                 type="submit"
@@ -227,6 +234,20 @@ export function AIBSVisualizerChat({
                     aiBS can recommend what to visualize here, but shared chart rendering is not enabled yet.
                   </p>
                 </div>
+                {result.assistantMessageId ? (
+                  <div className="border-t border-gray-50 px-10 py-5">
+                    <AIFeedback
+                      surface="visualizer"
+                      targetType="ai_message"
+                      targetId={result.assistantMessageId}
+                      generationId={result.generationId}
+                      conversationId={result.conversationId}
+                      messageId={result.assistantMessageId}
+                      metadata={{ context, query: result.query }}
+                      prompt="Visualization brief quality"
+                    />
+                  </div>
+                ) : null}
               </div>
             </motion.div>
           ) : null}

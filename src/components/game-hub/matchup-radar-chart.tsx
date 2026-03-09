@@ -18,6 +18,12 @@ export function MatchupRadarChart({
     homeColor?: string;
     awayColor?: string;
 }) {
+    const formatValue = (aspect: string, value: unknown) => {
+        if (typeof value !== "number") return String(value ?? "");
+        if (aspect === "Success Rate %") return `${value.toFixed(1)}%`;
+        return value.toFixed(0);
+    };
+
     /* S3-9: Team-only axes — removed duplicated umpire tendency axes.
      * Axes now differentiate the two teams rather than repeating identical umpire data. */
     const data = useMemo(() => {
@@ -71,7 +77,7 @@ export function MatchupRadarChart({
                                         title={String(label ?? '')}
                                         extra={payload.map((entry) => ({
                                             label: String(entry.name),
-                                            value: typeof entry.value === 'number' ? entry.value.toFixed(1) : String(entry.value ?? ''),
+                                            value: formatValue(String(label ?? ""), entry.value),
                                             color: String(entry.color ?? ''),
                                         }))}
                                     />

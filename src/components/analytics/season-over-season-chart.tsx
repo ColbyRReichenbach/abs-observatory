@@ -2,6 +2,8 @@
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import type { UmpireSeasonTrendPoint } from "@/lib/types";
+import { ChartTooltip } from "@/components/ui/chart-tooltip";
+import { buildLinearAxis, formatPercentTick } from "@/components/analytics/chart-axis";
 
 /**
  * D-7: Season-over-season line chart for umpire accuracy trend.
@@ -18,7 +20,7 @@ export function SeasonOverSeasonChart({ data }: { data: UmpireSeasonTrendPoint[]
 
     const chartData = data.map((d) => ({
         season: d.season.toString(),
-        overturnRate: Math.round(d.overturnRate * 1000) / 10,
+        overturnRate: d.overturnRate * 100,
         games: d.gamesWorked,
         challenged: d.challengedCalls,
         overturned: d.overturnedCalls,
@@ -26,6 +28,13 @@ export function SeasonOverSeasonChart({ data }: { data: UmpireSeasonTrendPoint[]
 
     // Compute average for reference line
     const avgRate = chartData.reduce((s, d) => s + d.overturnRate, 0) / chartData.length;
+    const yAxis = buildLinearAxis(chartData.map((d) => d.overturnRate), {
+        step: 10,
+        padding: 5,
+        min: 0,
+        max: 100,
+        minSpan: 20,
+    });
 
     return (
         <section className="panel bg-white p-8">
@@ -48,36 +57,40 @@ export function SeasonOverSeasonChart({ data }: { data: UmpireSeasonTrendPoint[]
                         tickLine={false}
                     />
                     <YAxis
-                        domain={[0, "auto"]}
-                        tickFormatter={(v: number) => `${v}%`}
+                        domain={yAxis.domain}
+                        ticks={yAxis.ticks}
+                        tickFormatter={(v: number) => formatPercentTick(v)}
                         tick={{ fontSize: 10, fill: "#9ca3af" }}
                         axisLine={false}
                         tickLine={false}
                         width={45}
                     />
                     <Tooltip
+                        wrapperStyle={{ zIndex: 10001 }}
+                        allowEscapeViewBox={{ x: true, y: true }}
                         cursor={{ stroke: "#d1d5db", strokeDasharray: "4 4" }}
                         content={({ active, payload }) => {
                             if (!active || !payload?.[0]) return null;
                             const d = payload[0].payload as (typeof chartData)[number];
                             return (
-                                <div className="rounded-xl bg-white border border-gray-100 shadow-xl px-4 py-3 text-xs">
-                                    <p className="font-black text-gray-900 mb-1">{d.season} Season</p>
-                                    <p className="text-gray-500">
-                                        Overturn Rate: <span className="font-bold text-blue-600">{d.overturnRate}%</span>
-                                    </p>
-                                    <p className="text-gray-400 mt-0.5">
-                                        {d.overturned}/{d.challenged} overturned · {d.games} games
-                                    </p>
-                                </div>
+                                <ChartTooltip
+                                    title={`${d.season} Season`}
+                                    value={`${d.overturnRate.toFixed(2)}%`}
+                                    subValueLabel="Overturn Rate"
+                                    extra={[
+                                        { label: "Games Ranked", value: d.games },
+                                        { label: "Overturned", value: d.overturned },
+                                        { label: "Challenged", value: d.challenged },
+                                    ]}
+                                />
                             );
                         }}
                     />
                     <ReferenceLine
-                        y={Math.round(avgRate * 10) / 10}
+                        y={avgRate}
                         stroke="#d1d5db"
                         strokeDasharray="6 4"
-                        label={{ value: `Avg ${Math.round(avgRate * 10) / 10}%`, position: "insideTopRight", fill: "#9ca3af", fontSize: 9 }}
+                        label={{ value: `Avg ${avgRate.toFixed(1)}%`, position: "insideTopRight", fill: "#9ca3af", fontSize: 9 }}
                     />
                     <Line
                         type="monotone"
@@ -97,7 +110,7 @@ export function SeasonOverSeasonChart({ data }: { data: UmpireSeasonTrendPoint[]
                         key={d.season}
                         className="inline-flex items-center gap-1.5 rounded-full border border-gray-100 bg-gray-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-gray-500"
                     >
-                        {d.season} · {d.games}g · {d.overturnRate}%
+                        {d.season} · {d.games}g · {d.overturnRate.toFixed(1)}%
                     </span>
                 ))}
             </div>
