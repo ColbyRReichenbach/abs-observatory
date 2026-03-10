@@ -1480,6 +1480,8 @@ async function getTeamStyleMetrics(range: RangeKey = "season") {
     earlylowleverageshare: number | null;
     avgrunexpectancydelta: number | null;
     highrunvalueshare: number | null;
+    avgwinexpectancydelta: number | null;
+    highwinvalueshare: number | null;
   }>(
     `
     SELECT
@@ -1498,10 +1500,13 @@ async function getTeamStyleMetrics(range: RangeKey = "season") {
       )::NUMERIC AS earlyLowLeverageShare
       ,
       MAX(rv.avg_re_delta)::NUMERIC AS avgRunExpectancyDelta,
-      MAX(rv.high_re_share)::NUMERIC AS highRunValueShare
+      MAX(rv.high_re_share)::NUMERIC AS highRunValueShare,
+      MAX(wv.avg_we_delta)::NUMERIC AS avgWinExpectancyDelta,
+      MAX(wv.high_we_share)::NUMERIC AS highWinValueShare
     FROM abs_challenges c
     JOIN games g ON g.game_pk = c.game_pk
     LEFT JOIN mart_team_challenge_run_value rv ON rv.team_id = c.challenge_team_id
+    LEFT JOIN mart_team_challenge_win_value wv ON wv.team_id = c.challenge_team_id
     WHERE c.challenge_team_id IS NOT NULL
       AND ${window.clause}
     GROUP BY c.challenge_team_id
@@ -1518,6 +1523,8 @@ async function getTeamStyleMetrics(range: RangeKey = "season") {
         earlyLowLeverageShare: Number(row.earlylowleverageshare ?? 0),
         avgRunExpectancyDelta: row.avgrunexpectancydelta === null ? null : Number(row.avgrunexpectancydelta),
         highRunValueShare: Number(row.highrunvalueshare ?? 0),
+        avgWinExpectancyDelta: row.avgwinexpectancydelta === null ? null : Number(row.avgwinexpectancydelta),
+        highWinValueShare: Number(row.highwinvalueshare ?? 0),
       },
     ]),
   );

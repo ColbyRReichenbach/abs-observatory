@@ -13,6 +13,8 @@ export type TeamStyleMetric = {
   earlyLowLeverageShare: number;
   avgRunExpectancyDelta: number | null;
   highRunValueShare: number;
+  avgWinExpectancyDelta: number | null;
+  highWinValueShare: number;
 };
 
 export type UmpireRubricMetric = {
@@ -57,6 +59,8 @@ export function buildTeamLeaderboardEntries(
       earlyLowLeverageShare: 0,
       avgRunExpectancyDelta: null,
       highRunValueShare: 0,
+      avgWinExpectancyDelta: null,
+      highWinValueShare: 0,
     };
     const style = computeTeamChallengeStyle({
       sampleSize: team.challengesTotal,
@@ -83,6 +87,8 @@ export function buildTeamLeaderboardEntries(
       earlyLowLeverageShare: metric.earlyLowLeverageShare,
       avgRunExpectancyDelta: metric.avgRunExpectancyDelta,
       highRunValueShare: metric.highRunValueShare,
+      avgWinExpectancyDelta: metric.avgWinExpectancyDelta,
+      highWinValueShare: metric.highWinValueShare,
     };
   });
 }

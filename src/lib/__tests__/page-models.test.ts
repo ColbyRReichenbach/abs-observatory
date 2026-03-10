@@ -31,8 +31,8 @@ describe("page model builders", () => {
     const entries = buildTeamLeaderboardEntries(
       teams,
       new Map([
-        [1, { teamId: 1, lateLeverageShare: 0.7, earlyLowLeverageShare: 0.1, avgRunExpectancyDelta: 0.12, highRunValueShare: 0.7 }],
-        [2, { teamId: 2, lateLeverageShare: 0.1, earlyLowLeverageShare: 0.6, avgRunExpectancyDelta: -0.04, highRunValueShare: 0.3 }],
+        [1, { teamId: 1, lateLeverageShare: 0.7, earlyLowLeverageShare: 0.1, avgRunExpectancyDelta: 0.12, highRunValueShare: 0.7, avgWinExpectancyDelta: 0.018, highWinValueShare: 0.7 }],
+        [2, { teamId: 2, lateLeverageShare: 0.1, earlyLowLeverageShare: 0.6, avgRunExpectancyDelta: -0.04, highRunValueShare: 0.3, avgWinExpectancyDelta: -0.006, highWinValueShare: 0.3 }],
       ]),
     );
 
@@ -40,6 +40,7 @@ describe("page model builders", () => {
     expect(entries[0].styleScores.Clutch).toBeGreaterThan(entries[0].styleScores.Passive);
     expect(entries[1].style).not.toBe(entries[0].style);
     expect(entries[0].avgRunExpectancyDelta).toBe(0.12);
+    expect(entries[0].avgWinExpectancyDelta).toBe(0.018);
   });
 
   it("adds umpire grades and risk tiers", () => {

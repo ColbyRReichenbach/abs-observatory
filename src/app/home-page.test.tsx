@@ -48,6 +48,13 @@ vi.mock("@/lib/data", () => ({
       orgStyleLabel: "Opportunistic",
       styleConfidence: "high",
       styleScores: { Clutch: 80, Calculated: 65, "Trigger-Happy": 40, Passive: 25 },
+      challengeRatePerGame: 1,
+      lateLeverageShare: 0.45,
+      earlyLowLeverageShare: 0.2,
+      avgRunExpectancyDelta: 0.14,
+      highRunValueShare: 0.7,
+      avgWinExpectancyDelta: 0.018,
+      highWinValueShare: 0.7,
     },
   ]),
   getUmpireLeaderboardModel: vi.fn(async () => [

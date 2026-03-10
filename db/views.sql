@@ -1,5 +1,6 @@
 DROP VIEW IF EXISTS mart_weekly_editorial_summary CASCADE;
 DROP VIEW IF EXISTS mart_daily_editorial_summary CASCADE;
+DROP VIEW IF EXISTS mart_team_challenge_win_value CASCADE;
 DROP VIEW IF EXISTS mart_team_challenge_run_value CASCADE;
 DROP VIEW IF EXISTS mart_win_expectancy_fallbacks CASCADE;
 DROP VIEW IF EXISTS mart_win_expectancy_by_count_state CASCADE;
@@ -738,6 +739,184 @@ SELECT
   CASE
     WHEN COUNT(*) >= 80 THEN 'high'
     WHEN COUNT(*) >= 25 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM lookup l
+JOIN games g ON g.game_pk = l.game_pk
+GROUP BY team_id;
+
+CREATE OR REPLACE VIEW mart_team_challenge_win_value AS
+WITH challenge_we AS (
+  SELECT
+    c.challenge_id,
+    c.challenge_team_id AS team_id,
+    c.game_pk,
+    c.inning,
+    c.half_inning,
+    c.outs,
+    c.bases_state,
+    c.home_score,
+    c.away_score,
+    CASE
+      WHEN c.half_inning = 'Top' THEN
+        CASE
+          WHEN c.away_score IS NULL OR c.home_score IS NULL THEN NULL
+          WHEN c.away_score - c.home_score <= -4 THEN 'trail4plus'
+          WHEN c.away_score - c.home_score = -3 THEN 'trail3'
+          WHEN c.away_score - c.home_score = -2 THEN 'trail2'
+          WHEN c.away_score - c.home_score = -1 THEN 'trail1'
+          WHEN c.away_score - c.home_score = 0 THEN 'tied'
+          WHEN c.away_score - c.home_score = 1 THEN 'lead1'
+          WHEN c.away_score - c.home_score = 2 THEN 'lead2'
+          WHEN c.away_score - c.home_score = 3 THEN 'lead3'
+          ELSE 'lead4plus'
+        END
+      WHEN c.half_inning = 'Bottom' THEN
+        CASE
+          WHEN c.home_score IS NULL OR c.away_score IS NULL THEN NULL
+          WHEN c.home_score - c.away_score <= -4 THEN 'trail4plus'
+          WHEN c.home_score - c.away_score = -3 THEN 'trail3'
+          WHEN c.home_score - c.away_score = -2 THEN 'trail2'
+          WHEN c.home_score - c.away_score = -1 THEN 'trail1'
+          WHEN c.home_score - c.away_score = 0 THEN 'tied'
+          WHEN c.home_score - c.away_score = 1 THEN 'lead1'
+          WHEN c.home_score - c.away_score = 2 THEN 'lead2'
+          WHEN c.home_score - c.away_score = 3 THEN 'lead3'
+          ELSE 'lead4plus'
+        END
+      ELSE NULL
+    END AS score_diff_bucket,
+    CASE
+      WHEN COALESCE(c.pitch_number, c.inferred_pitch_number) IS NULL THEN NULL
+      WHEN p.balls_before IS NULL OR p.strikes_before IS NULL THEN NULL
+      WHEN c.is_overturned = FALSE THEN
+        CASE WHEN p.balls_after IS NULL OR p.strikes_after IS NULL THEN NULL ELSE CONCAT(p.balls_after, '-', p.strikes_after) END
+      WHEN p.balls_after IS NOT NULL AND p.balls_before IS NOT NULL AND p.balls_after > p.balls_before THEN CONCAT(p.balls_before, '-', p.strikes_before + 1)
+      WHEN p.strikes_after IS NOT NULL AND p.strikes_before IS NOT NULL AND p.strikes_after > p.strikes_before THEN CONCAT(p.balls_before + 1, '-', p.strikes_before)
+      ELSE CASE WHEN p.balls_after IS NULL OR p.strikes_after IS NULL THEN NULL ELSE CONCAT(p.balls_after, '-', p.strikes_after) END
+    END AS held_count_key,
+    CASE
+      WHEN p.balls_after IS NULL OR p.strikes_after IS NULL THEN NULL
+      ELSE CONCAT(p.balls_after, '-', p.strikes_after)
+    END AS corrected_count_key,
+    CASE
+      WHEN c.inning >= 9 THEN '9+'
+      WHEN c.inning >= 7 THEN '7-8'
+      WHEN c.inning >= 4 THEN '4-6'
+      ELSE '1-3'
+    END AS inning_bucket
+  FROM abs_challenges c
+  LEFT JOIN pitches p
+    ON p.game_pk = c.game_pk
+   AND p.at_bat_index = c.at_bat_index
+   AND p.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
+  WHERE c.challenge_team_id IS NOT NULL
+),
+lookup AS (
+  SELECT
+    cw.*,
+    held_exact.batting_team_win_probability AS held_exact_we,
+    corrected_exact.batting_team_win_probability AS corrected_exact_we,
+    held_bucket.batting_team_win_probability AS held_bucket_we,
+    corrected_bucket.batting_team_win_probability AS corrected_bucket_we,
+    held_drop_count.batting_team_win_probability AS held_drop_count_we,
+    corrected_drop_count.batting_team_win_probability AS corrected_drop_count_we,
+    held_drop_count_bucket.batting_team_win_probability AS held_drop_count_bucket_we,
+    corrected_drop_count_bucket.batting_team_win_probability AS corrected_drop_count_bucket_we
+  FROM challenge_we cw
+  LEFT JOIN mart_win_expectancy_fallbacks held_exact
+    ON held_exact.fallback_tier = 'exact'
+   AND held_exact.inning = cw.inning
+   AND held_exact.half_inning = cw.half_inning
+   AND held_exact.score_diff_bucket = cw.score_diff_bucket
+   AND held_exact.outs = cw.outs
+   AND held_exact.bases_state = cw.bases_state
+   AND held_exact.count_key = cw.held_count_key
+  LEFT JOIN mart_win_expectancy_fallbacks corrected_exact
+    ON corrected_exact.fallback_tier = 'exact'
+   AND corrected_exact.inning = cw.inning
+   AND corrected_exact.half_inning = cw.half_inning
+   AND corrected_exact.score_diff_bucket = cw.score_diff_bucket
+   AND corrected_exact.outs = cw.outs
+   AND corrected_exact.bases_state = cw.bases_state
+   AND corrected_exact.count_key = cw.corrected_count_key
+  LEFT JOIN mart_win_expectancy_fallbacks held_bucket
+    ON held_bucket.fallback_tier = 'drop_inning_to_bucket'
+   AND held_bucket.inning_bucket = cw.inning_bucket
+   AND held_bucket.half_inning = cw.half_inning
+   AND held_bucket.score_diff_bucket = cw.score_diff_bucket
+   AND held_bucket.outs = cw.outs
+   AND held_bucket.bases_state = cw.bases_state
+   AND held_bucket.count_key = cw.held_count_key
+  LEFT JOIN mart_win_expectancy_fallbacks corrected_bucket
+    ON corrected_bucket.fallback_tier = 'drop_inning_to_bucket'
+   AND corrected_bucket.inning_bucket = cw.inning_bucket
+   AND corrected_bucket.half_inning = cw.half_inning
+   AND corrected_bucket.score_diff_bucket = cw.score_diff_bucket
+   AND corrected_bucket.outs = cw.outs
+   AND corrected_bucket.bases_state = cw.bases_state
+   AND corrected_bucket.count_key = cw.corrected_count_key
+  LEFT JOIN mart_win_expectancy_fallbacks held_drop_count
+    ON held_drop_count.fallback_tier = 'drop_count_key_exact_inning'
+   AND held_drop_count.inning = cw.inning
+   AND held_drop_count.half_inning = cw.half_inning
+   AND held_drop_count.score_diff_bucket = cw.score_diff_bucket
+   AND held_drop_count.outs = cw.outs
+   AND held_drop_count.bases_state = cw.bases_state
+  LEFT JOIN mart_win_expectancy_fallbacks corrected_drop_count
+    ON corrected_drop_count.fallback_tier = 'drop_count_key_exact_inning'
+   AND corrected_drop_count.inning = cw.inning
+   AND corrected_drop_count.half_inning = cw.half_inning
+   AND corrected_drop_count.score_diff_bucket = cw.score_diff_bucket
+   AND corrected_drop_count.outs = cw.outs
+   AND corrected_drop_count.bases_state = cw.bases_state
+  LEFT JOIN mart_win_expectancy_fallbacks held_drop_count_bucket
+    ON held_drop_count_bucket.fallback_tier = 'drop_count_key_bucketed_inning'
+   AND held_drop_count_bucket.inning_bucket = cw.inning_bucket
+   AND held_drop_count_bucket.half_inning = cw.half_inning
+   AND held_drop_count_bucket.score_diff_bucket = cw.score_diff_bucket
+   AND held_drop_count_bucket.outs = cw.outs
+   AND held_drop_count_bucket.bases_state = cw.bases_state
+  LEFT JOIN mart_win_expectancy_fallbacks corrected_drop_count_bucket
+    ON corrected_drop_count_bucket.fallback_tier = 'drop_count_key_bucketed_inning'
+   AND corrected_drop_count_bucket.inning_bucket = cw.inning_bucket
+   AND corrected_drop_count_bucket.half_inning = cw.half_inning
+   AND corrected_drop_count_bucket.score_diff_bucket = cw.score_diff_bucket
+   AND corrected_drop_count_bucket.outs = cw.outs
+   AND corrected_drop_count_bucket.bases_state = cw.bases_state
+)
+SELECT
+  team_id,
+  CONCAT(MIN(g.season), '-', MAX(g.season)) AS season_window,
+  COUNT(*) AS challenges_total,
+  AVG(
+    COALESCE(corrected_exact_we, corrected_bucket_we, corrected_drop_count_we, corrected_drop_count_bucket_we)
+    - COALESCE(held_exact_we, held_bucket_we, held_drop_count_we, held_drop_count_bucket_we)
+  )::NUMERIC AS avg_we_delta,
+  PERCENTILE_CONT(0.5) WITHIN GROUP (
+    ORDER BY COALESCE(corrected_exact_we, corrected_bucket_we, corrected_drop_count_we, corrected_drop_count_bucket_we)
+      - COALESCE(held_exact_we, held_bucket_we, held_drop_count_we, held_drop_count_bucket_we)
+  )::NUMERIC AS median_we_delta,
+  AVG(
+    CASE
+      WHEN COALESCE(corrected_exact_we, corrected_bucket_we, corrected_drop_count_we, corrected_drop_count_bucket_we)
+        - COALESCE(held_exact_we, held_bucket_we, held_drop_count_we, held_drop_count_bucket_we) > 0
+      THEN 1 ELSE 0
+    END
+  )::NUMERIC AS high_we_share,
+  AVG(
+    CASE
+      WHEN COALESCE(corrected_exact_we, corrected_bucket_we, corrected_drop_count_we, corrected_drop_count_bucket_we)
+        - COALESCE(held_exact_we, held_bucket_we, held_drop_count_we, held_drop_count_bucket_we) <= 0
+      THEN 1 ELSE 0
+    END
+  )::NUMERIC AS low_we_burn_share,
+  AVG(
+    CASE WHEN l.inning >= 7 AND ABS(COALESCE(l.home_score, 0) - COALESCE(l.away_score, 0)) <= 2 THEN 1 ELSE 0 END
+  )::NUMERIC AS late_close_we_share,
+  CASE
+    WHEN COUNT(*) >= 120 THEN 'high'
+    WHEN COUNT(*) >= 40 THEN 'medium'
     ELSE 'low'
   END AS confidence_band
 FROM lookup l

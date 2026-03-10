@@ -48,6 +48,11 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
     teamsWithRunValue.length > 0
       ? teamsWithRunValue.reduce((sum, team) => sum + (team.avgRunExpectancyDelta ?? 0), 0) / teamsWithRunValue.length
       : null;
+  const teamsWithWinValue = teams.filter((team) => team.avgWinExpectancyDelta !== null);
+  const leagueAvgWinExpectancyDelta =
+    teamsWithWinValue.length > 0
+      ? teamsWithWinValue.reduce((sum, team) => sum + (team.avgWinExpectancyDelta ?? 0), 0) / teamsWithWinValue.length
+      : null;
 
   // Find the position where league avg row should be inserted (between teams above and below league avg overturn rate)
   const avgInsertIdx = sorted.findIndex((t) => t.overturnRate < leagueAvgRate);
@@ -74,7 +79,13 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
           </p>
           <p className="mt-1 text-xs text-[var(--ink-3)]">
             {viewMode === "org"
-              ? `${biggestMover.orgStyleLabel} with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews in higher-pressure windows${biggestMover.avgRunExpectancyDelta !== null ? ` and ${biggestMover.avgRunExpectancyDelta >= 0 ? "+" : ""}${biggestMover.avgRunExpectancyDelta.toFixed(3)} average RE per review` : ""}.`
+              ? `${biggestMover.orgStyleLabel} with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews in higher-pressure windows${
+                  biggestMover.avgWinExpectancyDelta !== null
+                    ? ` and ${biggestMover.avgWinExpectancyDelta >= 0 ? "+" : ""}${(biggestMover.avgWinExpectancyDelta * 100).toFixed(2)}% average WE per review`
+                    : biggestMover.avgRunExpectancyDelta !== null
+                      ? ` and ${biggestMover.avgRunExpectancyDelta >= 0 ? "+" : ""}${biggestMover.avgRunExpectancyDelta.toFixed(3)} average RE per review`
+                      : ""
+                }.`
               : `${biggestMover.style} profile with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews coming in bigger spots and a visible trend swing.`}
           </p>
         </div>
@@ -105,7 +116,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
               <th className="text-center">{viewMode === "org" ? "Pressure Share" : "Big-Spot Share"}</th>
               <th className="text-center">{viewMode === "org" ? "Discipline" : "Timing"}</th>
               <th className="text-center">Trend</th>
-              <th className="text-right">{viewMode === "org" ? "Avg RE Δ" : "Avg Rem"}</th>
+              <th className="text-right">{viewMode === "org" ? (leagueAvgWinExpectancyDelta !== null ? "Avg WE Δ" : "Avg RE Δ") : "Avg Rem"}</th>
               <th className="text-right">{copy.tableVolumeHeader}</th>
             </tr>
           </thead>
@@ -156,9 +167,11 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
                       </td>
                       <td className="text-right font-mono text-gray-400 italic font-medium pr-8">
                         {viewMode === "org"
-                          ? leagueAvgRunExpectancyDelta === null
-                            ? "N/A"
-                            : `${leagueAvgRunExpectancyDelta >= 0 ? "+" : ""}${leagueAvgRunExpectancyDelta.toFixed(3)}`
+                          ? leagueAvgWinExpectancyDelta !== null
+                            ? `${leagueAvgWinExpectancyDelta >= 0 ? "+" : ""}${(leagueAvgWinExpectancyDelta * 100).toFixed(2)}%`
+                            : leagueAvgRunExpectancyDelta === null
+                              ? "N/A"
+                              : `${leagueAvgRunExpectancyDelta >= 0 ? "+" : ""}${leagueAvgRunExpectancyDelta.toFixed(3)}`
                           : leagueAvgRemaining.toFixed(2)}
                       </td>
                       <td className="text-right font-mono text-gray-400 italic font-medium pr-8">
@@ -215,9 +228,11 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
                     </td>
                     <td className="text-right font-mono text-gray-400 font-medium pr-8">
                       {viewMode === "org"
-                        ? t.avgRunExpectancyDelta === null
-                          ? "N/A"
-                          : `${t.avgRunExpectancyDelta >= 0 ? "+" : ""}${t.avgRunExpectancyDelta.toFixed(3)}`
+                        ? t.avgWinExpectancyDelta !== null
+                          ? `${t.avgWinExpectancyDelta >= 0 ? "+" : ""}${(t.avgWinExpectancyDelta * 100).toFixed(2)}%`
+                          : t.avgRunExpectancyDelta === null
+                            ? "N/A"
+                            : `${t.avgRunExpectancyDelta >= 0 ? "+" : ""}${t.avgRunExpectancyDelta.toFixed(3)}`
                         : t.avgRemaining.toFixed(2)}
                     </td>
                     <td className="text-right font-mono text-gray-400 font-medium pr-8">{viewMode === "org" ? t.gamesTracked : t.challengesTotal}</td>
