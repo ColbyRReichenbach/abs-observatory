@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 import { GameShell } from "@/components/game-shell";
 import { getGame, getGameAbsCounters, getGameChallenges, getGameLiveStatus, getLiveChallengeWindow } from "@/lib/data";
@@ -23,18 +24,13 @@ export default async function GamePage({
   const challengeId = sp.challengeId;
   const gameId = Number(gamePk);
   const viewMode = await resolveViewMode(sp as Record<string, string | string[] | undefined>);
-  const [game, challenges, counters, liveStatus, liveChallengeWindow] = await Promise.all([
+  const [game, counters, liveStatus] = await Promise.all([
     getGame(gameId),
-    getGameChallenges(gameId),
     getGameAbsCounters(gameId),
     getGameLiveStatus(gameId),
-    getLiveChallengeWindow(gameId),
   ]);
 
   if (!game) return notFound();
-  // Status router logic
-  const isFinal = game.statusabstract === "Final" || game.statusabstract === "Game Over";
-  const isPregame = game.statusabstract === "Preview" || game.statusabstract === "Warmup";
 
   return (
     <main className="mx-auto max-w-7xl px-6 pb-8 pt-32">
@@ -43,22 +39,81 @@ export default async function GamePage({
       </div>
       <GameHubRouter status={game.statusabstract} />
       <GameShell game={game} liveStatus={liveStatus} counters={counters} />
-
-      {isPregame ? (
-        <PregameScoutingReport game={game} viewMode={viewMode} />
-      ) : isFinal ? (
-        <PostgameAAR game={game} challenges={challenges} initialChallengeId={challengeId} viewMode={viewMode} />
-      ) : (
-        <LiveWarRoom
+      <Suspense fallback={<GameHubSectionFallback />}>
+        <GameHubContent
+          gameId={gameId}
           game={game}
-          challenges={challenges}
-          liveStatus={liveStatus}
           counters={counters}
-          liveChallengeWindow={liveChallengeWindow}
+          liveStatus={liveStatus}
           initialChallengeId={challengeId}
           viewMode={viewMode}
         />
-      )}
+      </Suspense>
     </main>
+  );
+}
+
+async function GameHubContent({
+  gameId,
+  game,
+  counters,
+  liveStatus,
+  initialChallengeId,
+  viewMode,
+}: {
+  gameId: number;
+  game: Awaited<ReturnType<typeof getGame>>;
+  counters: Awaited<ReturnType<typeof getGameAbsCounters>>;
+  liveStatus: Awaited<ReturnType<typeof getGameLiveStatus>>;
+  initialChallengeId?: string | null;
+  viewMode: Awaited<ReturnType<typeof resolveViewMode>>;
+}) {
+  if (!game) return null;
+
+  const isFinal = game.statusabstract === "Final" || game.statusabstract === "Game Over";
+  const isPregame = game.statusabstract === "Preview" || game.statusabstract === "Warmup";
+
+  if (isPregame) {
+    return <PregameScoutingReport game={game} viewMode={viewMode} />;
+  }
+
+  const challenges = await getGameChallenges(gameId);
+
+  if (isFinal) {
+    return <PostgameAAR game={game} challenges={challenges} initialChallengeId={initialChallengeId} viewMode={viewMode} />;
+  }
+
+  const liveChallengeWindow = await getLiveChallengeWindow(gameId);
+
+  return (
+    <LiveWarRoom
+      game={game}
+      challenges={challenges}
+      liveStatus={liveStatus}
+      counters={counters}
+      liveChallengeWindow={liveChallengeWindow}
+      initialChallengeId={initialChallengeId}
+      viewMode={viewMode}
+    />
+  );
+}
+
+function GameHubSectionFallback() {
+  return (
+    <section className="mt-8 space-y-6">
+      <div className="panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50 min-h-[240px]">
+        <div className="h-4 w-28 rounded bg-gray-100 animate-pulse mb-4" />
+        <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
+          <div className="min-h-[220px] rounded-[1.5rem] bg-gradient-to-br from-gray-100 via-gray-50 to-white animate-pulse" />
+          <div className="grid gap-4">
+            <div className="min-h-[104px] rounded-[1.5rem] bg-gradient-to-br from-gray-100 via-gray-50 to-white animate-pulse" />
+            <div className="min-h-[104px] rounded-[1.5rem] bg-gradient-to-br from-gray-100 via-gray-50 to-white animate-pulse" />
+          </div>
+        </div>
+      </div>
+      <div className="panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50 min-h-[320px]">
+        <div className="h-full w-full rounded-[1.5rem] bg-gradient-to-br from-gray-100 via-gray-50 to-white animate-pulse" />
+      </div>
+    </section>
   );
 }

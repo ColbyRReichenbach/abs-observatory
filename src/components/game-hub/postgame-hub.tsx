@@ -19,11 +19,8 @@ export async function PostgameAAR({ game, challenges, initialChallengeId = null,
     const copy = getGameViewCopy(viewMode, "final");
     const challengeValueTimeline = await getGameChallengeValueTimeline(game.gamepk);
 
-    const homeAbbr = game.homeabbreviation;
-    const awayAbbr = game.awayabbreviation;
-
-    const homeChallenges = challenges.filter((c) => c.challengeTeamName === homeAbbr);
-    const awayChallenges = challenges.filter((c) => c.challengeTeamName === awayAbbr);
+    const homeChallenges = challenges.filter((c) => c.challengeTeamId === game.hometeamid);
+    const awayChallenges = challenges.filter((c) => c.challengeTeamId === game.awayteamid);
 
     const scorecard = (team: typeof homeChallenges) => {
         const correct = team.filter((c) => c.isOverturned).length;

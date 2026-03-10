@@ -119,7 +119,7 @@ vi.mock("@/lib/data", () => ({
 import TeamPage from "@/app/teams/[teamId]/page";
 
 describe("team detail page", () => {
-  it("renders kpis, trend and strategy sections", async () => {
+  it("renders the hero, kpis, and streamed analytics fallbacks", async () => {
     const page = await TeamPage({
       params: Promise.resolve({ teamId: "111" }),
       searchParams: Promise.resolve({ range: "30d" }),
@@ -128,11 +128,10 @@ describe("team detail page", () => {
 
     expect(html).toContain("Boston Red Sox");
     expect(html).toContain("Challenge");
-    expect(html).toContain("Trajectory");
-    expect(html).toContain("Challenge Timing");
     expect(html).toContain("ABS personality breakdown");
-    expect(html).toContain("Value Matrix");
-    expect(html).toContain("Best Challenge Window");
-    expect(html).toContain("Archetype");
+    expect(html).toContain("Trend Overview");
+    expect(html).toContain("Challenge Value Matrix");
+    expect(html).toContain("Timing Efficiency");
+    expect(html).toContain("Challenge Style");
   });
 });
