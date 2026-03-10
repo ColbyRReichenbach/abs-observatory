@@ -15,10 +15,10 @@ This document describes the security controls that are implemented in AiBS today
 
 Related documents:
 
-- [README.md](./README.md)
+- [README.md](../../README.md)
 - [technical.md](./technical.md)
-- [ai-backend-plan.md](./ai-backend-plan.md)
-- [docs/launch/provider-setup-checklist.md](./docs/launch/provider-setup-checklist.md)
+- [ai-backend-plan.md](../architecture/ai-backend-plan.md)
+- [docs/launch/provider-setup-checklist.md](../launch/provider-setup-checklist.md)
 - [gap-list.md](./gap-list.md)
 
 ## 1. Security Model

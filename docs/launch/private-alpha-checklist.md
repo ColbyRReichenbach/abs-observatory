@@ -21,8 +21,8 @@ It assumes:
 Related documents:
 
 - [README.md](../../README.md)
-- [gap-list.md](../../gap-list.md)
-- [product-source-of-truth.md](../../product-source-of-truth.md)
+- [gap-list.md](../reference/gap-list.md)
+- [product-source-of-truth.md](../product/product-source-of-truth.md)
 - [docs/launch/provider-setup-checklist.md](./provider-setup-checklist.md)
 - [docs/launch/publication-checklist.md](./publication-checklist.md)
 - [docs/launch/monitoring-alerts.md](./monitoring-alerts.md)
@@ -76,7 +76,7 @@ These items should be complete before inviting external users.
 
 - [ ] game ingestion runs successfully without local intervention
 - [ ] queued jobs process successfully in deployed environment
-- [ ] Gazette daily flow is verified in deployed environment
+- [ ] The Absolute Observer daily flow is verified in deployed environment
 - [ ] AI feedback classification jobs are verified in deployed environment
 - [ ] Clerk webhook sync is verified in deployed environment
 
@@ -114,7 +114,7 @@ These items focus on user trust and first-run usability.
 
 - [ ] first-time user can understand `fan` vs `org` mode
 - [ ] game preview, live, and final pages are navigable without confusion
-- [ ] Gazette article pages and `/about` content read cleanly on mobile and desktop
+- [ ] The Absolute Observer article pages and `/about` content read cleanly on mobile and desktop
 - [ ] critical CTA paths are obvious:
   - open a game
   - switch mode

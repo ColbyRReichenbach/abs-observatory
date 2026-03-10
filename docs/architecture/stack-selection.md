@@ -14,8 +14,8 @@ The goal is:
 
 ## Adoption Checklist
 
-Canonical sprint tracking lives in [roadmap.md](./roadmap.md).
-Canonical sprint verification lives in [sprint-test-plan.md](./sprint-test-plan.md).
+Canonical sprint tracking lives in [roadmap.md](../product/roadmap.md).
+Canonical sprint verification lives in [sprint-test-plan.md](../product/sprint-test-plan.md).
 
 Use this checklist to confirm we are implementing against the chosen stack instead of drifting:
 - [x] Web/BFF remains Next.js-based. `[Stack: Next.js, Vercel]`

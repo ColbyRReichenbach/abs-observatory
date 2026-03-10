@@ -1,6 +1,6 @@
 # Future Iterations: Auth, Community, and Secure Backend
 
-> Archived in March 2026. Canonical product decisions now live in [../../../product-source-of-truth.md](../../../product-source-of-truth.md).
+> Archived in March 2026. Canonical product decisions now live in [../../product/product-source-of-truth.md](../../product/product-source-of-truth.md).
 
 ## Purpose
 Capture post-V1 initiatives that require authentication, moderation systems, and stronger backend/security architecture.

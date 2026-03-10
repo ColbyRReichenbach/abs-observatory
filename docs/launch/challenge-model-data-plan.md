@@ -18,7 +18,7 @@ The answer is now:
 
 - **yes**, AiBS can implement the model architecture
 - **yes**, AiBS now has enough historical baseball state coverage to treat run expectancy as a real model layer
-- **not yet**, AiBS should still validate win expectancy separately before treating WE as production-ready
+- **yes**, AiBS now has enough historical baseball state coverage to treat win expectancy as a production-usable model layer when confidence gating is respected
 
 This memo is written as an internal baseball analytics planning brief. The goal is to make the data acquisition path as disciplined as the model plan itself.
 
@@ -26,7 +26,7 @@ Related documents:
 
 - [challenge-value-model-plan.md](./challenge-value-model-plan.md)
 - [challenge-context-analytics-plan.md](./challenge-context-analytics-plan.md)
-- [technical.md](../../technical.md)
+- [technical.md](../reference/technical.md)
 - [src/lib/data.ts](../../src/lib/data.ts)
 - [etl/ingest_mlb_abs.py](../../etl/ingest_mlb_abs.py)
 
@@ -72,8 +72,7 @@ AiBS already has enough data to support:
 
 AiBS does **not** yet have enough validated model work to support:
 
-- a stable empirical win expectancy table
-- a real expected challenge decision value model
+- a fully matured expected challenge decision value layer across all product surfaces
 
 Why:
 
@@ -116,8 +115,8 @@ AiBS could not build a defensible empirical `RE` or `WE` model from current app 
 Updated conclusion:
 
 - the model framework is implementable
-- the historical backfill prerequisite has now been met for RE
-- WE and expected challenge decision value still require additional model-building and validation work
+- the historical backfill prerequisite has now been met for both RE and WE
+- expected challenge decision value is now in an early empirical stage, but still requires more calibration and rollout work
 
 ## 3. What the Models Need
 

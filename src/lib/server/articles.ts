@@ -1165,7 +1165,7 @@ function buildAuthorPrompt(params: {
   baseDraft: GazetteDraftPayload;
 }) {
   return [
-    `You are ${params.author.name}, the ${params.author.role} for the AiBS Gazette.`,
+    `You are ${params.author.name}, the ${params.author.role} for The Absolute Observer.`,
     `Write the daily ABS recap for the ${params.sourceDate} slate.`,
     "Use only the supplied evidence and section skeleton.",
     "Return strict JSON only with keys: title, dek, sections.",
@@ -1499,7 +1499,7 @@ function buildScoutBrief(
       storyOfDay: {
         headline: `Daily ABS recap unavailable for ${sourceDate}`,
         theme: "insufficient_evidence",
-        summary: `Source marts were incomplete for ${sourceDate}, so the Gazette desk could not identify a lead story.`,
+        summary: `Source marts were incomplete for ${sourceDate}, so The Absolute Observer desk could not identify a lead story.`,
       },
       marqueeMoment: null,
       leadCandidates: [],
@@ -1688,7 +1688,7 @@ function buildDailyGazetteDraft(
           sectionKind: "fact",
           heading: "League Standings",
           bodyMd: telemetry.standingsPulse
-            ? `Standings movement through **${sourceDate}** is attached to the Gazette pulse, with both leagues compared to the previous snapshot.`
+            ? `Standings movement through **${sourceDate}** is attached to The Absolute Observer pulse, with both leagues compared to the previous snapshot.`
             : `Standings snapshots were not available for **${sourceDate}**, so the desk held this section to a factual placeholder.`,
           sectionOrder: 5,
           evidencePayload: telemetry.standingsPulse ?? { al: [], nl: [] },
@@ -1834,7 +1834,7 @@ export async function generateDailyAutoArticle(sourceDate: string, options: Gene
     const validation = await runGenerationStep(query, {
       generationRunId,
       stepKey: "editor_validation",
-      agentName: "Gazette Validator",
+      agentName: "Observer Validator",
       provider: "deterministic",
       inputPayload: { sourceDate, sectionCount: draft.sections.length },
       execute: async () => buildGazetteValidation(draft),
@@ -1848,7 +1848,7 @@ export async function generateDailyAutoArticle(sourceDate: string, options: Gene
     const persistResult = await runGenerationStep(query, {
       generationRunId,
       stepKey: "persist_article",
-      agentName: "Gazette Publisher",
+      agentName: "Observer Publisher",
       provider: "deterministic",
       inputPayload: { sourceDate, articleStatus, validationState, slug },
       execute: async () => {

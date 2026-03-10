@@ -54,10 +54,10 @@ export default async function AdminEditorialPage({
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-500">Editorial Ops</p>
             <h2 className="mt-2 text-3xl font-display uppercase tracking-[0.04em] text-[var(--ink-0)]">
-              Gazette Operations
+              The Absolute Observer Operations
             </h2>
             <p className="mt-3 max-w-2xl text-sm text-[var(--ink-2)]">
-              Track daily Gazette runs, inspect the author step by provider and model, and publish or suppress output
+              Track daily The Absolute Observer runs, inspect the author step by provider and model, and publish or suppress output
               without leaving the app.
             </p>
           </div>
@@ -77,7 +77,7 @@ export default async function AdminEditorialPage({
               type="submit"
               className="inline-flex items-center justify-center rounded-full bg-black px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.18em] text-white transition-transform hover:scale-105 active:scale-95"
             >
-              Rerun Gazette
+              Rerun The Absolute Observer
             </button>
           </form>
         </div>
@@ -85,7 +85,7 @@ export default async function AdminEditorialPage({
         <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <OverviewCard label="Generation Runs" value={String(overview.totalRuns)} detail={`${overview.persistedRuns} persisted`} />
           <OverviewCard label="Published Articles" value={String(overview.publishedArticles)} detail={`${overview.generatedArticles} held · ${overview.suppressedArticles} suppressed`} />
-          <OverviewCard label="Tracked Tokens" value={overview.totalTokens.toLocaleString()} detail="Across Gazette generation steps" />
+          <OverviewCard label="Tracked Tokens" value={overview.totalTokens.toLocaleString()} detail="Across editorial generation steps" />
           <OverviewCard label="Estimated Cost" value={formatCost(overview.totalEstimatedCostUsd)} detail="Author telemetry and step ledger" />
         </div>
       </div>
@@ -149,7 +149,7 @@ export default async function AdminEditorialPage({
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-500">Run Detail</p>
                     <h3 className="mt-2 text-3xl font-display uppercase tracking-[0.03em] text-[var(--ink-0)]">
-                      {selectedRun.articleTitle ?? selectedRun.sourceDate ?? "Gazette Run"}
+                      {selectedRun.articleTitle ?? selectedRun.sourceDate ?? "Observer Run"}
                     </h3>
                     <p className="mt-2 max-w-3xl text-sm text-[var(--ink-2)]">
                       {selectedRun.storyTheme
@@ -282,7 +282,7 @@ export default async function AdminEditorialPage({
             </>
           ) : (
             <div className="panel border-gray-100 bg-white p-8 shadow-2xl shadow-black/[0.03]">
-              <p className="text-sm text-[var(--ink-2)]">No Gazette runs are available yet.</p>
+              <p className="text-sm text-[var(--ink-2)]">No The Absolute Observer runs are available yet.</p>
             </div>
           )}
         </div>

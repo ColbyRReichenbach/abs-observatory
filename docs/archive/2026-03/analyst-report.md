@@ -1,6 +1,6 @@
 # ABS Observatory — Analyst Report
 
-> Superseded as a source-of-truth planning document by [product-source-of-truth.md](./product-source-of-truth.md). Keep this file for historical analysis and rationale only.
+> Superseded as a source-of-truth planning document by [product-source-of-truth.md](../../product/product-source-of-truth.md). Keep this file for historical analysis and rationale only.
 
 *Written from the perspective of a baseball analyst evaluating the platform for operational and fan-facing utility.*
 

@@ -1,7 +1,7 @@
 # Sprint 9 Backend Implementation Plan
 
-> Sprint 9 product decisions are now summarized in [product-source-of-truth.md](./product-source-of-truth.md). Keep this file as the deferred backend implementation appendix.
-*Backend companion to [sprint-plan.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/sprint-plan.md) for deferred/frontend-blocked items.*
+> Sprint 9 product decisions are now summarized in [product-source-of-truth.md](../../product/product-source-of-truth.md). Keep this file as the deferred backend implementation appendix.
+*Backend companion to [sprint-plan.md](./sprint-plan.md) for deferred/frontend-blocked items.*
 
 ## Purpose
 Sprint 9 in the frontend audit mixes two different kinds of work:
@@ -15,18 +15,18 @@ This document separates those paths so frontend integration can continue now wit
 
 ### Already available
 - Full pitch timeline data:
-  - [src/app/api/games/[gamePk]/timeline/route.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/app/api/games/[gamePk]/timeline/route.ts)
-  - [src/lib/data.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/data.ts)
-  - [db/views.sql](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/db/views.sql)
+  - [src/app/api/games/[gamePk]/timeline/route.ts](../../../src/app/api/games/[gamePk]/timeline/route.ts)
+  - [src/lib/data.ts](../../../src/lib/data.ts)
+  - [db/views.sql](../../../db/views.sql)
 - Team and umpire summary APIs:
-  - [src/app/api/teams/[teamId]/summary/route.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/app/api/teams/[teamId]/summary/route.ts)
-  - [src/app/api/umpires/[umpireId]/summary/route.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/app/api/umpires/[umpireId]/summary/route.ts)
+  - [src/app/api/teams/[teamId]/summary/route.ts](../../../src/app/api/teams/[teamId]/summary/route.ts)
+  - [src/app/api/umpires/[umpireId]/summary/route.ts](../../../src/app/api/umpires/[umpireId]/summary/route.ts)
 - Pregame/team-umpire query foundations:
-  - [src/lib/pregame-intel.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/pregame-intel.ts)
-  - [src/lib/data.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/data.ts)
+  - [src/lib/pregame-intel.ts](../../../src/lib/pregame-intel.ts)
+  - [src/lib/data.ts](../../../src/lib/data.ts)
 - Pitch-type columns and baseline marts:
-  - [db/schema.sql](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/db/schema.sql)
-  - [db/views.sql](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/db/views.sql)
+  - [db/schema.sql](../../../db/schema.sql)
+  - [db/views.sql](../../../db/views.sql)
 
 ### Not yet real
 - CLS / real challenge WPA model
@@ -56,7 +56,7 @@ Approved scope for the next implementation pass:
 - D-10 X Bot
 
 ## Stack Constraints
-Use only the selected stack from [stack-selection.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/stack-selection.md):
+Use only the selected stack from [stack-selection.md](../../architecture/stack-selection.md):
 
 - `Next.js` App Router for backend APIs
 - `Postgres` as source of truth
@@ -76,8 +76,8 @@ Do not introduce:
 Status: `partial foundation exists`
 
 What exists now:
-- generic pregame intel in [src/lib/pregame-intel.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/pregame-intel.ts)
-- team-to-many-umpire matchup history in [src/lib/data.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/data.ts)
+- generic pregame intel in [src/lib/pregame-intel.ts](../../../src/lib/pregame-intel.ts)
+- team-to-many-umpire matchup history in [src/lib/data.ts](../../../src/lib/data.ts)
 
 What to add:
 - [ ] Add a dedicated server query for `gamePk -> tonight's home plate umpire + both teams historical challenge splits`
@@ -263,7 +263,7 @@ Needed later:
 - [ ] D-10 X bot
 
 ## Testing Requirements
-Reference [sprint-test-plan.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/sprint-test-plan.md).
+Reference [sprint-test-plan.md](../../product/sprint-test-plan.md).
 
 For every implemented Sprint 9 item:
 - [ ] unit tests for query/mapper logic

@@ -4,15 +4,15 @@ This file is the canonical execution tracker for backend, data, editorial, AI, a
 
 Primary references:
 - [product-source-of-truth.md](./product-source-of-truth.md)
-- [plan.md](./plan.md)
-- [stack-selection.md](./stack-selection.md)
-- [ai-backend-plan.md](./ai-backend-plan.md)
-- [ai-implementation-sequence.md](./ai-implementation-sequence.md)
+- [plan.md](../archive/2026-03/backend-scale-security-plan.md)
+- [stack-selection.md](../architecture/stack-selection.md)
+- [ai-backend-plan.md](../architecture/ai-backend-plan.md)
+- [ai-implementation-sequence.md](../architecture/ai-implementation-sequence.md)
 - [sprint-test-plan.md](./sprint-test-plan.md)
 
 Important note:
 - there is no `system-stack.md` in this repo
-- the enforced stack source of truth is [stack-selection.md](./stack-selection.md)
+- the enforced stack source of truth is [stack-selection.md](../architecture/stack-selection.md)
 - every sprint item below references the selected tools from that document
 - sprint verification requirements live in [sprint-test-plan.md](./sprint-test-plan.md)
 

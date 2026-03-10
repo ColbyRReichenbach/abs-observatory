@@ -1,6 +1,6 @@
 # Future Iterations (UI/Product)
 
-> Archived in March 2026. Canonical product decisions now live in [../../../product-source-of-truth.md](../../../product-source-of-truth.md).
+> Archived in March 2026. Canonical product decisions now live in [../../product/product-source-of-truth.md](../../product/product-source-of-truth.md).
 
 ## Deferred from V1 Closure
 

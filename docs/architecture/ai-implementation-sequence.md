@@ -22,8 +22,8 @@ This plan assumes the AI backend remains:
 
 ## Phase Checklist
 
-Canonical sprint tracking lives in [roadmap.md](./roadmap.md).
-Canonical sprint verification lives in [sprint-test-plan.md](./sprint-test-plan.md).
+Canonical sprint tracking lives in [roadmap.md](../product/roadmap.md).
+Canonical sprint verification lives in [sprint-test-plan.md](../product/sprint-test-plan.md).
 
 - [x] Phase 1 complete: interactive entry path is locked down. `[Stack: Next.js, Clerk, OpenAI]`
 - [x] Phase 2 complete: typed tools replace production NL-to-SQL. `[Stack: Next.js, Postgres, OpenAI]`
