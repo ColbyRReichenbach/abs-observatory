@@ -5,6 +5,7 @@ import { AnimatePresence } from "framer-motion";
 
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
 import type { TeamChallengeScenarioCell, TeamChallengeValueSummary } from "@/lib/types";
+import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
 
 export function TeamChallengeValueMatrix({
   cells,
@@ -23,13 +24,23 @@ export function TeamChallengeValueMatrix({
   const rowLabels = useMemo(() => Array.from(new Set(cells.map((cell) => cell.rowLabel))), [cells]);
   const colLabels = useMemo(() => Array.from(new Set(cells.map((cell) => cell.colLabel))), [cells]);
   const cellMap = useMemo(() => new Map(cells.map((cell) => [`${cell.rowLabel}:${cell.colLabel}`, cell])), [cells]);
+  const usesWinValue =
+    viewMode === "org" &&
+    summary.averageWinExpectancyDelta !== null &&
+    hasTrustedModelConfidenceBand(summary.winExpectancyConfidence);
+  const averageWinValue = usesWinValue ? summary.averageWinExpectancyDelta : null;
   const preferredCell = useMemo(
     () =>
       [...cells].sort((left, right) => {
-        if (right.challenges !== left.challenges) return right.challenges - left.challenges;
+        const leftPrimary = usesWinValue ? left.avgWinExpectancyDelta : viewMode === "org" ? left.avgRunExpectancyDelta : left.avgPositiveOutcomeDelta;
+        const rightPrimary = usesWinValue ? right.avgWinExpectancyDelta : viewMode === "org" ? right.avgRunExpectancyDelta : right.avgPositiveOutcomeDelta;
+        if ((rightPrimary ?? -Infinity) !== (leftPrimary ?? -Infinity)) {
+          return (rightPrimary ?? -Infinity) - (leftPrimary ?? -Infinity);
+        }
+        if (right.highPressureShare !== left.highPressureShare) return right.highPressureShare - left.highPressureShare;
         return right.avgEstimatedLeverage - left.avgEstimatedLeverage;
       })[0] ?? null,
-    [cells],
+    [cells, usesWinValue, viewMode],
   );
   const deploymentRead =
     summary.totalChallenges === 0
@@ -62,15 +73,15 @@ export function TeamChallengeValueMatrix({
           <SummaryPill
             label={
               viewMode === "org"
-                ? summary.averageWinExpectancyDelta !== null
+                ? usesWinValue
                   ? "Avg WE Delta"
                   : "Avg RE Delta"
                 : "Smart Count Gain"
             }
             value={
               viewMode === "org"
-                ? summary.averageWinExpectancyDelta !== null
-                  ? `${summary.averageWinExpectancyDelta >= 0 ? "+" : ""}${(summary.averageWinExpectancyDelta * 100).toFixed(2)}%`
+                ? usesWinValue
+                  ? `${(averageWinValue ?? 0) >= 0 ? "+" : ""}${((averageWinValue ?? 0) * 100).toFixed(2)}%`
                   : summary.averageRunExpectancyDelta === null
                     ? "N/A"
                     : `${summary.averageRunExpectancyDelta >= 0 ? "+" : ""}${summary.averageRunExpectancyDelta.toFixed(3)}`
@@ -104,7 +115,7 @@ export function TeamChallengeValueMatrix({
           <p className="mt-3 text-[11px] font-medium leading-relaxed text-gray-600">
             {preferredCell
               ? `${preferredCell.challenges} tracked reviews with avg ELI ${preferredCell.avgEstimatedLeverage.toFixed(1)}${
-                  preferredCell.avgWinExpectancyDelta !== null
+                  usesWinValue && preferredCell.avgWinExpectancyDelta !== null
                     ? ` and ${preferredCell.avgWinExpectancyDelta >= 0 ? "+" : ""}${(preferredCell.avgWinExpectancyDelta * 100).toFixed(2)}% WE`
                     : preferredCell.avgRunExpectancyDelta !== null
                       ? ` and ${preferredCell.avgRunExpectancyDelta >= 0 ? "+" : ""}${preferredCell.avgRunExpectancyDelta.toFixed(3)} RE`
@@ -184,7 +195,9 @@ export function TeamChallengeValueMatrix({
 
       <p className="mt-5 text-[10px] font-medium uppercase tracking-[0.16em] text-gray-400">
         {viewMode === "org"
-          ? "Cells show how often this club challenges in each scenario window. Color intensity follows average estimated leverage."
+          ? usesWinValue
+            ? "Cells show how often this club challenges in each scenario window. Color intensity follows average estimated leverage, while callouts prioritize trusted WE value."
+            : "Cells show how often this club challenges in each scenario window. Color intensity follows average estimated leverage, with RE used until WE confidence improves."
           : "Cells show where this team tends to use challenges. Darker cells indicate more pressure-packed spots."}
       </p>
 
@@ -203,13 +216,13 @@ export function TeamChallengeValueMatrix({
               {
                 label:
                   viewMode === "org"
-                    ? hoveredCell.avgWinExpectancyDelta !== null
+                    ? usesWinValue && hoveredCell.avgWinExpectancyDelta !== null
                       ? "Avg WE Delta"
                       : "Avg RE Delta"
                     : "Count Gain",
                 value:
                   viewMode === "org"
-                    ? hoveredCell.avgWinExpectancyDelta !== null
+                    ? usesWinValue && hoveredCell.avgWinExpectancyDelta !== null
                       ? `${hoveredCell.avgWinExpectancyDelta >= 0 ? "+" : ""}${(hoveredCell.avgWinExpectancyDelta * 100).toFixed(2)}% WE`
                       : hoveredCell.avgRunExpectancyDelta === null
                         ? "N/A"

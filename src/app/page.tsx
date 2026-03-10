@@ -8,6 +8,7 @@ import { getHomeChallengeMoments, getLiveGames, getTeamLeaderboardModel, getUmpi
 import { resolveViewMode } from "@/lib/view-mode";
 import { ProfileBadge } from "@/components/ui/profile-badge";
 import { getHomePageViewCopy } from "@/lib/view-mode-contract";
+import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
 
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const sp = await searchParams;
@@ -323,20 +324,30 @@ function compareOrgTeamOperators(
     avgRemaining: number;
     avgWinExpectancyDelta: number | null;
     highWinValueShare: number;
+    winValueConfidence: "high" | "medium" | "low" | null;
     avgRunExpectancyDelta: number | null;
     highRunValueShare: number;
+    runValueConfidence: "high" | "medium" | "low" | null;
   },
   right: {
     overturnRate: number;
     avgRemaining: number;
     avgWinExpectancyDelta: number | null;
     highWinValueShare: number;
+    winValueConfidence: "high" | "medium" | "low" | null;
     avgRunExpectancyDelta: number | null;
     highRunValueShare: number;
+    runValueConfidence: "high" | "medium" | "low" | null;
   },
 ) {
-  const leftMetric = left.avgWinExpectancyDelta ?? left.avgRunExpectancyDelta;
-  const rightMetric = right.avgWinExpectancyDelta ?? right.avgRunExpectancyDelta;
+  const leftMetric =
+    left.avgWinExpectancyDelta !== null && hasTrustedModelConfidenceBand(left.winValueConfidence)
+      ? left.avgWinExpectancyDelta
+      : left.avgRunExpectancyDelta;
+  const rightMetric =
+    right.avgWinExpectancyDelta !== null && hasTrustedModelConfidenceBand(right.winValueConfidence)
+      ? right.avgWinExpectancyDelta
+      : right.avgRunExpectancyDelta;
 
   if (leftMetric !== null || rightMetric !== null) {
     if (leftMetric === null) return 1;
@@ -345,8 +356,14 @@ function compareOrgTeamOperators(
       return rightMetric - leftMetric;
     }
 
-    const leftShare = left.avgWinExpectancyDelta !== null ? left.highWinValueShare : left.highRunValueShare;
-    const rightShare = right.avgWinExpectancyDelta !== null ? right.highWinValueShare : right.highRunValueShare;
+    const leftShare =
+      left.avgWinExpectancyDelta !== null && hasTrustedModelConfidenceBand(left.winValueConfidence)
+        ? left.highWinValueShare
+        : left.highRunValueShare;
+    const rightShare =
+      right.avgWinExpectancyDelta !== null && hasTrustedModelConfidenceBand(right.winValueConfidence)
+        ? right.highWinValueShare
+        : right.highRunValueShare;
     if (rightShare !== leftShare) {
       return rightShare - leftShare;
     }
@@ -357,9 +374,10 @@ function compareOrgTeamOperators(
 
 function formatOrgOperatorValue(team: {
   avgWinExpectancyDelta: number | null;
+  winValueConfidence: "high" | "medium" | "low" | null;
   avgRunExpectancyDelta: number | null;
 }) {
-  if (team.avgWinExpectancyDelta !== null) {
+  if (team.avgWinExpectancyDelta !== null && hasTrustedModelConfidenceBand(team.winValueConfidence)) {
     return `${team.avgWinExpectancyDelta >= 0 ? "+" : ""}${(team.avgWinExpectancyDelta * 100).toFixed(2)}% WE`;
   }
   if (team.avgRunExpectancyDelta !== null) {

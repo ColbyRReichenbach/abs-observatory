@@ -267,7 +267,7 @@ export function GazetteArticle({ article }: GazetteArticleProps) {
                         </h3>
                         <div className="space-y-4 text-xs leading-relaxed font-serif">
                             <p>
-                                Performance data is based on Optical Tracking V4. Challenge value references use AiBS estimated leverage and estimated challenge swing, not a true win-probability model.
+                                Performance data is based on Optical Tracking V4. Challenge value references use AiBS run expectancy and win expectancy where model confidence is sufficient, with estimated leverage and swing index fallback when state coverage is still thin.
                             </p>
                         </div>
                     </section>

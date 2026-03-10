@@ -1,6 +1,7 @@
 "use client";
 
 import { formatLeverageBucketLabel } from "@/lib/estimated-leverage";
+import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
 import type { ChallengeValueTimelineEntry } from "@/lib/types";
 import type { ViewMode } from "@/lib/view-mode";
 
@@ -20,10 +21,10 @@ export function ChallengeValueTimeline({
     (left, right) => right.estimatedLeverageIndex - left.estimatedLeverageIndex,
   )[0];
   const biggestRunValue = [...entries]
-    .filter((entry) => entry.runExpectancyDelta !== null)
+    .filter((entry) => entry.runExpectancyDelta !== null && hasTrustedModelConfidenceBand(entry.runExpectancyConfidence))
     .sort((left, right) => Math.abs(right.runExpectancyDelta ?? 0) - Math.abs(left.runExpectancyDelta ?? 0))[0];
   const biggestWinValue = [...entries]
-    .filter((entry) => entry.winExpectancyDelta !== null)
+    .filter((entry) => entry.winExpectancyDelta !== null && hasTrustedModelConfidenceBand(entry.winExpectancyConfidence))
     .sort((left, right) => Math.abs(right.winExpectancyDelta ?? 0) - Math.abs(left.winExpectancyDelta ?? 0))[0];
   const overturnedCount = entries.filter((entry) => entry.isOverturned).length;
   const maxSwing = Math.max(...entries.map((entry) => Math.abs(entry.estimatedChallengeSwing)), 1);
@@ -128,16 +129,16 @@ export function ChallengeValueTimeline({
                 <MetricCard label="Count Edge" value={deltaLabel} />
                 <MetricCard
                   label={
-                    viewMode === "org" && entry.winExpectancyDelta !== null
+                    viewMode === "org" && entry.winExpectancyDelta !== null && hasTrustedModelConfidenceBand(entry.winExpectancyConfidence)
                       ? "Win Value"
-                      : entry.runExpectancyDelta !== null
+                      : entry.runExpectancyDelta !== null && hasTrustedModelConfidenceBand(entry.runExpectancyConfidence)
                         ? "Run Value"
                         : "At-Bat"
                   }
                   value={
-                    viewMode === "org" && entry.winExpectancyDelta !== null
-                      ? `${signedWinValue(entry.winExpectancyDelta)} WE`
-                      : entry.runExpectancyDelta !== null
+                    viewMode === "org" && entry.winExpectancyDelta !== null && hasTrustedModelConfidenceBand(entry.winExpectancyConfidence)
+                    ? `${signedWinValue(entry.winExpectancyDelta)} WE`
+                      : entry.runExpectancyDelta !== null && hasTrustedModelConfidenceBand(entry.runExpectancyConfidence)
                       ? `${signedRunValue(entry.runExpectancyDelta)} RE`
                       : `${entry.batterName ?? "Batter"} vs ${entry.pitcherName ?? "Pitcher"}`
                   }
@@ -146,7 +147,7 @@ export function ChallengeValueTimeline({
 
               <div className="mt-3">
                 <div className="mb-1 flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-gray-400">
-                  <span>Estimated Challenge Swing</span>
+                  <span>Scenario Swing Index</span>
                   <span>{signedValue(entry.estimatedChallengeSwing)}</span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-white/80">
@@ -174,11 +175,18 @@ export function ChallengeValueTimeline({
 
               {entry.battingAverageDelta !== null || entry.walkRateDelta !== null ? (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {viewMode === "org" && entry.winExpectancyDelta !== null ? (
+                  {viewMode === "org" && entry.winExpectancyDelta !== null && hasTrustedModelConfidenceBand(entry.winExpectancyConfidence) ? (
                     <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-gray-500">
                       WE {signedWinValue(entry.winExpectancyDelta)}
                     </span>
                   ) : null}
+                  <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-gray-500">
+                    {viewMode === "org" && hasTrustedModelConfidenceBand(entry.winExpectancyConfidence)
+                      ? `${entry.winExpectancyConfidence?.toUpperCase() ?? "N/A"} WE confidence`
+                      : entry.runExpectancyConfidence
+                        ? `${entry.runExpectancyConfidence.toUpperCase()} RE confidence`
+                        : "Baseline confidence unavailable"}
+                  </span>
                   {entry.battingAverageDelta !== null ? (
                     <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-gray-500">
                       AVG {signedPercent(entry.battingAverageDelta)}

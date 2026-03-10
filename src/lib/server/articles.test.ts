@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+type TxQuery = <R extends { [key: string]: unknown }>(statement: string, values?: unknown[]) => Promise<R[]>;
+
 const { sqlMock, sqlOneMock, withTransactionMock } = vi.hoisted(() => ({
   sqlMock: vi.fn(),
   sqlOneMock: vi.fn(),
@@ -46,6 +48,15 @@ describe("editorial article generation", () => {
         orgStyleLabel: "Opportunistic",
         styleConfidence: "high",
         styleScores: { Clutch: 82, Calculated: 60, "Trigger-Happy": 45, Passive: 20 },
+        challengeRatePerGame: 1,
+        lateLeverageShare: 0.4,
+        earlyLowLeverageShare: 0.2,
+        avgRunExpectancyDelta: 0.12,
+        highRunValueShare: 0.65,
+        runValueConfidence: "high",
+        avgWinExpectancyDelta: 0.016,
+        highWinValueShare: 0.68,
+        winValueConfidence: "high",
       },
     ]);
     getUmpireLeaderboardModelMock.mockResolvedValue([
@@ -103,7 +114,8 @@ describe("editorial article generation", () => {
         },
       ]);
 
-    const queryMock = vi.fn(async (statement: string) => {
+    const queryMock = vi.fn(async (statement: string, values: unknown[] = []) => {
+      void values;
       if (statement.includes("RETURNING generation_run_id AS generationRunId")) {
         return [{ generationrunid: "run-1" }];
       }
@@ -118,8 +130,9 @@ describe("editorial article generation", () => {
       }
       return [];
     });
+    const txQuery = queryMock as unknown as TxQuery;
 
-    withTransactionMock.mockImplementationOnce(async (callback: typeof queryMock) => callback(queryMock));
+    withTransactionMock.mockImplementationOnce(async (callback: (query: TxQuery) => Promise<unknown>) => callback(txQuery));
 
     const result = await generateDailyAutoArticle("2026-03-05");
 
@@ -157,7 +170,8 @@ describe("editorial article generation", () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
-    const queryMock = vi.fn(async (statement: string) => {
+    const queryMock = vi.fn(async (statement: string, values: unknown[] = []) => {
+      void values;
       if (statement.includes("RETURNING generation_run_id AS generationRunId")) {
         return [{ generationrunid: "run-2" }];
       }
@@ -169,8 +183,9 @@ describe("editorial article generation", () => {
       }
       return [];
     });
+    const txQuery = queryMock as unknown as TxQuery;
 
-    withTransactionMock.mockImplementationOnce(async (callback: typeof queryMock) => callback(queryMock));
+    withTransactionMock.mockImplementationOnce(async (callback: (query: TxQuery) => Promise<unknown>) => callback(txQuery));
 
     const result = await generateDailyAutoArticle("2026-03-06");
 
@@ -219,7 +234,8 @@ describe("editorial article generation", () => {
         },
       ]);
 
-    const queryMock = vi.fn(async (statement: string) => {
+    const queryMock = vi.fn(async (statement: string, values: unknown[] = []) => {
+      void values;
       if (statement.includes("RETURNING generation_run_id AS generationRunId")) {
         return [{ generationrunid: "run-3" }];
       }
@@ -234,8 +250,9 @@ describe("editorial article generation", () => {
       }
       return [];
     });
+    const txQuery = queryMock as unknown as TxQuery;
 
-    withTransactionMock.mockImplementationOnce(async (callback: typeof queryMock) => callback(queryMock));
+    withTransactionMock.mockImplementationOnce(async (callback: (query: TxQuery) => Promise<unknown>) => callback(txQuery));
 
     const result = await generateDailyAutoArticle("2026-03-05");
 

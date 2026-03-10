@@ -70,6 +70,10 @@ vi.mock("@/lib/data", () => ({
       earlyLowLeverageShare: 0.18,
       avgRunExpectancyDelta: 0.14,
       highRunValueShare: 0.7,
+      runValueConfidence: "high",
+      avgWinExpectancyDelta: 0.018,
+      highWinValueShare: 0.7,
+      winValueConfidence: "high",
     },
   ]),
   getTeamChallengeScenarioMatrix: vi.fn(async () => [

@@ -16,6 +16,6 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = estimateChallengeValue(parsed.data);
+  const result = await estimateChallengeValue(parsed.data);
   return NextResponse.json(result);
 }

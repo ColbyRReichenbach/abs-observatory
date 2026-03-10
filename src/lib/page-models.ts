@@ -1,5 +1,6 @@
 import { computeOrgWatchRisk, computeTeamChallengeStyle, computeUmpireReportCard, scoreControversyMoment } from "@/lib/rubrics";
 import type {
+  ConfidenceBand,
   HomeChallengeMoment,
   TeamLeaderboardEntry,
   TeamSummary,
@@ -13,8 +14,10 @@ export type TeamStyleMetric = {
   earlyLowLeverageShare: number;
   avgRunExpectancyDelta: number | null;
   highRunValueShare: number;
+  runValueConfidence: ConfidenceBand | null;
   avgWinExpectancyDelta: number | null;
   highWinValueShare: number;
+  winValueConfidence: ConfidenceBand | null;
 };
 
 export type UmpireRubricMetric = {
@@ -59,8 +62,10 @@ export function buildTeamLeaderboardEntries(
       earlyLowLeverageShare: 0,
       avgRunExpectancyDelta: null,
       highRunValueShare: 0,
+      runValueConfidence: null,
       avgWinExpectancyDelta: null,
       highWinValueShare: 0,
+      winValueConfidence: null,
     };
     const style = computeTeamChallengeStyle({
       sampleSize: team.challengesTotal,
@@ -87,8 +92,10 @@ export function buildTeamLeaderboardEntries(
       earlyLowLeverageShare: metric.earlyLowLeverageShare,
       avgRunExpectancyDelta: metric.avgRunExpectancyDelta,
       highRunValueShare: metric.highRunValueShare,
+      runValueConfidence: metric.runValueConfidence,
       avgWinExpectancyDelta: metric.avgWinExpectancyDelta,
       highWinValueShare: metric.highWinValueShare,
+      winValueConfidence: metric.winValueConfidence,
     };
   });
 }

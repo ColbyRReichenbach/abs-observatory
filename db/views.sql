@@ -1,5 +1,9 @@
 DROP VIEW IF EXISTS mart_weekly_editorial_summary CASCADE;
 DROP VIEW IF EXISTS mart_daily_editorial_summary CASCADE;
+DROP VIEW IF EXISTS mart_historical_abs_overturn_probability_fallbacks CASCADE;
+DROP VIEW IF EXISTS mart_historical_abs_overturn_probability CASCADE;
+DROP VIEW IF EXISTS mart_historical_abs_team_summary CASCADE;
+DROP VIEW IF EXISTS mart_historical_abs_overturn_inputs CASCADE;
 DROP VIEW IF EXISTS mart_team_challenge_win_value CASCADE;
 DROP VIEW IF EXISTS mart_team_challenge_run_value CASCADE;
 DROP VIEW IF EXISTS mart_win_expectancy_fallbacks CASCADE;
@@ -80,6 +84,235 @@ LEFT JOIN teams t ON t.team_id = c.challenge_team_id
 LEFT JOIN teams home ON home.team_id = g.home_team_id
 LEFT JOIN teams away ON away.team_id = g.away_team_id
 LEFT JOIN officials hp ON hp.game_pk = g.game_pk AND hp.official_type = 'Home Plate';
+
+CREATE OR REPLACE VIEW mart_historical_abs_overturn_inputs AS
+SELECT
+  e.game_pk,
+  e.sport_id,
+  e.game_date,
+  e.season,
+  e.team_side AS challenge_team_side,
+  e.challenge_team_id,
+  e.team_batting,
+  e.team_batting_id,
+  e.team_fielding,
+  e.team_fielding_id,
+  e.at_bat_number,
+  e.pitch_number,
+  e.play_id,
+  e.row_id,
+  e.inning,
+  e.outs,
+  e.pre_balls,
+  e.pre_strikes,
+  CONCAT(e.pre_balls, '-', e.pre_strikes) AS count_key_before,
+  CASE
+    WHEN UPPER(COALESCE(e.description, '')) LIKE 'CALLED STRIKE%' OR UPPER(COALESCE(e.call_name, '')) = 'CALLED_STRIKE'
+      THEN CONCAT(e.pre_balls, '-', LEAST(COALESCE(e.pre_strikes, 0) + 1, 3))
+    WHEN UPPER(COALESCE(e.description, '')) LIKE 'BALL%' OR UPPER(COALESCE(e.call_name, '')) = 'BALL'
+      THEN CONCAT(LEAST(COALESCE(e.pre_balls, 0) + 1, 4), '-', e.pre_strikes)
+    ELSE NULL
+  END AS held_count_key,
+  CASE
+    WHEN e.is_overturned = TRUE
+         AND (UPPER(COALESCE(e.description, '')) LIKE 'CALLED STRIKE%' OR UPPER(COALESCE(e.call_name, '')) = 'CALLED_STRIKE')
+      THEN CONCAT(e.pre_balls, '-', e.pre_strikes)
+    WHEN e.is_overturned = TRUE
+         AND (UPPER(COALESCE(e.description, '')) LIKE 'BALL%' OR UPPER(COALESCE(e.call_name, '')) = 'BALL')
+      THEN CONCAT(e.pre_balls, '-', LEAST(COALESCE(e.pre_strikes, 0) + 1, 3))
+    WHEN UPPER(COALESCE(e.description, '')) LIKE 'CALLED STRIKE%' OR UPPER(COALESCE(e.call_name, '')) = 'CALLED_STRIKE'
+      THEN CONCAT(e.pre_balls, '-', LEAST(COALESCE(e.pre_strikes, 0) + 1, 3))
+    WHEN UPPER(COALESCE(e.description, '')) LIKE 'BALL%' OR UPPER(COALESCE(e.call_name, '')) = 'BALL'
+      THEN CONCAT(LEAST(COALESCE(e.pre_balls, 0) + 1, 4), '-', e.pre_strikes)
+    ELSE NULL
+  END AS corrected_count_key,
+  CASE
+    WHEN UPPER(COALESCE(e.description, '')) LIKE 'CALLED STRIKE%' OR UPPER(COALESCE(e.call_name, '')) = 'CALLED_STRIKE'
+      THEN 'strike_to_ball'
+    WHEN UPPER(COALESCE(e.description, '')) LIKE 'BALL%' OR UPPER(COALESCE(e.call_name, '')) = 'BALL'
+      THEN 'ball_to_strike'
+    ELSE 'unknown'
+  END AS challenge_direction,
+  e.is_overturned,
+  e.is_batter_challenge,
+  e.is_in_progress,
+  e.edge_distance,
+  e.edge_distance_calc,
+  e.pitch_type,
+  e.pitch_name,
+  e.description,
+  e.call_name,
+  e.pitch_call,
+  e.result,
+  e.events,
+  e.batter_id,
+  e.batter_name,
+  e.pitcher_id,
+  e.pitcher_name,
+  e.catcher_id,
+  e.catcher_name,
+  e.stand,
+  e.p_throws,
+  e.px,
+  e.pz,
+  e.plate_x,
+  e.plate_z,
+  e.strike_zone_top,
+  e.strike_zone_bottom,
+  e.zone,
+  e.start_speed,
+  e.end_speed,
+  e.spin_rate,
+  CASE
+    WHEN e.edge_distance IS NULL THEN NULL
+    WHEN e.edge_distance <= 0.25 THEN 'edge'
+    WHEN e.edge_distance <= 0.75 THEN 'near_edge'
+    ELSE 'clear_miss'
+  END AS edge_bucket,
+  e.context_metrics,
+  e.source,
+  e.imported_at
+FROM raw.savant_abs_events e;
+
+CREATE OR REPLACE VIEW mart_historical_abs_team_summary AS
+SELECT
+  sport_id,
+  season,
+  challenge_team_id AS team_id,
+  MIN(game_date) AS first_game_date,
+  MAX(game_date) AS last_game_date,
+  COUNT(*) AS challenges_total,
+  COUNT(*) FILTER (WHERE is_overturned) AS overturns_total,
+  COUNT(*) FILTER (WHERE NOT is_overturned) AS confirmed_total,
+  AVG(CASE WHEN is_overturned THEN 1 ELSE 0 END)::NUMERIC AS overturn_rate,
+  AVG(edge_distance)::NUMERIC AS avg_edge_distance,
+  PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY edge_distance)::NUMERIC AS median_edge_distance,
+  AVG(CASE WHEN is_batter_challenge THEN 1 ELSE 0 END)::NUMERIC AS batter_challenge_share,
+  AVG(CASE WHEN challenge_direction = 'strike_to_ball' THEN 1 ELSE 0 END)::NUMERIC AS strike_to_ball_share,
+  AVG(CASE WHEN challenge_direction = 'ball_to_strike' THEN 1 ELSE 0 END)::NUMERIC AS ball_to_strike_share
+FROM mart_historical_abs_overturn_inputs
+WHERE challenge_team_id IS NOT NULL
+GROUP BY sport_id, season, challenge_team_id;
+
+CREATE OR REPLACE VIEW mart_historical_abs_overturn_probability AS
+WITH exact_rows AS (
+  SELECT
+    challenge_direction,
+    edge_bucket,
+    COUNT(*) AS sample_size,
+    COUNT(*) FILTER (WHERE is_overturned) AS overturns_total
+  FROM mart_historical_abs_overturn_inputs
+  WHERE challenge_direction IN ('strike_to_ball', 'ball_to_strike')
+  GROUP BY 1, 2
+),
+direction_rows AS (
+  SELECT
+    challenge_direction,
+    COUNT(*) AS sample_size,
+    COUNT(*) FILTER (WHERE is_overturned) AS overturns_total
+  FROM mart_historical_abs_overturn_inputs
+  WHERE challenge_direction IN ('strike_to_ball', 'ball_to_strike')
+  GROUP BY 1
+)
+SELECT
+  e.challenge_direction,
+  e.edge_bucket,
+  e.sample_size,
+  e.overturns_total,
+  CASE
+    WHEN e.sample_size > 0 THEN e.overturns_total::NUMERIC / e.sample_size
+    ELSE NULL
+  END AS raw_overturn_rate,
+  CASE
+    WHEN e.sample_size > 0 AND d.sample_size > 0
+      THEN (e.overturns_total::NUMERIC + ((d.overturns_total::NUMERIC / d.sample_size) * 20)) / (e.sample_size + 20)
+    WHEN e.sample_size > 0 THEN e.overturns_total::NUMERIC / e.sample_size
+    ELSE NULL
+  END AS smoothed_overturn_rate,
+  CASE
+    WHEN e.sample_size >= 100 THEN 'high'
+    WHEN e.sample_size >= 25 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM exact_rows e
+JOIN direction_rows d ON d.challenge_direction = e.challenge_direction;
+
+CREATE OR REPLACE VIEW mart_historical_abs_overturn_probability_fallbacks AS
+WITH global_row AS (
+  SELECT
+    COUNT(*) AS sample_size,
+    COUNT(*) FILTER (WHERE is_overturned) AS overturns_total
+  FROM mart_historical_abs_overturn_inputs
+  WHERE challenge_direction IN ('strike_to_ball', 'ball_to_strike')
+),
+direction_rows AS (
+  SELECT
+    challenge_direction,
+    COUNT(*) AS sample_size,
+    COUNT(*) FILTER (WHERE is_overturned) AS overturns_total
+  FROM mart_historical_abs_overturn_inputs
+  WHERE challenge_direction IN ('strike_to_ball', 'ball_to_strike')
+  GROUP BY 1
+)
+SELECT
+  'exact'::TEXT AS fallback_tier,
+  p.challenge_direction,
+  p.edge_bucket,
+  p.sample_size,
+  p.overturns_total,
+  p.raw_overturn_rate,
+  p.smoothed_overturn_rate AS overturn_probability,
+  p.confidence_band
+FROM mart_historical_abs_overturn_probability p
+
+UNION ALL
+
+SELECT
+  'direction_only'::TEXT AS fallback_tier,
+  d.challenge_direction,
+  NULL::TEXT AS edge_bucket,
+  d.sample_size,
+  d.overturns_total,
+  CASE
+    WHEN d.sample_size > 0 THEN d.overturns_total::NUMERIC / d.sample_size
+    ELSE NULL
+  END AS raw_overturn_rate,
+  CASE
+    WHEN d.sample_size > 0 AND g.sample_size > 0
+      THEN (d.overturns_total::NUMERIC + ((g.overturns_total::NUMERIC / g.sample_size) * 40)) / (d.sample_size + 40)
+    WHEN d.sample_size > 0 THEN d.overturns_total::NUMERIC / d.sample_size
+    ELSE NULL
+  END AS overturn_probability,
+  CASE
+    WHEN d.sample_size >= 150 THEN 'high'
+    WHEN d.sample_size >= 40 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM direction_rows d
+CROSS JOIN global_row g
+
+UNION ALL
+
+SELECT
+  'global'::TEXT AS fallback_tier,
+  NULL::TEXT AS challenge_direction,
+  NULL::TEXT AS edge_bucket,
+  g.sample_size,
+  g.overturns_total,
+  CASE
+    WHEN g.sample_size > 0 THEN g.overturns_total::NUMERIC / g.sample_size
+    ELSE NULL
+  END AS raw_overturn_rate,
+  CASE
+    WHEN g.sample_size > 0 THEN g.overturns_total::NUMERIC / g.sample_size
+    ELSE NULL
+  END AS overturn_probability,
+  CASE
+    WHEN g.sample_size >= 250 THEN 'high'
+    WHEN g.sample_size >= 75 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM global_row g;
 
 CREATE OR REPLACE VIEW mart_team_abs_daily AS
 SELECT

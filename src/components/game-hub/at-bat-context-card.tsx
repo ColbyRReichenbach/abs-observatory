@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { BaseStateDiamond } from "@/components/game-hub/base-state-diamond";
 import { formatBasesStateLabel, getChallengeScenarioTags } from "@/lib/challenge-context";
 import { summarizeEstimatedLeverage } from "@/lib/estimated-leverage";
+import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
 import type { ChallengeEvent } from "@/lib/types";
 
 export function AtBatContextCard({ challenge }: { challenge: ChallengeEvent }) {
@@ -25,6 +26,7 @@ export function AtBatContextCard({ challenge }: { challenge: ChallengeEvent }) {
     const walkRateDelta = challenge.walkRateDelta ?? null;
     const runExpectancyDelta = challenge.runExpectancyDelta ?? null;
     const winExpectancyDelta = challenge.winExpectancyDelta ?? null;
+    const usesTrustedWinValue = winExpectancyDelta !== null && hasTrustedModelConfidenceBand(challenge.winExpectancyConfidence);
     const scoreState =
         challenge.homeScore === null || challenge.awayScore === null
             ? "Score unavailable"
@@ -39,7 +41,7 @@ export function AtBatContextCard({ challenge }: { challenge: ChallengeEvent }) {
             ? `Review shifted the plate appearance from ${challenge.umpireCount} to ${challenge.countAfter}.`
             : "Review held the plate appearance in the same count state.";
     const deltaNarrative =
-        winExpectancyDelta !== null
+        usesTrustedWinValue
             ? `Comparable game states swing win expectancy by ${winExpectancyDelta >= 0 ? "+" : ""}${(winExpectancyDelta * 100).toFixed(2)} percentage points from this review state.`
             : runExpectancyDelta !== null
             ? `Comparable game states shift run expectancy by ${runExpectancyDelta >= 0 ? "+" : ""}${runExpectancyDelta.toFixed(3)} runs from this review state.`
@@ -121,7 +123,7 @@ export function AtBatContextCard({ challenge }: { challenge: ChallengeEvent }) {
 
                 {winExpectancyDelta !== null || runExpectancyDelta !== null || battingAverageDelta !== null || walkRateDelta !== null ? (
                     <div className="mt-3 flex flex-wrap gap-2">
-                        {winExpectancyDelta !== null ? (
+                        {usesTrustedWinValue ? (
                             <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-slate-500">
                                 WE {formatWinDelta(winExpectancyDelta)}
                             </span>
@@ -146,6 +148,13 @@ export function AtBatContextCard({ challenge }: { challenge: ChallengeEvent }) {
                                 Positive Outcome {formatDelta(positiveOutcomeDelta)}
                             </span>
                         ) : null}
+                        <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                            {usesTrustedWinValue
+                                ? `${challenge.winExpectancyConfidence?.toUpperCase() ?? "N/A"} WE confidence`
+                                : challenge.runExpectancyConfidence
+                                    ? `${challenge.runExpectancyConfidence.toUpperCase()} RE confidence`
+                                    : "Baseline confidence unavailable"}
+                        </span>
                     </div>
                 ) : null}
 

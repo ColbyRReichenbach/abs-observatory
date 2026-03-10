@@ -600,8 +600,10 @@ export type TeamLeaderboardEntry = TeamSummary & {
   earlyLowLeverageShare: number;
   avgRunExpectancyDelta: number | null;
   highRunValueShare: number;
+  runValueConfidence: ConfidenceBand | null;
   avgWinExpectancyDelta: number | null;
   highWinValueShare: number;
+  winValueConfidence: ConfidenceBand | null;
 };
 
 export type UmpireLeaderboardEntry = UmpireSummary & {

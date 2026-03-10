@@ -32,6 +32,7 @@ import { AIBSVisualizerChat } from "@/components/analytics/ai-bs-visualizer-chat
 import { BackPill } from "@/components/ui/back-pill";
 import { getTeamDetailViewCopy } from "@/lib/view-mode-contract";
 import { TeamChallengeValueMatrix } from "@/components/analytics/team-challenge-value-matrix";
+import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
 
 function toInningRange(value?: string): SituationalFilters["inningRange"] {
   if (value === "early" || value === "middle" || value === "late" || value === "extras") return value;
@@ -98,6 +99,10 @@ export default async function TeamPage({
   ]);
   if (!summary) return notFound();
   const currentTeam = leaderboard.find((entry) => entry.teamId === summary.teamId) ?? null;
+  const usesTrustedWinValue =
+    challengeValueSummary.averageWinExpectancyDelta !== null &&
+    hasTrustedModelConfidenceBand(challengeValueSummary.winExpectancyConfidence);
+  const averageWinValue = usesTrustedWinValue ? challengeValueSummary.averageWinExpectancyDelta : null;
   const teamPrimary = identity?.primaryColor ?? "#007aff";
   const teamSecondary = identity?.secondaryColor ?? "#0040dd";
   const copy = getTeamDetailViewCopy(viewMode);
@@ -140,15 +145,47 @@ export default async function TeamPage({
             meter={challengeValueSummary.rispLessThanTwoOutsShare}
             color={teamPrimary}
           />
+          {viewMode === "org" ? (
+            <>
+              <TimingMetric
+              label={usesTrustedWinValue ? "High-WE Share" : "High-RE Share"}
+                value={`${
+                  (
+                    (usesTrustedWinValue
+                      ? challengeValueSummary.highWinValueShare
+                      : challengeValueSummary.highRunValueShare) * 100
+                  ).toFixed(0)
+                }%`}
+                meter={usesTrustedWinValue ? challengeValueSummary.highWinValueShare : challengeValueSummary.highRunValueShare}
+                color={teamPrimary}
+              />
+              <TimingMetric
+                label={usesTrustedWinValue ? "Late-Close WE Capture" : "Late-Close RE Share"}
+                value={`${
+                  (
+                    (usesTrustedWinValue
+                      ? challengeValueSummary.lateCloseWinValueShare
+                      : challengeValueSummary.lateCloseRunValueShare) * 100
+                  ).toFixed(0)
+                }%`}
+                meter={
+                  usesTrustedWinValue
+                    ? challengeValueSummary.lateCloseWinValueShare
+                    : challengeValueSummary.lateCloseRunValueShare
+                }
+                color={teamSecondary}
+              />
+            </>
+          ) : null}
         </div>
         <div className="mt-6 rounded-[1.5rem] border border-gray-100 bg-gray-50/60 p-4">
           <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">
-            {viewMode === "org" ? (challengeValueSummary.averageWinExpectancyDelta !== null ? "Average Win Value" : "Average Run Value") : "Challenge Payoff"}
+            {viewMode === "org" ? (usesTrustedWinValue ? "Average Win Value" : "Average Run Value") : "Challenge Payoff"}
           </p>
           <p className="mt-2 text-3xl font-display text-[var(--ink-0)]">
             {viewMode === "org"
-              ? challengeValueSummary.averageWinExpectancyDelta !== null
-                ? `${challengeValueSummary.averageWinExpectancyDelta >= 0 ? "+" : ""}${(challengeValueSummary.averageWinExpectancyDelta * 100).toFixed(2)}%`
+              ? usesTrustedWinValue
+                ? `${(averageWinValue ?? 0) >= 0 ? "+" : ""}${((averageWinValue ?? 0) * 100).toFixed(2)}%`
                 : challengeValueSummary.averageRunExpectancyDelta === null
                   ? "N/A"
                   : `${challengeValueSummary.averageRunExpectancyDelta >= 0 ? "+" : ""}${challengeValueSummary.averageRunExpectancyDelta.toFixed(3)}`
@@ -160,15 +197,24 @@ export default async function TeamPage({
           </p>
           <p className="mt-2 text-[11px] font-medium text-[var(--ink-2)] leading-relaxed">
             {viewMode === "org"
-              ? challengeValueSummary.averageWinExpectancyDelta !== null
-                ? `${summary.teamName} is averaging ${challengeValueSummary.averageWinExpectancyDelta >= 0 ? "a positive" : "a negative"} win-expectancy swing per tracked review, with ${(challengeValueSummary.highWinValueShare * 100).toFixed(0)}% of reviews creating positive win value.`
+              ? usesTrustedWinValue
+                ? `${summary.teamName} is averaging ${(averageWinValue ?? 0) >= 0 ? "a positive" : "a negative"} win-expectancy swing per tracked review, with ${(challengeValueSummary.highWinValueShare * 100).toFixed(0)}% of reviews creating positive win value.`
                 : challengeValueSummary.averageRunExpectancyDelta === null
                   ? "Run-value read will appear once this club builds enough modeled challenge sample."
-                  : `${summary.teamName} is averaging ${challengeValueSummary.averageRunExpectancyDelta >= 0 ? "a positive" : "a negative"} run-expectancy swing per tracked review, with ${(challengeValueSummary.highRunValueShare * 100).toFixed(0)}% of reviews creating positive run value.`
+                  : `${summary.teamName} is averaging ${challengeValueSummary.averageRunExpectancyDelta >= 0 ? "a positive" : "a negative"} run-expectancy swing per tracked review, with ${(challengeValueSummary.highRunValueShare * 100).toFixed(0)}% of reviews creating positive run value.${challengeValueSummary.averageWinExpectancyDelta !== null && !hasTrustedModelConfidenceBand(challengeValueSummary.winExpectancyConfidence) ? " Win-value coverage is still low-confidence in this slice, so this view stays on run value." : ""}`
               : challengeValueSummary.bestScenarioLabel
                 ? `${summary.teamName} has done its best realized challenge work in ${challengeValueSummary.bestScenarioLabel.toLowerCase()}.`
                 : "Best challenge window will appear once the club builds more scenario sample."}
           </p>
+          {viewMode === "org" ? (
+            <p className="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">
+              {usesTrustedWinValue
+                ? `${challengeValueSummary.winExpectancyConfidence?.toUpperCase() ?? "N/A"} confidence WE model`
+                : challengeValueSummary.runExpectancyConfidence
+                  ? `${challengeValueSummary.runExpectancyConfidence.toUpperCase()} confidence RE fallback`
+                  : "Model confidence unavailable"}
+            </p>
+          ) : null}
         </div>
       </div>
     ),

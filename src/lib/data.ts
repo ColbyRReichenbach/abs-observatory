@@ -3,6 +3,7 @@ import { formatBasesStateLabel, formatScoreStateLabel, getChallengeScenarioTags 
 import { buildChallengeValueSnapshot, buildCountStateBaselineMap, type CountStateBaseline } from "@/lib/challenge-value";
 import { summarizeEstimatedLeverage } from "@/lib/estimated-leverage";
 import { buildHomeChallengeMoments, buildTeamLeaderboardEntries, buildUmpireLeaderboardEntries } from "@/lib/page-models";
+import { confidenceBandFromRank } from "@/lib/server/run-environment";
 import { getChallengeRunExpectancyDelta, getRunExpectancyFallbackRows, resolveRunExpectancyWithFallback } from "@/lib/server/run-expectancy";
 import { getChallengeWinExpectancyDelta, getWinExpectancyFallbackRows, resolveWinExpectancyWithFallback } from "@/lib/server/win-expectancy";
 import { getCacheKey, withCachedValue } from "@/lib/server/scale";
@@ -1480,8 +1481,10 @@ async function getTeamStyleMetrics(range: RangeKey = "season") {
     earlylowleverageshare: number | null;
     avgrunexpectancydelta: number | null;
     highrunvalueshare: number | null;
+    runvalueconfidencerank: number | null;
     avgwinexpectancydelta: number | null;
     highwinvalueshare: number | null;
+    winvalueconfidencerank: number | null;
   }>(
     `
     SELECT
@@ -1501,8 +1504,10 @@ async function getTeamStyleMetrics(range: RangeKey = "season") {
       ,
       MAX(rv.avg_re_delta)::NUMERIC AS avgRunExpectancyDelta,
       MAX(rv.high_re_share)::NUMERIC AS highRunValueShare,
+      MAX(CASE rv.confidence_band WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 ELSE 0 END) AS runValueConfidenceRank,
       MAX(wv.avg_we_delta)::NUMERIC AS avgWinExpectancyDelta,
-      MAX(wv.high_we_share)::NUMERIC AS highWinValueShare
+      MAX(wv.high_we_share)::NUMERIC AS highWinValueShare,
+      MAX(CASE wv.confidence_band WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 ELSE 0 END) AS winValueConfidenceRank
     FROM abs_challenges c
     JOIN games g ON g.game_pk = c.game_pk
     LEFT JOIN mart_team_challenge_run_value rv ON rv.team_id = c.challenge_team_id
@@ -1523,8 +1528,10 @@ async function getTeamStyleMetrics(range: RangeKey = "season") {
         earlyLowLeverageShare: Number(row.earlylowleverageshare ?? 0),
         avgRunExpectancyDelta: row.avgrunexpectancydelta === null ? null : Number(row.avgrunexpectancydelta),
         highRunValueShare: Number(row.highrunvalueshare ?? 0),
+        runValueConfidence: confidenceBandFromRank(row.runvalueconfidencerank === null ? null : Number(row.runvalueconfidencerank)),
         avgWinExpectancyDelta: row.avgwinexpectancydelta === null ? null : Number(row.avgwinexpectancydelta),
         highWinValueShare: Number(row.highwinvalueshare ?? 0),
+        winValueConfidence: confidenceBandFromRank(row.winvalueconfidencerank === null ? null : Number(row.winvalueconfidencerank)),
       },
     ]),
   );
@@ -2137,11 +2144,20 @@ async function getTeamChallengeAnalytics(
         }),
       );
 
+      const preferredScenarioMetric =
+        winExpectancyDeltas.length >= 40 ? "we" : runExpectancyDeltas.length >= 25 ? "re" : "count";
       const bestScenario = matrix
         .filter((cell) => cell.challenges > 0)
         .sort((left, right) => {
-          const deltaGap = (right.avgPositiveOutcomeDelta ?? -Infinity) - (left.avgPositiveOutcomeDelta ?? -Infinity);
-          if (deltaGap !== 0) return deltaGap;
+          const primaryGap =
+            preferredScenarioMetric === "we"
+              ? (right.avgWinExpectancyDelta ?? -Infinity) - (left.avgWinExpectancyDelta ?? -Infinity)
+              : preferredScenarioMetric === "re"
+                ? (right.avgRunExpectancyDelta ?? -Infinity) - (left.avgRunExpectancyDelta ?? -Infinity)
+                : (right.avgPositiveOutcomeDelta ?? -Infinity) - (left.avgPositiveOutcomeDelta ?? -Infinity);
+          if (primaryGap !== 0) return primaryGap;
+          const pressureGap = right.highPressureShare - left.highPressureShare;
+          if (pressureGap !== 0) return pressureGap;
           return right.challenges - left.challenges;
         })[0];
 

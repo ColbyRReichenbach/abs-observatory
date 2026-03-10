@@ -969,6 +969,81 @@ CREATE TABLE IF NOT EXISTS raw.statcast_pitches (
   FOREIGN KEY (game_pk) REFERENCES raw.statcast_games(game_pk) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS raw.savant_gamefeed_games (
+  game_pk BIGINT PRIMARY KEY,
+  sport_id INTEGER NOT NULL,
+  game_date DATE NOT NULL,
+  season INTEGER NOT NULL,
+  game_type TEXT,
+  status_code TEXT,
+  status_text TEXT,
+  has_abs BOOLEAN NOT NULL DEFAULT FALSE,
+  home_team_id INTEGER,
+  away_team_id INTEGER,
+  source TEXT NOT NULL DEFAULT 'baseball_savant_gamefeed',
+  source_payload JSONB NOT NULL,
+  imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS raw.savant_abs_events (
+  game_pk BIGINT NOT NULL,
+  sport_id INTEGER NOT NULL,
+  game_date DATE NOT NULL,
+  season INTEGER NOT NULL,
+  team_side TEXT NOT NULL,
+  at_bat_number INTEGER NOT NULL,
+  pitch_number INTEGER,
+  play_id TEXT NOT NULL,
+  row_id TEXT,
+  inning INTEGER,
+  outs INTEGER,
+  balls INTEGER,
+  strikes INTEGER,
+  pre_balls INTEGER,
+  pre_strikes INTEGER,
+  team_batting TEXT,
+  team_batting_id INTEGER,
+  team_fielding TEXT,
+  team_fielding_id INTEGER,
+  batter_id BIGINT,
+  batter_name TEXT,
+  pitcher_id BIGINT,
+  pitcher_name TEXT,
+  catcher_id BIGINT,
+  catcher_name TEXT,
+  stand TEXT,
+  p_throws TEXT,
+  pitch_type TEXT,
+  pitch_name TEXT,
+  description TEXT,
+  call_name TEXT,
+  pitch_call TEXT,
+  result TEXT,
+  events TEXT,
+  is_overturned BOOLEAN NOT NULL,
+  is_batter_challenge BOOLEAN,
+  is_in_progress BOOLEAN NOT NULL DEFAULT FALSE,
+  challenge_team_id INTEGER,
+  edge_distance NUMERIC,
+  edge_distance_calc NUMERIC,
+  px NUMERIC,
+  pz NUMERIC,
+  plate_x NUMERIC,
+  plate_z NUMERIC,
+  strike_zone_top NUMERIC,
+  strike_zone_bottom NUMERIC,
+  zone INTEGER,
+  start_speed NUMERIC,
+  end_speed NUMERIC,
+  spin_rate NUMERIC,
+  context_metrics JSONB,
+  source TEXT NOT NULL DEFAULT 'baseball_savant_gamefeed',
+  source_payload JSONB NOT NULL,
+  imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (game_pk, play_id, pitch_number),
+  FOREIGN KEY (game_pk) REFERENCES raw.savant_gamefeed_games(game_pk) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS historical_pitch_states (
   game_pk BIGINT NOT NULL,
   game_date DATE NOT NULL,
@@ -1064,6 +1139,10 @@ CREATE INDEX IF NOT EXISTS idx_ops_source_snapshots_source_entity ON ops.source_
 CREATE INDEX IF NOT EXISTS idx_raw_statcast_games_season_date ON raw.statcast_games (season, game_date);
 CREATE INDEX IF NOT EXISTS idx_raw_statcast_pitches_season_date ON raw.statcast_pitches (season, game_date);
 CREATE INDEX IF NOT EXISTS idx_raw_statcast_pitches_game_atbat ON raw.statcast_pitches (game_pk, at_bat_number, pitch_number);
+CREATE INDEX IF NOT EXISTS idx_raw_savant_gamefeed_games_date ON raw.savant_gamefeed_games (sport_id, game_date);
+CREATE INDEX IF NOT EXISTS idx_raw_savant_abs_events_date ON raw.savant_abs_events (sport_id, game_date);
+CREATE INDEX IF NOT EXISTS idx_raw_savant_abs_events_team ON raw.savant_abs_events (challenge_team_id, game_date);
+CREATE INDEX IF NOT EXISTS idx_raw_savant_abs_events_game_atbat ON raw.savant_abs_events (game_pk, at_bat_number, pitch_number);
 CREATE INDEX IF NOT EXISTS idx_historical_pitch_states_season ON historical_pitch_states (season, game_date);
 CREATE INDEX IF NOT EXISTS idx_historical_pitch_states_re_state ON historical_pitch_states (inning_bucket, outs, bases_state, count_key);
 CREATE INDEX IF NOT EXISTS idx_historical_pitch_states_we_state ON historical_pitch_states (inning, half_inning, score_diff_batting, outs, bases_state, count_key);

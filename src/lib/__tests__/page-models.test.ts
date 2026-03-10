@@ -31,8 +31,8 @@ describe("page model builders", () => {
     const entries = buildTeamLeaderboardEntries(
       teams,
       new Map([
-        [1, { teamId: 1, lateLeverageShare: 0.7, earlyLowLeverageShare: 0.1, avgRunExpectancyDelta: 0.12, highRunValueShare: 0.7, avgWinExpectancyDelta: 0.018, highWinValueShare: 0.7 }],
-        [2, { teamId: 2, lateLeverageShare: 0.1, earlyLowLeverageShare: 0.6, avgRunExpectancyDelta: -0.04, highRunValueShare: 0.3, avgWinExpectancyDelta: -0.006, highWinValueShare: 0.3 }],
+        [1, { teamId: 1, lateLeverageShare: 0.7, earlyLowLeverageShare: 0.1, avgRunExpectancyDelta: 0.12, highRunValueShare: 0.7, runValueConfidence: "high", avgWinExpectancyDelta: 0.018, highWinValueShare: 0.7, winValueConfidence: "high" }],
+        [2, { teamId: 2, lateLeverageShare: 0.1, earlyLowLeverageShare: 0.6, avgRunExpectancyDelta: -0.04, highRunValueShare: 0.3, runValueConfidence: "medium", avgWinExpectancyDelta: -0.006, highWinValueShare: 0.3, winValueConfidence: "medium" }],
       ]),
     );
 

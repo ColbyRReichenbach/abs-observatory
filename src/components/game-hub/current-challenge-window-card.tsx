@@ -1,6 +1,7 @@
 "use client";
 
 import { BaseStateDiamond } from "@/components/game-hub/base-state-diamond";
+import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
 import type { LiveChallengeWindow } from "@/lib/types";
 
 export function CurrentChallengeWindowCard({
@@ -13,6 +14,11 @@ export function CurrentChallengeWindowCard({
   homeColor: string;
 }) {
   if (!snapshot) return null;
+  const usesTrustedWinValue =
+    viewMode === "org" &&
+    snapshot.currentWinExpectancy !== null &&
+    hasTrustedModelConfidenceBand(snapshot.winExpectancyConfidence);
+  const currentWinValue = usesTrustedWinValue ? snapshot.currentWinExpectancy : null;
 
   const ballGain = snapshot.nextBallPositiveOutcomeDelta;
   const strikeGain = snapshot.nextStrikePositiveOutcomeDelta;
@@ -85,10 +91,10 @@ export function CurrentChallengeWindowCard({
           <MetricCard label="Current Count" value={snapshot.currentCountKey ?? "N/A"} />
           <MetricCard label="Score State" value={snapshot.scoreStateLabel} />
           <MetricCard
-            label={viewMode === "org" && snapshot.currentWinExpectancy !== null ? "Current Win Value" : viewMode === "org" ? "Current Outcome Edge" : "Current Count Value"}
+            label={usesTrustedWinValue ? "Current Win Value" : viewMode === "org" ? "Current Outcome Edge" : "Current Count Value"}
             value={
-              viewMode === "org" && snapshot.currentWinExpectancy !== null
-                ? `${(snapshot.currentWinExpectancy * 100).toFixed(2)}% WE`
+              usesTrustedWinValue
+                ? `${((currentWinValue ?? 0) * 100).toFixed(2)}% WE`
                 : snapshot.currentRunExpectancy !== null
                 ? `${snapshot.currentRunExpectancy.toFixed(3)} RE`
                 : snapshot.currentPositiveOutcomeRate === null
@@ -132,7 +138,7 @@ export function CurrentChallengeWindowCard({
           runDelta={snapshot.nextBallRunExpectancyDelta}
           winDelta={snapshot.nextBallWinExpectancyDelta}
           tone="emerald"
-          viewMode={viewMode}
+          useWinValue={usesTrustedWinValue}
         />
         <ProjectionCard
           label="If Ball Flips To Strike"
@@ -141,9 +147,19 @@ export function CurrentChallengeWindowCard({
           runDelta={snapshot.nextStrikeRunExpectancyDelta}
           winDelta={snapshot.nextStrikeWinExpectancyDelta}
           tone="rose"
-          viewMode={viewMode}
+          useWinValue={usesTrustedWinValue}
         />
       </div>
+
+      {viewMode === "org" ? (
+        <p className="mt-4 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400">
+          {usesTrustedWinValue
+            ? `${snapshot.winExpectancyConfidence?.toUpperCase() ?? "N/A"} confidence WE model`
+            : snapshot.runExpectancyConfidence
+              ? `${snapshot.runExpectancyConfidence.toUpperCase()} confidence RE fallback`
+              : "Model confidence unavailable"}
+        </p>
+      ) : null}
 
       {snapshot.scenarioTags.length > 0 ? (
         <div className="mt-4 flex flex-wrap gap-2">
@@ -177,7 +193,7 @@ function ProjectionCard({
   runDelta,
   winDelta,
   tone,
-  viewMode,
+  useWinValue,
 }: {
   label: string;
   countKey: string | null;
@@ -185,7 +201,7 @@ function ProjectionCard({
   runDelta: number | null;
   winDelta: number | null;
   tone: "emerald" | "rose";
-  viewMode: "fan" | "org";
+  useWinValue: boolean;
 }) {
   const toneClasses =
     tone === "emerald"
@@ -199,7 +215,7 @@ function ProjectionCard({
       <p className="mt-1 text-[11px] font-medium">
         {delta === null ? "No comparable count-state delta" : `${delta >= 0 ? "+" : ""}${(delta * 100).toFixed(1)} pts positive outcome rate`}
       </p>
-      {viewMode === "org" && winDelta !== null ? (
+      {useWinValue && winDelta !== null ? (
         <p className="mt-1 text-[11px] font-medium">
           {winDelta >= 0 ? "+" : ""}
           {(winDelta * 100).toFixed(2)}% WE

@@ -33,6 +33,14 @@ export type ChallengeWinExpectancyDelta = {
   winExpectancyFallbackTier: WinExpectancyFallbackTier | null;
 };
 
+export type WinExpectancySanityCheck = {
+  key: string;
+  passed: boolean;
+  detail: string;
+  leftValue: number | null;
+  rightValue: number | null;
+};
+
 const WIN_EXPECTANCY_CACHE_TTL_MS = 60_000;
 let cachedLookupRows: WinExpectancyLookupRow[] | null = null;
 let cachedAt = 0;
@@ -184,6 +192,106 @@ export async function getWinExpectancy(state: {
 }) {
   const rows = await getWinExpectancyFallbackRows();
   return resolveWinExpectancyWithFallback(state, rows);
+}
+
+export function getWinExpectancyCountSwing(
+  state: {
+    inning?: number | null;
+    halfInning?: string | null;
+    outs?: number | null;
+    basesState?: string | null;
+    homeScore?: number | null;
+    awayScore?: number | null;
+  },
+  heldCountKey: string,
+  correctedCountKey: string,
+  rows: WinExpectancyLookupRow[],
+) {
+  const held = resolveWinExpectancyWithFallback(
+    {
+      ...state,
+      countKey: heldCountKey,
+    },
+    rows,
+  );
+  const corrected = resolveWinExpectancyWithFallback(
+    {
+      ...state,
+      countKey: correctedCountKey,
+    },
+    rows,
+  );
+
+  if (!held || !corrected) return null;
+  return roundWinExpectancy(corrected.battingTeamWinProbability - held.battingTeamWinProbability);
+}
+
+export function runWinExpectancySanityChecks(rows: WinExpectancyLookupRow[]): WinExpectancySanityCheck[] {
+  const lateTiedSwing = getWinExpectancyCountSwing(
+    { inning: 9, halfInning: "Top", outs: 1, basesState: "010", homeScore: 4, awayScore: 4 },
+    "2-2",
+    "3-1",
+    rows,
+  );
+  const earlyTiedSwing = getWinExpectancyCountSwing(
+    { inning: 2, halfInning: "Top", outs: 1, basesState: "010", homeScore: 0, awayScore: 0 },
+    "2-2",
+    "3-1",
+    rows,
+  );
+  const lateCloseSwing = getWinExpectancyCountSwing(
+    { inning: 8, halfInning: "Top", outs: 1, basesState: "010", homeScore: 4, awayScore: 3 },
+    "2-2",
+    "3-1",
+    rows,
+  );
+  const earlyBlowoutSwing = getWinExpectancyCountSwing(
+    { inning: 2, halfInning: "Top", outs: 1, basesState: "010", homeScore: 5, awayScore: 1 },
+    "2-2",
+    "3-1",
+    rows,
+  );
+  const hitterAhead = resolveWinExpectancyWithFallback(
+    { inning: 8, halfInning: "Top", outs: 1, basesState: "010", countKey: "3-1", homeScore: 3, awayScore: 2 },
+    rows,
+  );
+  const pitcherAhead = resolveWinExpectancyWithFallback(
+    { inning: 8, halfInning: "Top", outs: 1, basesState: "010", countKey: "2-2", homeScore: 3, awayScore: 2 },
+    rows,
+  );
+
+  return [
+    {
+      key: "late_tied_swing_exceeds_early_tied",
+      passed:
+        lateTiedSwing !== null &&
+        earlyTiedSwing !== null &&
+        Math.abs(lateTiedSwing) > Math.abs(earlyTiedSwing),
+      detail: "A 3-1 vs 2-2 count swing in a tied ninth should matter more than the same swing in a tied second.",
+      leftValue: lateTiedSwing,
+      rightValue: earlyTiedSwing,
+    },
+    {
+      key: "late_close_swing_exceeds_early_blowout",
+      passed:
+        lateCloseSwing !== null &&
+        earlyBlowoutSwing !== null &&
+        Math.abs(lateCloseSwing) > Math.abs(earlyBlowoutSwing),
+      detail: "A count swing in a late one-run game should outweigh the same swing in an early four-run game.",
+      leftValue: lateCloseSwing,
+      rightValue: earlyBlowoutSwing,
+    },
+    {
+      key: "hitter_ahead_exceeds_pitcher_ahead",
+      passed:
+        hitterAhead !== null &&
+        pitcherAhead !== null &&
+        hitterAhead.battingTeamWinProbability > pitcherAhead.battingTeamWinProbability,
+      detail: "Within the same late state, a 3-1 count should favor the batting team more than a 2-2 count.",
+      leftValue: hitterAhead?.battingTeamWinProbability ?? null,
+      rightValue: pitcherAhead?.battingTeamWinProbability ?? null,
+    },
+  ];
 }
 
 export function getChallengeWinExpectancyDelta(

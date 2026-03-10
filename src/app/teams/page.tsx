@@ -9,6 +9,7 @@ import { TeamScatterPlot } from "@/components/analytics/team-scatter-plot";
 import { TrendSparkline } from "@/components/analytics/trend-sparkline";
 import { ProfileBadge } from "@/components/ui/profile-badge";
 import { getTeamsPageViewCopy } from "@/lib/view-mode-contract";
+import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,9 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
     teamsWithRunValue.length > 0
       ? teamsWithRunValue.reduce((sum, team) => sum + (team.avgRunExpectancyDelta ?? 0), 0) / teamsWithRunValue.length
       : null;
-  const teamsWithWinValue = teams.filter((team) => team.avgWinExpectancyDelta !== null);
+  const teamsWithWinValue = teams.filter(
+    (team) => team.avgWinExpectancyDelta !== null && hasTrustedModelConfidenceBand(team.winValueConfidence),
+  );
   const leagueAvgWinExpectancyDelta =
     teamsWithWinValue.length > 0
       ? teamsWithWinValue.reduce((sum, team) => sum + (team.avgWinExpectancyDelta ?? 0), 0) / teamsWithWinValue.length
@@ -61,7 +64,10 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
       return team.overturnRate < leagueAvgRate;
     }
 
-    const teamMetric = useWinValue ? team.avgWinExpectancyDelta : team.avgRunExpectancyDelta;
+    const teamMetric =
+      useWinValue && hasTrustedModelConfidenceBand(team.winValueConfidence)
+        ? team.avgWinExpectancyDelta
+        : team.avgRunExpectancyDelta;
     const leagueMetric = useWinValue ? leagueAvgWinExpectancyDelta : leagueAvgRunExpectancyDelta;
     if (leagueMetric === null) return false;
     if (teamMetric === null) return true;
@@ -91,7 +97,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
           <p className="mt-1 text-xs text-[var(--ink-3)]">
             {viewMode === "org"
               ? `${biggestMover.orgStyleLabel} with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews in higher-pressure windows${
-                  formatOrgValueCopy(biggestMover)
+                  formatOrgValueCopy(biggestMover, useWinValue)
                 }.`
               : `${biggestMover.style} profile with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews coming in bigger spots and a visible trend swing.`}
           </p>
@@ -235,7 +241,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
                     </td>
                     <td className="text-right font-mono text-gray-400 font-medium pr-8">
                       {viewMode === "org"
-                        ? t.avgWinExpectancyDelta !== null
+                        ? useWinValue && hasTrustedModelConfidenceBand(t.winValueConfidence) && t.avgWinExpectancyDelta !== null
                           ? `${t.avgWinExpectancyDelta >= 0 ? "+" : ""}${(t.avgWinExpectancyDelta * 100).toFixed(2)}%`
                           : t.avgRunExpectancyDelta === null
                             ? "N/A"
@@ -283,15 +289,19 @@ function compareTeamsForTable(
     overturnRate: number;
     highWinValueShare: number;
     avgWinExpectancyDelta: number | null;
+    winValueConfidence: "high" | "medium" | "low" | null;
     highRunValueShare: number;
     avgRunExpectancyDelta: number | null;
+    runValueConfidence: "high" | "medium" | "low" | null;
   },
   right: {
     overturnRate: number;
     highWinValueShare: number;
     avgWinExpectancyDelta: number | null;
+    winValueConfidence: "high" | "medium" | "low" | null;
     highRunValueShare: number;
     avgRunExpectancyDelta: number | null;
+    runValueConfidence: "high" | "medium" | "low" | null;
   },
   viewMode: "fan" | "org",
   useWinValue: boolean,
@@ -300,8 +310,10 @@ function compareTeamsForTable(
     return right.overturnRate - left.overturnRate;
   }
 
-  const leftMetric = useWinValue ? left.avgWinExpectancyDelta : left.avgRunExpectancyDelta;
-  const rightMetric = useWinValue ? right.avgWinExpectancyDelta : right.avgRunExpectancyDelta;
+  const leftMetric =
+    useWinValue && hasTrustedModelConfidenceBand(left.winValueConfidence) ? left.avgWinExpectancyDelta : left.avgRunExpectancyDelta;
+  const rightMetric =
+    useWinValue && hasTrustedModelConfidenceBand(right.winValueConfidence) ? right.avgWinExpectancyDelta : right.avgRunExpectancyDelta;
 
   if (leftMetric === null && rightMetric === null) {
     return right.overturnRate - left.overturnRate;
@@ -312,8 +324,10 @@ function compareTeamsForTable(
     return rightMetric - leftMetric;
   }
 
-  const leftShare = useWinValue ? left.highWinValueShare : left.highRunValueShare;
-  const rightShare = useWinValue ? right.highWinValueShare : right.highRunValueShare;
+  const leftShare =
+    useWinValue && hasTrustedModelConfidenceBand(left.winValueConfidence) ? left.highWinValueShare : left.highRunValueShare;
+  const rightShare =
+    useWinValue && hasTrustedModelConfidenceBand(right.winValueConfidence) ? right.highWinValueShare : right.highRunValueShare;
   if (rightShare !== leftShare) {
     return rightShare - leftShare;
   }
@@ -321,8 +335,15 @@ function compareTeamsForTable(
   return right.overturnRate - left.overturnRate;
 }
 
-function formatOrgValueCopy(team: { avgWinExpectancyDelta: number | null; avgRunExpectancyDelta: number | null }) {
-  if (team.avgWinExpectancyDelta !== null) {
+function formatOrgValueCopy(
+  team: {
+    avgWinExpectancyDelta: number | null;
+    winValueConfidence: "high" | "medium" | "low" | null;
+    avgRunExpectancyDelta: number | null;
+  },
+  useWinValue: boolean,
+) {
+  if (useWinValue && team.avgWinExpectancyDelta !== null && hasTrustedModelConfidenceBand(team.winValueConfidence)) {
     return ` and ${team.avgWinExpectancyDelta >= 0 ? "+" : ""}${(team.avgWinExpectancyDelta * 100).toFixed(2)}% average WE per review`;
   }
   if (team.avgRunExpectancyDelta !== null) {
