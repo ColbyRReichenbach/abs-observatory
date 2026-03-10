@@ -7,17 +7,17 @@ import {
     Cell,
     Line,
     LineChart,
-    Pie,
-    PieChart,
     ResponsiveContainer,
     Tooltip,
     XAxis,
     YAxis,
 } from "recharts";
 
+type ChartDatum = Record<string, string | number | null>;
+
 interface DynamicChartProps {
     type: "line" | "bar" | "pie";
-    data: any[];
+    data: ChartDatum[];
     xAxisKey?: string;
     yAxisKey?: string;
     title?: string;
@@ -26,6 +26,14 @@ interface DynamicChartProps {
 
 export function DynamicChart({ type, data, xAxisKey, yAxisKey, title, colors = ["#001529", "#8b0000", "#d4b483"] }: DynamicChartProps) {
     if (!data || data.length === 0) return null;
+
+    const numericYValues =
+        yAxisKey == null
+            ? []
+            : data
+                .map((datum) => datum[yAxisKey])
+                .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+    const allowDecimalTicks = numericYValues.some((value) => !Number.isInteger(value));
 
     const renderChart = () => {
         switch (type) {
@@ -43,6 +51,8 @@ export function DynamicChart({ type, data, xAxisKey, yAxisKey, title, colors = [
                             tick={{ fontSize: 10, fill: "#666", fontFamily: "monospace" }}
                             axisLine={false}
                             tickLine={false}
+                            tickCount={5}
+                            allowDecimals={allowDecimalTicks}
                         />
                         <Tooltip
                             contentStyle={{ backgroundColor: "#fffdf8", border: "1px solid rgba(0,0,0,0.1)", borderRadius: "8px", fontFamily: "serif" }}
@@ -71,13 +81,15 @@ export function DynamicChart({ type, data, xAxisKey, yAxisKey, title, colors = [
                             tick={{ fontSize: 10, fill: "#666", fontFamily: "monospace" }}
                             axisLine={false}
                             tickLine={false}
+                            tickCount={5}
+                            allowDecimals={allowDecimalTicks}
                         />
                         <Tooltip
                             cursor={{ fill: "rgba(0,0,0,0.02)" }}
                             contentStyle={{ backgroundColor: "#fffdf8", border: "1px solid rgba(0,0,0,0.1)", borderRadius: "8px", fontFamily: "serif" }}
                         />
                         <Bar dataKey={yAxisKey} fill={colors[0]} radius={[4, 4, 0, 0]}>
-                            {data.map((entry, index) => (
+                            {data.map((_, index) => (
                                 <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
                             ))}
                         </Bar>

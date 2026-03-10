@@ -10,6 +10,7 @@ import { writeAuditLog } from "./audit";
 import { assertValidCsrf } from "./csrf";
 import { enqueueJob } from "./job-queue";
 import { resolveToolResults } from "./ai-tools";
+import { recordAiGenerationEventWithQuery } from "./ai-generations";
 import {
   AI_ERROR_CODES,
   AiPolicyError,
@@ -28,6 +29,7 @@ import { ConcurrencyLimitError, consumeRateLimit, getCacheKey, getCachedValue, s
 const CHAT_REQUEST_SCHEMA = z.object({
   conversationId: z.string().uuid().optional(),
   message: z.string().min(4).max(2000),
+  surface: z.enum(["copilot", "visualizer"]).optional().default("copilot"),
   delivery: z.enum(AI_DELIVERY_MODES).optional().default("auto"),
   context: z
     .object({
@@ -47,6 +49,9 @@ const AI_MAX_CONCURRENT_REQUESTS = 4;
 
 export type ChatResponse = {
   conversationId: string;
+  assistantMessageId?: string | null;
+  generationId?: string | null;
+  modelName?: string;
   answer: string;
   toolResults: Array<{ toolName: string; payload: unknown }>;
   citations: string[];
@@ -273,6 +278,7 @@ async function completeChatTurn(params: {
   context?: CopilotContext;
   planCode: AiPlanCode;
   featureKey: AiUsageFeature;
+  surface: "copilot" | "visualizer";
 }): Promise<ChatResponse> {
   const startedAt = Date.now();
   const responseCacheKey = getCacheKey([
@@ -287,6 +293,7 @@ async function completeChatTurn(params: {
     toolResults: Array<{ toolName: string; payload: unknown }>;
     citations: string[];
     confidence: "low" | "medium" | "high";
+    modelName: string;
   }>(responseCacheKey);
 
   let toolResults: Array<{ toolName: string; payload: unknown }> = [];
@@ -306,7 +313,7 @@ async function completeChatTurn(params: {
     answer = cached.answer;
     citations = cached.citations;
     confidence = cached.confidence;
-    modelName = "cache";
+    modelName = cached.modelName || "cache";
     usage = {
       inputTokens: estimateTokenCount(params.message),
       outputTokens: estimateTokenCount(answer),
@@ -375,6 +382,7 @@ Tool results: ${JSON.stringify(resolvedToolResults).slice(0, 18000)}`,
         toolResults,
         citations,
         confidence,
+        modelName,
       },
       AI_CACHE_TTL_MS,
     );
@@ -386,6 +394,9 @@ Tool results: ${JSON.stringify(resolvedToolResults).slice(0, 18000)}`,
   const inputTokens = usage?.inputTokens ?? estimateTokenCount(params.message);
   const outputTokens = usage?.outputTokens ?? estimateTokenCount(answer);
   const estimatedCostUsd = estimateCostUsd(modelName, inputTokens, outputTokens);
+
+  let assistantMessageId: string | null = null;
+  let generationId: string | null = null;
 
   await withTransaction(async (query) => {
     const assistantMessage = await query<{ message_id: string }>(
@@ -402,7 +413,7 @@ Tool results: ${JSON.stringify(resolvedToolResults).slice(0, 18000)}`,
       ],
     );
 
-    const assistantMessageId = assistantMessage[0]?.message_id ?? null;
+    assistantMessageId = assistantMessage[0]?.message_id ?? null;
 
     for (const tool of toolResults) {
       await query(
@@ -470,10 +481,41 @@ Tool results: ${JSON.stringify(resolvedToolResults).slice(0, 18000)}`,
         JSON.stringify({ context: params.context, citations }),
       ],
     );
+
+    generationId = assistantMessageId
+      ? await recordAiGenerationEventWithQuery(query, {
+          userId: params.userId,
+          surfaceKey: params.surface,
+          surfaceDetail: params.surface === "visualizer" ? "ai_bs_visualizer" : "contextual_copilot",
+          targetType: "ai_message",
+          targetId: assistantMessageId,
+          routeScope: params.context?.scope ?? "global",
+          routeEntityId: params.context?.entityId ?? null,
+          conversationId: params.conversationId,
+          messageId: assistantMessageId,
+          provider: cached ? "internal" : openai ? "openai" : "template",
+          modelName: cached ? "cache" : modelName,
+          promptVersion: "ai_chat_v1",
+          inputTokens,
+          outputTokens,
+          estimatedCostUsd,
+          latencyMs,
+          status: cached ? "cached" : openai ? "succeeded" : "fallback",
+          cacheHit: Boolean(cached),
+          metadata: {
+            featureKey: params.featureKey,
+            citations,
+            context: params.context ?? null,
+          },
+        })
+      : null;
   });
 
   return {
     conversationId: params.conversationId,
+    assistantMessageId,
+    generationId,
+    modelName: cached ? "cache" : modelName,
     answer,
     toolResults,
     citations,
@@ -488,6 +530,7 @@ export async function executeQueuedChatJob(payload: {
   conversationId: string;
   userMessageId: string | null;
   message: string;
+  surface?: "copilot" | "visualizer";
   context?: CopilotContext;
 }) {
   const viewer = await getAiViewerState(payload.userId);
@@ -501,6 +544,7 @@ export async function executeQueuedChatJob(payload: {
   });
   return completeChatTurn({
     ...payload,
+    surface: payload.surface ?? "copilot",
     planCode: usagePolicy.entitlement.planCode,
     featureKey: "ai_chat_heavy",
   });
@@ -590,6 +634,7 @@ export async function runChat(request: Request): Promise<ChatResponse> {
         conversationId: persistedTurn.conversationId,
         userMessageId: persistedTurn.userMessageId,
         message: body.message,
+        surface: body.surface,
         context,
       },
       idempotencyKey: getCacheKey([
@@ -627,6 +672,7 @@ export async function runChat(request: Request): Promise<ChatResponse> {
     context,
     planCode: usagePolicy.entitlement.planCode,
     featureKey,
+    surface: body.surface,
   });
 }
 

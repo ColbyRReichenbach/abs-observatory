@@ -12,6 +12,7 @@
     "test:ai-evals": "vitest run tests/ai-evals",
     "test:e2e": "playwright test -c playwright.e2e.config.ts",
     "test:load": "node scripts/load-test.mjs",
+    "smoke:release": "node scripts/release-smoke.mjs",
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots",
     "db:schema": "bash scripts/run-db-schema.sh",

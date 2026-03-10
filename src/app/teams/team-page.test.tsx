@@ -30,17 +30,6 @@ vi.mock("@/lib/data", () => ({
       remaining: 1,
     },
   ]),
-  getTeamSideSplits: vi.fn(async () => [
-    {
-      side: "home",
-      games: 5,
-      usedSuccessful: 4,
-      usedFailed: 1,
-      challengesTotal: 5,
-      avgRemaining: 1,
-      overturnRate: 0.8,
-    },
-  ]),
   getTeamIdentity: vi.fn(async () => ({
     teamId: 111,
     teamName: "Boston Red Sox",
@@ -53,17 +42,84 @@ vi.mock("@/lib/data", () => ({
   getTeamSchedule: vi.fn(async () => []),
   getTeamUmpireMatchups: vi.fn(async () => []),
   getTeamHitterEyeHeatmap: vi.fn(async () => []),
-  getTeamPitchingBailouts: vi.fn(async () => []),
   getTeamInningEfficiency: vi.fn(async () => [
     { inning: 1, category: "Offensive", overturnRate: 0.6, sampleSize: 3 },
     { inning: 1, category: "Defensive", overturnRate: 0.5, sampleSize: 2 },
   ]),
+  getTeamLeaderboardModel: vi.fn(async () => [
+    {
+      teamId: 111,
+      teamName: "Boston Red Sox",
+      gamesTracked: 10,
+      usedSuccessful: 7,
+      usedFailed: 3,
+      challengesTotal: 10,
+      avgRemaining: 0.8,
+      overturnRate: 0.7,
+      style: "Clutch",
+      orgStyleLabel: "Opportunistic",
+      styleConfidence: "high",
+      styleScores: {
+        Clutch: 78,
+        Calculated: 62,
+        "Trigger-Happy": 44,
+        Passive: 25,
+      },
+      challengeRatePerGame: 1,
+      lateLeverageShare: 0.42,
+      earlyLowLeverageShare: 0.18,
+      avgRunExpectancyDelta: 0.14,
+      highRunValueShare: 0.7,
+      runValueConfidence: "high",
+      avgWinExpectancyDelta: 0.018,
+      highWinValueShare: 0.7,
+      winValueConfidence: "high",
+    },
+  ]),
+  getTeamChallengeScenarioMatrix: vi.fn(async () => [
+    {
+      rowKey: "risp_lt2",
+      rowLabel: "RISP, <2 Outs",
+      colKey: "hitter",
+      colLabel: "Hitter Ahead",
+      challenges: 4,
+      overturned: 3,
+      overturnRate: 0.75,
+      avgEstimatedLeverage: 68.2,
+      avgPositiveOutcomeDelta: 0.11,
+      avgRunExpectancyDelta: 0.15,
+      avgWinExpectancyDelta: 0.0184,
+      highPressureShare: 0.75,
+    },
+  ]),
+  getTeamChallengeValueSummary: vi.fn(async () => ({
+    totalChallenges: 10,
+    highPressureShare: 0.5,
+    lowPressureShare: 0.2,
+    rispLessThanTwoOutsShare: 0.3,
+    averageEstimatedLeverage: 57.4,
+    averagePositiveOutcomeDelta: 0.08,
+    averageRunExpectancyDelta: 0.12,
+    medianRunExpectancyDelta: 0.11,
+    highRunValueShare: 0.7,
+    lowRunValueBurnShare: 0.3,
+    lateCloseRunValueShare: 0.5,
+    runExpectancyConfidence: "high",
+    averageWinExpectancyDelta: 0.0141,
+    medianWinExpectancyDelta: 0.0127,
+    highWinValueShare: 0.7,
+    lowWinValueBurnShare: 0.3,
+    lateCloseWinValueShare: 0.5,
+    winExpectancyConfidence: "high",
+    bestScenarioLabel: "RISP, <2 Outs • Hitter Ahead",
+    bestScenarioChallenges: 4,
+  })),
 }));
 
 import TeamPage from "@/app/teams/[teamId]/page";
 
 describe("team detail page", () => {
-  it("renders kpis, trend and split sections", async () => {
+  it("renders kpis, trend and strategy sections", async () => {
     const page = await TeamPage({
       params: Promise.resolve({ teamId: "111" }),
       searchParams: Promise.resolve({ range: "30d" }),
@@ -73,8 +129,10 @@ describe("team detail page", () => {
     expect(html).toContain("Boston Red Sox");
     expect(html).toContain("Challenge");
     expect(html).toContain("Trajectory");
-    expect(html).toContain("Location Variance");
-    expect(html).toContain("ABS analytics breakdown");
-    expect(html).toContain("Home");
+    expect(html).toContain("Challenge Timing");
+    expect(html).toContain("ABS personality breakdown");
+    expect(html).toContain("Value Matrix");
+    expect(html).toContain("Best Challenge Window");
+    expect(html).toContain("Archetype");
   });
 });

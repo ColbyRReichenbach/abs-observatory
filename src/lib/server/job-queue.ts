@@ -1,11 +1,10 @@
-import type { QueryResultRow } from "pg";
-
 import { sql, sqlOne, withTransaction } from "@/lib/db";
 import type { CopilotContext } from "@/lib/copilot-context";
 import type { QueueClass } from "./jobs";
 
 export type JobType =
   | "ai_heavy_chat"
+  | "ai_feedback_classification"
   | "article_daily_auto"
   | "enrichment_sync_standings"
   | "enrichment_sync_savant_weekly";
@@ -17,7 +16,12 @@ export type AiHeavyChatPayload = {
   conversationId: string;
   userMessageId: string | null;
   message: string;
+  surface?: "copilot" | "visualizer";
   context?: CopilotContext;
+};
+
+export type AiFeedbackClassificationPayload = {
+  feedbackId: string;
 };
 
 export type ArticleDailyAutoPayload = {
@@ -34,6 +38,7 @@ export type EnrichmentSyncSavantWeeklyPayload = {
 
 export type JobPayloadByType = {
   ai_heavy_chat: AiHeavyChatPayload;
+  ai_feedback_classification: AiFeedbackClassificationPayload;
   article_daily_auto: ArticleDailyAutoPayload;
   enrichment_sync_standings: EnrichmentSyncStandingsPayload;
   enrichment_sync_savant_weekly: EnrichmentSyncSavantWeeklyPayload;
@@ -60,6 +65,7 @@ export type QueuedJob<T extends JobType = JobType> = {
 
 const JOB_QUEUE_CLASS: Record<JobType, QueueClass> = {
   ai_heavy_chat: "ai_interactive",
+  ai_feedback_classification: "article_generation",
   article_daily_auto: "article_generation",
   enrichment_sync_standings: "enrichment",
   enrichment_sync_savant_weekly: "enrichment",

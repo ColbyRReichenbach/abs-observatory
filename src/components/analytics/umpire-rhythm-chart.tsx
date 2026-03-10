@@ -1,14 +1,19 @@
 "use client";
 
 import type { UmpirePerformanceDNA } from "@/lib/types";
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Area, AreaChart } from "recharts";
-import { Activity } from "lucide-react";
+import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Area, AreaChart } from "recharts";
+import { ChartTooltip } from "@/components/ui/chart-tooltip";
 
 export function UmpireRhythmChart({ data }: { data: UmpirePerformanceDNA["rhythm"] }) {
+    const chartData = data.map((entry) => ({
+        ...entry,
+        accuracyPct: entry.accuracy * 100,
+    }));
+
     return (
         <div className="h-[300px] w-full mt-6">
             <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data} margin={{ top: 20, right: 20, bottom: 20, left: 0 }}>
+                <AreaChart data={chartData} margin={{ top: 20, right: 20, bottom: 20, left: 0 }}>
                     <defs>
                         <linearGradient id="rhythmGradient" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
@@ -24,22 +29,26 @@ export function UmpireRhythmChart({ data }: { data: UmpirePerformanceDNA["rhythm
                         label={{ value: 'INNING', position: 'insideBottom', offset: -10, fontSize: 8, fontWeight: 900, fill: '#cbd5e1' }}
                     />
                     <YAxis
-                        domain={[0, 1]}
+                        domain={[0, 100]}
+                        ticks={[0, 25, 50, 75, 100]}
                         axisLine={false}
                         tickLine={false}
                         tick={{ fontSize: 10, fontWeight: 700, fill: "#94a3b8" }}
-                        tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
+                        tickFormatter={(v) => `${Math.round(v)}%`}
                     />
                     <Tooltip
+                        wrapperStyle={{ zIndex: 10001 }}
+                        allowEscapeViewBox={{ x: true, y: true }}
                         content={({ active, payload }) => {
                             if (active && payload && payload.length) {
                                 const d = payload[0].payload;
                                 return (
-                                    <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-gray-100 shadow-2xl">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Inning {d.inning}</p>
-                                        <p className="text-xl font-display text-gray-900">{(d.accuracy * 100).toFixed(1)}% Accuracy</p>
-                                        <p className="text-[10px] font-bold text-blue-600 mt-1">{d.total} Samples</p>
-                                    </div>
+                                    <ChartTooltip
+                                        title={`Inning ${d.inning}`}
+                                        value={`${d.accuracyPct.toFixed(1)}%`}
+                                        subValueLabel="Accuracy"
+                                        extra={[{ label: "Samples", value: d.total }]}
+                                    />
                                 );
                             }
                             return null;
@@ -47,7 +56,7 @@ export function UmpireRhythmChart({ data }: { data: UmpirePerformanceDNA["rhythm
                     />
                     <Area
                         type="monotone"
-                        dataKey="accuracy"
+                        dataKey="accuracyPct"
                         stroke="#3b82f6"
                         strokeWidth={3}
                         fillOpacity={1}

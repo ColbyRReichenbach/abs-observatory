@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { createArticleDraft, generateDailyAutoArticle, listPublishedArticles } from "@/lib/server/articles";
+import { requireOwnerAdmin } from "@/lib/server/admin";
+import { assertValidCsrf } from "@/lib/server/csrf";
 import { enqueueJob } from "@/lib/server/job-queue";
 import { logServerError } from "@/lib/server/logging";
 
@@ -52,6 +54,8 @@ export async function POST(request: Request) {
 
   try {
     if (mode === "daily-auto") {
+      await requireOwnerAdmin(request);
+      assertValidCsrf(request);
       const sourceDate = url.searchParams.get("sourceDate");
       if (!sourceDate) {
         return NextResponse.json({ error: "sourceDate is required" }, { status: 400 });

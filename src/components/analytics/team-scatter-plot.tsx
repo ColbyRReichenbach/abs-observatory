@@ -12,78 +12,152 @@ import {
     ResponsiveContainer,
     Label,
 } from "recharts";
+import type { ScatterShapeProps, TooltipContentProps } from "recharts";
 import { useRouter } from "next/navigation";
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
-import { TeamIcon } from "@/components/team-icon";
+import { buildLinearAxis, formatNumberTick, formatPercentTick } from "@/components/analytics/chart-axis";
+import { resolveTeamBranding } from "@/lib/team-branding";
 
 type TeamScatterPoint = {
     teamId: number;
     teamName: string;
     logoUrl: string;
-    challenges: number;
+    challengeRatePerGame: number;
     overturnRate: number;
+};
+
+type TeamScatterChartPoint = TeamScatterPoint & {
+    overturnPct: number;
 };
 
 type Props = {
     data: TeamScatterPoint[];
+    mode?: "fan" | "org";
 };
 
 /* ── Custom dot: Team logo image ── */
-const TeamLogoDot = memo((props: { cx?: number; cy?: number; payload?: TeamScatterPoint }) => {
-    const { cx, cy, payload } = props;
-    if (!cx || !cy || !payload) return null;
-    const size = 26;
-    const containerSize = size + 20;
+const TeamLogoDot = memo((props: { cx?: number; cy?: number; payload?: TeamScatterChartPoint; active?: boolean }) => {
+    const { cx, cy, payload, active } = props;
+    if (cx == null || cy == null || !payload) return null;
+
+    const logoSize = active ? 30 : 18;
+    const badgeRadius = active ? 22 : 13;
+    const ringRadius = active ? 25.5 : 15.5;
+    const logoInset = logoSize / 2;
+    const clipId = `team-scatter-logo-${payload.teamId}-${active ? "active" : "base"}`;
+    const branding = resolveTeamBranding({ teamId: payload.teamId });
+    const logoHref = `https://www.mlbstatic.com/team-logos/team-cap-on-dark/${payload.teamId}.svg`;
 
     return (
-        <foreignObject
-            x={cx - containerSize / 2}
-            y={cy - containerSize / 2}
-            width={containerSize}
-            height={containerSize}
-            style={{ overflow: 'visible' }}
+        <g
+            transform={`translate(${cx}, ${cy})`}
+            style={{
+                pointerEvents: "auto",
+                transition: "transform 220ms ease-out",
+            }}
         >
-            <div className="w-full h-full flex items-center justify-center">
-                <TeamIcon
-                    teamId={payload.teamId}
-                    name={payload.teamName}
-                    size={size}
-                    noShadow
-                    loading="eager"
-                    className="cursor-pointer"
-                />
-            </div>
-        </foreignObject>
+            <defs>
+                <clipPath id={clipId}>
+                    <circle r={logoInset} />
+                </clipPath>
+            </defs>
+            <circle
+                r={ringRadius}
+                fill={active ? branding.tokens.teamPrimary : "rgba(255,255,255,0.92)"}
+                fillOpacity={active ? 0.16 : 0}
+            />
+            <circle
+                r={badgeRadius}
+                fill={branding.tokens.teamPrimary}
+                stroke="rgba(255,255,255,0.96)"
+                strokeWidth={active ? 2.5 : 2}
+                style={{
+                    filter: active ? "drop-shadow(0 10px 18px rgba(0,0,0,0.18))" : "drop-shadow(0 4px 8px rgba(0,0,0,0.12))",
+                    transition: "all 220ms ease-out",
+                }}
+            />
+            <image
+                href={logoHref}
+                x={-logoInset}
+                y={-logoInset}
+                width={logoSize}
+                height={logoSize}
+                preserveAspectRatio="xMidYMid meet"
+                clipPath={`url(#${clipId})`}
+            />
+        </g>
     );
 });
 TeamLogoDot.displayName = "TeamLogoDot";
 
-const renderDot = (props: any) => <TeamLogoDot {...props} />;
+const renderDot = (props: ScatterShapeProps) => <TeamLogoDot {...props} />;
+const renderActiveDot = (props: ScatterShapeProps) => <TeamLogoDot {...props} active={true} />;
 
 /* ── Custom tooltip using ChartTooltip ── */
-function ScatterTooltipContent({ active, payload }: { active?: boolean; payload?: Array<{ payload: TeamScatterPoint }> }) {
-    if (!active || !payload?.length) return null;
-    const d = payload[0].payload as TeamScatterPoint;
+type ScatterTooltipContentProps = TooltipContentProps<number, string> & {
+    viewBox?: {
+        height?: number;
+    };
+};
+
+function ScatterTooltipContent({ active, payload, coordinate, viewBox }: ScatterTooltipContentProps) {
+    if (!active || !payload?.length || !coordinate) return null;
+    const d = payload[0]?.payload as TeamScatterChartPoint | undefined;
+    if (!d) return null;
+
+    // "Knowing where the logo is": Dynamic flip logic
+    // If we're in the bottom half of the chart, show tooltip above (translated up)
+    // If we're in the top half, show tooltip below (translated down)
+    const isBottomHalf = (coordinate?.y || 0) > (viewBox?.height || 400) / 2;
+
     return (
-        <ChartTooltip
-            title={d.teamName}
-            value={`${(d.overturnRate * 100).toFixed(1)}%`}
-            label="Overturn Rate"
-            extra={[{ label: "Total Challenges", value: d.challenges }]}
-        />
+        <div
+            className="transition-transform duration-300 ease-out"
+            style={{
+                transform: isBottomHalf
+                    ? "translateX(-50%) translateY(-100%) translateY(-50px)"
+                    : "translateX(-50%) translateY(50px)",
+                pointerEvents: "none"
+            }}
+        >
+            <ChartTooltip
+                title={d.teamName}
+                value={`${(d.overturnRate * 100).toFixed(2)}%`}
+                subValueLabel="Overturn Rate"
+                extra={[{ label: "Rate / Game", value: d.challengeRatePerGame.toFixed(2) }]}
+            />
+        </div>
     );
 }
 
-export function TeamScatterPlot({ data }: Props) {
+export function TeamScatterPlot({ data, mode = "fan" }: Props) {
     const router = useRouter();
 
-    const { avgChallenges, avgOverturnRate } = useMemo(() => {
-        if (data.length === 0) return { avgChallenges: 0, avgOverturnRate: 0 };
-        const totalChallenges = data.reduce((s, d) => s + d.challenges, 0);
+    const { xAxis, yAxis, avgChallengeRate, avgOverturnRate, xTickDigits } = useMemo(() => {
+        if (data.length === 0) {
+            return {
+                xAxis: buildLinearAxis([], { step: 0.5, min: 0, minSpan: 2 }),
+                yAxis: buildLinearAxis([], { step: 10, min: 0, max: 100, minSpan: 20 }),
+                avgChallengeRate: 0,
+                avgOverturnRate: 0,
+                xTickDigits: 1,
+            };
+        }
+
+        const xValues = data.map(d => d.challengeRatePerGame);
+        const yValues = data.map(d => d.overturnRate * 100);
+        const maxX = Math.max(...xValues);
+        const xStep = maxX > 4 ? 1 : 0.5;
+
+        const totalChallengeRate = data.reduce((s, d) => s + d.challengeRatePerGame, 0);
         const totalRate = data.reduce((s, d) => s + d.overturnRate, 0);
+
         return {
-            avgChallenges: totalChallenges / data.length,
+            xAxis: buildLinearAxis(xValues, { step: xStep, padding: xStep / 2, min: 0, minSpan: xStep * 4 }),
+            yAxis: buildLinearAxis(yValues, { step: 10, padding: 5, min: 0, max: 100, minSpan: 20 }),
+            avgChallengeRate: totalChallengeRate / data.length,
             avgOverturnRate: totalRate / data.length,
+            xTickDigits: xStep < 1 ? 1 : 0,
         };
     }, [data]);
 
@@ -95,13 +169,13 @@ export function TeamScatterPlot({ data }: Props) {
     if (data.length === 0) return null;
 
     return (
-        <div className="panel overflow-hidden border-gray-100 bg-white shadow-2xl shadow-black/[0.03] p-6 mb-8">
+        <div className="panel overflow-visible border-gray-100 bg-white shadow-2xl shadow-black/[0.03] p-6 mb-8">
             <div className="mb-6">
                 <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
-                    Strategy Map
+                    {mode === "org" ? "Strategy Map" : "Identity Map"}
                 </h4>
                 <p className="text-2xl font-display leading-none text-gray-900">
-                    Team <span className="text-gray-400">Positioning</span>
+                    Team <span className="text-gray-400">{mode === "org" ? "Positioning" : "Personalities"}</span>
                 </p>
             </div>
 
@@ -109,33 +183,40 @@ export function TeamScatterPlot({ data }: Props) {
                 {/* Quadrant labels */}
                 <div className="pointer-events-none absolute inset-0 z-10">
                     <span className="absolute top-2 right-4 text-[9px] font-black uppercase tracking-[0.14em] text-emerald-500/50">
-                        Surgical
+                        {mode === "org" ? "Elite Challengers" : "Clutch"}
                     </span>
-                    <span className="absolute top-2 left-4 text-[9px] font-black uppercase tracking-[0.14em] text-blue-500/50">
-                        Selective
+                    <span className="absolute top-2 left-12 text-[9px] font-black uppercase tracking-[0.14em] text-blue-500/50">
+                        {mode === "org" ? "Disciplined" : "Calculated"}
                     </span>
-                    <span className="absolute bottom-8 right-4 text-[9px] font-black uppercase tracking-[0.14em] text-amber-500/50">
-                        Reckless
+                    <span className="absolute bottom-6 right-4 text-[9px] font-black uppercase tracking-[0.14em] text-amber-500/50">
+                        {mode === "org" ? "Burning Window" : "Trigger-Happy"}
                     </span>
-                    <span className="absolute bottom-8 left-4 text-[9px] font-black uppercase tracking-[0.14em] text-red-400/50">
+                    <span className="absolute bottom-6 left-12 text-[9px] font-black uppercase tracking-[0.14em] text-red-400/50">
                         Passive
                     </span>
                 </div>
 
                 <ResponsiveContainer width="100%" height="100%">
-                    <ScatterChart margin={{ top: 30, right: 30, bottom: 30, left: 30 }}>
+                    <ScatterChart
+                        margin={{ top: 40, right: 100, bottom: 60, left: 80 }}
+                        style={{ overflow: 'visible' }}
+                    >
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
                         <XAxis
                             type="number"
-                            dataKey="challenges"
-                            name="Challenges"
+                            dataKey="challengeRatePerGame"
+                            name="Challenge Rate / Game"
                             tickLine={false}
                             axisLine={false}
                             tick={{ fontSize: 10, fill: "#86868b" }}
-                            padding={{ left: 20, right: 20 }}
+                            tickFormatter={(v) => formatNumberTick(v, xTickDigits)}
+                            padding={{ left: 0, right: 0 }}
+                            domain={xAxis.domain}
+                            ticks={xAxis.ticks}
+                            allowDataOverflow={false}
                         >
                             <Label
-                                value="TOTAL CHALLENGES"
+                                value="CHALLENGE RATE / GAME"
                                 position="bottom"
                                 offset={0}
                                 style={{ fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em" }}
@@ -148,8 +229,11 @@ export function TeamScatterPlot({ data }: Props) {
                             tickLine={false}
                             axisLine={false}
                             tick={{ fontSize: 10, fill: "#86868b" }}
-                            tickFormatter={(v) => `${v}%`}
-                            padding={{ top: 20, bottom: 20 }}
+                            tickFormatter={(v) => formatPercentTick(v)}
+                            padding={{ top: 0, bottom: 0 }}
+                            domain={yAxis.domain}
+                            ticks={yAxis.ticks}
+                            allowDataOverflow={false}
                         >
                             <Label
                                 value="OVERTURN RATE"
@@ -162,30 +246,33 @@ export function TeamScatterPlot({ data }: Props) {
 
                         {/* League avg crosshair lines */}
                         <ReferenceLine
-                            x={avgChallenges}
+                            x={avgChallengeRate}
                             stroke="rgba(0,0,0,0.25)"
                             strokeDasharray="4 4"
-                            label={{ value: "MLB AVG", position: "top", style: { fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em" } }}
+                            label={{ value: `MLB AVG ${avgChallengeRate.toFixed(1)}`, position: "top", style: { fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em" } }}
                         />
                         <ReferenceLine
                             y={avgOverturnRate * 100}
                             stroke="rgba(0,0,0,0.25)"
                             strokeDasharray="4 4"
+                            label={{ value: `MLB AVG ${(avgOverturnRate * 100).toFixed(0)}%`, position: "right", style: { fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em" } }}
                         />
 
                         <Scatter
                             data={chartData}
                             shape={renderDot}
-                            activeShape={renderDot}
+                            activeShape={renderActiveDot}
                             onClick={(entry) => {
                                 if (entry?.teamId) router.push(`/teams/${entry.teamId}`);
                             }}
                             isAnimationActive={false}
                         />
                         <Tooltip
-                            content={<ScatterTooltipContent />}
+                            content={(props) => <ScatterTooltipContent {...(props as ScatterTooltipContentProps)} />}
                             cursor={false}
-                            wrapperStyle={{ zIndex: 1000 }}
+                            offset={0}
+                            allowEscapeViewBox={{ x: true, y: true }}
+                            wrapperStyle={{ zIndex: 10001, outline: "none", pointerEvents: "none" }}
                             isAnimationActive={false}
                             animationDuration={0}
                         />

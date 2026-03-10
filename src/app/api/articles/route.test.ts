@@ -1,10 +1,19 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createArticleDraftMock, generateDailyAutoArticleMock, listPublishedArticlesMock, enqueueJobMock } = vi.hoisted(() => ({
+const {
+  createArticleDraftMock,
+  generateDailyAutoArticleMock,
+  listPublishedArticlesMock,
+  enqueueJobMock,
+  requireOwnerAdminMock,
+  assertValidCsrfMock,
+} = vi.hoisted(() => ({
   createArticleDraftMock: vi.fn(),
   generateDailyAutoArticleMock: vi.fn(),
   listPublishedArticlesMock: vi.fn(),
   enqueueJobMock: vi.fn(),
+  requireOwnerAdminMock: vi.fn(),
+  assertValidCsrfMock: vi.fn(),
 }));
 
 vi.mock("@/lib/server/articles", () => ({
@@ -17,9 +26,27 @@ vi.mock("@/lib/server/job-queue", () => ({
   enqueueJob: enqueueJobMock,
 }));
 
+vi.mock("@/lib/server/admin", () => ({
+  requireOwnerAdmin: requireOwnerAdminMock,
+}));
+
+vi.mock("@/lib/server/csrf", () => ({
+  assertValidCsrf: assertValidCsrfMock,
+}));
+
 import { GET, POST } from "@/app/api/articles/route";
 
 describe("articles route", () => {
+  beforeEach(() => {
+    requireOwnerAdminMock.mockReset();
+    assertValidCsrfMock.mockReset();
+    requireOwnerAdminMock.mockResolvedValue({
+      userId: "owner-1",
+      roles: ["admin"],
+      isVerified: true,
+    });
+  });
+
   it("lists published articles", async () => {
     listPublishedArticlesMock.mockResolvedValueOnce([{ slug: "daily-recap" }]);
 
@@ -56,7 +83,10 @@ describe("articles route", () => {
 
     generateDailyAutoArticleMock.mockResolvedValueOnce({ articleId: "article-2", status: "published" });
     const autoResponse = await POST(
-      new Request("http://localhost/api/articles?mode=daily-auto&sourceDate=2026-03-05", { method: "POST" }),
+      new Request("http://localhost/api/articles?mode=daily-auto&sourceDate=2026-03-05", {
+        method: "POST",
+        headers: { "x-csrf-token": "test-token" },
+      }),
     );
 
     expect(generateDailyAutoArticleMock).toHaveBeenCalledWith("2026-03-05");
@@ -68,7 +98,10 @@ describe("articles route", () => {
     enqueueJobMock.mockResolvedValueOnce({ jobRunId: "job-1", status: "queued" });
 
     const response = await POST(
-      new Request("http://localhost/api/articles?mode=daily-auto&sourceDate=2026-03-05&async=true", { method: "POST" }),
+      new Request("http://localhost/api/articles?mode=daily-auto&sourceDate=2026-03-05&async=true", {
+        method: "POST",
+        headers: { "x-csrf-token": "test-token" },
+      }),
     );
 
     expect(response.status).toBe(202);

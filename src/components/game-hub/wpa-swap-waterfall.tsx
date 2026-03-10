@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 
+import { formatLeverageBucketLabel, summarizeEstimatedLeverage } from "@/lib/estimated-leverage";
 import type { ChallengeEvent } from "@/lib/types";
 
 export function WPASwapWaterfall({ challenges }: { challenges: ChallengeEvent[] }) {
@@ -14,6 +15,7 @@ export function WPASwapWaterfall({ challenges }: { challenges: ChallengeEvent[] 
             : 0,
         )
         .map((challenge) => ({
+          leverage: summarizeEstimatedLeverage(challenge),
           id: challenge.challengeId,
           inning: `${challenge.halfInning === "Top" ? "T" : "B"}${challenge.inning ?? "-"}`,
           team: challenge.challengeTeamName ?? "Unknown",
@@ -38,10 +40,10 @@ export function WPASwapWaterfall({ challenges }: { challenges: ChallengeEvent[] 
       <div className="mb-4 flex items-end justify-between px-2">
         <div>
           <h4 className="mb-1 text-[10px] font-bold uppercase tracking-widest text-emerald-500">
-            Impact Analysis
+            Estimated Challenge Swing
           </h4>
           <p className="text-2xl font-display leading-none text-gray-900">
-            Challenge <span className="text-gray-400">Impact Timeline</span>
+            Challenge <span className="text-gray-400">Pressure Timeline</span>
           </p>
         </div>
         <div className="flex gap-4">
@@ -65,23 +67,27 @@ export function WPASwapWaterfall({ challenges }: { challenges: ChallengeEvent[] 
                   {entry.inning} • {entry.team}
                 </p>
                 <h5 className="text-sm font-bold text-gray-900">{entry.description}</h5>
+                <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                  {formatLeverageBucketLabel(entry.leverage.leverageBucket)} • ELI {entry.leverage.estimatedLeverageIndex}
+                </p>
               </div>
               <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${entry.badgeClass}`}>
-                {entry.outcome}
+                {entry.outcome} {entry.leverage.estimatedChallengeSwing >= 0 ? `+${entry.leverage.estimatedChallengeSwing}` : entry.leverage.estimatedChallengeSwing}
               </span>
             </div>
             <div className="grid gap-3 md:grid-cols-3">
               <div className="rounded-xl bg-white px-4 py-3">
-                <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Count Change</p>
-                <p className="mt-1 text-sm font-bold text-gray-900">{entry.countChange}</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Estimated Leverage Index</p>
+                <p className="mt-1 text-sm font-bold text-gray-900">{entry.leverage.estimatedLeverageIndex}</p>
               </div>
               <div className="rounded-xl bg-white px-4 py-3">
-                <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Impact Type</p>
-                <p className="mt-1 text-sm font-bold text-gray-900">{entry.impactLabel}</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Estimated Challenge Swing</p>
+                <p className="mt-1 text-sm font-bold text-gray-900">{entry.leverage.estimatedChallengeSwing}</p>
               </div>
               <div className="rounded-xl bg-white px-4 py-3">
-                <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Summary</p>
-                <p className="mt-1 text-sm font-medium text-gray-700">{entry.impactSummary}</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Count / Impact</p>
+                <p className="mt-1 text-sm font-medium text-gray-700">{entry.countChange} • {entry.impactLabel}</p>
+                <p className="mt-1 text-xs text-gray-500">{entry.impactSummary}</p>
               </div>
             </div>
           </article>

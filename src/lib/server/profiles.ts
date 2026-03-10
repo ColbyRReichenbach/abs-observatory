@@ -1,6 +1,7 @@
 import { sqlOne, withTransaction } from "@/lib/db";
 import { getAuthIdentity } from "./auth";
 import { assertValidCsrf } from "./csrf";
+import { syncOwnerAdminRole } from "./owner-admin";
 import {
   type ApprovedAvatarPreset,
   isApprovedAvatarPreset,
@@ -130,6 +131,12 @@ export async function syncUserFromIdentity(identity: NonNullable<Awaited<ReturnT
       `,
       [userId],
     );
+
+    await syncOwnerAdminRole(query, {
+      userId,
+      authProvider: identity.provider,
+      externalAuthId: identity.externalAuthId,
+    });
 
     return userId;
   });

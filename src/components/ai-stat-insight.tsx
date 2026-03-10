@@ -3,7 +3,9 @@
 import { CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 
+import { AIFeedback } from "@/components/ai-feedback";
 import { ExpandableAiBSButton } from "@/components/ui/aibs-icon";
+import { useAiArtifactGeneration } from "@/lib/use-ai-artifact";
 
 type AIStatInsightProps = {
   title: string;
@@ -13,17 +15,26 @@ type AIStatInsightProps = {
   umpireCount?: string | null;
   impactType?: string | null;
   verdict: string;
+  insightId?: string | null;
 };
 
 export function AIStatInsight({
   title,
   verdict,
   impactDescription,
-  countBefore,
   countAfter,
   umpireCount,
   impactType,
+  insightId = null,
 }: AIStatInsightProps) {
+  const generationId = useAiArtifactGeneration({
+    surfaceKey: "chart_insight",
+    surfaceDetail: "challenge_summary_card",
+    targetType: "challenge_summary",
+    targetId: insightId ?? `${title}:${verdict}`,
+    metadata: { title, verdict, impactType: impactType ?? null },
+  });
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -83,6 +94,17 @@ export function AIStatInsight({
           </div>
         </div>
       </div>
+      {insightId ? (
+        <AIFeedback
+          surface="chart_insight"
+          targetType="challenge_summary"
+          targetId={insightId}
+          generationId={generationId}
+          metadata={{ verdict, title }}
+          prompt="Summary quality"
+          className="mt-5"
+        />
+      ) : null}
     </motion.div>
   );
 }

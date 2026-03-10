@@ -1,22 +1,40 @@
 import type { QueryResultRow } from "pg";
 import { subDays, format } from "date-fns";
 import fs from "fs";
+import OpenAI from "openai";
 import path from "path";
+import { z } from "zod";
 
 import { sql, sqlOne, withTransaction } from "@/lib/db";
+import { getTeamLeaderboardModel, getUmpireLeaderboardModel } from "@/lib/data";
+import { scoreControversyMoment } from "@/lib/rubrics";
+import type { ControversyReasonChip, TeamLeaderboardEntry, UmpireLeaderboardEntry } from "@/lib/types";
 
-import { getViewerProfile } from "@/lib/server/profiles";
-import { requireRole } from "@/lib/server/roles";
 import { clearCachedValue, getCacheKey, withCachedValue } from "@/lib/server/scale";
 import { uniqueSlug } from "@/lib/server/slugs";
 import { assertValidCsrf } from "@/lib/server/csrf";
+import { requireOwnerAdmin } from "@/lib/server/admin";
+import { getGazetteStepConfig, type GazetteStepKey as GazetteRegistryStepKey } from "@/lib/server/gazette-step-registry";
+import { recordAiGenerationEventWithQuery } from "@/lib/server/ai-generations";
+import { estimateAiCostUsd } from "@/lib/server/ai-pricing";
+
+type TeamMotif = {
+  team_id: number;
+  name: string;
+  abbreviation: string;
+  [key: string]: unknown;
+};
+
+type TeamMotifConfig = {
+  teams: TeamMotif[];
+};
 
 function getTeamMeta(teamId: number) {
   try {
     const configPath = path.join(process.cwd(), "src/config/team-motifs.json");
-    const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-    return config.teams.find((t: any) => t.team_id === teamId) || null;
-  } catch (e) {
+    const config = JSON.parse(fs.readFileSync(configPath, "utf-8")) as TeamMotifConfig;
+    return config.teams.find((team) => team.team_id === teamId) || null;
+  } catch {
     return null;
   }
 }
@@ -138,6 +156,15 @@ type ScoutBriefPayload = {
     theme: string;
     summary: string;
   };
+  marqueeMoment: {
+    challengeId: string;
+    gamePk: number;
+    challengeTeamName: string | null;
+    playerName: string | null;
+    calledDescription: string | null;
+    score: number;
+    reasonChips: ControversyReasonChip[];
+  } | null;
   leadCandidates: Array<{
     teamId: number;
     challengeTotal: number;
@@ -156,6 +183,15 @@ type ScoutBriefPayload = {
 
 type TelemetryResearchPayload = {
   trendSummary: string;
+  topTeamStyle: TeamLeaderboardEntry | null;
+  watchUmpire: UmpireLeaderboardEntry | null;
+  controversyMoments: Array<{
+    challengeId: string;
+    challengeTeamName: string | null;
+    playerName: string | null;
+    score: number;
+    reasonChips: ControversyReasonChip[];
+  }>;
   chartIntents: Array<{
     chartKey: string;
     title: string;
@@ -189,17 +225,69 @@ type GazetteValidationPayload = {
   sectionCount: number;
 };
 
+type StepExecutionResult<T> = {
+  output: T;
+  provider?: string | null;
+  modelName?: string | null;
+  promptVersion?: string | null;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  estimatedCostUsd?: number | null;
+  latencyMs?: number | null;
+  generationTargetType?: string | null;
+  generationTargetId?: string | null;
+  generationMetadata?: unknown;
+  generationStatus?: "succeeded" | "fallback" | "failed" | "cached";
+};
+
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
+
+const AUTHOR_DRAFT_RESPONSE_SCHEMA = z.object({
+  title: z.string().min(1).max(180),
+  dek: z.string().min(1).max(280),
+  sections: z.array(
+    z.object({
+      sectionKey: z.string().min(1).max(120),
+      heading: z.string().min(1).max(160),
+      bodyMd: z.string().min(1),
+    }),
+  ),
+});
+
+function stripCodeFences(value: string) {
+  return value.replace(/^```(?:json|markdown)?\s*/i, "").replace(/\s*```$/, "").trim();
+}
+
+function isStepExecutionResult<T>(value: T | StepExecutionResult<T>): value is StepExecutionResult<T> {
+  return Boolean(value && typeof value === "object" && "output" in (value as Record<string, unknown>));
+}
+
 type GenerateDailyAutoArticleOptions = {
   jobRunId?: string | null;
 };
 
+type GazetteMomentRow = {
+  challengeid: string;
+  gamepk: number;
+  challengedat: string | null;
+  inning: number | null;
+  balls: number | null;
+  strikes: number | null;
+  outs: number | null;
+  basesstate: string | null;
+  homescore: number | null;
+  awayscore: number | null;
+  challengeteamname: string | null;
+  challengeplayername: string | null;
+  calleddescription: string | null;
+  isoverturned: boolean;
+  impacttype: string | null;
+  missdistance: number | null;
+};
+
 async function requireEditorialAdmin(request: Request) {
-  const viewer = await getViewerProfile(request);
-  if (!viewer?.isVerified) {
-    throw new Error("Verified identity required");
-  }
+  const viewer = await requireOwnerAdmin(request);
   assertValidCsrf(request);
-  requireRole(viewer.roles, "admin");
   return viewer;
 }
 
@@ -340,9 +428,10 @@ async function runGenerationStep<T>(
     generationRunId: string;
     stepKey: GazetteStepKey;
     agentName: string;
+    provider?: string | null;
     modelName?: string | null;
     inputPayload: unknown;
-    execute: () => Promise<T>;
+    execute: () => Promise<T | StepExecutionResult<T>>;
   },
 ) {
   await query(
@@ -352,13 +441,15 @@ async function runGenerationStep<T>(
       step_key,
       agent_name,
       status,
+      provider,
       model_name,
       input_payload
     )
-    VALUES ($1, $2, $3, 'running', $4, $5)
+    VALUES ($1, $2, $3, 'running', $4, $5, $6)
     ON CONFLICT (generation_run_id, step_key) DO UPDATE SET
       agent_name = EXCLUDED.agent_name,
       status = 'running',
+      provider = EXCLUDED.provider,
       model_name = EXCLUDED.model_name,
       input_payload = EXCLUDED.input_payload,
       output_payload = NULL,
@@ -366,20 +457,75 @@ async function runGenerationStep<T>(
       finished_at = NULL,
       started_at = NOW()
     `,
-    [input.generationRunId, input.stepKey, input.agentName, input.modelName ?? null, input.inputPayload ?? null],
+    [
+      input.generationRunId,
+      input.stepKey,
+      input.agentName,
+      input.provider ?? null,
+      input.modelName ?? null,
+      input.inputPayload ?? null,
+    ],
   );
 
   try {
-    const output = await input.execute();
+    const result = await input.execute();
+    const stepResult = isStepExecutionResult(result) ? result : { output: result };
+    const generationId =
+      stepResult.generationTargetType && stepResult.generationTargetId
+        ? await recordAiGenerationEventWithQuery(query, {
+            surfaceKey:
+              input.stepKey === "author_draft"
+                ? "gazette_daily_author"
+                : input.stepKey === "editor_validation"
+                  ? "gazette_daily_validation"
+                  : "gazette_daily_author",
+            surfaceDetail: input.stepKey,
+            targetType: stepResult.generationTargetType,
+            targetId: stepResult.generationTargetId,
+            provider: stepResult.provider ?? input.provider ?? "deterministic",
+            modelName: stepResult.modelName ?? input.modelName ?? "deterministic",
+            promptVersion: stepResult.promptVersion ?? null,
+            inputTokens: stepResult.inputTokens ?? 0,
+            outputTokens: stepResult.outputTokens ?? 0,
+            estimatedCostUsd: stepResult.estimatedCostUsd ?? 0,
+            latencyMs: stepResult.latencyMs ?? null,
+            status: stepResult.generationStatus ?? "succeeded",
+            metadata: stepResult.generationMetadata ?? null,
+          })
+        : null;
     await query(
       `
       UPDATE editorial.generation_steps
-      SET status = 'success', output_payload = $3, finished_at = NOW()
+      SET
+        status = 'success',
+        provider = $3,
+        model_name = $4,
+        input_tokens = $5,
+        output_tokens = $6,
+        estimated_cost_usd = $7,
+        latency_ms = $8,
+        prompt_tokens = COALESCE($5, prompt_tokens),
+        completion_tokens = COALESCE($6, completion_tokens),
+        cost_usd = COALESCE($7, cost_usd),
+        generation_id = $9,
+        output_payload = $10,
+        finished_at = NOW()
       WHERE generation_run_id = $1 AND step_key = $2
       `,
-      [input.generationRunId, input.stepKey, output ?? null],
+      [
+        input.generationRunId,
+        input.stepKey,
+        stepResult.provider ?? input.provider ?? null,
+        stepResult.modelName ?? input.modelName ?? null,
+        stepResult.inputTokens ?? null,
+        stepResult.outputTokens ?? null,
+        stepResult.estimatedCostUsd ?? null,
+        stepResult.latencyMs ?? null,
+        generationId,
+        stepResult.output ?? null,
+      ],
     );
-    return output;
+    return stepResult.output;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Generation step failed";
     await query(
@@ -1010,6 +1156,140 @@ export async function listDailyEditorialSummary(sourceDate: string): Promise<Dai
   };
 }
 
+function buildAuthorPrompt(params: {
+  sourceDate: string;
+  author: (typeof EDITORIAL_STAFF)[number];
+  summary: DailyEditorialSummary | null;
+  scout: ScoutBriefPayload;
+  telemetry: TelemetryResearchPayload;
+  baseDraft: GazetteDraftPayload;
+}) {
+  return [
+    `You are ${params.author.name}, the ${params.author.role} for the AiBS Gazette.`,
+    `Write the daily ABS recap for the ${params.sourceDate} slate.`,
+    "Use only the supplied evidence and section skeleton.",
+    "Return strict JSON only with keys: title, dek, sections.",
+    "Each section must include: sectionKey, heading, bodyMd.",
+    "Preserve the section keys from the provided skeleton.",
+    "Keep facts grounded in the evidence packet. Do not invent box scores, standings changes, or player events that are not supplied.",
+    "Write in a sharp baseball-desk voice with short readable paragraphs and light editorial energy.",
+    "Do not add sections.",
+    "Do not remove sections.",
+    "",
+    `Summary evidence: ${JSON.stringify(params.summary ?? null)}`,
+    `Scout brief: ${JSON.stringify(params.scout)}`,
+    `Telemetry research: ${JSON.stringify(params.telemetry)}`,
+    `Section skeleton: ${JSON.stringify(
+      params.baseDraft.sections.map((section) => ({
+        sectionKey: section.sectionKey,
+        heading: section.heading,
+        bodyMd: section.bodyMd,
+      })),
+    )}`,
+  ].join("\n");
+}
+
+async function buildModelBackedDailyGazetteDraft(
+  sourceDate: string,
+  author: (typeof EDITORIAL_STAFF)[number],
+  summary: DailyEditorialSummary | null,
+  standings: Awaited<ReturnType<typeof getStandingsSnapshot>>,
+  scout: ScoutBriefPayload,
+  telemetry: TelemetryResearchPayload,
+  generationRunId: string,
+) {
+  const baseDraft = buildDailyGazetteDraft(sourceDate, author, summary, standings, scout, telemetry);
+  const config = getGazetteStepConfig("author_draft" satisfies GazetteRegistryStepKey);
+
+  if (config.provider !== "openai" || !openai || !config.modelName) {
+    return {
+      output: baseDraft,
+      provider: config.provider === "openai" ? "template" : config.provider,
+      modelName: config.modelName ?? "deterministic",
+      promptVersion: config.promptVersion,
+      generationTargetType: "editorial_generation_run",
+      generationTargetId: generationRunId,
+      generationStatus: "fallback" as const,
+      generationMetadata: { reason: "model_unavailable", sourceDate },
+    };
+  }
+
+  const prompt = buildAuthorPrompt({
+    sourceDate,
+    author,
+    summary,
+    scout,
+    telemetry,
+    baseDraft,
+  });
+
+  const startedAt = Date.now();
+
+  try {
+    const response = await openai.responses.create({
+      model: config.modelName,
+      temperature: 0.45,
+      input: prompt,
+    });
+    const raw = stripCodeFences(response.output_text?.trim() || "");
+    const parsed = AUTHOR_DRAFT_RESPONSE_SCHEMA.parse(JSON.parse(raw));
+    const mergedSections = baseDraft.sections.map((section, index) => {
+      const matched = parsed.sections.find((candidate) => candidate.sectionKey === section.sectionKey);
+      return {
+        ...section,
+        heading: matched?.heading ?? section.heading,
+        bodyMd: matched?.bodyMd ?? section.bodyMd,
+        sectionOrder: index + 1,
+      };
+    });
+    const output: GazetteDraftPayload = {
+      ...baseDraft,
+      title: parsed.title,
+      dek: parsed.dek,
+      sections: mergedSections,
+      bodyMd: mergedSections.map((section) => `## ${section.heading}\n\n${section.bodyMd}`).join("\n\n"),
+    };
+
+    const inputTokens = response.usage?.input_tokens ?? Math.ceil(prompt.length / 4);
+    const outputTokens = response.usage?.output_tokens ?? Math.ceil(output.bodyMd.length / 4);
+
+    return {
+      output,
+      provider: "openai",
+      modelName: config.modelName,
+      promptVersion: config.promptVersion,
+      inputTokens,
+      outputTokens,
+      estimatedCostUsd: estimateAiCostUsd({
+        provider: "openai",
+        modelName: config.modelName,
+        inputTokens,
+        outputTokens,
+      }),
+      latencyMs: Date.now() - startedAt,
+      generationTargetType: "editorial_generation_run",
+      generationTargetId: generationRunId,
+      generationMetadata: {
+        sourceDate,
+        author: author.name,
+        sectionCount: mergedSections.length,
+      },
+      generationStatus: "succeeded" as const,
+    };
+  } catch {
+    return {
+      output: baseDraft,
+      provider: "template",
+      modelName: config.modelName,
+      promptVersion: config.promptVersion,
+      generationTargetType: "editorial_generation_run",
+      generationTargetId: generationRunId,
+      generationMetadata: { reason: "author_parse_or_model_failure", sourceDate },
+      generationStatus: "fallback" as const,
+    };
+  }
+}
+
 export async function listWeeklyEditorialSummary(weekStart: string): Promise<WeeklyEditorialSummary | null> {
   const row = await sqlOne<{
     weekstart: string;
@@ -1077,6 +1357,77 @@ export async function getStandingsSnapshot(sourceDate: string) {
   );
 }
 
+async function listDailyControversyMoments(sourceDate: string, limit = 5) {
+  const rows = await sql<GazetteMomentRow>(
+    `
+    SELECT
+      c.challenge_id AS challengeId,
+      c.game_pk AS gamePk,
+      c.challenged_at AS challengedAt,
+      c.inning,
+      c.balls,
+      c.strikes,
+      c.outs,
+      c.bases_state AS basesState,
+      c.home_score AS homeScore,
+      c.away_score AS awayScore,
+      c.challenge_team_name AS challengeTeamName,
+      c.challenge_player_name AS challengePlayerName,
+      c.called_description AS calledDescription,
+      c.is_overturned AS isOverturned,
+      c.impact_type AS impactType,
+      CASE
+        WHEN COALESCE(c.px, c.inferred_px) IS NOT NULL
+          AND COALESCE(c.pz, c.inferred_pz) IS NOT NULL
+          AND COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) IS NOT NULL
+          AND COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) IS NOT NULL
+        THEN GREATEST(
+          ABS(COALESCE(c.px, c.inferred_px)) - 0.83,
+          COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) - COALESCE(c.pz, c.inferred_pz),
+          COALESCE(c.pz, c.inferred_pz) - COALESCE(c.strike_zone_top, c.inferred_strike_zone_top),
+          0
+        )
+        ELSE NULL
+      END AS missDistance
+    FROM abs_challenges c
+    JOIN games g ON g.game_pk = c.game_pk
+    WHERE g.game_date = $1::date
+    ORDER BY c.challenged_at ASC NULLS LAST, c.challenge_id ASC
+    `,
+    [sourceDate],
+  );
+
+  const total = Math.max(1, rows.length - 1);
+  return rows
+    .map((row, index, all) => {
+      const scored = scoreControversyMoment({
+        inning: row.inning,
+        homeScore: row.homescore,
+        awayScore: row.awayscore,
+        outs: row.outs,
+        basesState: row.basesstate,
+        balls: row.balls,
+        strikes: row.strikes,
+        isOverturned: row.isoverturned,
+        impactType: row.impacttype,
+        missDistance: row.missdistance,
+        slateProgress: all.length <= 1 ? 1 : 1 - index / total,
+      });
+
+      return {
+        challengeId: row.challengeid,
+        gamePk: row.gamepk,
+        challengeTeamName: row.challengeteamname,
+        playerName: row.challengeplayername,
+        calledDescription: row.calleddescription,
+        score: scored.score,
+        reasonChips: scored.chips,
+      };
+    })
+    .sort((left, right) => right.score - left.score)
+    .slice(0, limit);
+}
+
 export async function listLeagueStandingsWithMovement(sourceDate: string) {
   const prevDate = format(subDays(new Date(sourceDate), 1), "yyyy-MM-dd");
 
@@ -1127,7 +1478,11 @@ export async function listLeagueStandingsWithMovement(sourceDate: string) {
   };
 }
 
-function buildScoutBrief(sourceDate: string, summary: DailyEditorialSummary | null): ScoutBriefPayload {
+function buildScoutBrief(
+  sourceDate: string,
+  summary: DailyEditorialSummary | null,
+  controversyMoments: Awaited<ReturnType<typeof listDailyControversyMoments>>,
+): ScoutBriefPayload {
   const teamSummaries = Array.isArray(summary?.teamSummaries) ? summary.teamSummaries : [];
   const leadCandidates = teamSummaries
     .filter((team): team is Record<string, unknown> => typeof team === "object" && team !== null)
@@ -1146,6 +1501,7 @@ function buildScoutBrief(sourceDate: string, summary: DailyEditorialSummary | nu
         theme: "insufficient_evidence",
         summary: `Source marts were incomplete for ${sourceDate}, so the Gazette desk could not identify a lead story.`,
       },
+      marqueeMoment: null,
       leadCandidates: [],
       auditCandidates: [{ kind: "data_gap", label: "Daily editorial marts incomplete" }],
       milestones: [],
@@ -1153,12 +1509,22 @@ function buildScoutBrief(sourceDate: string, summary: DailyEditorialSummary | nu
     };
   }
 
+  const marqueeMoment = controversyMoments[0] ?? null;
+  const storyOfDay = marqueeMoment
+    ? {
+        headline: `${marqueeMoment.challengeTeamName ?? "League"} owned the loudest ABS moment`,
+        theme: "controversy_hero",
+        summary: `${marqueeMoment.playerName ?? marqueeMoment.challengeTeamName ?? "A challenged call"} highlighted the slate with ${marqueeMoment.reasonChips.join(", ").toLowerCase()}.`,
+      }
+    : {
+        headline: `${summary.challengesTotal} challenges shaped ${summary.gamesTracked} games`,
+        theme: "league_daily_recap",
+        summary: `${summary.teamsChallenging} teams used ABS with an overturn rate of ${(summary.overturnRate * 100).toFixed(1)}%.`,
+      };
+
   return {
-    storyOfDay: {
-      headline: `${summary.challengesTotal} challenges shaped ${summary.gamesTracked} games`,
-      theme: "league_daily_recap",
-      summary: `${summary.teamsChallenging} teams used ABS with an overturn rate of ${(summary.overturnRate * 100).toFixed(1)}%.`,
-    },
+    storyOfDay,
+    marqueeMoment,
     leadCandidates,
     auditCandidates: leadCandidates.length
       ? leadCandidates.slice(0, 1).map((team) => ({
@@ -1175,6 +1541,7 @@ function buildScoutBrief(sourceDate: string, summary: DailyEditorialSummary | nu
     leagueNotes: [
       `${summary.gamesTracked} tracked games fed the desk package.`,
       `${summary.avgTeamChallenges.toFixed(2)} average team challenges per active club.`,
+      marqueeMoment ? `Top moment chips: ${marqueeMoment.reasonChips.join(", ")}.` : "No marquee moment cleared the desk threshold.",
     ],
   };
 }
@@ -1183,16 +1550,25 @@ function buildTelemetryResearch(
   sourceDate: string,
   summary: DailyEditorialSummary | null,
   standingsPulse: Awaited<ReturnType<typeof listLeagueStandingsWithMovement>>,
+  teamLeaderboard: TeamLeaderboardEntry[],
+  umpireLeaderboard: UmpireLeaderboardEntry[],
+  controversyMoments: Awaited<ReturnType<typeof listDailyControversyMoments>>,
 ): TelemetryResearchPayload {
   const evidenceRefs = [{ kind: "summary_mart", key: "mart_daily_editorial_summary", sourceDate }];
   if (standingsPulse) {
     evidenceRefs.push({ kind: "standings_snapshot", key: "editorial.standings_snapshots", sourceDate });
   }
 
+  const topTeamStyle = [...teamLeaderboard].sort((left, right) => right.overturnRate - left.overturnRate)[0] ?? null;
+  const watchUmpire = [...umpireLeaderboard].sort((left, right) => left.reportCardScore - right.reportCardScore)[0] ?? null;
+
   return {
     trendSummary: summary
       ? `League overturn rate settled at ${(summary.overturnRate * 100).toFixed(1)}%, with ${summary.teamsChallenging} clubs challenging at least once.`
       : `No validated daily trendline could be generated for ${sourceDate}.`,
+    topTeamStyle,
+    watchUmpire,
+    controversyMoments,
     chartIntents: standingsPulse
       ? [
           {
@@ -1201,8 +1577,27 @@ function buildTelemetryResearch(
             sectionKey: "standings_pulse",
             datasetKey: "editorial.standings_snapshots",
           },
+          ...(controversyMoments.length
+            ? [
+                {
+                  chartKey: "daily_moment_scores",
+                  title: "Top ABS Moments",
+                  sectionKey: "data_lab",
+                  datasetKey: "abs_challenges",
+                } as const,
+              ]
+            : []),
         ]
-      : [],
+      : controversyMoments.length
+        ? [
+            {
+              chartKey: "daily_moment_scores",
+              title: "Top ABS Moments",
+              sectionKey: "data_lab",
+              datasetKey: "abs_challenges",
+            },
+          ]
+        : [],
     standingsPulse,
     evidenceRefs,
   };
@@ -1232,21 +1627,61 @@ function buildDailyGazetteDraft(
         {
           sectionKey: "lead_recap",
           sectionKind: "fact",
-          heading: "League Snapshot",
+          heading: scout.storyOfDay.headline,
           bodyMd: `${scout.storyOfDay.summary} The desk tracked **${summary.gamesTracked}** games and **${summary.challengesTotal}** challenges on ${sourceDate}.`,
           sectionOrder: 1,
           evidencePayload: {
             summary,
             scoutStory: scout.storyOfDay,
+            marqueeMoment: scout.marqueeMoment,
           },
         },
         {
           sectionKey: "stat_recap",
           sectionKind: "derived_metric",
           heading: "ABS Trendline",
-          bodyMd: telemetry.trendSummary,
+          bodyMd: `${telemetry.trendSummary} ${telemetry.topTeamStyle ? `The sharpest current-season team identity belongs to **${telemetry.topTeamStyle.teamName}**, which still reads as **${telemetry.topTeamStyle.style}** in the broader model.` : ""}`,
           sectionOrder: 2,
           evidencePayload: derivedMetricsPayload,
+        },
+        {
+          sectionKey: "data_lab",
+          sectionKind: "derived_metric",
+          heading: "The Data Lab",
+          bodyMd: telemetry.controversyMoments.length
+            ? `Today's loudest ABS moments clustered around **${telemetry.controversyMoments[0]?.challengeTeamName ?? "the league lead"}**, with the top challenges separated by leverage and direct impact rather than pure volume alone.`
+            : "No validated controversy cluster was strong enough to generate a Data Lab graphic for this slate.",
+          sectionOrder: 3,
+          evidencePayload: telemetry.controversyMoments.length
+            ? {
+                chartType: "bar",
+                data: telemetry.controversyMoments.map((moment) => ({
+                  label: moment.challengeTeamName ?? "Challenge",
+                  score: Number(moment.score.toFixed(1)),
+                })),
+                xAxisKey: "label",
+                yAxisKey: "score",
+                chartTitle: "Top ABS Moments",
+              }
+            : { chartType: "bar", data: [], xAxisKey: "label", yAxisKey: "score", chartTitle: "Top ABS Moments" },
+        },
+        {
+          sectionKey: "audit_desk",
+          sectionKind: "fact",
+          heading: "The Audit Desk",
+          bodyMd: telemetry.watchUmpire
+            ? `The desk's most notable current-season watch remains **${telemetry.watchUmpire.umpireName}**, graded **${telemetry.watchUmpire.grade}** with a **${telemetry.watchUmpire.orgDescriptor.toLowerCase()}** profile.`
+            : "No umpire profile carried enough evidence to anchor the Audit Desk today.",
+          sectionOrder: 4,
+          evidencePayload: telemetry.watchUmpire
+            ? {
+                umpireName: telemetry.watchUmpire.umpireName,
+                stability: telemetry.watchUmpire.orgDescriptor,
+                accuracy: `${((1 - telemetry.watchUmpire.overturnRate) * 100).toFixed(1)}%`,
+                reversed: `${telemetry.watchUmpire.overturnedCalls}/${telemetry.watchUmpire.challengedCalls}`,
+                context: `Current-season report card ${telemetry.watchUmpire.grade} with ${telemetry.watchUmpire.confidence} confidence and ${telemetry.watchUmpire.riskTier.toLowerCase()} watch-tier framing.`,
+              }
+            : { context: "No audit subject available." },
         },
         {
           sectionKey: "standings_pulse",
@@ -1255,8 +1690,23 @@ function buildDailyGazetteDraft(
           bodyMd: telemetry.standingsPulse
             ? `Standings movement through **${sourceDate}** is attached to the Gazette pulse, with both leagues compared to the previous snapshot.`
             : `Standings snapshots were not available for **${sourceDate}**, so the desk held this section to a factual placeholder.`,
-          sectionOrder: 3,
+          sectionOrder: 5,
           evidencePayload: telemetry.standingsPulse ?? { al: [], nl: [] },
+        },
+        {
+          sectionKey: "scout_notes",
+          sectionKind: "fact",
+          heading: "Scout's Notes",
+          bodyMd: [
+            ...scout.leagueNotes.map((note) => `- ${note}`),
+            ...scout.leadCandidates.slice(0, 2).map((candidate) => `- Team ${candidate.teamId} logged ${candidate.challengeTotal} challenges at a ${(candidate.overturnRate * 100).toFixed(1)}% overturn rate.`),
+          ].join("\n"),
+          sectionOrder: 6,
+          evidencePayload: {
+            leadCandidates: scout.leadCandidates,
+            milestones: scout.milestones,
+            auditCandidates: scout.auditCandidates,
+          },
         },
       ]
     : [];
@@ -1324,10 +1774,13 @@ function buildGazetteValidation(draft: GazetteDraftPayload): GazetteValidationPa
 }
 
 export async function generateDailyAutoArticle(sourceDate: string, options: GenerateDailyAutoArticleOptions = {}) {
-  const [summary, standings, standingsPulse] = await Promise.all([
+  const [summary, standings, standingsPulse, controversyMoments, teamLeaderboard, umpireLeaderboard] = await Promise.all([
     listDailyEditorialSummary(sourceDate),
     getStandingsSnapshot(sourceDate),
     listLeagueStandingsWithMovement(sourceDate),
+    listDailyControversyMoments(sourceDate),
+    getTeamLeaderboardModel("season"),
+    getUmpireLeaderboardModel("season"),
   ]);
 
   const autoPublishFrozen = process.env.ARTICLE_AUTOPUBLISH_FREEZE === "true";
@@ -1344,6 +1797,7 @@ export async function generateDailyAutoArticle(sourceDate: string, options: Gene
         summaryAvailable: Boolean(summary),
         standingsCount: standings.length,
         standingsPulseAvailable: Boolean(standingsPulse),
+        controversyMomentCount: controversyMoments.length,
       },
     });
 
@@ -1351,30 +1805,37 @@ export async function generateDailyAutoArticle(sourceDate: string, options: Gene
       generationRunId,
       stepKey: "scout_brief",
       agentName: ANALYST_STAFF[1]!.name,
-      inputPayload: { sourceDate, summary },
-      execute: async () => buildScoutBrief(sourceDate, summary),
+      provider: "deterministic",
+      inputPayload: { sourceDate, summary, controversyMoments },
+      execute: async () => buildScoutBrief(sourceDate, summary, controversyMoments),
     });
 
     const telemetry = await runGenerationStep(query, {
       generationRunId,
       stepKey: "telemetry_research",
       agentName: ANALYST_STAFF[0]!.name,
-      inputPayload: { sourceDate, summary, standingsPulse },
-      execute: async () => buildTelemetryResearch(sourceDate, summary, standingsPulse),
+      provider: "deterministic",
+      inputPayload: { sourceDate, summary, standingsPulse, teamCount: teamLeaderboard.length, umpireCount: umpireLeaderboard.length },
+      execute: async () => buildTelemetryResearch(sourceDate, summary, standingsPulse, teamLeaderboard, umpireLeaderboard, controversyMoments),
     });
 
+    const authorStepConfig = getGazetteStepConfig("author_draft");
     const draft = await runGenerationStep(query, {
       generationRunId,
       stepKey: "author_draft",
       agentName: author.name,
+      provider: authorStepConfig.provider,
+      modelName: authorStepConfig.modelName,
       inputPayload: { sourceDate, scout, telemetry, standingsCount: standings.length },
-      execute: async () => buildDailyGazetteDraft(sourceDate, author, summary, standings, scout, telemetry),
+      execute: async () =>
+        buildModelBackedDailyGazetteDraft(sourceDate, author, summary, standings, scout, telemetry, generationRunId),
     });
 
     const validation = await runGenerationStep(query, {
       generationRunId,
       stepKey: "editor_validation",
       agentName: "Gazette Validator",
+      provider: "deterministic",
       inputPayload: { sourceDate, sectionCount: draft.sections.length },
       execute: async () => buildGazetteValidation(draft),
     });
@@ -1388,6 +1849,7 @@ export async function generateDailyAutoArticle(sourceDate: string, options: Gene
       generationRunId,
       stepKey: "persist_article",
       agentName: "Gazette Publisher",
+      provider: "deterministic",
       inputPayload: { sourceDate, articleStatus, validationState, slug },
       execute: async () => {
         const rows = await query<{ articleid: string }>(

@@ -4,6 +4,7 @@ const claimQueuedJobsMock = vi.fn();
 const markJobSuccessMock = vi.fn();
 const markJobFailureMock = vi.fn();
 const executeQueuedChatJobMock = vi.fn();
+const classifyFeedbackMock = vi.fn();
 const generateDailyAutoArticleMock = vi.fn();
 
 vi.mock("@/lib/server/job-queue", () => ({
@@ -16,6 +17,10 @@ vi.mock("@/lib/server/ai-chat", () => ({
   executeQueuedChatJob: executeQueuedChatJobMock,
 }));
 
+vi.mock("@/lib/server/ai-feedback-classifier", () => ({
+  classifyFeedback: classifyFeedbackMock,
+}));
+
 vi.mock("@/lib/server/articles", () => ({
   generateDailyAutoArticle: generateDailyAutoArticleMock,
 }));
@@ -26,6 +31,7 @@ describe("worker-jobs", () => {
     markJobSuccessMock.mockReset();
     markJobFailureMock.mockReset();
     executeQueuedChatJobMock.mockReset();
+    classifyFeedbackMock.mockReset();
     generateDailyAutoArticleMock.mockReset();
   });
 
@@ -89,5 +95,35 @@ describe("worker-jobs", () => {
       }),
     );
     expect(markJobFailureMock).toHaveBeenCalledWith("job-2", "daily auto failed", expect.any(Object));
+  });
+
+  it("processes queued feedback classification jobs", async () => {
+    const { processQueuedJobs } = await import("@/lib/server/worker-jobs");
+    claimQueuedJobsMock.mockResolvedValueOnce([
+      {
+        jobRunId: "job-3",
+        jobName: "ai_feedback_classification",
+        jobType: "ai_feedback_classification",
+        queueClass: "article_generation",
+        ownerUserId: null,
+        status: "running",
+        payload: {
+          feedbackId: "feedback-1",
+        },
+      },
+    ]);
+    classifyFeedbackMock.mockResolvedValueOnce({
+      bucket: "baseball_logic",
+      confidence: "high",
+      notes: "User flagged baseball logic issues.",
+      source: "rules",
+      modelName: "rules",
+    });
+
+    const result = await processQueuedJobs(1);
+
+    expect(result.claimedCount).toBe(1);
+    expect(classifyFeedbackMock).toHaveBeenCalledWith("feedback-1");
+    expect(markJobSuccessMock).toHaveBeenCalledOnce();
   });
 });

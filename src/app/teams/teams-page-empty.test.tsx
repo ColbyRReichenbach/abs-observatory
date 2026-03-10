@@ -8,7 +8,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/lib/data", () => ({
-  getTeamLeaderboard: vi.fn(async () => []),
+  getTeamLeaderboardModel: vi.fn(async () => []),
   getTeamTrendSparklines: vi.fn(async () => []),
 }));
 

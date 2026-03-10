@@ -48,9 +48,37 @@ vi.mock("@/lib/data", () => ({
     rhythm: [],
     extremes: [],
   })),
-  getUmpireLeaderboard: vi.fn(async () => [
-    { umpireId: 44, umpireName: "Test Umpire", challengedCalls: 18, overturnedCalls: 9, overturnRate: 0.5, gamesWorked: 12 },
-    { umpireId: 99, umpireName: "Other Umpire", challengedCalls: 20, overturnedCalls: 6, overturnRate: 0.3, gamesWorked: 15 },
+  getUmpireLeaderboardModel: vi.fn(async () => [
+    {
+      umpireId: 44,
+      umpireName: "Test Umpire",
+      challengedCalls: 18,
+      overturnedCalls: 9,
+      confirmedCalls: 9,
+      overturnRate: 0.5,
+      gamesWorked: 12,
+      reportCardScore: 58,
+      grade: "C",
+      fanDescriptor: "Uneasy",
+      orgDescriptor: "Monitor",
+      confidence: "medium",
+      riskTier: "Moderate",
+    },
+    {
+      umpireId: 99,
+      umpireName: "Other Umpire",
+      challengedCalls: 20,
+      overturnedCalls: 6,
+      confirmedCalls: 14,
+      overturnRate: 0.3,
+      gamesWorked: 15,
+      reportCardScore: 74,
+      grade: "B",
+      fanDescriptor: "Balanced",
+      orgDescriptor: "Stable profile",
+      confidence: "high",
+      riskTier: "Low",
+    },
   ]),
   getUmpirePitchTypeBreakdown: vi.fn(async () => []),
   getUmpireSeasonTrend: vi.fn(async () => []),
@@ -71,5 +99,6 @@ describe("umpire detail page", () => {
     expect(html).toContain("Directional Bias");
     expect(html).toContain("Situational Hotspots");
     expect(html).toContain("3-2");
+    expect(html).toContain("Report Card");
   });
 });

@@ -1,4 +1,6 @@
 # Sprint 9 Backend Implementation Plan
+
+> Sprint 9 product decisions are now summarized in [product-source-of-truth.md](./product-source-of-truth.md). Keep this file as the deferred backend implementation appendix.
 *Backend companion to [sprint-plan.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/sprint-plan.md) for deferred/frontend-blocked items.*
 
 ## Purpose

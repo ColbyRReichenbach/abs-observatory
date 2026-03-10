@@ -1,4 +1,6 @@
 # ABS Observatory — Comprehensive Sprint Plan
+
+> Execution history and detailed sprint notes live here, but canonical product decisions now live in [product-source-of-truth.md](./product-source-of-truth.md).
 *Derived from analytics-audit.md · Every item catalogued · March 2026*
 
 > **For the implementing model (Opus):** This file is self-contained. Do not deviate from the embedded design rules below under any circumstances. Every component, chart, tooltip, color, and motion must follow these rules exactly as written. Reference `analytics-audit.md` for full narrative context on any item.

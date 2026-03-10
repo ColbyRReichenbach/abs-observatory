@@ -58,6 +58,27 @@ export type ChallengeEvent = {
   locationSource?: string | null;
   inferenceMethod?: string | null;
   inferenceConfidence?: string | null;
+  estimatedLeverageIndex?: number | null;
+  estimatedChallengeSwing?: number | null;
+  leverageBucket?: "low" | "medium" | "high" | null;
+  positiveOutcomeDelta?: number | null;
+  battingAverageDelta?: number | null;
+  walkRateDelta?: number | null;
+  strikeoutRateDelta?: number | null;
+  preRunExpectancy?: number | null;
+  postRunExpectancy?: number | null;
+  runExpectancyDelta?: number | null;
+  runExpectancyConfidence?: ConfidenceBand | null;
+  preWinExpectancy?: number | null;
+  postWinExpectancy?: number | null;
+  winExpectancyDelta?: number | null;
+  winExpectancyConfidence?: ConfidenceBand | null;
+  estimatedOverturnProbability?: number | null;
+  overturnProbabilityConfidence?: ConfidenceBand | null;
+  overturnProbabilityFallbackTier?: "exact" | "direction_only" | "global" | null;
+  expectedChallengeValue?: number | null;
+  decisionRecommendation?: "challenge" | "hold" | "cannot_challenge" | null;
+  decisionValueMode?: "win_expectancy" | "heuristic" | null;
 };
 
 export type PitchTimelineEntry = {
@@ -199,6 +220,150 @@ export type TeamSideSplit = {
   overturnRate: number;
 };
 
+export type TeamChallengeScenarioCell = {
+  rowKey: string;
+  rowLabel: string;
+  colKey: string;
+  colLabel: string;
+  challenges: number;
+  overturned: number;
+  overturnRate: number;
+  avgEstimatedLeverage: number;
+  avgPositiveOutcomeDelta: number | null;
+  avgRunExpectancyDelta: number | null;
+  avgWinExpectancyDelta: number | null;
+  highPressureShare: number;
+};
+
+export type TeamChallengeValueSummary = {
+  totalChallenges: number;
+  highPressureShare: number;
+  lowPressureShare: number;
+  rispLessThanTwoOutsShare: number;
+  averageEstimatedLeverage: number;
+  averagePositiveOutcomeDelta: number | null;
+  averageRunExpectancyDelta: number | null;
+  medianRunExpectancyDelta: number | null;
+  highRunValueShare: number;
+  lowRunValueBurnShare: number;
+  lateCloseRunValueShare: number;
+  runExpectancyConfidence: ConfidenceBand | null;
+  averageWinExpectancyDelta: number | null;
+  medianWinExpectancyDelta: number | null;
+  highWinValueShare: number;
+  lowWinValueBurnShare: number;
+  lateCloseWinValueShare: number;
+  winExpectancyConfidence: ConfidenceBand | null;
+  bestScenarioLabel: string | null;
+  bestScenarioChallenges: number;
+};
+
+export type GameChallengeOpportunityCell = {
+  rowKey: string;
+  rowLabel: string;
+  colKey: string;
+  colLabel: string;
+  homeChallenges: number;
+  awayChallenges: number;
+  homeAvgEstimatedLeverage: number;
+  awayAvgEstimatedLeverage: number;
+  homeHighPressureShare: number;
+  awayHighPressureShare: number;
+};
+
+export type GameChallengeOpportunityBoard = {
+  homeTeamId: number;
+  awayTeamId: number;
+  homeAbbreviation: string | null;
+  awayAbbreviation: string | null;
+  homePrimaryColor: string | null;
+  awayPrimaryColor: string | null;
+  cells: GameChallengeOpportunityCell[];
+};
+
+export type ChallengeValueTimelineEntry = {
+  challengeId: string;
+  challengedAt: string | null;
+  inning: number | null;
+  halfInning: string | null;
+  challengeTeamName: string | null;
+  batterName: string | null;
+  pitcherName: string | null;
+  calledDescription: string | null;
+  isOverturned: boolean;
+  countBefore: string | null;
+  umpireCount: string | null;
+  countAfter: string | null;
+  outs: number | null;
+  basesState: string | null;
+  homeScore: number | null;
+  awayScore: number | null;
+  impactType: string | null;
+  impactSummary: string | null;
+  estimatedLeverageIndex: number;
+  estimatedChallengeSwing: number;
+  leverageBucket: "low" | "medium" | "high";
+  baseStateLabel: string;
+  scoreStateLabel: string;
+  scenarioTags: string[];
+  positiveOutcomeDelta: number | null;
+  battingAverageDelta: number | null;
+  walkRateDelta: number | null;
+  preRunExpectancy: number | null;
+  postRunExpectancy: number | null;
+  runExpectancyDelta: number | null;
+  runExpectancyConfidence: ConfidenceBand | null;
+  preWinExpectancy: number | null;
+  postWinExpectancy: number | null;
+  winExpectancyDelta: number | null;
+  winExpectancyConfidence: ConfidenceBand | null;
+  estimatedOverturnProbability: number | null;
+  overturnProbabilityConfidence: ConfidenceBand | null;
+  expectedChallengeValue: number | null;
+  decisionRecommendation: "challenge" | "hold" | "cannot_challenge" | null;
+  decisionValueMode: "win_expectancy" | "heuristic" | null;
+};
+
+export type LiveChallengeWindow = {
+  inning: number | null;
+  halfInning: string | null;
+  balls: number | null;
+  strikes: number | null;
+  outs: number | null;
+  basesState: string | null;
+  homeScore: number | null;
+  awayScore: number | null;
+  estimatedLeverageIndex: number;
+  leverageBucket: "low" | "medium" | "high";
+  baseStateLabel: string;
+  scoreStateLabel: string;
+  scenarioTags: string[];
+  currentCountKey: string | null;
+  currentPositiveOutcomeRate: number | null;
+  currentRunExpectancy: number | null;
+  currentWinExpectancy: number | null;
+  nextBallCountKey: string | null;
+  nextBallPositiveOutcomeDelta: number | null;
+  nextBallRunExpectancyDelta: number | null;
+  nextBallWinExpectancyDelta: number | null;
+  nextBallOverturnProbability: number | null;
+  nextBallOverturnProbabilityConfidence: ConfidenceBand | null;
+  nextBallExpectedChallengeValue: number | null;
+  nextBallDecisionRecommendation: "challenge" | "hold" | "cannot_challenge" | null;
+  nextBallDecisionValueMode: "win_expectancy" | "heuristic" | null;
+  nextStrikeCountKey: string | null;
+  nextStrikePositiveOutcomeDelta: number | null;
+  nextStrikeRunExpectancyDelta: number | null;
+  nextStrikeWinExpectancyDelta: number | null;
+  nextStrikeOverturnProbability: number | null;
+  nextStrikeOverturnProbabilityConfidence: ConfidenceBand | null;
+  nextStrikeExpectedChallengeValue: number | null;
+  nextStrikeDecisionRecommendation: "challenge" | "hold" | "cannot_challenge" | null;
+  nextStrikeDecisionValueMode: "win_expectancy" | "heuristic" | null;
+  runExpectancyConfidence: ConfidenceBand | null;
+  winExpectancyConfidence: ConfidenceBand | null;
+};
+
 export type AIQueryResponse = {
   answer: string;
   sql: string;
@@ -211,6 +376,9 @@ export type AIQueryResponse = {
 
 export type AIChatResponse = {
   conversationId: string;
+  assistantMessageId?: string | null;
+  generationId?: string | null;
+  modelName?: string;
   answer: string;
   toolResults: Array<{ toolName: string; payload: unknown }>;
   citations: string[];
@@ -224,6 +392,8 @@ export type AIChatResponse = {
 };
 
 export type PregameIntel = {
+  homeTeamId: number;
+  awayTeamId: number;
   umpireId: number | null;
   umpireName: string | null;
   awayTeam: {
@@ -269,6 +439,8 @@ export type PregameIntel = {
 export type GameReport = {
   gamePk: number;
   generatedAt: string;
+  modelName?: string | null;
+  generationId?: string | null;
   narrativeMd: string;
   chartSpec: unknown;
 };
@@ -321,6 +493,8 @@ export type HomeChallengeMoment = {
   halfInning: string | null;
   balls: number | null;
   strikes: number | null;
+  outs?: number | null;
+  basesState?: string | null;
   umpireCount?: string | null;
   playerName: string | null;
   pitchNumber: number | null;
@@ -329,6 +503,11 @@ export type HomeChallengeMoment = {
   isOverturned: boolean;
   leverageScore: number;
   gameStatus: string;
+  homeScore?: number | null;
+  awayScore?: number | null;
+  impactType?: string | null;
+  controversyScore?: number;
+  reasonChips?: ControversyReasonChip[];
 };
 
 export interface UmpireTrendPoint {
@@ -392,4 +571,69 @@ export type UmpireSeasonTrendPoint = {
   overturnedCalls: number;
   overturnRate: number;
   gamesWorked: number;
+};
+
+export type ConfidenceBand = "low" | "medium" | "high";
+
+export type UmpireGrade = "A" | "B" | "C" | "D" | "F";
+
+export type UmpireFanDescriptor = "Reliable" | "Balanced" | "Uneasy" | "Erratic" | "Chaotic";
+
+export type UmpireOrgDescriptor =
+  | "Low-risk profile"
+  | "Stable profile"
+  | "Monitor"
+  | "Elevated risk"
+  | "High-risk profile";
+
+export type TeamStyle = "Clutch" | "Calculated" | "Trigger-Happy" | "Passive";
+
+export type TeamStyleOrgLabel =
+  | "Opportunistic"
+  | "Disciplined"
+  | "Aggressive"
+  | "Conservative";
+
+export type ControversyReasonChip =
+  | "Late Inning"
+  | "Extras"
+  | "Tie Game"
+  | "One-Run Game"
+  | "Full Count"
+  | "Bases Loaded"
+  | "RISP"
+  | "Two Outs"
+  | "Direct Impact"
+  | "Overturned"
+  | "Confirmed"
+  | "Borderline Zone"
+  | "Far Off Plate";
+
+export type OrgRiskTier = "Low" | "Moderate" | "Elevated" | "High";
+
+export type TeamLeaderboardEntry = TeamSummary & {
+  style: TeamStyle;
+  orgStyleLabel: TeamStyleOrgLabel;
+  styleConfidence: ConfidenceBand;
+  styleScores: Record<TeamStyle, number>;
+  challengeRatePerGame: number;
+  lateLeverageShare: number;
+  earlyLowLeverageShare: number;
+  avgRunExpectancyDelta: number | null;
+  highRunValueShare: number;
+  runValueConfidence: ConfidenceBand | null;
+  avgWinExpectancyDelta: number | null;
+  highWinValueShare: number;
+  winValueConfidence: ConfidenceBand | null;
+};
+
+export type UmpireLeaderboardEntry = UmpireSummary & {
+  reportCardScore: number;
+  grade: UmpireGrade;
+  fanDescriptor: UmpireFanDescriptor;
+  orgDescriptor: UmpireOrgDescriptor;
+  confidence: ConfidenceBand;
+  riskTier: OrgRiskTier;
+  overturnRateVariance: number;
+  recentOverturnRate: number | null;
 };

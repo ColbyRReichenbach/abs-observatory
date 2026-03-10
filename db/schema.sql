@@ -513,12 +513,18 @@ CREATE TABLE IF NOT EXISTS editorial.generation_steps (
   step_key TEXT NOT NULL,
   agent_name TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'queued',
+  provider TEXT,
   model_name TEXT,
+  generation_id UUID,
   conversation_id UUID,
   input_payload JSONB,
   output_payload JSONB,
   error_message TEXT,
   tool_call_count INTEGER NOT NULL DEFAULT 0,
+  input_tokens INTEGER,
+  output_tokens INTEGER,
+  estimated_cost_usd NUMERIC,
+  latency_ms INTEGER,
   prompt_tokens INTEGER,
   completion_tokens INTEGER,
   cost_usd NUMERIC,
@@ -718,6 +724,75 @@ CREATE TABLE IF NOT EXISTS ai.usage_ledger (
   CONSTRAINT ai_usage_ledger_plan_check CHECK (plan_code IN ('free', 'tier1', 'tier2', 'tier3'))
 );
 
+CREATE TABLE IF NOT EXISTS ai.generation_events (
+  generation_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES product.users(user_id) ON DELETE SET NULL,
+  session_id TEXT,
+  surface_key TEXT NOT NULL,
+  surface_detail TEXT,
+  target_type TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  route_scope TEXT,
+  route_entity_id TEXT,
+  conversation_id UUID REFERENCES ai.conversations(conversation_id) ON DELETE SET NULL,
+  message_id UUID REFERENCES ai.messages(message_id) ON DELETE SET NULL,
+  article_id UUID,
+  game_pk BIGINT REFERENCES games(game_pk) ON DELETE SET NULL,
+  provider TEXT NOT NULL,
+  model_name TEXT NOT NULL,
+  prompt_version TEXT,
+  input_tokens INTEGER NOT NULL DEFAULT 0,
+  output_tokens INTEGER NOT NULL DEFAULT 0,
+  total_tokens INTEGER NOT NULL DEFAULT 0,
+  estimated_cost_usd NUMERIC NOT NULL DEFAULT 0,
+  latency_ms INTEGER,
+  status TEXT NOT NULL,
+  cache_hit BOOLEAN NOT NULL DEFAULT FALSE,
+  metadata JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT ai_generation_events_status_check CHECK (status IN ('succeeded', 'fallback', 'failed', 'cached'))
+);
+
+CREATE TABLE IF NOT EXISTS ai.feedback (
+  feedback_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  actor_key TEXT NOT NULL,
+  user_id UUID REFERENCES product.users(user_id) ON DELETE SET NULL,
+  session_id TEXT,
+  surface TEXT NOT NULL,
+  target_type TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  sentiment TEXT NOT NULL,
+  generation_id UUID REFERENCES ai.generation_events(generation_id) ON DELETE SET NULL,
+  conversation_id UUID REFERENCES ai.conversations(conversation_id) ON DELETE SET NULL,
+  message_id UUID REFERENCES ai.messages(message_id) ON DELETE SET NULL,
+  article_id UUID,
+  game_pk BIGINT REFERENCES games(game_pk) ON DELETE SET NULL,
+  comment TEXT,
+  classification_status TEXT NOT NULL DEFAULT 'pending',
+  classification_bucket TEXT,
+  classification_confidence NUMERIC,
+  classification_notes TEXT,
+  review_status TEXT NOT NULL DEFAULT 'new',
+  review_notes TEXT,
+  reviewed_by_user_id UUID REFERENCES product.users(user_id) ON DELETE SET NULL,
+  reviewed_at TIMESTAMPTZ,
+  override_bucket TEXT,
+  metadata JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT ai_feedback_sentiment_check CHECK (sentiment IN ('up', 'down')),
+  CONSTRAINT ai_feedback_classification_status_check CHECK (classification_status IN ('pending', 'classified', 'skipped')),
+  CONSTRAINT ai_feedback_review_status_check CHECK (review_status IN ('new', 'triaged', 'resolved')),
+  CONSTRAINT ai_feedback_unique_actor_target UNIQUE (actor_key, surface, target_type, target_id)
+);
+
+ALTER TABLE IF EXISTS ai.feedback
+  ADD COLUMN IF NOT EXISTS review_status TEXT NOT NULL DEFAULT 'new',
+  ADD COLUMN IF NOT EXISTS review_notes TEXT,
+  ADD COLUMN IF NOT EXISTS reviewed_by_user_id UUID REFERENCES product.users(user_id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS override_bucket TEXT;
+
 CREATE TABLE IF NOT EXISTS ops.audit_log (
   audit_log_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   actor_user_id UUID REFERENCES product.users(user_id) ON DELETE SET NULL,
@@ -835,6 +910,193 @@ CREATE TABLE IF NOT EXISTS ops.source_snapshots (
   payload JSONB NOT NULL
 );
 
+CREATE SCHEMA IF NOT EXISTS raw;
+
+CREATE TABLE IF NOT EXISTS raw.statcast_games (
+  game_pk BIGINT PRIMARY KEY,
+  game_date DATE NOT NULL,
+  season INTEGER NOT NULL,
+  game_type TEXT NOT NULL DEFAULT 'R',
+  home_team_id INTEGER,
+  away_team_id INTEGER,
+  home_score_final INTEGER,
+  away_score_final INTEGER,
+  winning_team_id INTEGER,
+  source TEXT NOT NULL DEFAULT 'baseball_savant',
+  imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS raw.statcast_pitches (
+  game_pk BIGINT NOT NULL,
+  game_date DATE NOT NULL,
+  season INTEGER NOT NULL,
+  inning INTEGER NOT NULL,
+  half_inning TEXT NOT NULL,
+  at_bat_number INTEGER NOT NULL,
+  pitch_number INTEGER NOT NULL,
+  balls INTEGER,
+  strikes INTEGER,
+  outs INTEGER,
+  on_1b BIGINT,
+  on_2b BIGINT,
+  on_3b BIGINT,
+  bases_state TEXT,
+  home_score INTEGER,
+  away_score INTEGER,
+  bat_score INTEGER,
+  fld_score INTEGER,
+  post_bat_score INTEGER,
+  post_fld_score INTEGER,
+  score_diff_batting INTEGER,
+  batter_id BIGINT,
+  pitcher_id BIGINT,
+  stand TEXT,
+  p_throws TEXT,
+  batting_team_id INTEGER,
+  fielding_team_id INTEGER,
+  winning_team_id INTEGER,
+  pitch_type TEXT,
+  pitch_name TEXT,
+  description TEXT,
+  events TEXT,
+  plate_x NUMERIC,
+  plate_z NUMERIC,
+  is_in_play BOOLEAN NOT NULL DEFAULT FALSE,
+  is_last_pitch_of_pa BOOLEAN NOT NULL DEFAULT FALSE,
+  source_payload JSONB,
+  imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (game_pk, at_bat_number, pitch_number),
+  FOREIGN KEY (game_pk) REFERENCES raw.statcast_games(game_pk) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS raw.savant_gamefeed_games (
+  game_pk BIGINT PRIMARY KEY,
+  sport_id INTEGER NOT NULL,
+  game_date DATE NOT NULL,
+  season INTEGER NOT NULL,
+  game_type TEXT,
+  status_code TEXT,
+  status_text TEXT,
+  has_abs BOOLEAN NOT NULL DEFAULT FALSE,
+  home_team_id INTEGER,
+  away_team_id INTEGER,
+  source TEXT NOT NULL DEFAULT 'baseball_savant_gamefeed',
+  source_payload JSONB NOT NULL,
+  imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS raw.savant_abs_events (
+  game_pk BIGINT NOT NULL,
+  sport_id INTEGER NOT NULL,
+  game_date DATE NOT NULL,
+  season INTEGER NOT NULL,
+  team_side TEXT NOT NULL,
+  at_bat_number INTEGER NOT NULL,
+  pitch_number INTEGER,
+  play_id TEXT NOT NULL,
+  row_id TEXT,
+  inning INTEGER,
+  outs INTEGER,
+  balls INTEGER,
+  strikes INTEGER,
+  pre_balls INTEGER,
+  pre_strikes INTEGER,
+  team_batting TEXT,
+  team_batting_id INTEGER,
+  team_fielding TEXT,
+  team_fielding_id INTEGER,
+  batter_id BIGINT,
+  batter_name TEXT,
+  pitcher_id BIGINT,
+  pitcher_name TEXT,
+  catcher_id BIGINT,
+  catcher_name TEXT,
+  stand TEXT,
+  p_throws TEXT,
+  pitch_type TEXT,
+  pitch_name TEXT,
+  description TEXT,
+  call_name TEXT,
+  pitch_call TEXT,
+  result TEXT,
+  events TEXT,
+  is_overturned BOOLEAN NOT NULL,
+  is_batter_challenge BOOLEAN,
+  is_in_progress BOOLEAN NOT NULL DEFAULT FALSE,
+  challenge_team_id INTEGER,
+  edge_distance NUMERIC,
+  edge_distance_calc NUMERIC,
+  px NUMERIC,
+  pz NUMERIC,
+  plate_x NUMERIC,
+  plate_z NUMERIC,
+  strike_zone_top NUMERIC,
+  strike_zone_bottom NUMERIC,
+  zone INTEGER,
+  start_speed NUMERIC,
+  end_speed NUMERIC,
+  spin_rate NUMERIC,
+  context_metrics JSONB,
+  source TEXT NOT NULL DEFAULT 'baseball_savant_gamefeed',
+  source_payload JSONB NOT NULL,
+  imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (game_pk, play_id, pitch_number),
+  FOREIGN KEY (game_pk) REFERENCES raw.savant_gamefeed_games(game_pk) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS historical_pitch_states (
+  game_pk BIGINT NOT NULL,
+  game_date DATE NOT NULL,
+  season INTEGER NOT NULL,
+  inning INTEGER NOT NULL,
+  inning_bucket TEXT NOT NULL,
+  half_inning TEXT NOT NULL,
+  at_bat_number INTEGER NOT NULL,
+  pitch_number INTEGER NOT NULL,
+  balls INTEGER,
+  strikes INTEGER,
+  outs INTEGER,
+  count_key TEXT,
+  bases_state TEXT NOT NULL,
+  on_1b BOOLEAN NOT NULL DEFAULT FALSE,
+  on_2b BOOLEAN NOT NULL DEFAULT FALSE,
+  on_3b BOOLEAN NOT NULL DEFAULT FALSE,
+  home_score INTEGER,
+  away_score INTEGER,
+  bat_score INTEGER,
+  fld_score INTEGER,
+  post_bat_score INTEGER,
+  post_fld_score INTEGER,
+  batting_team_id INTEGER,
+  fielding_team_id INTEGER,
+  winning_team_id INTEGER,
+  score_diff_batting INTEGER,
+  batter_id BIGINT,
+  pitcher_id BIGINT,
+  stand TEXT,
+  p_throws TEXT,
+  pitch_type TEXT,
+  pitch_name TEXT,
+  description TEXT,
+  events TEXT,
+  plate_x NUMERIC,
+  plate_z NUMERIC,
+  is_in_play BOOLEAN NOT NULL DEFAULT FALSE,
+  is_last_pitch_of_pa BOOLEAN NOT NULL DEFAULT FALSE,
+  positive_outcome BOOLEAN NOT NULL DEFAULT FALSE,
+  official_at_bat BOOLEAN NOT NULL DEFAULT FALSE,
+  walk_event BOOLEAN NOT NULL DEFAULT FALSE,
+  strikeout_event BOOLEAN NOT NULL DEFAULT FALSE,
+  hit_event BOOLEAN NOT NULL DEFAULT FALSE,
+  batting_team_won BOOLEAN,
+  runs_to_inning_end NUMERIC,
+  source TEXT NOT NULL DEFAULT 'statcast_backfill',
+  imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (game_pk, at_bat_number, pitch_number),
+  FOREIGN KEY (game_pk) REFERENCES raw.statcast_games(game_pk) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_product_users_external_auth ON product.users (external_auth_provider, external_auth_id);
 CREATE INDEX IF NOT EXISTS idx_product_profiles_favorite_team ON product.user_profiles (favorite_team_id);
 CREATE INDEX IF NOT EXISTS idx_editorial_articles_status_published ON editorial.articles (status, published_at DESC);
@@ -858,11 +1120,32 @@ CREATE INDEX IF NOT EXISTS idx_ai_user_entitlements_plan ON ai.user_entitlements
 CREATE INDEX IF NOT EXISTS idx_ai_usage_ledger_user_day ON ai.usage_ledger (user_id, usage_day DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_usage_ledger_user_month ON ai.usage_ledger (user_id, usage_month DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_usage_ledger_month_model ON ai.usage_ledger (usage_month, model_name);
+CREATE INDEX IF NOT EXISTS idx_ai_generation_events_created ON ai.generation_events (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_generation_events_surface_created ON ai.generation_events (surface_key, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_generation_events_provider_model_created ON ai.generation_events (provider, model_name, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_generation_events_target_created ON ai.generation_events (target_type, target_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_generation_events_game_created ON ai.generation_events (game_pk, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_generation_events_article_created ON ai.generation_events (article_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_feedback_surface_created ON ai.feedback (surface, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_feedback_sentiment_created ON ai.feedback (sentiment, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_feedback_target_created ON ai.feedback (target_type, target_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_feedback_review_status_created ON ai.feedback (review_status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_feedback_override_bucket_created ON ai.feedback (override_bucket, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ops_job_runs_status_ready ON ops.job_runs (status, queue_class, run_after, started_at);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_ops_job_runs_idempotency ON ops.job_runs (idempotency_key) WHERE idempotency_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_ops_webhook_deliveries_provider_processed ON ops.webhook_deliveries (provider, processed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ops_audit_log_action_created ON ops.audit_log (action, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ops_source_snapshots_source_entity ON ops.source_snapshots (source_name, entity_key, fetched_at DESC);
+CREATE INDEX IF NOT EXISTS idx_raw_statcast_games_season_date ON raw.statcast_games (season, game_date);
+CREATE INDEX IF NOT EXISTS idx_raw_statcast_pitches_season_date ON raw.statcast_pitches (season, game_date);
+CREATE INDEX IF NOT EXISTS idx_raw_statcast_pitches_game_atbat ON raw.statcast_pitches (game_pk, at_bat_number, pitch_number);
+CREATE INDEX IF NOT EXISTS idx_raw_savant_gamefeed_games_date ON raw.savant_gamefeed_games (sport_id, game_date);
+CREATE INDEX IF NOT EXISTS idx_raw_savant_abs_events_date ON raw.savant_abs_events (sport_id, game_date);
+CREATE INDEX IF NOT EXISTS idx_raw_savant_abs_events_team ON raw.savant_abs_events (challenge_team_id, game_date);
+CREATE INDEX IF NOT EXISTS idx_raw_savant_abs_events_game_atbat ON raw.savant_abs_events (game_pk, at_bat_number, pitch_number);
+CREATE INDEX IF NOT EXISTS idx_historical_pitch_states_season ON historical_pitch_states (season, game_date);
+CREATE INDEX IF NOT EXISTS idx_historical_pitch_states_re_state ON historical_pitch_states (inning_bucket, outs, bases_state, count_key);
+CREATE INDEX IF NOT EXISTS idx_historical_pitch_states_we_state ON historical_pitch_states (inning, half_inning, score_diff_batting, outs, bases_state, count_key);
 
 DROP TRIGGER IF EXISTS trg_product_users_touch ON product.users;
 CREATE TRIGGER trg_product_users_touch BEFORE UPDATE ON product.users FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
@@ -893,3 +1176,6 @@ CREATE TRIGGER trg_ai_conversations_touch BEFORE UPDATE ON ai.conversations FOR 
 
 DROP TRIGGER IF EXISTS trg_ai_user_entitlements_touch ON ai.user_entitlements;
 CREATE TRIGGER trg_ai_user_entitlements_touch BEFORE UPDATE ON ai.user_entitlements FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+
+DROP TRIGGER IF EXISTS trg_historical_pitch_states_touch ON historical_pitch_states;
+CREATE TRIGGER trg_historical_pitch_states_touch BEFORE UPDATE ON historical_pitch_states FOR EACH ROW EXECUTE FUNCTION touch_updated_at();

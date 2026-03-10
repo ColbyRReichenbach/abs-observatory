@@ -3,13 +3,13 @@
 import {
     RadialBarChart,
     RadialBar,
-    Legend,
     ResponsiveContainer,
     Tooltip,
     Cell,
 } from "recharts";
 import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
+import { ChartTooltip } from "@/components/ui/chart-tooltip";
 
 export function ChallengeAggressionRadial({
     data,
@@ -23,14 +23,16 @@ export function ChallengeAggressionRadial({
 
     const handleCellClick = (name: string) => {
         const next = new URLSearchParams(searchParams.toString());
-        // Map category names to filter values if necessary
-        // For now, let's assume we can set leverage or inningRange based on name
-        if (name.toLowerCase().includes("leverage")) {
-            next.set("leverage", "high");
-        } else if (name.toLowerCase().includes("inning")) {
+        const label = name.toLowerCase();
+
+        if (label.includes("early")) {
+            next.set("inningRange", "early");
+        } else if (label.includes("middle")) {
+            next.set("inningRange", "middle");
+        } else if (label.includes("late")) {
             next.set("inningRange", "late");
-        } else if (name.toLowerCase().includes("scoring")) {
-            next.set("leverage", "high"); // Approximation for RISP
+        } else if (label.includes("extras")) {
+            next.set("inningRange", "extras");
         }
 
         router.push(`?${next.toString()}`, { scroll: false });
@@ -39,7 +41,7 @@ export function ChallengeAggressionRadial({
         name: d.category,
         value: d.count,
         fill: i % 2 === 0 ? teamColor : `${teamColor}88`,
-        rate: (d.rate * 100).toFixed(1) + "%",
+        rate: (d.rate * 100).toFixed(2) + "%",
     }));
 
     return (
@@ -72,27 +74,18 @@ export function ChallengeAggressionRadial({
                         ))}
                     </RadialBar>
                     <Tooltip
+                        wrapperStyle={{ zIndex: 10001 }}
+                        allowEscapeViewBox={{ x: true, y: true }}
                         content={({ active, payload }) => {
                             if (active && payload && payload.length) {
                                 const item = payload[0].payload;
                                 return (
-                                    <div className="bg-white/95 backdrop-blur-xl border border-gray-100 p-4 rounded-2xl shadow-2xl">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">
-                                            {item.name}
-                                        </p>
-                                        <div className="flex items-end gap-3">
-                                            <span className="text-3xl font-display text-gray-900 leading-none">
-                                                {item.value}
-                                            </span>
-                                            <span className="text-sm font-bold text-blue-600 mb-1">
-                                                Challenges
-                                            </span>
-                                        </div>
-                                        <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between gap-6">
-                                            <span className="text-[10px] font-black uppercase text-gray-400">Success Rate</span>
-                                            <span className="text-xs font-black font-mono text-gray-900">{item.rate}</span>
-                                        </div>
-                                    </div>
+                                    <ChartTooltip
+                                        title={item.name}
+                                        value={item.value}
+                                        subValueLabel="Challenges"
+                                        extra={[{ label: "Success Rate", value: item.rate }]}
+                                    />
                                 );
                             }
                             return null;

@@ -5,6 +5,7 @@ import { verifyWebhook } from "@clerk/nextjs/webhooks";
 
 import { sqlExec, sqlOne } from "@/lib/db";
 import { logServerError } from "@/lib/server/logging";
+import { syncOwnerAdminRole } from "@/lib/server/owner-admin";
 
 function getString(data: unknown, key: string): string | null {
   if (!data || typeof data !== "object") return null;
@@ -139,6 +140,30 @@ export async function POST(request: NextRequest) {
         `,
         [getString(payload, "id")],
       );
+
+      const user = await sqlOne<{ userid: string }>(
+        `
+        SELECT user_id AS userId
+        FROM product.users
+        WHERE external_auth_provider = 'clerk'
+          AND external_auth_id = $1
+        `,
+        [getString(payload, "id")],
+      );
+
+      if (user?.userid) {
+        await syncOwnerAdminRole(
+          async (statement, values = []) => {
+            await sqlExec(statement, values);
+            return [];
+          },
+          {
+            userId: user.userid,
+            authProvider: "clerk",
+            externalAuthId: getString(payload, "id") ?? "",
+          },
+        );
+      }
     }
 
     if (evt.type === "user.deleted" && getString(payload, "id")) {

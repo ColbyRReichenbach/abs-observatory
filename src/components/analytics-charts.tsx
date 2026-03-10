@@ -15,7 +15,9 @@ import {
 } from "recharts";
 import { format } from "date-fns";
 import type { TeamTrendPoint, UmpireTrendPoint } from "@/lib/types";
-import { ChartTooltip, ChartTooltipRow } from "@/components/ui/chart-tooltip";
+import { ChartTooltip } from "@/components/ui/chart-tooltip";
+
+const PERCENT_TICKS = [0, 25, 50, 75, 100];
 
 /* ── S3-5: Dual-line Team Trajectory Chart ── */
 export function TeamTrendChart({ data, teamColor }: { data: TeamTrendPoint[]; teamColor: string }) {
@@ -53,7 +55,9 @@ export function TeamTrendChart({ data, teamColor }: { data: TeamTrendPoint[]; te
                         axisLine={false}
                         tick={{ fontSize: 10, fill: "#9ca3af" }}
                         dx={-10}
-                        tickFormatter={(val) => `${val}%`}
+                        tickFormatter={(val) => `${Math.round(val)}%`}
+                        domain={[0, 100]}
+                        ticks={PERCENT_TICKS}
                     />
                     <Tooltip
                         content={({ active, payload }) => {
@@ -143,8 +147,9 @@ export function UmpireAccuracyChart({ data }: { data: UmpireTrendPoint[] }) {
                         axisLine={false}
                         tick={{ fontSize: 10, fill: "#9ca3af" }}
                         dx={-10}
-                        tickFormatter={(val) => `${val}%`}
+                        tickFormatter={(val) => `${Math.round(val)}%`}
                         domain={[0, 100]}
+                        ticks={PERCENT_TICKS}
                     />
                     <Tooltip
                         content={({ active, payload }) => {
@@ -154,7 +159,7 @@ export function UmpireAccuracyChart({ data }: { data: UmpireTrendPoint[] }) {
                                     <ChartTooltip
                                         title={d.date}
                                         value={`${d.accuracy.toFixed(1)}%`}
-                                        label="Accuracy"
+                                        subValueLabel="Accuracy"
                                         extra={[
                                             { label: "Overturned", value: d.overturned },
                                             { label: "Challenged", value: d.challenged },

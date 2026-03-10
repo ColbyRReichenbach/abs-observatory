@@ -74,15 +74,31 @@ export function TeamScheduleMorph({
 
     return (
         <section className="mt-12">
-            <div className="mb-8 flex items-center justify-between">
+            <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-600 mb-2">Historical Stream</h2>
                     <h3 className="text-3xl font-display uppercase tracking-tight text-gray-900">Schedule</h3>
                 </div>
+
+                {!isExpanded && (
+                    <motion.button
+                        className="h-10 rounded-full bg-black shadow-lg flex items-center text-white focus:outline-none overflow-hidden group hover:scale-105 transition-transform w-[40px] hover:w-[200px]"
+                        onClick={() => setIsExpanded(true)}
+                        initial={{ width: 40 }}
+                        whileHover={{ width: 200 }}
+                    >
+                        <div className="shrink-0 flex items-center justify-center w-10 h-10">
+                            <CalendarIcon size={16} />
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            View Full Schedule
+                        </span>
+                    </motion.button>
+                )}
             </div>
 
             <motion.div layout className="relative rounded-[2rem] border border-gray-100 bg-white/50 backdrop-blur-sm overflow-hidden shadow-2xl shadow-black/[0.02]">
-                <AnimatePresence mode="popLayout">
+                <AnimatePresence mode="wait">
                     {!isExpanded ? (
                         <motion.div
                             key="strip"
@@ -96,22 +112,6 @@ export function TeamScheduleMorph({
                                     <GameCard key={g.gamePk} game={g} teamId={teamId} />
                                 ))}
 
-                                {/* Expansion Button overlay on the last card */}
-                                <div className="absolute -top-4 -right-4 z-10">
-                                    <motion.button
-                                        className="h-10 rounded-full bg-black shadow-lg flex items-center text-white focus:outline-none overflow-hidden group hover:scale-105 transition-transform"
-                                        onClick={() => setIsExpanded(true)}
-                                        initial={{ width: 40 }}
-                                        whileHover={{ width: 180 }}
-                                    >
-                                        <div className="shrink-0 flex items-center justify-center w-10 h-10">
-                                            <CalendarIcon size={16} />
-                                        </div>
-                                        <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                            View Full Schedule
-                                        </span>
-                                    </motion.button>
-                                </div>
                             </div>
                         </motion.div>
                     ) : (
@@ -121,18 +121,7 @@ export function TeamScheduleMorph({
                             animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
                             exit={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}
                         >
-                            <div className="absolute top-8 right-8 z-10">
-                                <button
-                                    onClick={() => setIsExpanded(false)}
-                                    className="p-3 rounded-full bg-white shadow-lg border border-gray-100 hover:scale-105 transition-all text-gray-400 hover:text-black hover:bg-gray-50 flex items-center gap-2"
-                                >
-                                    <span className="text-[10px] font-black uppercase tracking-widest pl-2">Collapse</span>
-                                    <div className="h-6 w-6 rounded-full bg-black text-white flex items-center justify-center">
-                                        <ChevronRight size={14} className="rotate-180" />
-                                    </div>
-                                </button>
-                            </div>
-                            <LeagueCalendar games={schedule} teamId={teamId} primaryColor={primaryColor} />
+                            <LeagueCalendar games={schedule} teamId={teamId} primaryColor={primaryColor} onCollapse={() => setIsExpanded(false)} />
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -158,8 +147,8 @@ function GameCard({ game, teamId }: { game: ScheduleGame, teamId: number }) {
             )}
 
             <div className="flex justify-between items-start mb-6">
-                <span suppressHydrationWarning className={`text-[10px] font-bold uppercase tracking-widest ${isLive ? 'text-red-600' : 'text-gray-400'}`}>
-                    {date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                <span suppressHydrationWarning className={`text-[10px] font-bold uppercase tracking-widest whitespace-nowrap ${isLive ? 'text-red-600' : 'text-gray-400'}`}>
+                    {date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                 </span>
 
                 {isLive ? (
@@ -175,7 +164,7 @@ function GameCard({ game, teamId }: { game: ScheduleGame, teamId: number }) {
                 ) : (
                     <span suppressHydrationWarning className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 text-[9px] font-mono font-bold tracking-tight whitespace-nowrap">
                         <Clock size={10} />
-                        <LocalTime dateStr={game.gameDate} showDate={false} />
+                        <LocalTime dateStr={game.gameDate} showDate={false} omitTimeZone={true} />
                     </span>
                 )}
             </div>

@@ -3,6 +3,7 @@
 This document defines the exact verification gates that each sprint must pass before work can move forward.
 
 Use this together with:
+- [product-source-of-truth.md](./product-source-of-truth.md)
 - [roadmap.md](./roadmap.md)
 - [plan.md](./plan.md)
 - [stack-selection.md](./stack-selection.md)

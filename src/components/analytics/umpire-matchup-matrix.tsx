@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
@@ -19,6 +20,8 @@ export function UmpireMatchupMatrix({
     data: UmpireMatchup[];
     teamColor?: string;
 }) {
+    const [expanded, setExpanded] = useState(false);
+
     // Find the max challenges for scaling
     const maxChallenges = Math.max(...data.map(d => d.challengesTotal), 1);
 
@@ -30,9 +33,11 @@ export function UmpireMatchupMatrix({
         );
     }
 
+    const displayData = expanded ? data : data.slice(0, 3);
+
     return (
         <div className="flex flex-col gap-3">
-            {data.map((ump, i) => {
+            {displayData.map((ump, i) => {
                 const totalPct = (ump.challengesTotal / maxChallenges) * 100;
                 const successPct = ump.challengesTotal > 0 ? (ump.usedSuccessful / ump.challengesTotal) * 100 : 0;
 
@@ -99,6 +104,16 @@ export function UmpireMatchupMatrix({
                     </motion.div>
                 );
             })}
+
+            {data.length > 3 && (
+                <button
+                    onClick={() => setExpanded(!expanded)}
+                    className="mt-2 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-gray-100 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-gray-900 transition-colors"
+                >
+                    {expanded ? 'Show Less' : `View All ${data.length} Umpires`}
+                    <ChevronRight size={14} className={`transition-transform duration-300 ${expanded ? '-rotate-90' : 'rotate-90'}`} />
+                </button>
+            )}
         </div>
     );
 }

@@ -24,11 +24,13 @@ type Game = {
 export function LeagueCalendar({
     games,
     teamId,
-    primaryColor = "#007aff"
+    primaryColor = "#007aff",
+    onCollapse,
 }: {
-    games: Game[],
-    teamId: number,
-    primaryColor?: string
+    games: Game[];
+    teamId: number;
+    primaryColor?: string;
+    onCollapse?: () => void;
 }) {
     const [currentMonth, setCurrentMonth] = useState(new Date(2026, 2)); // March 2026
 
@@ -75,6 +77,17 @@ export function LeagueCalendar({
                 </div>
 
                 <div className="flex items-center gap-3">
+                    {onCollapse && (
+                        <button
+                            onClick={onCollapse}
+                            className="mr-4 lg:mr-8 p-3 rounded-full bg-white shadow-lg border border-gray-100 hover:scale-105 transition-all text-gray-400 hover:text-black hover:bg-gray-50 flex items-center gap-2"
+                        >
+                            <span className="text-[10px] font-black uppercase tracking-widest pl-2">Collapse</span>
+                            <div className="h-6 w-6 rounded-full bg-black text-white flex items-center justify-center">
+                                <ChevronRight size={14} className="rotate-180" />
+                            </div>
+                        </button>
+                    )}
                     <button
                         onClick={prevMonth}
                         className="h-12 w-12 rounded-xl border border-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-all hover:scale-105"

@@ -29,19 +29,24 @@ export function ChallengeExplorer({
 
   useEffect(() => {
     if (initialChallengeId) {
-      setSelectedChallengeId(initialChallengeId);
-      // Also reset filters so the selected pitch is visible
       const target = challenges.find(c => c.challengeId === initialChallengeId);
       if (target) {
-        setPitchType("all");
-        setBatter("all");
-        setPitcher("all");
+        const resetTimer = window.setTimeout(() => {
+          setSelectedChallengeId(initialChallengeId);
+          setPitchType("all");
+          setBatter("all");
+          setPitcher("all");
+        }, 0);
 
-        // Force scroll for better DX when deep linking
-        setTimeout(() => {
+        const scrollTimer = window.setTimeout(() => {
           const el = document.getElementById("abs-explorer");
           if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
         }, 300);
+
+        return () => {
+          window.clearTimeout(resetTimer);
+          window.clearTimeout(scrollTimer);
+        };
       }
     }
   }, [initialChallengeId, challenges]);
@@ -86,6 +91,17 @@ export function ChallengeExplorer({
       umpireCount: selected.umpireCount ?? null,
       impactType: selected.impactType ?? null,
     };
+  }, [selected]);
+  const selectedConsequence = useMemo(() => {
+    if (!selected) return null;
+    if (selected.umpireCount && selected.countAfter && selected.umpireCount !== selected.countAfter) {
+      return `Count shifted ${selected.umpireCount} -> ${selected.countAfter}`;
+    }
+    return selected.umpireCount ?? selected.countAfter ?? null;
+  }, [selected]);
+  const selectedOutcomeRead = useMemo(() => {
+    if (!selected || selected.positiveOutcomeDelta === null || selected.positiveOutcomeDelta === undefined) return null;
+    return `${selected.positiveOutcomeDelta >= 0 ? "+" : "-"}${(Math.abs(selected.positiveOutcomeDelta) * 100).toFixed(1)} pts positive outcome rate`;
   }, [selected]);
 
   useEffect(() => {
@@ -274,8 +290,22 @@ export function ChallengeExplorer({
                   </div>
                 </div>
 
+                {(selectedConsequence || selectedOutcomeRead) && (
+                  <div className="rounded-xl border border-gray-200 bg-white/70 px-4 py-3">
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--ink-3)]">
+                      Count-State Consequence
+                    </p>
+                    {selectedConsequence ? (
+                      <p className="mt-2 text-sm font-bold text-[var(--ink-1)]">{selectedConsequence}</p>
+                    ) : null}
+                    {selectedOutcomeRead ? (
+                      <p className="mt-1 text-[11px] font-medium text-[var(--ink-2)]">{selectedOutcomeRead}</p>
+                    ) : null}
+                  </div>
+                )}
+
                 {aiInsight && (
-                  <AIStatInsight {...aiInsight} />
+                  <AIStatInsight {...aiInsight} insightId={selected.challengeId} />
                 )}
               </motion.div>
             ) : (

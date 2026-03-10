@@ -2,6 +2,8 @@
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import type { UmpirePitchTypeBreakdown } from "@/lib/types";
+import { ChartTooltip } from "@/components/ui/chart-tooltip";
+import { buildLinearAxis, formatPercentTick } from "@/components/analytics/chart-axis";
 
 const PITCH_COLORS: Record<string, string> = {
     FF: "#ef4444", // 4-Seam Fastball
@@ -36,10 +38,17 @@ export function PitchTypeBreakdownChart({ data }: { data: UmpirePitchTypeBreakdo
     const chartData = data.map((d) => ({
         name: d.pitchTypeName,
         code: d.pitchTypeCode,
-        overturnRate: Math.round(d.overturnRate * 1000) / 10,
+        overturnRate: d.overturnRate * 100,
         challenged: d.challengedCount,
         overturned: d.overturnedCount,
     }));
+    const xAxis = buildLinearAxis(chartData.map((d) => d.overturnRate), {
+        step: 10,
+        padding: 5,
+        min: 0,
+        max: 100,
+        minSpan: 20,
+    });
 
     return (
         <section className="panel bg-white p-8">
@@ -57,8 +66,9 @@ export function PitchTypeBreakdownChart({ data }: { data: UmpirePitchTypeBreakdo
                     <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
                     <XAxis
                         type="number"
-                        domain={[0, "auto"]}
-                        tickFormatter={(v: number) => `${v}%`}
+                        domain={xAxis.domain}
+                        ticks={xAxis.ticks}
+                        tickFormatter={(v: number) => formatPercentTick(v)}
                         tick={{ fontSize: 10, fill: "#9ca3af" }}
                         axisLine={false}
                         tickLine={false}
@@ -72,17 +82,22 @@ export function PitchTypeBreakdownChart({ data }: { data: UmpirePitchTypeBreakdo
                         tickLine={false}
                     />
                     <Tooltip
+                        wrapperStyle={{ zIndex: 10001 }}
+                        allowEscapeViewBox={{ x: true, y: true }}
                         cursor={{ fill: "rgba(59,130,246,0.04)" }}
                         content={({ active, payload }) => {
                             if (!active || !payload?.[0]) return null;
                             const d = payload[0].payload as (typeof chartData)[number];
                             return (
-                                <div className="rounded-xl bg-white border border-gray-100 shadow-xl px-4 py-3 text-xs">
-                                    <p className="font-black text-gray-900 mb-1">{d.name} ({d.code})</p>
-                                    <p className="text-gray-500">
-                                        {d.overturned}/{d.challenged} overturned · <span className="font-bold text-blue-600">{d.overturnRate}%</span>
-                                    </p>
-                                </div>
+                                <ChartTooltip
+                                    title={`${d.name} (${d.code})`}
+                                    value={`${d.overturnRate.toFixed(2)}%`}
+                                    subValueLabel="Overturn Rate"
+                                    extra={[
+                                        { label: "Challenged", value: d.challenged },
+                                        { label: "Overturned", value: d.overturned },
+                                    ]}
+                                />
                             );
                         }}
                     />

@@ -6,8 +6,8 @@ const { sqlMock, sqlOneMock, withTransactionMock } = vi.hoisted(() => ({
   withTransactionMock: vi.fn(),
 }));
 
-const { getViewerProfileMock } = vi.hoisted(() => ({
-  getViewerProfileMock: vi.fn(),
+const { requireOwnerAdminMock } = vi.hoisted(() => ({
+  requireOwnerAdminMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -16,8 +16,8 @@ vi.mock("@/lib/db", () => ({
   withTransaction: withTransactionMock,
 }));
 
-vi.mock("@/lib/server/profiles", () => ({
-  getViewerProfile: getViewerProfileMock,
+vi.mock("@/lib/server/admin", () => ({
+  requireOwnerAdmin: requireOwnerAdminMock,
 }));
 
 import { createArticleDraft, updateArticleDraft } from "@/lib/server/articles";
@@ -27,8 +27,8 @@ describe("editorial workflow services", () => {
     sqlMock.mockReset();
     sqlOneMock.mockReset();
     withTransactionMock.mockReset();
-    getViewerProfileMock.mockReset();
-    getViewerProfileMock.mockResolvedValue({
+    requireOwnerAdminMock.mockReset();
+    requireOwnerAdminMock.mockResolvedValue({
       userId: "user-1",
       isVerified: true,
       roles: ["admin"],
