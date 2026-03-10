@@ -51,7 +51,13 @@ Current ABS challenge-state fit:
   - `38` medium
   - `2` low
 
-That means Stage 2 is now viable as a real product layer. The historical ingestion phase for RE is complete enough to shift focus toward productization and then win expectancy.
+Win expectancy is now also in active implementation:
+
+- `mart_win_expectancy_by_count_state`
+- `mart_win_expectancy_fallbacks`
+- shared lookup and fallback logic in `src/lib/server/win-expectancy.ts`
+
+That means Stage 2 is now viable as a real product layer, and Stage 3 has moved from planning into implementation.
 
 ## 1. Why This Matters
 
@@ -120,10 +126,10 @@ Defined in:
 
 ### What the repo does not have yet
 
-- true challenge-pitch win expectancy delta
-- challenge-level run expectancy modeling
-- pitch-review value surfaces that are fully productized in the UI
-- base-state visual context embedded into challenge detail views
+- fully productized win-expectancy surfaces across the app
+- team-level WE leaderboard rollups
+- expected challenge decision value
+- overturn probability by context
 
 ## 4. External Validation Opportunity
 
@@ -197,7 +203,7 @@ This stage answers:
 
 ### Stage 3: Win expectancy
 
-This is the mature version.
+This is the mature version, and the first implementation pass is now underway in the codebase.
 
 Build or validate a win expectancy model keyed by:
 
@@ -214,6 +220,12 @@ Derived outputs:
 - post-review win expectancy
 - challenge win expectancy added
 - realized vs potential win-value usage by team
+
+Current implementation status:
+
+- historical `2019-2025` state base is complete
+- WE marts and fallback hierarchy are implemented
+- next step is productization across game and team surfaces
 
 This stage answers:
 

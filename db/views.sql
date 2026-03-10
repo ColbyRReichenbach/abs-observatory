@@ -1,6 +1,8 @@
 DROP VIEW IF EXISTS mart_weekly_editorial_summary CASCADE;
 DROP VIEW IF EXISTS mart_daily_editorial_summary CASCADE;
 DROP VIEW IF EXISTS mart_team_challenge_run_value CASCADE;
+DROP VIEW IF EXISTS mart_win_expectancy_fallbacks CASCADE;
+DROP VIEW IF EXISTS mart_win_expectancy_by_count_state CASCADE;
 DROP VIEW IF EXISTS mart_run_expectancy_fallbacks CASCADE;
 DROP VIEW IF EXISTS mart_run_expectancy_by_count_state CASCADE;
 DROP VIEW IF EXISTS mart_state_coverage CASCADE;
@@ -440,6 +442,164 @@ SELECT
   END AS confidence_band
 FROM historical_pitch_states
 GROUP BY outs, bases_state;
+
+CREATE OR REPLACE VIEW mart_win_expectancy_by_count_state AS
+WITH win_states AS (
+  SELECT
+    season,
+    inning,
+    inning_bucket,
+    half_inning,
+    CASE
+      WHEN score_diff_batting <= -4 THEN 'trail4plus'
+      WHEN score_diff_batting = -3 THEN 'trail3'
+      WHEN score_diff_batting = -2 THEN 'trail2'
+      WHEN score_diff_batting = -1 THEN 'trail1'
+      WHEN score_diff_batting = 0 THEN 'tied'
+      WHEN score_diff_batting = 1 THEN 'lead1'
+      WHEN score_diff_batting = 2 THEN 'lead2'
+      WHEN score_diff_batting = 3 THEN 'lead3'
+      ELSE 'lead4plus'
+    END AS score_diff_bucket,
+    outs,
+    bases_state,
+    count_key,
+    batting_team_won
+  FROM historical_pitch_states
+  WHERE batting_team_won IS NOT NULL
+    AND inning IS NOT NULL
+    AND half_inning IS NOT NULL
+    AND outs IS NOT NULL
+    AND bases_state IS NOT NULL
+    AND count_key IS NOT NULL
+    AND score_diff_batting IS NOT NULL
+)
+SELECT
+  CONCAT(MIN(season), '-', MAX(season)) AS season_window,
+  inning,
+  inning_bucket,
+  half_inning,
+  score_diff_bucket,
+  outs,
+  bases_state,
+  count_key,
+  COUNT(*) AS sample_size,
+  AVG(CASE WHEN batting_team_won THEN 1 ELSE 0 END)::NUMERIC AS batting_team_win_probability,
+  CASE
+    WHEN COUNT(*) >= 2000 THEN 'high'
+    WHEN COUNT(*) >= 500 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM win_states
+GROUP BY inning, inning_bucket, half_inning, score_diff_bucket, outs, bases_state, count_key;
+
+CREATE OR REPLACE VIEW mart_win_expectancy_fallbacks AS
+WITH win_states AS (
+  SELECT
+    season,
+    inning,
+    inning_bucket,
+    half_inning,
+    CASE
+      WHEN score_diff_batting <= -4 THEN 'trail4plus'
+      WHEN score_diff_batting = -3 THEN 'trail3'
+      WHEN score_diff_batting = -2 THEN 'trail2'
+      WHEN score_diff_batting = -1 THEN 'trail1'
+      WHEN score_diff_batting = 0 THEN 'tied'
+      WHEN score_diff_batting = 1 THEN 'lead1'
+      WHEN score_diff_batting = 2 THEN 'lead2'
+      WHEN score_diff_batting = 3 THEN 'lead3'
+      ELSE 'lead4plus'
+    END AS score_diff_bucket,
+    outs,
+    bases_state,
+    count_key,
+    batting_team_won
+  FROM historical_pitch_states
+  WHERE batting_team_won IS NOT NULL
+    AND inning IS NOT NULL
+    AND half_inning IS NOT NULL
+    AND outs IS NOT NULL
+    AND bases_state IS NOT NULL
+    AND score_diff_batting IS NOT NULL
+)
+SELECT
+  'exact'::TEXT AS fallback_tier,
+  inning,
+  NULL::TEXT AS inning_bucket,
+  half_inning,
+  score_diff_bucket,
+  outs,
+  bases_state,
+  count_key,
+  COUNT(*) AS sample_size,
+  AVG(CASE WHEN batting_team_won THEN 1 ELSE 0 END)::NUMERIC AS batting_team_win_probability,
+  CASE
+    WHEN COUNT(*) >= 2000 THEN 'high'
+    WHEN COUNT(*) >= 500 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM win_states
+WHERE count_key IS NOT NULL
+GROUP BY inning, half_inning, score_diff_bucket, outs, bases_state, count_key
+UNION ALL
+SELECT
+  'drop_inning_to_bucket'::TEXT AS fallback_tier,
+  NULL::INTEGER AS inning,
+  inning_bucket,
+  half_inning,
+  score_diff_bucket,
+  outs,
+  bases_state,
+  count_key,
+  COUNT(*) AS sample_size,
+  AVG(CASE WHEN batting_team_won THEN 1 ELSE 0 END)::NUMERIC AS batting_team_win_probability,
+  CASE
+    WHEN COUNT(*) >= 2000 THEN 'high'
+    WHEN COUNT(*) >= 500 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM win_states
+WHERE count_key IS NOT NULL
+GROUP BY inning_bucket, half_inning, score_diff_bucket, outs, bases_state, count_key
+UNION ALL
+SELECT
+  'drop_count_key_exact_inning'::TEXT AS fallback_tier,
+  inning,
+  NULL::TEXT AS inning_bucket,
+  half_inning,
+  score_diff_bucket,
+  outs,
+  bases_state,
+  NULL::TEXT AS count_key,
+  COUNT(*) AS sample_size,
+  AVG(CASE WHEN batting_team_won THEN 1 ELSE 0 END)::NUMERIC AS batting_team_win_probability,
+  CASE
+    WHEN COUNT(*) >= 2000 THEN 'high'
+    WHEN COUNT(*) >= 500 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM win_states
+GROUP BY inning, half_inning, score_diff_bucket, outs, bases_state
+UNION ALL
+SELECT
+  'drop_count_key_bucketed_inning'::TEXT AS fallback_tier,
+  NULL::INTEGER AS inning,
+  inning_bucket,
+  half_inning,
+  score_diff_bucket,
+  outs,
+  bases_state,
+  NULL::TEXT AS count_key,
+  COUNT(*) AS sample_size,
+  AVG(CASE WHEN batting_team_won THEN 1 ELSE 0 END)::NUMERIC AS batting_team_win_probability,
+  CASE
+    WHEN COUNT(*) >= 2000 THEN 'high'
+    WHEN COUNT(*) >= 500 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM win_states
+GROUP BY inning_bucket, half_inning, score_diff_bucket, outs, bases_state;
 
 CREATE OR REPLACE VIEW mart_zone_outcome_baselines AS
 SELECT

@@ -61,6 +61,13 @@ Current ABS challenge-state coverage:
 
 Operationally, that means Layer 2 is now supported by a credible state base. The next modeling milestone is Layer 3, not more historical ingestion.
 
+Current Layer 3 status:
+
+- `mart_win_expectancy_by_count_state` is implemented
+- `mart_win_expectancy_fallbacks` is implemented
+- shared WE resolution logic exists in `src/lib/server/win-expectancy.ts`
+- first product wiring is underway for game and team challenge surfaces
+
 ## 1. Mandate
 
 If this were being reviewed inside a league or club analytics group, the model standard should be:
@@ -116,9 +123,9 @@ Those live in:
 
 What AiBS does **not** have yet:
 
-- win expectancy tables
-- challenge-level expected decision value
+- expected challenge decision value
 - overturn probability by scenario
+- final team-level WE leaderboard rollups
 
 ## 3. Public Industry Baseline
 
@@ -248,6 +255,12 @@ Challenge value:
 - `WE_delta = WE(corrected_state) - WE(held_state)`
 
 This is the correct foundation for a true challenge win-value metric.
+
+Status in AiBS:
+
+- marts implemented
+- fallback hierarchy implemented
+- initial product integration in progress
 
 ### Layer 4: Expected Challenge Decision Value
 

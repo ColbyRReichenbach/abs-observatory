@@ -2,8 +2,15 @@
 
 import { formatLeverageBucketLabel } from "@/lib/estimated-leverage";
 import type { ChallengeValueTimelineEntry } from "@/lib/types";
+import type { ViewMode } from "@/lib/view-mode";
 
-export function ChallengeValueTimeline({ entries }: { entries: ChallengeValueTimelineEntry[] }) {
+export function ChallengeValueTimeline({
+  entries,
+  viewMode,
+}: {
+  entries: ChallengeValueTimelineEntry[];
+  viewMode: ViewMode;
+}) {
   if (!entries.length) return null;
 
   const biggestSwing = [...entries].sort(
@@ -15,8 +22,13 @@ export function ChallengeValueTimeline({ entries }: { entries: ChallengeValueTim
   const biggestRunValue = [...entries]
     .filter((entry) => entry.runExpectancyDelta !== null)
     .sort((left, right) => Math.abs(right.runExpectancyDelta ?? 0) - Math.abs(left.runExpectancyDelta ?? 0))[0];
+  const biggestWinValue = [...entries]
+    .filter((entry) => entry.winExpectancyDelta !== null)
+    .sort((left, right) => Math.abs(right.winExpectancyDelta ?? 0) - Math.abs(left.winExpectancyDelta ?? 0))[0];
   const overturnedCount = entries.filter((entry) => entry.isOverturned).length;
   const maxSwing = Math.max(...entries.map((entry) => Math.abs(entry.estimatedChallengeSwing)), 1);
+  const valueHeadline = viewMode === "org" && biggestWinValue ? biggestWinValue : biggestRunValue;
+  const usesWinValue = viewMode === "org" && biggestWinValue !== undefined;
 
   return (
     <div className="mt-6 flex flex-col">
@@ -47,15 +59,28 @@ export function ChallengeValueTimeline({ entries }: { entries: ChallengeValueTim
           detail={highestPressure ? `${formatInning(highestPressure)} • ELI ${highestPressure.estimatedLeverageIndex}` : "No timeline yet."}
         />
         <SummaryCard
-          eyebrow="Run Value"
+          eyebrow={usesWinValue ? "Win Value" : "Run Value"}
           title={
-            biggestRunValue
-              ? `${biggestRunValue.challengeTeamName ?? "Team"} ${biggestRunValue.runExpectancyDelta !== null && biggestRunValue.runExpectancyDelta >= 0 ? "captured" : "lost"} the top run-value spot`
+            valueHeadline
+              ? `${valueHeadline.challengeTeamName ?? "Team"} ${
+                  usesWinValue
+                    ? valueHeadline.winExpectancyDelta !== null && valueHeadline.winExpectancyDelta >= 0
+                      ? "captured"
+                      : "lost"
+                    : valueHeadline.runExpectancyDelta !== null && valueHeadline.runExpectancyDelta >= 0
+                      ? "captured"
+                      : "lost"
+                } the top ${usesWinValue ? "win-value" : "run-value"} spot`
               : `${overturnedCount} overturned • ${entries.length - overturnedCount} confirmed`
           }
           detail={
-            biggestRunValue && biggestRunValue.runExpectancyDelta !== null
-              ? `${formatInning(biggestRunValue)} • ${signedRunValue(biggestRunValue.runExpectancyDelta)} RE`
+            valueHeadline &&
+            ((usesWinValue && valueHeadline.winExpectancyDelta !== null) || (!usesWinValue && valueHeadline.runExpectancyDelta !== null))
+              ? `${formatInning(valueHeadline)} • ${
+                  usesWinValue
+                    ? signedWinValue(valueHeadline.winExpectancyDelta ?? 0)
+                    : signedRunValue(valueHeadline.runExpectancyDelta ?? 0)
+                } ${usesWinValue ? "WE" : "RE"}`
               : `${entries.length} reviewed moments in this game narrative`
           }
         />
@@ -102,9 +127,17 @@ export function ChallengeValueTimeline({ entries }: { entries: ChallengeValueTim
                 <MetricCard label="Base / Score" value={`${entry.baseStateLabel} • ${entry.scoreStateLabel}`} />
                 <MetricCard label="Count Edge" value={deltaLabel} />
                 <MetricCard
-                  label={entry.runExpectancyDelta !== null ? "Run Value" : "At-Bat"}
+                  label={
+                    viewMode === "org" && entry.winExpectancyDelta !== null
+                      ? "Win Value"
+                      : entry.runExpectancyDelta !== null
+                        ? "Run Value"
+                        : "At-Bat"
+                  }
                   value={
-                    entry.runExpectancyDelta !== null
+                    viewMode === "org" && entry.winExpectancyDelta !== null
+                      ? `${signedWinValue(entry.winExpectancyDelta)} WE`
+                      : entry.runExpectancyDelta !== null
                       ? `${signedRunValue(entry.runExpectancyDelta)} RE`
                       : `${entry.batterName ?? "Batter"} vs ${entry.pitcherName ?? "Pitcher"}`
                   }
@@ -141,6 +174,11 @@ export function ChallengeValueTimeline({ entries }: { entries: ChallengeValueTim
 
               {entry.battingAverageDelta !== null || entry.walkRateDelta !== null ? (
                 <div className="mt-3 flex flex-wrap gap-2">
+                  {viewMode === "org" && entry.winExpectancyDelta !== null ? (
+                    <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-gray-500">
+                      WE {signedWinValue(entry.winExpectancyDelta)}
+                    </span>
+                  ) : null}
                   {entry.battingAverageDelta !== null ? (
                     <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-gray-500">
                       AVG {signedPercent(entry.battingAverageDelta)}
@@ -197,6 +235,10 @@ function signedPercent(value: number) {
 
 function signedRunValue(value: number) {
   return `${value >= 0 ? "+" : ""}${value.toFixed(3)}`;
+}
+
+function signedWinValue(value: number) {
+  return `${value >= 0 ? "+" : ""}${(value * 100).toFixed(2)}%`;
 }
 
 function SummaryCard({

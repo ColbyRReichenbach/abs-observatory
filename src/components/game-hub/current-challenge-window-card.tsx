@@ -85,9 +85,11 @@ export function CurrentChallengeWindowCard({
           <MetricCard label="Current Count" value={snapshot.currentCountKey ?? "N/A"} />
           <MetricCard label="Score State" value={snapshot.scoreStateLabel} />
           <MetricCard
-            label={viewMode === "org" ? "Current Outcome Edge" : "Current Count Value"}
+            label={viewMode === "org" && snapshot.currentWinExpectancy !== null ? "Current Win Value" : viewMode === "org" ? "Current Outcome Edge" : "Current Count Value"}
             value={
-              snapshot.currentRunExpectancy !== null
+              viewMode === "org" && snapshot.currentWinExpectancy !== null
+                ? `${(snapshot.currentWinExpectancy * 100).toFixed(2)}% WE`
+                : snapshot.currentRunExpectancy !== null
                 ? `${snapshot.currentRunExpectancy.toFixed(3)} RE`
                 : snapshot.currentPositiveOutcomeRate === null
                   ? "N/A"
@@ -128,14 +130,18 @@ export function CurrentChallengeWindowCard({
           countKey={snapshot.nextBallCountKey}
           delta={snapshot.nextBallPositiveOutcomeDelta}
           runDelta={snapshot.nextBallRunExpectancyDelta}
+          winDelta={snapshot.nextBallWinExpectancyDelta}
           tone="emerald"
+          viewMode={viewMode}
         />
         <ProjectionCard
           label="If Ball Flips To Strike"
           countKey={snapshot.nextStrikeCountKey}
           delta={snapshot.nextStrikePositiveOutcomeDelta}
           runDelta={snapshot.nextStrikeRunExpectancyDelta}
+          winDelta={snapshot.nextStrikeWinExpectancyDelta}
           tone="rose"
+          viewMode={viewMode}
         />
       </div>
 
@@ -169,13 +175,17 @@ function ProjectionCard({
   countKey,
   delta,
   runDelta,
+  winDelta,
   tone,
+  viewMode,
 }: {
   label: string;
   countKey: string | null;
   delta: number | null;
   runDelta: number | null;
+  winDelta: number | null;
   tone: "emerald" | "rose";
+  viewMode: "fan" | "org";
 }) {
   const toneClasses =
     tone === "emerald"
@@ -189,6 +199,12 @@ function ProjectionCard({
       <p className="mt-1 text-[11px] font-medium">
         {delta === null ? "No comparable count-state delta" : `${delta >= 0 ? "+" : ""}${(delta * 100).toFixed(1)} pts positive outcome rate`}
       </p>
+      {viewMode === "org" && winDelta !== null ? (
+        <p className="mt-1 text-[11px] font-medium">
+          {winDelta >= 0 ? "+" : ""}
+          {(winDelta * 100).toFixed(2)}% WE
+        </p>
+      ) : null}
       {runDelta !== null ? (
         <p className="mt-1 text-[11px] font-medium">
           {runDelta >= 0 ? "+" : ""}

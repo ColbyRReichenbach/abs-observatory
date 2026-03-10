@@ -203,7 +203,7 @@ export async function PostgameAAR({ game, challenges, initialChallengeId = null,
 
     const waterfallSection = (
         <section className="mb-8 panel p-6 shadow-2xl shadow-black/[0.02] border border-gray-50 bg-white">
-            <ChallengeValueTimeline entries={challengeValueTimeline} />
+            <ChallengeValueTimeline entries={challengeValueTimeline} viewMode={viewMode} />
         </section>
     );
 

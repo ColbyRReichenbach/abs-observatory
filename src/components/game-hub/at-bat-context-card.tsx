@@ -24,6 +24,7 @@ export function AtBatContextCard({ challenge }: { challenge: ChallengeEvent }) {
     const battingAverageDelta = challenge.battingAverageDelta ?? null;
     const walkRateDelta = challenge.walkRateDelta ?? null;
     const runExpectancyDelta = challenge.runExpectancyDelta ?? null;
+    const winExpectancyDelta = challenge.winExpectancyDelta ?? null;
     const scoreState =
         challenge.homeScore === null || challenge.awayScore === null
             ? "Score unavailable"
@@ -38,7 +39,9 @@ export function AtBatContextCard({ challenge }: { challenge: ChallengeEvent }) {
             ? `Review shifted the plate appearance from ${challenge.umpireCount} to ${challenge.countAfter}.`
             : "Review held the plate appearance in the same count state.";
     const deltaNarrative =
-        runExpectancyDelta !== null
+        winExpectancyDelta !== null
+            ? `Comparable game states swing win expectancy by ${winExpectancyDelta >= 0 ? "+" : ""}${(winExpectancyDelta * 100).toFixed(2)} percentage points from this review state.`
+            : runExpectancyDelta !== null
             ? `Comparable game states shift run expectancy by ${runExpectancyDelta >= 0 ? "+" : ""}${runExpectancyDelta.toFixed(3)} runs from this review state.`
             : positiveOutcomeDelta === null
                 ? "No comparable count-state baseline is available for this review."
@@ -116,8 +119,13 @@ export function AtBatContextCard({ challenge }: { challenge: ChallengeEvent }) {
                     <p className="mt-1 text-[11px] font-medium leading-relaxed text-slate-600">{deltaNarrative}</p>
                 </div>
 
-                {runExpectancyDelta !== null || battingAverageDelta !== null || walkRateDelta !== null ? (
+                {winExpectancyDelta !== null || runExpectancyDelta !== null || battingAverageDelta !== null || walkRateDelta !== null ? (
                     <div className="mt-3 flex flex-wrap gap-2">
+                        {winExpectancyDelta !== null ? (
+                            <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                                WE {formatWinDelta(winExpectancyDelta)}
+                            </span>
+                        ) : null}
                         {runExpectancyDelta !== null ? (
                             <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-slate-500">
                                 RE {formatRunDelta(runExpectancyDelta)}
@@ -171,4 +179,8 @@ function formatDelta(value: number) {
 
 function formatRunDelta(value: number) {
     return `${value >= 0 ? "+" : "-"}${Math.abs(value).toFixed(3)}`;
+}
+
+function formatWinDelta(value: number) {
+    return `${value >= 0 ? "+" : "-"}${(Math.abs(value) * 100).toFixed(2)}%`;
 }

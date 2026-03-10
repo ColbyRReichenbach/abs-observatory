@@ -69,6 +69,10 @@ export type ChallengeEvent = {
   postRunExpectancy?: number | null;
   runExpectancyDelta?: number | null;
   runExpectancyConfidence?: ConfidenceBand | null;
+  preWinExpectancy?: number | null;
+  postWinExpectancy?: number | null;
+  winExpectancyDelta?: number | null;
+  winExpectancyConfidence?: ConfidenceBand | null;
 };
 
 export type PitchTimelineEntry = {
@@ -221,6 +225,7 @@ export type TeamChallengeScenarioCell = {
   avgEstimatedLeverage: number;
   avgPositiveOutcomeDelta: number | null;
   avgRunExpectancyDelta: number | null;
+  avgWinExpectancyDelta: number | null;
   highPressureShare: number;
 };
 
@@ -237,6 +242,12 @@ export type TeamChallengeValueSummary = {
   lowRunValueBurnShare: number;
   lateCloseRunValueShare: number;
   runExpectancyConfidence: ConfidenceBand | null;
+  averageWinExpectancyDelta: number | null;
+  medianWinExpectancyDelta: number | null;
+  highWinValueShare: number;
+  lowWinValueBurnShare: number;
+  lateCloseWinValueShare: number;
+  winExpectancyConfidence: ConfidenceBand | null;
   bestScenarioLabel: string | null;
   bestScenarioChallenges: number;
 };
@@ -296,6 +307,10 @@ export type ChallengeValueTimelineEntry = {
   postRunExpectancy: number | null;
   runExpectancyDelta: number | null;
   runExpectancyConfidence: ConfidenceBand | null;
+  preWinExpectancy: number | null;
+  postWinExpectancy: number | null;
+  winExpectancyDelta: number | null;
+  winExpectancyConfidence: ConfidenceBand | null;
 };
 
 export type LiveChallengeWindow = {
@@ -315,13 +330,17 @@ export type LiveChallengeWindow = {
   currentCountKey: string | null;
   currentPositiveOutcomeRate: number | null;
   currentRunExpectancy: number | null;
+  currentWinExpectancy: number | null;
   nextBallCountKey: string | null;
   nextBallPositiveOutcomeDelta: number | null;
   nextBallRunExpectancyDelta: number | null;
+  nextBallWinExpectancyDelta: number | null;
   nextStrikeCountKey: string | null;
   nextStrikePositiveOutcomeDelta: number | null;
   nextStrikeRunExpectancyDelta: number | null;
+  nextStrikeWinExpectancyDelta: number | null;
   runExpectancyConfidence: ConfidenceBand | null;
+  winExpectancyConfidence: ConfidenceBand | null;
 };
 
 export type AIQueryResponse = {

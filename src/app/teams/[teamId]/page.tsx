@@ -143,13 +143,15 @@ export default async function TeamPage({
         </div>
         <div className="mt-6 rounded-[1.5rem] border border-gray-100 bg-gray-50/60 p-4">
           <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">
-            {viewMode === "org" ? "Average Run Value" : "Challenge Payoff"}
+            {viewMode === "org" ? (challengeValueSummary.averageWinExpectancyDelta !== null ? "Average Win Value" : "Average Run Value") : "Challenge Payoff"}
           </p>
           <p className="mt-2 text-3xl font-display text-[var(--ink-0)]">
             {viewMode === "org"
-              ? challengeValueSummary.averageRunExpectancyDelta === null
-                ? "N/A"
-                : `${challengeValueSummary.averageRunExpectancyDelta >= 0 ? "+" : ""}${challengeValueSummary.averageRunExpectancyDelta.toFixed(3)}`
+              ? challengeValueSummary.averageWinExpectancyDelta !== null
+                ? `${challengeValueSummary.averageWinExpectancyDelta >= 0 ? "+" : ""}${(challengeValueSummary.averageWinExpectancyDelta * 100).toFixed(2)}%`
+                : challengeValueSummary.averageRunExpectancyDelta === null
+                  ? "N/A"
+                  : `${challengeValueSummary.averageRunExpectancyDelta >= 0 ? "+" : ""}${challengeValueSummary.averageRunExpectancyDelta.toFixed(3)}`
               : challengeValueSummary.averagePositiveOutcomeDelta === null
                 ? "N/A"
                 : `${challengeValueSummary.averagePositiveOutcomeDelta >= 0 ? "+" : ""}${(
@@ -158,9 +160,11 @@ export default async function TeamPage({
           </p>
           <p className="mt-2 text-[11px] font-medium text-[var(--ink-2)] leading-relaxed">
             {viewMode === "org"
-              ? challengeValueSummary.averageRunExpectancyDelta === null
-                ? "Run-value read will appear once this club builds enough modeled challenge sample."
-                : `${summary.teamName} is averaging ${challengeValueSummary.averageRunExpectancyDelta >= 0 ? "a positive" : "a negative"} run-expectancy swing per tracked review, with ${(challengeValueSummary.highRunValueShare * 100).toFixed(0)}% of reviews creating positive run value.`
+              ? challengeValueSummary.averageWinExpectancyDelta !== null
+                ? `${summary.teamName} is averaging ${challengeValueSummary.averageWinExpectancyDelta >= 0 ? "a positive" : "a negative"} win-expectancy swing per tracked review, with ${(challengeValueSummary.highWinValueShare * 100).toFixed(0)}% of reviews creating positive win value.`
+                : challengeValueSummary.averageRunExpectancyDelta === null
+                  ? "Run-value read will appear once this club builds enough modeled challenge sample."
+                  : `${summary.teamName} is averaging ${challengeValueSummary.averageRunExpectancyDelta >= 0 ? "a positive" : "a negative"} run-expectancy swing per tracked review, with ${(challengeValueSummary.highRunValueShare * 100).toFixed(0)}% of reviews creating positive run value.`
               : challengeValueSummary.bestScenarioLabel
                 ? `${summary.teamName} has done its best realized challenge work in ${challengeValueSummary.bestScenarioLabel.toLowerCase()}.`
                 : "Best challenge window will appear once the club builds more scenario sample."}

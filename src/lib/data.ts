@@ -4,6 +4,7 @@ import { buildChallengeValueSnapshot, buildCountStateBaselineMap, type CountStat
 import { summarizeEstimatedLeverage } from "@/lib/estimated-leverage";
 import { buildHomeChallengeMoments, buildTeamLeaderboardEntries, buildUmpireLeaderboardEntries } from "@/lib/page-models";
 import { getChallengeRunExpectancyDelta, getRunExpectancyFallbackRows, resolveRunExpectancyWithFallback } from "@/lib/server/run-expectancy";
+import { getChallengeWinExpectancyDelta, getWinExpectancyFallbackRows, resolveWinExpectancyWithFallback } from "@/lib/server/win-expectancy";
 import { getCacheKey, withCachedValue } from "@/lib/server/scale";
 import type {
   ChallengeEvent,
@@ -487,7 +488,7 @@ async function getRecentGameChallenges(
 
 export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[]> {
   return withCachedValue(getCacheKey(["game-challenges", gamePk]), 10_000, async () => {
-    const [rows, baselines, runExpectancyRows] = await Promise.all([
+    const [rows, baselines, runExpectancyRows, winExpectancyRows] = await Promise.all([
       sql<{
       challenge_id: string;
       game_pk: number;
@@ -577,6 +578,7 @@ export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[
       ),
       getCountStateBaselines(),
       getRunExpectancyFallbackRows(),
+      getWinExpectancyFallbackRows(),
     ]);
     const baselineMap = buildCountStateBaselineMap(baselines);
 
@@ -627,6 +629,7 @@ export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[
       };
       const snapshot = buildChallengeValueSnapshot(challenge, baselineMap);
       const runExpectancy = getChallengeRunExpectancyDelta(challenge, runExpectancyRows);
+      const winExpectancy = getChallengeWinExpectancyDelta(challenge, winExpectancyRows);
 
       return {
         ...challenge,
@@ -641,6 +644,10 @@ export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[
         postRunExpectancy: runExpectancy.postRunExpectancy,
         runExpectancyDelta: runExpectancy.runExpectancyDelta,
         runExpectancyConfidence: runExpectancy.runExpectancyConfidence,
+        preWinExpectancy: winExpectancy.preWinExpectancy,
+        postWinExpectancy: winExpectancy.postWinExpectancy,
+        winExpectancyDelta: winExpectancy.winExpectancyDelta,
+        winExpectancyConfidence: winExpectancy.winExpectancyConfidence,
       };
     });
   });
@@ -691,6 +698,10 @@ export async function getGameChallengeValueTimeline(gamePk: number): Promise<Cha
           postRunExpectancy: challenge.postRunExpectancy ?? null,
           runExpectancyDelta: challenge.runExpectancyDelta ?? null,
           runExpectancyConfidence: challenge.runExpectancyConfidence ?? null,
+          preWinExpectancy: challenge.preWinExpectancy ?? null,
+          postWinExpectancy: challenge.postWinExpectancy ?? null,
+          winExpectancyDelta: challenge.winExpectancyDelta ?? null,
+          winExpectancyConfidence: challenge.winExpectancyConfidence ?? null,
         };
       });
   });
@@ -756,11 +767,12 @@ export async function getGameChallengeOpportunityBoard(gamePk: number): Promise<
 
 export async function getLiveChallengeWindow(gamePk: number): Promise<LiveChallengeWindow | null> {
   return withCachedValue(getCacheKey(["live-challenge-window", gamePk]), 5_000, async () => {
-    const [liveStatus, challenges, baselines, runExpectancyRows] = await Promise.all([
+    const [liveStatus, challenges, baselines, runExpectancyRows, winExpectancyRows] = await Promise.all([
       getGameLiveStatus(gamePk),
       getGameChallenges(gamePk),
       getCountStateBaselines(),
       getRunExpectancyFallbackRows(),
+      getWinExpectancyFallbackRows(),
     ]);
 
     if (!liveStatus) return null;
@@ -819,6 +831,42 @@ export async function getLiveChallengeWindow(gamePk: number): Promise<LiveChalle
       },
       runExpectancyRows,
     );
+    const currentWinExpectancy = resolveWinExpectancyWithFallback(
+      {
+        inning: liveStatus.inning,
+        halfInning: liveStatus.halfInning,
+        outs,
+        basesState,
+        countKey: currentCountKey,
+        homeScore,
+        awayScore,
+      },
+      winExpectancyRows,
+    );
+    const nextBallWinExpectancy = resolveWinExpectancyWithFallback(
+      {
+        inning: liveStatus.inning,
+        halfInning: liveStatus.halfInning,
+        outs,
+        basesState,
+        countKey: nextBallCountKey,
+        homeScore,
+        awayScore,
+      },
+      winExpectancyRows,
+    );
+    const nextStrikeWinExpectancy = resolveWinExpectancyWithFallback(
+      {
+        inning: liveStatus.inning,
+        halfInning: liveStatus.halfInning,
+        outs,
+        basesState,
+        countKey: nextStrikeCountKey,
+        homeScore,
+        awayScore,
+      },
+      winExpectancyRows,
+    );
     const leverage = summarizeEstimatedLeverage({
       inning: liveStatus.inning,
       balls,
@@ -873,12 +921,17 @@ export async function getLiveChallengeWindow(gamePk: number): Promise<LiveChalle
       currentCountKey,
       currentPositiveOutcomeRate: currentBaseline ? roundMetric(currentBaseline.positiveOutcomeRate) : null,
       currentRunExpectancy: currentRunExpectancy ? roundMetric(currentRunExpectancy.expectedRunsToEndInning) : null,
+      currentWinExpectancy: currentWinExpectancy ? roundMetric(currentWinExpectancy.battingTeamWinProbability, 4) : null,
       nextBallCountKey,
       nextBallPositiveOutcomeDelta:
         currentBaseline && nextBallBaseline ? roundMetric(nextBallBaseline.positiveOutcomeRate - currentBaseline.positiveOutcomeRate) : null,
       nextBallRunExpectancyDelta:
         currentRunExpectancy && nextBallRunExpectancy
           ? roundMetric(nextBallRunExpectancy.expectedRunsToEndInning - currentRunExpectancy.expectedRunsToEndInning)
+          : null,
+      nextBallWinExpectancyDelta:
+        currentWinExpectancy && nextBallWinExpectancy
+          ? roundMetric(nextBallWinExpectancy.battingTeamWinProbability - currentWinExpectancy.battingTeamWinProbability, 4)
           : null,
       nextStrikeCountKey,
       nextStrikePositiveOutcomeDelta:
@@ -887,8 +940,14 @@ export async function getLiveChallengeWindow(gamePk: number): Promise<LiveChalle
         currentRunExpectancy && nextStrikeRunExpectancy
           ? roundMetric(nextStrikeRunExpectancy.expectedRunsToEndInning - currentRunExpectancy.expectedRunsToEndInning)
           : null,
+      nextStrikeWinExpectancyDelta:
+        currentWinExpectancy && nextStrikeWinExpectancy
+          ? roundMetric(nextStrikeWinExpectancy.battingTeamWinProbability - currentWinExpectancy.battingTeamWinProbability, 4)
+          : null,
       runExpectancyConfidence:
         currentRunExpectancy?.confidenceBand ?? nextBallRunExpectancy?.confidenceBand ?? nextStrikeRunExpectancy?.confidenceBand ?? null,
+      winExpectancyConfidence:
+        currentWinExpectancy?.confidenceBand ?? nextBallWinExpectancy?.confidenceBand ?? nextStrikeWinExpectancy?.confidenceBand ?? null,
     };
   });
 }
@@ -1827,7 +1886,7 @@ async function getTeamChallengeAnalytics(
     async () => {
       const window = rangeWhere(range, "g.game_date");
       const situational = situationalWhere(filters, "c");
-      const [rows, baselines, runExpectancyRows] = await Promise.all([
+      const [rows, baselines, runExpectancyRows, winExpectancyRows] = await Promise.all([
         sql<{
           challenge_id: string;
           challenged_at: string | null;
@@ -1896,6 +1955,7 @@ async function getTeamChallengeAnalytics(
         ),
         getCountStateBaselines(),
         getRunExpectancyFallbackRows(),
+        getWinExpectancyFallbackRows(),
       ]);
 
       const baselineMap = buildCountStateBaselineMap(baselines);
@@ -1969,6 +2029,8 @@ async function getTeamChallengeAnalytics(
           positiveOutcomeSamples: number;
           totalRunExpectancyDelta: number;
           runExpectancySamples: number;
+          totalWinExpectancyDelta: number;
+          winExpectancySamples: number;
           highPressure: number;
         }
       >();
@@ -1980,10 +2042,12 @@ async function getTeamChallengeAnalytics(
       let totalPositiveOutcomeDelta = 0;
       let positiveOutcomeSamples = 0;
       const runExpectancyDeltas: number[] = [];
+      const winExpectancyDeltas: number[] = [];
 
       challenges.forEach((challenge) => {
         const snapshot = buildChallengeValueSnapshot(challenge, baselineMap);
         const runExpectancy = getChallengeRunExpectancyDelta(challenge, runExpectancyRows);
+        const winExpectancy = getChallengeWinExpectancyDelta(challenge, winExpectancyRows);
         const key = `${snapshot.baseBucket.key}:${snapshot.countBucket.key}`;
         const existing = aggregates.get(key) ?? {
           rowKey: snapshot.baseBucket.key,
@@ -1997,6 +2061,8 @@ async function getTeamChallengeAnalytics(
           positiveOutcomeSamples: 0,
           totalRunExpectancyDelta: 0,
           runExpectancySamples: 0,
+          totalWinExpectancyDelta: 0,
+          winExpectancySamples: 0,
           highPressure: 0,
         };
 
@@ -2013,6 +2079,11 @@ async function getTeamChallengeAnalytics(
           existing.totalRunExpectancyDelta += runExpectancy.runExpectancyDelta;
           existing.runExpectancySamples += 1;
           runExpectancyDeltas.push(runExpectancy.runExpectancyDelta);
+        }
+        if (winExpectancy.winExpectancyDelta !== null) {
+          existing.totalWinExpectancyDelta += winExpectancy.winExpectancyDelta;
+          existing.winExpectancySamples += 1;
+          winExpectancyDeltas.push(winExpectancy.winExpectancyDelta);
         }
         if (snapshot.leverage.leverageBucket === "high") {
           existing.highPressure += 1;
@@ -2049,6 +2120,10 @@ async function getTeamChallengeAnalytics(
             avgRunExpectancyDelta:
               entry && entry.runExpectancySamples > 0
                 ? roundMetric(entry.totalRunExpectancyDelta / entry.runExpectancySamples)
+                : null,
+            avgWinExpectancyDelta:
+              entry && entry.winExpectancySamples > 0
+                ? roundMetric(entry.totalWinExpectancyDelta / entry.winExpectancySamples, 4)
                 : null,
             highPressureShare: entry && entry.challenges > 0 ? entry.highPressure / entry.challenges : 0,
           } satisfies TeamChallengeScenarioCell;
@@ -2103,6 +2178,43 @@ async function getTeamChallengeAnalytics(
               : 0,
           runExpectancyConfidence:
             runExpectancyDeltas.length >= 80 ? "high" : runExpectancyDeltas.length >= 25 ? "medium" : runExpectancyDeltas.length > 0 ? "low" : null,
+          averageWinExpectancyDelta:
+            winExpectancyDeltas.length > 0
+              ? roundMetric(winExpectancyDeltas.reduce((sum, value) => sum + value, 0) / winExpectancyDeltas.length, 4)
+              : null,
+          medianWinExpectancyDelta:
+            winExpectancyDeltas.length > 0
+              ? roundMetric(
+                  [...winExpectancyDeltas].sort((left, right) => left - right)[Math.floor(winExpectancyDeltas.length / 2)],
+                  4,
+                )
+              : null,
+          highWinValueShare:
+            winExpectancyDeltas.length > 0
+              ? winExpectancyDeltas.filter((value) => value > 0).length / winExpectancyDeltas.length
+              : 0,
+          lowWinValueBurnShare:
+            winExpectancyDeltas.length > 0
+              ? winExpectancyDeltas.filter((value) => value <= 0).length / winExpectancyDeltas.length
+              : 0,
+          lateCloseWinValueShare:
+            challenges.length > 0
+              ? challenges.filter(
+                  (challenge) =>
+                    (challenge.inning ?? 0) >= 7 &&
+                    challenge.homeScore !== null &&
+                    challenge.awayScore !== null &&
+                    Math.abs(challenge.homeScore - challenge.awayScore) <= 2,
+                ).length / challenges.length
+              : 0,
+          winExpectancyConfidence:
+            winExpectancyDeltas.length >= 120
+              ? "high"
+              : winExpectancyDeltas.length >= 40
+                ? "medium"
+                : winExpectancyDeltas.length > 0
+                  ? "low"
+                  : null,
           bestScenarioLabel: bestScenario ? `${bestScenario.rowLabel} • ${bestScenario.colLabel}` : null,
           bestScenarioChallenges: bestScenario?.challenges ?? 0,
         },
