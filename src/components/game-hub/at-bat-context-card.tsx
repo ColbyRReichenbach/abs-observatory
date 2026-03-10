@@ -26,6 +26,8 @@ export function AtBatContextCard({ challenge }: { challenge: ChallengeEvent }) {
     const walkRateDelta = challenge.walkRateDelta ?? null;
     const runExpectancyDelta = challenge.runExpectancyDelta ?? null;
     const winExpectancyDelta = challenge.winExpectancyDelta ?? null;
+    const expectedChallengeValue = challenge.expectedChallengeValue ?? null;
+    const estimatedOverturnProbability = challenge.estimatedOverturnProbability ?? null;
     const usesTrustedWinValue = winExpectancyDelta !== null && hasTrustedModelConfidenceBand(challenge.winExpectancyConfidence);
     const scoreState =
         challenge.homeScore === null || challenge.awayScore === null
@@ -50,6 +52,10 @@ export function AtBatContextCard({ challenge }: { challenge: ChallengeEvent }) {
             : positiveOutcomeDelta >= 0
                 ? `Comparable plate appearances improve by ${(positiveOutcomeDelta * 100).toFixed(1)} points from this shift.`
                 : `Comparable plate appearances lose ${(Math.abs(positiveOutcomeDelta) * 100).toFixed(1)} points from this shift.`;
+    const decisionNarrative =
+        estimatedOverturnProbability === null || expectedChallengeValue === null
+            ? "Decision model context is unavailable for this challenge."
+            : `${Math.round(estimatedOverturnProbability * 100)}% historical overturn probability in similar official ABS spots, with ${expectedChallengeValue >= 0 ? "+" : ""}${(expectedChallengeValue * 100).toFixed(2)}% expected value at challenge time.`;
 
     return (
         <motion.div
@@ -121,7 +127,26 @@ export function AtBatContextCard({ challenge }: { challenge: ChallengeEvent }) {
                     <p className="mt-1 text-[11px] font-medium leading-relaxed text-slate-600">{deltaNarrative}</p>
                 </div>
 
-                {winExpectancyDelta !== null || runExpectancyDelta !== null || battingAverageDelta !== null || walkRateDelta !== null ? (
+                <div className="mt-4 rounded-lg border border-gray-200/50 bg-white/50 p-3">
+                    <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold">Decision Model Read</span>
+                    <p className="mt-1 text-xs font-bold text-slate-900">
+                        {challenge.decisionRecommendation === "challenge"
+                            ? "Model favored a challenge"
+                            : challenge.decisionRecommendation === "hold"
+                                ? "Model favored holding the challenge"
+                                : challenge.decisionRecommendation === "cannot_challenge"
+                                    ? "No challenge inventory remained"
+                                    : "No recommendation available"}
+                    </p>
+                    <p className="mt-1 text-[11px] font-medium leading-relaxed text-slate-600">{decisionNarrative}</p>
+                </div>
+
+                {winExpectancyDelta !== null ||
+                runExpectancyDelta !== null ||
+                battingAverageDelta !== null ||
+                walkRateDelta !== null ||
+                estimatedOverturnProbability !== null ||
+                expectedChallengeValue !== null ? (
                     <div className="mt-3 flex flex-wrap gap-2">
                         {usesTrustedWinValue ? (
                             <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-slate-500">
@@ -148,13 +173,28 @@ export function AtBatContextCard({ challenge }: { challenge: ChallengeEvent }) {
                                 Positive Outcome {formatDelta(positiveOutcomeDelta)}
                             </span>
                         ) : null}
+                        {estimatedOverturnProbability !== null ? (
+                            <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                                OVR {(estimatedOverturnProbability * 100).toFixed(0)}%
+                            </span>
+                        ) : null}
+                        {expectedChallengeValue !== null ? (
+                            <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                                EXP {formatWinDelta(expectedChallengeValue)}
+                            </span>
+                        ) : null}
                         <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-slate-500">
                             {usesTrustedWinValue
                                 ? `${challenge.winExpectancyConfidence?.toUpperCase() ?? "N/A"} WE confidence`
-                                : challenge.runExpectancyConfidence
-                                    ? `${challenge.runExpectancyConfidence.toUpperCase()} RE confidence`
-                                    : "Baseline confidence unavailable"}
+                                    : challenge.runExpectancyConfidence
+                                        ? `${challenge.runExpectancyConfidence.toUpperCase()} RE confidence`
+                                        : "Baseline confidence unavailable"}
                         </span>
+                        {challenge.overturnProbabilityConfidence ? (
+                            <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                                {challenge.overturnProbabilityConfidence.toUpperCase()} OVR confidence
+                            </span>
+                        ) : null}
                     </div>
                 ) : null}
 

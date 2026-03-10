@@ -3,6 +3,7 @@ import { formatBasesStateLabel, formatScoreStateLabel, getChallengeScenarioTags 
 import { buildChallengeValueSnapshot, buildCountStateBaselineMap, type CountStateBaseline } from "@/lib/challenge-value";
 import { summarizeEstimatedLeverage } from "@/lib/estimated-leverage";
 import { buildHomeChallengeMoments, buildTeamLeaderboardEntries, buildUmpireLeaderboardEntries } from "@/lib/page-models";
+import { estimateChallengeDecisionValue, getOverturnProbabilityFallbackRows, type CalledPitch } from "@/lib/server/challenge-decision-value";
 import { confidenceBandFromRank } from "@/lib/server/run-environment";
 import { getChallengeRunExpectancyDelta, getRunExpectancyFallbackRows, resolveRunExpectancyWithFallback } from "@/lib/server/run-expectancy";
 import { getChallengeWinExpectancyDelta, getWinExpectancyFallbackRows, resolveWinExpectancyWithFallback } from "@/lib/server/win-expectancy";
@@ -120,6 +121,26 @@ function roundMetric(value: number | null, digits = 3) {
   if (value === null || Number.isNaN(value)) return null;
   const scale = 10 ** digits;
   return Math.round(value * scale) / scale;
+}
+
+function countOccupiedBases(basesState: string | null | undefined) {
+  if (!basesState) return 0;
+  return basesState.split("").filter((base) => base === "1").length;
+}
+
+function getScoreDiffBattingTeam(halfInning: string | null, homeScore: number | null, awayScore: number | null) {
+  if (homeScore === null || awayScore === null) return 0;
+  if (halfInning === "Top") return awayScore - homeScore;
+  if (halfInning === "Bottom") return homeScore - awayScore;
+  return 0;
+}
+
+function resolveCalledPitchFromDescription(description: string | null | undefined): CalledPitch | null {
+  const normalized = description?.trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized.startsWith("called strike")) return "called_strike";
+  if (normalized.startsWith("ball")) return "ball";
+  return null;
 }
 
 export async function getLiveGames(): Promise<LiveGameCard[]> {
@@ -489,7 +510,7 @@ async function getRecentGameChallenges(
 
 export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[]> {
   return withCachedValue(getCacheKey(["game-challenges", gamePk]), 10_000, async () => {
-    const [rows, baselines, runExpectancyRows, winExpectancyRows] = await Promise.all([
+    const [rows, baselines, runExpectancyRows, winExpectancyRows, overturnProbabilityRows] = await Promise.all([
       sql<{
       challenge_id: string;
       game_pk: number;
@@ -580,10 +601,11 @@ export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[
       getCountStateBaselines(),
       getRunExpectancyFallbackRows(),
       getWinExpectancyFallbackRows(),
+      getOverturnProbabilityFallbackRows(),
     ]);
     const baselineMap = buildCountStateBaselineMap(baselines);
 
-    return rows.map((r) => {
+    return Promise.all(rows.map(async (r) => {
       const challenge: ChallengeEvent = {
         challengeId: r.challenge_id,
         gamePk: r.game_pk,
@@ -631,6 +653,23 @@ export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[
       const snapshot = buildChallengeValueSnapshot(challenge, baselineMap);
       const runExpectancy = getChallengeRunExpectancyDelta(challenge, runExpectancyRows);
       const winExpectancy = getChallengeWinExpectancyDelta(challenge, winExpectancyRows);
+      const calledPitch = resolveCalledPitchFromDescription(r.called_description);
+      const decisionValue = calledPitch
+        ? await estimateChallengeDecisionValue(
+            {
+              inning: r.inning ?? 1,
+              halfInning: r.half_inning === "Bottom" ? "Bottom" : "Top",
+              balls: r.balls_before ?? r.balls ?? 0,
+              strikes: r.strikes_before ?? r.strikes ?? 0,
+              outs: r.outs ?? 0,
+              scoreDiffBattingTeam: getScoreDiffBattingTeam(r.half_inning, r.home_score, r.away_score),
+              runnersOnBase: countOccupiedBases(r.bases_state),
+              calledPitch,
+              challengesRemaining: 1,
+            },
+            { probabilityRows: overturnProbabilityRows, winRows: winExpectancyRows },
+          )
+        : null;
 
       return {
         ...challenge,
@@ -649,8 +688,14 @@ export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[
         postWinExpectancy: winExpectancy.postWinExpectancy,
         winExpectancyDelta: winExpectancy.winExpectancyDelta,
         winExpectancyConfidence: winExpectancy.winExpectancyConfidence,
+        estimatedOverturnProbability: decisionValue?.estimatedOverturnProbability ?? null,
+        overturnProbabilityConfidence: decisionValue?.overturnProbabilityConfidence ?? null,
+        overturnProbabilityFallbackTier: decisionValue?.overturnProbabilityFallbackTier ?? null,
+        expectedChallengeValue: decisionValue?.expectedWpDelta ?? null,
+        decisionRecommendation: decisionValue?.recommendation ?? null,
+        decisionValueMode: decisionValue?.decisionValueMode ?? null,
       };
-    });
+    }));
   });
 }
 
@@ -703,6 +748,11 @@ export async function getGameChallengeValueTimeline(gamePk: number): Promise<Cha
           postWinExpectancy: challenge.postWinExpectancy ?? null,
           winExpectancyDelta: challenge.winExpectancyDelta ?? null,
           winExpectancyConfidence: challenge.winExpectancyConfidence ?? null,
+          estimatedOverturnProbability: challenge.estimatedOverturnProbability ?? null,
+          overturnProbabilityConfidence: challenge.overturnProbabilityConfidence ?? null,
+          expectedChallengeValue: challenge.expectedChallengeValue ?? null,
+          decisionRecommendation: challenge.decisionRecommendation ?? null,
+          decisionValueMode: challenge.decisionValueMode ?? null,
         };
       });
   });
@@ -768,12 +818,13 @@ export async function getGameChallengeOpportunityBoard(gamePk: number): Promise<
 
 export async function getLiveChallengeWindow(gamePk: number): Promise<LiveChallengeWindow | null> {
   return withCachedValue(getCacheKey(["live-challenge-window", gamePk]), 5_000, async () => {
-    const [liveStatus, challenges, baselines, runExpectancyRows, winExpectancyRows] = await Promise.all([
+    const [liveStatus, challenges, baselines, runExpectancyRows, winExpectancyRows, overturnProbabilityRows] = await Promise.all([
       getGameLiveStatus(gamePk),
       getGameChallenges(gamePk),
       getCountStateBaselines(),
       getRunExpectancyFallbackRows(),
       getWinExpectancyFallbackRows(),
+      getOverturnProbabilityFallbackRows(),
     ]);
 
     if (!liveStatus) return null;
@@ -877,6 +928,40 @@ export async function getLiveChallengeWindow(gamePk: number): Promise<LiveChalle
       awayScore,
       basesState,
     });
+    const battingSide = liveStatus.halfInning === "Bottom" ? "home" : "away";
+    const challengesRemaining = battingSide === "home" ? liveStatus.homeRemaining : liveStatus.awayRemaining;
+    const scoreDiffBattingTeam = getScoreDiffBattingTeam(liveStatus.halfInning, homeScore, awayScore);
+    const runnersOnBase = countOccupiedBases(basesState);
+    const [nextBallDecision, nextStrikeDecision] = await Promise.all([
+      estimateChallengeDecisionValue(
+        {
+          inning: liveStatus.inning ?? 1,
+          halfInning: liveStatus.halfInning === "Bottom" ? "Bottom" : "Top",
+          balls: balls ?? 0,
+          strikes: strikes ?? 0,
+          outs: outs ?? 0,
+          scoreDiffBattingTeam,
+          runnersOnBase,
+          calledPitch: "called_strike",
+          challengesRemaining,
+        },
+        { probabilityRows: overturnProbabilityRows, winRows: winExpectancyRows },
+      ),
+      estimateChallengeDecisionValue(
+        {
+          inning: liveStatus.inning ?? 1,
+          halfInning: liveStatus.halfInning === "Bottom" ? "Bottom" : "Top",
+          balls: balls ?? 0,
+          strikes: strikes ?? 0,
+          outs: outs ?? 0,
+          scoreDiffBattingTeam,
+          runnersOnBase,
+          calledPitch: "ball",
+          challengesRemaining,
+        },
+        { probabilityRows: overturnProbabilityRows, winRows: winExpectancyRows },
+      ),
+    ]);
 
     return {
       inning: liveStatus.inning,
@@ -934,6 +1019,11 @@ export async function getLiveChallengeWindow(gamePk: number): Promise<LiveChalle
         currentWinExpectancy && nextBallWinExpectancy
           ? roundMetric(nextBallWinExpectancy.battingTeamWinProbability - currentWinExpectancy.battingTeamWinProbability, 4)
           : null,
+      nextBallOverturnProbability: nextBallDecision.estimatedOverturnProbability,
+      nextBallOverturnProbabilityConfidence: nextBallDecision.overturnProbabilityConfidence,
+      nextBallExpectedChallengeValue: nextBallDecision.expectedWpDelta,
+      nextBallDecisionRecommendation: nextBallDecision.recommendation,
+      nextBallDecisionValueMode: nextBallDecision.decisionValueMode,
       nextStrikeCountKey,
       nextStrikePositiveOutcomeDelta:
         currentBaseline && nextStrikeBaseline ? roundMetric(nextStrikeBaseline.positiveOutcomeRate - currentBaseline.positiveOutcomeRate) : null,
@@ -945,6 +1035,11 @@ export async function getLiveChallengeWindow(gamePk: number): Promise<LiveChalle
         currentWinExpectancy && nextStrikeWinExpectancy
           ? roundMetric(nextStrikeWinExpectancy.battingTeamWinProbability - currentWinExpectancy.battingTeamWinProbability, 4)
           : null,
+      nextStrikeOverturnProbability: nextStrikeDecision.estimatedOverturnProbability,
+      nextStrikeOverturnProbabilityConfidence: nextStrikeDecision.overturnProbabilityConfidence,
+      nextStrikeExpectedChallengeValue: nextStrikeDecision.expectedWpDelta,
+      nextStrikeDecisionRecommendation: nextStrikeDecision.recommendation,
+      nextStrikeDecisionValueMode: nextStrikeDecision.decisionValueMode,
       runExpectancyConfidence:
         currentRunExpectancy?.confidenceBand ?? nextBallRunExpectancy?.confidenceBand ?? nextStrikeRunExpectancy?.confidenceBand ?? null,
       winExpectancyConfidence:

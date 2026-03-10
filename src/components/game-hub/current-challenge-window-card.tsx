@@ -137,6 +137,10 @@ export function CurrentChallengeWindowCard({
           delta={snapshot.nextBallPositiveOutcomeDelta}
           runDelta={snapshot.nextBallRunExpectancyDelta}
           winDelta={snapshot.nextBallWinExpectancyDelta}
+          overturnProbability={snapshot.nextBallOverturnProbability}
+          recommendation={snapshot.nextBallDecisionRecommendation}
+          expectedValue={snapshot.nextBallExpectedChallengeValue}
+          confidence={snapshot.nextBallOverturnProbabilityConfidence}
           tone="emerald"
           useWinValue={usesTrustedWinValue}
         />
@@ -146,6 +150,10 @@ export function CurrentChallengeWindowCard({
           delta={snapshot.nextStrikePositiveOutcomeDelta}
           runDelta={snapshot.nextStrikeRunExpectancyDelta}
           winDelta={snapshot.nextStrikeWinExpectancyDelta}
+          overturnProbability={snapshot.nextStrikeOverturnProbability}
+          recommendation={snapshot.nextStrikeDecisionRecommendation}
+          expectedValue={snapshot.nextStrikeExpectedChallengeValue}
+          confidence={snapshot.nextStrikeOverturnProbabilityConfidence}
           tone="rose"
           useWinValue={usesTrustedWinValue}
         />
@@ -192,6 +200,10 @@ function ProjectionCard({
   delta,
   runDelta,
   winDelta,
+  overturnProbability,
+  recommendation,
+  expectedValue,
+  confidence,
   tone,
   useWinValue,
 }: {
@@ -200,6 +212,10 @@ function ProjectionCard({
   delta: number | null;
   runDelta: number | null;
   winDelta: number | null;
+  overturnProbability: number | null;
+  recommendation: "challenge" | "hold" | "cannot_challenge" | null;
+  expectedValue: number | null;
+  confidence: "low" | "medium" | "high" | null;
   tone: "emerald" | "rose";
   useWinValue: boolean;
 }) {
@@ -215,6 +231,11 @@ function ProjectionCard({
       <p className="mt-1 text-[11px] font-medium">
         {delta === null ? "No comparable count-state delta" : `${delta >= 0 ? "+" : ""}${(delta * 100).toFixed(1)} pts positive outcome rate`}
       </p>
+      {overturnProbability !== null ? (
+        <p className="mt-1 text-[11px] font-medium">
+          {Math.round(overturnProbability * 100)}% overturn • {recommendation === "challenge" ? "Challenge" : recommendation === "hold" ? "Hold" : "No review"}
+        </p>
+      ) : null}
       {useWinValue && winDelta !== null ? (
         <p className="mt-1 text-[11px] font-medium">
           {winDelta >= 0 ? "+" : ""}
@@ -227,6 +248,13 @@ function ProjectionCard({
           {runDelta.toFixed(3)} RE
         </p>
       ) : null}
+      {expectedValue !== null ? (
+        <p className="mt-1 text-[11px] font-medium">
+          {expectedValue >= 0 ? "+" : ""}
+          {(expectedValue * 100).toFixed(2)}% expected value
+        </p>
+      ) : null}
+      {confidence ? <p className="mt-1 text-[10px] font-black uppercase tracking-widest opacity-70">{confidence} overturn confidence</p> : null}
     </div>
   );
 }

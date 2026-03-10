@@ -73,6 +73,12 @@ export type ChallengeEvent = {
   postWinExpectancy?: number | null;
   winExpectancyDelta?: number | null;
   winExpectancyConfidence?: ConfidenceBand | null;
+  estimatedOverturnProbability?: number | null;
+  overturnProbabilityConfidence?: ConfidenceBand | null;
+  overturnProbabilityFallbackTier?: "exact" | "direction_only" | "global" | null;
+  expectedChallengeValue?: number | null;
+  decisionRecommendation?: "challenge" | "hold" | "cannot_challenge" | null;
+  decisionValueMode?: "win_expectancy" | "heuristic" | null;
 };
 
 export type PitchTimelineEntry = {
@@ -311,6 +317,11 @@ export type ChallengeValueTimelineEntry = {
   postWinExpectancy: number | null;
   winExpectancyDelta: number | null;
   winExpectancyConfidence: ConfidenceBand | null;
+  estimatedOverturnProbability: number | null;
+  overturnProbabilityConfidence: ConfidenceBand | null;
+  expectedChallengeValue: number | null;
+  decisionRecommendation: "challenge" | "hold" | "cannot_challenge" | null;
+  decisionValueMode: "win_expectancy" | "heuristic" | null;
 };
 
 export type LiveChallengeWindow = {
@@ -335,10 +346,20 @@ export type LiveChallengeWindow = {
   nextBallPositiveOutcomeDelta: number | null;
   nextBallRunExpectancyDelta: number | null;
   nextBallWinExpectancyDelta: number | null;
+  nextBallOverturnProbability: number | null;
+  nextBallOverturnProbabilityConfidence: ConfidenceBand | null;
+  nextBallExpectedChallengeValue: number | null;
+  nextBallDecisionRecommendation: "challenge" | "hold" | "cannot_challenge" | null;
+  nextBallDecisionValueMode: "win_expectancy" | "heuristic" | null;
   nextStrikeCountKey: string | null;
   nextStrikePositiveOutcomeDelta: number | null;
   nextStrikeRunExpectancyDelta: number | null;
   nextStrikeWinExpectancyDelta: number | null;
+  nextStrikeOverturnProbability: number | null;
+  nextStrikeOverturnProbabilityConfidence: ConfidenceBand | null;
+  nextStrikeExpectedChallengeValue: number | null;
+  nextStrikeDecisionRecommendation: "challenge" | "hold" | "cannot_challenge" | null;
+  nextStrikeDecisionValueMode: "win_expectancy" | "heuristic" | null;
   runExpectancyConfidence: ConfidenceBand | null;
   winExpectancyConfidence: ConfidenceBand | null;
 };

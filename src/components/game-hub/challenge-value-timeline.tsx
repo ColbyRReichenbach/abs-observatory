@@ -129,18 +129,22 @@ export function ChallengeValueTimeline({
                 <MetricCard label="Count Edge" value={deltaLabel} />
                 <MetricCard
                   label={
-                    viewMode === "org" && entry.winExpectancyDelta !== null && hasTrustedModelConfidenceBand(entry.winExpectancyConfidence)
-                      ? "Win Value"
-                      : entry.runExpectancyDelta !== null && hasTrustedModelConfidenceBand(entry.runExpectancyConfidence)
-                        ? "Run Value"
-                        : "At-Bat"
+                    entry.expectedChallengeValue !== null
+                      ? "Decision Read"
+                      : viewMode === "org" && entry.winExpectancyDelta !== null && hasTrustedModelConfidenceBand(entry.winExpectancyConfidence)
+                        ? "Win Value"
+                        : entry.runExpectancyDelta !== null && hasTrustedModelConfidenceBand(entry.runExpectancyConfidence)
+                          ? "Run Value"
+                          : "At-Bat"
                   }
                   value={
-                    viewMode === "org" && entry.winExpectancyDelta !== null && hasTrustedModelConfidenceBand(entry.winExpectancyConfidence)
-                    ? `${signedWinValue(entry.winExpectancyDelta)} WE`
-                      : entry.runExpectancyDelta !== null && hasTrustedModelConfidenceBand(entry.runExpectancyConfidence)
-                      ? `${signedRunValue(entry.runExpectancyDelta)} RE`
-                      : `${entry.batterName ?? "Batter"} vs ${entry.pitcherName ?? "Pitcher"}`
+                    entry.expectedChallengeValue !== null
+                      ? `${entry.decisionRecommendation === "challenge" ? "Challenge" : entry.decisionRecommendation === "hold" ? "Hold" : "No review"} • ${signedWinValue(entry.expectedChallengeValue)} EV`
+                      : viewMode === "org" && entry.winExpectancyDelta !== null && hasTrustedModelConfidenceBand(entry.winExpectancyConfidence)
+                      ? `${signedWinValue(entry.winExpectancyDelta)} WE`
+                        : entry.runExpectancyDelta !== null && hasTrustedModelConfidenceBand(entry.runExpectancyConfidence)
+                        ? `${signedRunValue(entry.runExpectancyDelta)} RE`
+                        : `${entry.batterName ?? "Batter"} vs ${entry.pitcherName ?? "Pitcher"}`
                   }
                 />
               </div>
@@ -180,6 +184,16 @@ export function ChallengeValueTimeline({
                       WE {signedWinValue(entry.winExpectancyDelta)}
                     </span>
                   ) : null}
+                  {entry.estimatedOverturnProbability !== null ? (
+                    <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-gray-500">
+                      OVR {(entry.estimatedOverturnProbability * 100).toFixed(0)}%
+                    </span>
+                  ) : null}
+                  {entry.expectedChallengeValue !== null ? (
+                    <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-gray-500">
+                      EV {signedWinValue(entry.expectedChallengeValue)}
+                    </span>
+                  ) : null}
                   <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-gray-500">
                     {viewMode === "org" && hasTrustedModelConfidenceBand(entry.winExpectancyConfidence)
                       ? `${entry.winExpectancyConfidence?.toUpperCase() ?? "N/A"} WE confidence`
@@ -187,6 +201,11 @@ export function ChallengeValueTimeline({
                         ? `${entry.runExpectancyConfidence.toUpperCase()} RE confidence`
                         : "Baseline confidence unavailable"}
                   </span>
+                  {entry.overturnProbabilityConfidence ? (
+                    <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-gray-500">
+                      {entry.overturnProbabilityConfidence.toUpperCase()} OVR confidence
+                    </span>
+                  ) : null}
                   {entry.battingAverageDelta !== null ? (
                     <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-gray-500">
                       AVG {signedPercent(entry.battingAverageDelta)}
