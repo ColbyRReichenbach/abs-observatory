@@ -235,6 +235,11 @@ async function persistClassification(feedback: FeedbackRecord, result: Classific
     SET
       classification_status = 'classified',
       classification_bucket = $2,
+      review_priority = CASE
+        WHEN sentiment = 'down' AND comment IS NOT NULL AND $2 IN ('data_accuracy', 'hallucination') THEN 'high'
+        WHEN sentiment = 'up' THEN 'low'
+        ELSE review_priority
+      END,
       classification_confidence = CASE
         WHEN $3 = 'high' THEN 0.9
         WHEN $3 = 'medium' THEN 0.6

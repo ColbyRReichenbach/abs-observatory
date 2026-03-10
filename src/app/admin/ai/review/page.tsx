@@ -2,9 +2,12 @@ import Link from "next/link";
 import { format, subDays } from "date-fns";
 
 import {
+  getAiFeedbackClusterSummary,
   getAiFeedbackReviewDetail,
   getAiFeedbackReviewList,
   getAiFilterOptions,
+  getAiFeedbackRootCauseBreakdown,
+  getAiOutstandingReviewCounts,
   type AdminAiFeedbackReviewFilters,
 } from "@/lib/server/admin-ai-analytics";
 
@@ -109,6 +112,39 @@ function ReviewStatusBadge({ status }: { status: string }) {
   );
 }
 
+function PriorityBadge({ priority }: { priority: string }) {
+  const tone =
+    priority === "high"
+      ? "bg-rose-50 text-rose-700"
+      : priority === "normal"
+        ? "bg-amber-50 text-amber-700"
+        : "bg-slate-100 text-slate-600";
+
+  return (
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.18em] ${tone}`}>
+      {priority} priority
+    </span>
+  );
+}
+
+function RootCauseBadge({ rootCause }: { rootCause: string | null }) {
+  const label = rootCause ? rootCause.replace(/_/g, " ") : "unassigned";
+  return (
+    <span className="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-blue-700">
+      {label}
+    </span>
+  );
+}
+
+function SummaryPill({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-[1.5rem] border border-black/10 bg-[var(--surface-infield)] px-4 py-3">
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">{label}</p>
+      <p className="mt-1 text-xl font-display uppercase tracking-[-0.04em] text-[var(--ink-0)]">{value}</p>
+    </div>
+  );
+}
+
 export default async function AdminAiReviewPage({
   searchParams,
 }: {
@@ -117,8 +153,13 @@ export default async function AdminAiReviewPage({
   const sp = await searchParams;
   const filters = buildFilters(sp);
   const feedbackId = getFilterValue(sp.feedbackId) ?? null;
-  const options = await getAiFilterOptions();
-  const feedback = await getAiFeedbackReviewList(filters);
+  const [options, feedback, outstanding, rootCauseBreakdown, clusterSummary] = await Promise.all([
+    getAiFilterOptions(),
+    getAiFeedbackReviewList(filters),
+    getAiOutstandingReviewCounts(),
+    getAiFeedbackRootCauseBreakdown(filters),
+    getAiFeedbackClusterSummary(filters),
+  ]);
   const activeFeedbackId = feedbackId ?? feedback[0]?.feedbackId ?? null;
   const detail = activeFeedbackId ? await getAiFeedbackReviewDetail(activeFeedbackId) : null;
   const selectedTargetHref = detail ? buildTargetHref(detail) : null;
@@ -164,6 +205,13 @@ export default async function AdminAiReviewPage({
             </button>
           </div>
         </form>
+
+        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <SummaryPill label="Unreviewed" value={outstanding.unreviewed} />
+          <SummaryPill label="High Priority" value={outstanding.highPriority} />
+          <SummaryPill label="Data Issues" value={outstanding.dataIssues} />
+          <SummaryPill label="Prompt Issues" value={outstanding.promptIssues} />
+        </div>
       </section>
 
       <div className="grid gap-8 xl:grid-cols-[1.15fr_0.85fr]">
@@ -202,9 +250,16 @@ export default async function AdminAiReviewPage({
                   <div className="flex flex-wrap items-center gap-2">
                     <SentimentBadge sentiment={row.sentiment} />
                     <ReviewStatusBadge status={row.reviewStatus} />
+                    <PriorityBadge priority={row.reviewPriority} />
+                    {row.rootCause ? <RootCauseBadge rootCause={row.rootCause} /> : null}
                     <span className={`text-[9px] font-black uppercase tracking-[0.18em] ${isActive ? "text-white/70" : "text-[var(--ink-3)]"}`}>
                       {row.surface}
                     </span>
+                    {row.unresolvedSiblingCount > 0 ? (
+                      <span className={`text-[9px] font-black uppercase tracking-[0.18em] ${isActive ? "text-white/70" : "text-[var(--ink-3)]"}`}>
+                        {row.unresolvedSiblingCount} open peers
+                      </span>
+                    ) : null}
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-medium">
                     <span>{row.provider ?? "deterministic"} / {row.modelName ?? "artifact"}</span>
@@ -243,6 +298,8 @@ export default async function AdminAiReviewPage({
                 <div className="flex flex-wrap gap-2">
                   <SentimentBadge sentiment={detail.sentiment} />
                   <ReviewStatusBadge status={detail.reviewStatus} />
+                  <PriorityBadge priority={detail.reviewPriority} />
+                  <RootCauseBadge rootCause={detail.rootCause} />
                 </div>
               </div>
 
@@ -251,6 +308,13 @@ export default async function AdminAiReviewPage({
                 <InfoCard label="Generation" value={detail.generationStatus ?? "unlinked"} />
                 <InfoCard label="Latency" value={detail.latencyMs ? `${detail.latencyMs} ms` : "—"} />
                 <InfoCard label="Estimated Cost" value={detail.totalEstimatedCostUsd ? `$${detail.totalEstimatedCostUsd.toFixed(4)}` : "$0.0000"} />
+              </div>
+
+              <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <SummaryPill label="Same Target" value={detail.relatedSignalCounts.sameTarget} />
+                <SummaryPill label="Same Generation" value={detail.relatedSignalCounts.sameGeneration} />
+                <SummaryPill label="Open Cluster" value={detail.relatedSignalCounts.sameSurfaceBucketUnresolved} />
+                <SummaryPill label="Surface Downs" value={detail.relatedSignalCounts.sameSurfaceNegative} />
               </div>
 
               <div className="mt-6 rounded-[1.5rem] bg-[var(--surface-infield)] p-5">
@@ -282,10 +346,33 @@ export default async function AdminAiReviewPage({
                         options={["new", "triaged", "resolved"]}
                       />
                       <SelectField
+                        label="Priority"
+                        name="reviewPriority"
+                        value={detail.reviewPriority}
+                        options={["low", "normal", "high"]}
+                      />
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <SelectField
                         label="Override Bucket"
                         name="overrideBucket"
                         value={detail.overrideBucket ?? "all"}
                         options={["all", ...options.buckets]}
+                      />
+                      <SelectField
+                        label="Root Cause"
+                        name="rootCause"
+                        value={detail.rootCause ?? "all"}
+                        options={["all", ...options.rootCauses]}
+                      />
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <FilterField label="Issue Owner" name="issueOwner" type="text" defaultValue={detail.issueOwner ?? ""} />
+                      <SelectField
+                        label="Resolution Type"
+                        name="resolutionType"
+                        value={detail.resolutionType ?? "all"}
+                        options={["all", "prompt_fix", "data_fix", "ui_fix", "no_action", "needs_follow_up"]}
                       />
                     </div>
                     <label className="block">
@@ -294,6 +381,15 @@ export default async function AdminAiReviewPage({
                         name="reviewNotes"
                         defaultValue={detail.reviewNotes ?? ""}
                         rows={6}
+                        className="mt-2 w-full rounded-[1.25rem] border border-black/10 bg-[var(--surface-infield)] px-4 py-3 text-sm text-[var(--ink-1)] outline-none transition focus:border-black/25"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--ink-3)]">Resolution Notes</span>
+                      <textarea
+                        name="resolutionNotes"
+                        defaultValue={detail.resolutionNotes ?? ""}
+                        rows={4}
                         className="mt-2 w-full rounded-[1.25rem] border border-black/10 bg-[var(--surface-infield)] px-4 py-3 text-sm text-[var(--ink-1)] outline-none transition focus:border-black/25"
                       />
                     </label>
@@ -327,6 +423,57 @@ export default async function AdminAiReviewPage({
                         Open Source Surface
                       </Link>
                     ) : null}
+                  </div>
+                </div>
+
+                <div className="rounded-[1.5rem] border border-black/10 p-5">
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Related Signals</p>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <InfoCard label="Same Target Feedback" value={detail.relatedSignalCounts.sameTarget.toString()} />
+                    <InfoCard label="Same Generation Feedback" value={detail.relatedSignalCounts.sameGeneration.toString()} />
+                    <InfoCard label="Open Surface/Bucket Cluster" value={detail.relatedSignalCounts.sameSurfaceBucketUnresolved.toString()} />
+                    <InfoCard label="Negative Surface Signals" value={detail.relatedSignalCounts.sameSurfaceNegative.toString()} />
+                  </div>
+                </div>
+
+                <div className="grid gap-5 md:grid-cols-2">
+                  <div className="rounded-[1.5rem] border border-black/10 p-5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Open Clusters</p>
+                    <div className="mt-4 space-y-2">
+                      {clusterSummary.length === 0 ? (
+                        <p className="text-sm text-[var(--ink-3)]">No unresolved clusters in the current filter window.</p>
+                      ) : (
+                        clusterSummary.slice(0, 6).map((cluster) => (
+                          <div key={`${cluster.surface}-${cluster.effectiveBucket}`} className="flex items-center justify-between rounded-[1rem] bg-[var(--surface-infield)] px-4 py-3 text-sm">
+                            <div>
+                              <p className="font-semibold text-[var(--ink-0)]">{cluster.surface.replace(/_/g, " ")}</p>
+                              <p className="text-[var(--ink-3)]">{cluster.effectiveBucket}</p>
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">
+                              {cluster.count} open
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-[1.5rem] border border-black/10 p-5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Root Cause Breakdown</p>
+                    <div className="mt-4 space-y-2">
+                      {rootCauseBreakdown.length === 0 ? (
+                        <p className="text-sm text-[var(--ink-3)]">No classified review rows in the current filter window.</p>
+                      ) : (
+                        rootCauseBreakdown.slice(0, 6).map((entry) => (
+                          <div key={entry.rootCause} className="flex items-center justify-between rounded-[1rem] bg-[var(--surface-infield)] px-4 py-3 text-sm">
+                            <span className="font-semibold capitalize text-[var(--ink-0)]">{entry.rootCause.replace(/_/g, " ")}</span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">
+                              {entry.count}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
 

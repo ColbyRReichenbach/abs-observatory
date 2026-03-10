@@ -17,6 +17,21 @@ export type AdminAiFeedbackReviewFilters = AdminAiAnalyticsFilters & {
   reviewStatus?: string | null;
 };
 
+const HIGH_PRIORITY_BUCKETS = new Set(["data_accuracy", "hallucination"]);
+
+function defaultReviewPriority(sentiment: "up" | "down", comment: string | null, bucket: string | null) {
+  if (sentiment === "down" && comment && bucket && HIGH_PRIORITY_BUCKETS.has(bucket)) return "high";
+  if (sentiment === "up") return "low";
+  return "normal";
+}
+
+function defaultIssueOwner(rootCause: string | null) {
+  if (rootCause === "data_issue") return "data";
+  if (rootCause === "prompt_issue") return "ai";
+  if (rootCause === "rendering_issue") return "frontend";
+  return "colby";
+}
+
 type SqlParts = {
   whereSql: string;
   feedbackWhereSql: string;
@@ -405,6 +420,10 @@ export async function getAiFeedbackReviewList(filters: AdminAiFeedbackReviewFilt
     reviewstatus: string;
     reviewnotes: string | null;
     reviewedat: string | null;
+    reviewpriority: string;
+    rootcause: string | null;
+    issueowner: string | null;
+    resolutiontype: string | null;
     effectivebucket: string | null;
     classificationbucket: string | null;
     overridebucket: string | null;
@@ -419,6 +438,7 @@ export async function getAiFeedbackReviewList(filters: AdminAiFeedbackReviewFilt
     totaltokens: string | null;
     totalestimatedcostusd: string | null;
     latencyms: string | null;
+    unresolvedsiblingcount: string;
   }>(
     `
     ${ctes}
@@ -434,6 +454,10 @@ export async function getAiFeedbackReviewList(filters: AdminAiFeedbackReviewFilt
       f.review_status AS reviewStatus,
       f.review_notes AS reviewNotes,
       f.reviewed_at AS reviewedAt,
+      f.review_priority AS reviewPriority,
+      f.root_cause AS rootCause,
+      f.issue_owner AS issueOwner,
+      f.resolution_type AS resolutionType,
       COALESCE(f.override_bucket, f.classification_bucket, 'unclassified') AS effectiveBucket,
       f.classification_bucket AS classificationBucket,
       f.override_bucket AS overrideBucket,
@@ -447,7 +471,16 @@ export async function getAiFeedbackReviewList(filters: AdminAiFeedbackReviewFilt
       ge.article_id::text AS articleId,
       ge.total_tokens::text AS totalTokens,
       ge.estimated_cost_usd::text AS totalEstimatedCostUsd,
-      ge.latency_ms::text AS latencyMs
+      ge.latency_ms::text AS latencyMs,
+      (
+        SELECT COUNT(*)::text
+        FROM ai.feedback sibling
+        WHERE sibling.feedback_id <> f.feedback_id
+          AND sibling.surface = f.surface
+          AND COALESCE(sibling.override_bucket, sibling.classification_bucket, 'unclassified')
+              = COALESCE(f.override_bucket, f.classification_bucket, 'unclassified')
+          AND sibling.review_status <> 'resolved'
+      ) AS unresolvedSiblingCount
     FROM filtered_feedback f
     LEFT JOIN LATERAL (
       SELECT ge.*
@@ -457,7 +490,11 @@ export async function getAiFeedbackReviewList(filters: AdminAiFeedbackReviewFilt
       ORDER BY ge.created_at DESC
       LIMIT 1
     ) ge ON TRUE
-    ORDER BY f.created_at DESC
+    ORDER BY
+      CASE f.review_priority WHEN 'high' THEN 0 WHEN 'normal' THEN 1 ELSE 2 END ASC,
+      CASE f.review_status WHEN 'new' THEN 0 WHEN 'triaged' THEN 1 ELSE 2 END ASC,
+      CASE f.sentiment WHEN 'down' THEN 0 ELSE 1 END ASC,
+      f.created_at DESC
     LIMIT 100
     `,
     values,
@@ -474,6 +511,10 @@ export async function getAiFeedbackReviewList(filters: AdminAiFeedbackReviewFilt
       reviewStatus: row.reviewstatus,
       reviewNotes: row.reviewnotes,
       reviewedAt: row.reviewedat,
+      reviewPriority: row.reviewpriority ?? defaultReviewPriority(row.sentiment, row.comment, row.effectivebucket),
+      rootCause: row.rootcause,
+      issueOwner: row.issueowner,
+      resolutionType: row.resolutiontype,
       effectiveBucket: row.effectivebucket ?? "unclassified",
       classificationBucket: row.classificationbucket,
       overrideBucket: row.overridebucket,
@@ -488,6 +529,7 @@ export async function getAiFeedbackReviewList(filters: AdminAiFeedbackReviewFilt
       totalTokens: Number(row.totaltokens ?? 0),
       totalEstimatedCostUsd: Number(row.totalestimatedcostusd ?? 0),
       latencyMs: row.latencyms ? Number(row.latencyms) : null,
+      unresolvedSiblingCount: Number(row.unresolvedsiblingcount ?? 0),
     })),
   );
 }
@@ -506,6 +548,11 @@ export async function getAiFeedbackReviewDetail(feedbackId: string) {
     reviewnotes: string | null;
     reviewedat: string | null;
     reviewedbyuserid: string | null;
+    reviewpriority: string;
+    rootcause: string | null;
+    issueowner: string | null;
+    resolutiontype: string | null;
+    resolutionnotes: string | null;
     effectivebucket: string | null;
     classificationstatus: string;
     classificationbucket: string | null;
@@ -526,6 +573,10 @@ export async function getAiFeedbackReviewDetail(feedbackId: string) {
     latencyms: string | null;
     generationmetadata: unknown;
     promptversion: string | null;
+    sametargetcount: string;
+    samegenerationcount: string;
+    unresolvedbucketcount: string;
+    samenegativesurfacecount: string;
   }>(
     `
     SELECT
@@ -541,6 +592,11 @@ export async function getAiFeedbackReviewDetail(feedbackId: string) {
       f.review_notes AS reviewNotes,
       f.reviewed_at AS reviewedAt,
       f.reviewed_by_user_id::text AS reviewedByUserId,
+      f.review_priority AS reviewPriority,
+      f.root_cause AS rootCause,
+      f.issue_owner AS issueOwner,
+      f.resolution_type AS resolutionType,
+      f.resolution_notes AS resolutionNotes,
       COALESCE(f.override_bucket, f.classification_bucket, 'unclassified') AS effectiveBucket,
       f.classification_status AS classificationStatus,
       f.classification_bucket AS classificationBucket,
@@ -560,7 +616,29 @@ export async function getAiFeedbackReviewDetail(feedbackId: string) {
       ge.estimated_cost_usd::text AS totalEstimatedCostUsd,
       ge.latency_ms::text AS latencyMs,
       ge.metadata AS generationMetadata,
-      ge.prompt_version AS promptVersion
+      ge.prompt_version AS promptVersion,
+      (SELECT COUNT(*)::text FROM ai.feedback same_target WHERE same_target.target_type = f.target_type AND same_target.target_id = f.target_id) AS sameTargetCount,
+      (
+        SELECT COUNT(*)::text
+        FROM ai.feedback same_generation
+        WHERE f.generation_id IS NOT NULL
+          AND same_generation.generation_id = f.generation_id
+      ) AS sameGenerationCount,
+      (
+        SELECT COUNT(*)::text
+        FROM ai.feedback sibling
+        WHERE sibling.feedback_id <> f.feedback_id
+          AND sibling.review_status <> 'resolved'
+          AND sibling.surface = f.surface
+          AND COALESCE(sibling.override_bucket, sibling.classification_bucket, 'unclassified')
+              = COALESCE(f.override_bucket, f.classification_bucket, 'unclassified')
+      ) AS unresolvedBucketCount,
+      (
+        SELECT COUNT(*)::text
+        FROM ai.feedback surface_negative
+        WHERE surface_negative.surface = f.surface
+          AND surface_negative.sentiment = 'down'
+      ) AS sameNegativeSurfaceCount
     FROM ai.feedback f
     LEFT JOIN LATERAL (
       SELECT ge.*
@@ -589,6 +667,11 @@ export async function getAiFeedbackReviewDetail(feedbackId: string) {
           reviewNotes: row.reviewnotes,
           reviewedAt: row.reviewedat,
           reviewedByUserId: row.reviewedbyuserid,
+          reviewPriority: row.reviewpriority ?? defaultReviewPriority(row.sentiment, row.comment, row.effectivebucket),
+          rootCause: row.rootcause,
+          issueOwner: row.issueowner,
+          resolutionType: row.resolutiontype,
+          resolutionNotes: row.resolutionnotes,
           effectiveBucket: row.effectivebucket ?? "unclassified",
           classificationStatus: row.classificationstatus,
           classificationBucket: row.classificationbucket,
@@ -609,6 +692,12 @@ export async function getAiFeedbackReviewDetail(feedbackId: string) {
           latencyMs: row.latencyms ? Number(row.latencyms) : null,
           generationMetadata: row.generationmetadata,
           promptVersion: row.promptversion,
+          relatedSignalCounts: {
+            sameTarget: Number(row.sametargetcount ?? 0),
+            sameGeneration: Number(row.samegenerationcount ?? 0),
+            sameSurfaceBucketUnresolved: Number(row.unresolvedbucketcount ?? 0),
+            sameSurfaceNegative: Number(row.samenegativesurfacecount ?? 0),
+          },
         }
       : null,
   );
@@ -619,12 +708,29 @@ export async function updateAiFeedbackReview(input: {
   reviewStatus: "new" | "triaged" | "resolved";
   overrideBucket?: string | null;
   reviewNotes?: string | null;
+  reviewPriority?: "low" | "normal" | "high";
+  issueOwner?: string | null;
+  rootCause?: "prompt_issue" | "data_issue" | "rendering_issue" | "product_expectation" | "model_limit" | "unknown" | null;
+  resolutionType?: "prompt_fix" | "data_fix" | "ui_fix" | "no_action" | "needs_follow_up" | null;
+  resolutionNotes?: string | null;
 }) {
   const { requireOwnerAdmin } = await import("@/lib/server/admin");
   const { writeAuditLog } = await import("@/lib/server/audit");
   const viewer = await requireOwnerAdmin();
   const normalizedNotes = input.reviewNotes?.trim() ? input.reviewNotes.trim() : null;
   const normalizedBucket = input.overrideBucket?.trim() ? input.overrideBucket.trim() : null;
+  const normalizedRootCause = input.rootCause?.trim() ? input.rootCause.trim() : null;
+  const normalizedResolutionType = input.resolutionType?.trim() ? input.resolutionType.trim() : null;
+  const normalizedResolutionNotes = input.resolutionNotes?.trim() ? input.resolutionNotes.trim() : null;
+  const normalizedIssueOwner = input.issueOwner?.trim() ? input.issueOwner.trim() : normalizedRootCause ? defaultIssueOwner(normalizedRootCause) : null;
+
+  if (input.reviewStatus === "triaged" && !normalizedRootCause) {
+    throw new Error("Root cause is required before triaging a feedback row");
+  }
+
+  if (input.reviewStatus === "resolved" && (!normalizedRootCause || !normalizedResolutionType)) {
+    throw new Error("Root cause and resolution type are required before resolving a feedback row");
+  }
 
   await sqlOne(
     `
@@ -633,12 +739,28 @@ export async function updateAiFeedbackReview(input: {
       review_status = $2,
       override_bucket = $3,
       review_notes = $4,
-      reviewed_by_user_id = $5,
+      review_priority = $5,
+      issue_owner = $6,
+      root_cause = $7,
+      resolution_type = $8,
+      resolution_notes = $9,
+      reviewed_by_user_id = $10,
       reviewed_at = NOW(),
       updated_at = NOW()
     WHERE feedback_id = $1
     `,
-    [input.feedbackId, input.reviewStatus, normalizedBucket, normalizedNotes, viewer.userId],
+    [
+      input.feedbackId,
+      input.reviewStatus,
+      normalizedBucket,
+      normalizedNotes,
+      input.reviewPriority ?? "normal",
+      normalizedIssueOwner,
+      normalizedRootCause,
+      normalizedResolutionType,
+      normalizedResolutionNotes,
+      viewer.userId,
+    ],
   );
 
   await writeAuditLog({
@@ -648,14 +770,126 @@ export async function updateAiFeedbackReview(input: {
     targetId: input.feedbackId,
     metadata: {
       reviewStatus: input.reviewStatus,
+      reviewPriority: input.reviewPriority ?? "normal",
       overrideBucket: normalizedBucket,
       hasReviewNotes: Boolean(normalizedNotes),
+      rootCause: normalizedRootCause,
+      issueOwner: normalizedIssueOwner,
+      resolutionType: normalizedResolutionType,
     },
   });
 }
 
+export async function getAiOutstandingReviewCounts() {
+  const [rows] = await Promise.all([
+    sql<{
+      unreviewed: string;
+      highpriority: string;
+      dataissues: string;
+      promptissues: string;
+    }>(
+      `
+      SELECT
+        COUNT(*) FILTER (WHERE review_status = 'new')::text AS unreviewed,
+        COUNT(*) FILTER (WHERE review_status <> 'resolved' AND review_priority = 'high')::text AS highPriority,
+        COUNT(*) FILTER (WHERE review_status <> 'resolved' AND root_cause = 'data_issue')::text AS dataIssues,
+        COUNT(*) FILTER (WHERE review_status <> 'resolved' AND root_cause = 'prompt_issue')::text AS promptIssues
+      FROM ai.feedback
+      `,
+    ),
+  ]);
+
+  const row = rows[0] ?? { unreviewed: "0", highpriority: "0", dataissues: "0", promptissues: "0" };
+  return {
+    unreviewed: Number(row.unreviewed),
+    highPriority: Number(row.highpriority),
+    dataIssues: Number(row.dataissues),
+    promptIssues: Number(row.promptissues),
+  };
+}
+
+export async function getAiFeedbackRootCauseBreakdown(filters: AdminAiFeedbackReviewFilters) {
+  const { sql: ctes, values } = filteredFeedbackReviewCtes(filters);
+  return sql<{ rootcause: string | null; count: string }>(
+    `
+    ${ctes}
+    SELECT COALESCE(root_cause, 'unassigned') AS rootCause, COUNT(*)::text AS count
+    FROM filtered_feedback
+    GROUP BY COALESCE(root_cause, 'unassigned')
+    ORDER BY COUNT(*) DESC, COALESCE(root_cause, 'unassigned') ASC
+    `,
+    values,
+  ).then((rows) =>
+    rows.map((row) => ({
+      rootCause: row.rootcause ?? "unassigned",
+      count: Number(row.count),
+    })),
+  );
+}
+
+export async function getAiFeedbackClusterSummary(filters: AdminAiFeedbackReviewFilters) {
+  const { sql: ctes, values } = filteredFeedbackReviewCtes(filters);
+  return sql<{ surface: string; effectivebucket: string; count: string }>(
+    `
+    ${ctes}
+    SELECT
+      f.surface,
+      COALESCE(f.override_bucket, f.classification_bucket, 'unclassified') AS effectiveBucket,
+      COUNT(*)::text AS count
+    FROM filtered_feedback f
+    WHERE f.review_status <> 'resolved'
+    GROUP BY f.surface, COALESCE(f.override_bucket, f.classification_bucket, 'unclassified')
+    ORDER BY COUNT(*) DESC, f.surface ASC
+    LIMIT 12
+    `,
+    values,
+  ).then((rows) =>
+    rows.map((row) => ({
+      surface: row.surface,
+      effectiveBucket: row.effectivebucket,
+      count: Number(row.count),
+    })),
+  );
+}
+
+export async function getAiFeedbackNeedsActionList(filters: AdminAiFeedbackReviewFilters) {
+  const { sql: ctes, values } = filteredFeedbackReviewCtes(filters);
+  return sql<{
+    feedbackid: string;
+    surface: string;
+    reviewpriority: string;
+    effectivebucket: string;
+    createdat: string;
+  }>(
+    `
+    ${ctes}
+    SELECT
+      f.feedback_id AS feedbackId,
+      f.surface,
+      f.review_priority AS reviewPriority,
+      COALESCE(f.override_bucket, f.classification_bucket, 'unclassified') AS effectiveBucket,
+      f.created_at AS createdAt
+    FROM filtered_feedback f
+    WHERE f.review_status <> 'resolved'
+    ORDER BY
+      CASE f.review_priority WHEN 'high' THEN 0 WHEN 'normal' THEN 1 ELSE 2 END ASC,
+      f.created_at DESC
+    LIMIT 25
+    `,
+    values,
+  ).then((rows) =>
+    rows.map((row) => ({
+      feedbackId: row.feedbackid,
+      surface: row.surface,
+      reviewPriority: row.reviewpriority,
+      effectiveBucket: row.effectivebucket,
+      createdAt: row.createdat,
+    })),
+  );
+}
+
 export async function getAiFilterOptions() {
-  const [surfaceKeys, surfaceDetails, providers, models, statuses, buckets, reviewStatuses] = await Promise.all([
+  const [surfaceKeys, surfaceDetails, providers, models, statuses, buckets, reviewStatuses, rootCauses] = await Promise.all([
     sql<{ surface_key: string }>("SELECT DISTINCT surface_key FROM ai.generation_events ORDER BY surface_key ASC"),
     sql<{ surface_detail: string | null }>(
       "SELECT DISTINCT surface_detail FROM ai.generation_events WHERE surface_detail IS NOT NULL ORDER BY surface_detail ASC",
@@ -667,6 +901,7 @@ export async function getAiFilterOptions() {
       "SELECT DISTINCT COALESCE(override_bucket, classification_bucket, 'unclassified') AS bucket FROM ai.feedback ORDER BY bucket ASC",
     ),
     sql<{ review_status: string }>("SELECT DISTINCT review_status FROM ai.feedback ORDER BY review_status ASC"),
+    sql<{ root_cause: string | null }>("SELECT DISTINCT root_cause FROM ai.feedback WHERE root_cause IS NOT NULL ORDER BY root_cause ASC"),
   ]);
 
   return {
@@ -677,5 +912,6 @@ export async function getAiFilterOptions() {
     statuses: statuses.map((row) => row.status),
     buckets: buckets.map((row) => row.bucket),
     reviewStatuses: reviewStatuses.map((row) => row.review_status),
+    rootCauses: rootCauses.map((row) => row.root_cause).filter(Boolean) as string[],
   };
 }
