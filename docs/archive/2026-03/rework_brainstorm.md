@@ -1,6 +1,6 @@
 # AiBS (Automated Ball-Strike) Observatory Rework Brainstorm
 
-> Archived in March 2026. Canonical product decisions now live in [../../../product-source-of-truth.md](../../../product-source-of-truth.md).
+> Archived in March 2026. Canonical product decisions now live in [../../product/product-source-of-truth.md](../../product/product-source-of-truth.md).
 
 This document outlines the planned rework for the platform, focusing on moving away from "vibe-coded" aesthetics toward a high-utility, professional sports analytics tool.
 

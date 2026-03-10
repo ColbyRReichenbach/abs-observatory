@@ -13,14 +13,17 @@
 .pnpm-store/
 .turbo/
 .cache/
+.eslintcache
 
 # testing and coverage
 /coverage
+/htmlcov
 /playwright-report
 /test-results
 .nyc_output/
 .coverage
 .coverage.*
+.coverage.xml
 coverage-final.json
 
 # next.js and app builds
@@ -31,6 +34,7 @@ coverage-final.json
 
 # runtime and temp artifacts
 /.runtime
+/.runlogs
 /tmp
 /temp
 *.tmp
@@ -53,6 +57,8 @@ etl/.statcast_backfill_checkpoint.json
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.ipynb_checkpoints/
+.python-version
 .venv/
 venv/
 env/
@@ -88,6 +94,8 @@ env/
 Thumbs.db
 .idea/
 .vscode/
+*.orig
+*.rej
 
 # typescript
 *.tsbuildinfo

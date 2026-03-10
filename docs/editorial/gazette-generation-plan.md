@@ -1,12 +1,12 @@
-# The Absolute Observer Gazette Plan
+# The Absolute Observer Editorial Plan
 
-> Gazette product decisions are now anchored in [product-source-of-truth.md](./product-source-of-truth.md). This file remains a focused editorial workflow reference.
+> The Absolute Observer product decisions are now anchored in [product-source-of-truth.md](../product/product-source-of-truth.md). This file remains a focused editorial workflow reference.
 
 This is the aligned editorial plan for the backend we actually have in this repo.
 
 Companion references:
-- [Gazette Backend Spec](./gazette-backend-spec.md)
-- [Gazette Persona And Model Plan](./gazette-persona-model-plan.md)
+- [The Absolute Observer Backend Spec](./gazette-backend-spec.md)
+- [The Absolute Observer Persona And Model Plan](./gazette-persona-model-plan.md)
 
 It replaces the old Supabase-oriented assumptions with the current stack:
 - Next.js app/API layer
@@ -16,7 +16,7 @@ It replaces the old Supabase-oriented assumptions with the current stack:
 - AI logging in `ai.*`
 
 ## 1. Editorial Desks
-The Gazette should be assembled from dynamic `sections[]` keyed by `sectionKey`. The renderer maps layouts by key instead of assuming one fixed article template.
+The Absolute Observer should be assembled from dynamic `sections[]` keyed by `sectionKey`. The renderer maps layouts by key instead of assuming one fixed article template.
 
 Current desk keys:
 - `lead_recap`
@@ -64,14 +64,14 @@ Author personas:
 Model selection must be enforced in backend code, not in prompts.
 
 Rules:
-- the server chooses the model for each Gazette step
+- the server chooses the model for each editorial step
 - prompts define behavior, voice, and output format only
 - prompts do not decide which model runs
 - clients do not decide which model runs
 - every model-backed step should persist the actual `model_name` used in `editorial.generation_steps`
 
 Implementation direction:
-- create a server-side Gazette step registry
+- create a server-side editorial step registry
 - each step maps to:
   - `provider`
   - `model`
@@ -88,7 +88,7 @@ Launch policy:
 - `persist_article` -> deterministic
 
 ## 4. Generation Architecture
-The Gazette should run as a staged workflow, not one giant AI call.
+The Absolute Observer should run as a staged workflow, not one giant AI call.
 
 ### Trigger
 Use our actual stack:
@@ -139,7 +139,7 @@ We still need workflow-tracking tables for multi-agent handoff:
 - `editorial.article_contributors`
 
 Those are defined in:
-- [gazette-backend-spec.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/gazette-backend-spec.md)
+- [gazette-backend-spec.md](./gazette-backend-spec.md)
 
 ## 6. What Each Agent Actually Does
 
@@ -201,7 +201,7 @@ They should:
 - pass structured payloads between steps
 - emit structured JSON only
 
-## 7. Data Sources For Daily Gazette
+## 7. Data Sources For Daily The Absolute Observer
 Primary daily inputs:
 - StatsAPI-derived game facts
 - ABS challenge timeline
@@ -265,7 +265,7 @@ What changed:
 - no freeform chart generation from AI
 
 ## 12. Immediate Next Steps
-- [x] Align the Gazette plan to the actual backend stack.
+- [x] Align The Absolute Observer plan to the actual backend stack.
 - [x] Define workflow tracking as a DB-backed multi-step process.
 - [x] Separate worker steps from final article persistence.
 - [ ] Add `editorial.generation_runs`.

@@ -1,6 +1,6 @@
-# Gazette Backend Implementation Spec
+# The Absolute Observer Backend Implementation Spec
 
-This document defines the backend model for Gazette-style multi-agent article generation in AiBS.
+This document defines the backend model for The Absolute Observer multi-agent article generation in AiBS.
 
 It is intentionally concrete:
 - DB tables
@@ -29,7 +29,7 @@ It is intentionally concrete:
 ## 3. New Tables To Add
 
 ### `editorial.generation_runs`
-One row per Gazette-generation attempt.
+One row per The Absolute Observer generation attempt.
 
 Suggested columns:
 - `generation_run_id UUID PRIMARY KEY DEFAULT gen_random_uuid()`
@@ -162,7 +162,7 @@ Purpose:
 
 Save one `generation_steps` row with:
 - `step_key = 'editor_validation'`
-- `agent_name = 'Gazette Validator'`
+- `agent_name = 'Observer Validator'`
 
 ### Step 6: Persist Article
 Only if validation succeeds:
@@ -366,7 +366,7 @@ If persist step fails:
 
 ## 11. What Should Change In Current Code
 The current daily auto article path in:
-- [articles.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/server/articles.ts)
+- [articles.ts](../../src/lib/server/articles.ts)
 
 should evolve from:
 - one function that assembles and writes a finished article
@@ -378,7 +378,7 @@ to:
 ## 12. Summary
 The key decision is:
 
-We do not treat Gazette generation as a single AI prompt.
+We do not treat The Absolute Observer generation as a single AI prompt.
 
 We treat it as:
 - a DB-tracked workflow

@@ -16,11 +16,11 @@ This document describes the AiBS implementation as it exists in the codebase tod
 
 Related documents:
 
-- [README.md](./README.md)
+- [README.md](../../README.md)
 - [security.md](./security.md)
-- [product-source-of-truth.md](./product-source-of-truth.md)
-- [stack-selection.md](./stack-selection.md)
-- [gazette-backend-spec.md](./gazette-backend-spec.md)
+- [product-source-of-truth.md](../product/product-source-of-truth.md)
+- [stack-selection.md](../architecture/stack-selection.md)
+- [gazette-backend-spec.md](../editorial/gazette-backend-spec.md)
 - [gap-list.md](./gap-list.md)
 
 ## 1. System Summary
@@ -48,7 +48,7 @@ At a high level, the platform is composed of:
   - typed-tool chat
   - chart AI and visualization artifacts
   - game debrief generation
-  - Gazette authoring step
+  - The Absolute Observer authoring step
   - feedback telemetry and classification
 
 - `Worker layer`
@@ -95,7 +95,7 @@ Important nuance:
 
 - provider-aware pricing exists for OpenAI and Anthropic models
 - current live runtime generation in this codebase is OpenAI-backed
-- Gazette author configuration is provider-aware, but Anthropic is not wired as an active runtime client in the application code today
+- The Absolute Observer author configuration is provider-aware, but Anthropic is not wired as an active runtime client in the application code today
 
 ### ETL and testing
 
@@ -209,7 +209,7 @@ The product currently exposes these primary surfaces:
   - umpire detail analytics
 
 - `/articles`
-  - Gazette and editorial surfaces
+  - The Absolute Observer and editorial surfaces
 
 - `/about`
   - product/editorial-style about system
@@ -314,9 +314,9 @@ Game debrief generation is not a generic “summarize the game” prompt. It is 
 
 The runtime path lives in `src/lib/server/game-reports.ts`, and the ETL-side entrypoint remains in `etl/generate_game_report.py`.
 
-### 7.6 Gazette authoring
+### 7.6 The Absolute Observer authoring
 
-The daily Gazette pipeline persists generation runs and step-level telemetry.
+The daily The Absolute Observer pipeline persists generation runs and step-level telemetry.
 
 Current step model:
 
@@ -327,6 +327,8 @@ Current step model:
 - `persist_article`: deterministic
 
 The step registry is implemented in `src/lib/server/gazette-step-registry.ts`.
+
+The internal module and telemetry names still use `gazette_*`. The user-facing editorial brand is now The Absolute Observer.
 
 ## 8. Auth and Identity Model
 
@@ -391,7 +393,7 @@ The worker processor currently handles:
 
 - queued AI chat
 - AI feedback classification
-- Gazette daily article generation
+- The Absolute Observer daily article generation
 - standings sync
 - Savant weekly sync
 

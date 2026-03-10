@@ -10,17 +10,17 @@
 
 </div>
 
-This document defines the next analytics implementation wave for AiBS around one core product question:
+This document defines the challenge-value analytics program for AiBS around one core product question:
 
 `When is an ABS challenge actually worth using?`
 
-The plan is intentionally grounded in the current codebase. It does not assume true win probability is already implemented. It does assume the app already stores enough challenge context to begin shipping scenario-aware strategy analytics.
+The plan is intentionally grounded in the current codebase. Run expectancy and win expectancy are now implemented with confidence-aware fallbacks, and the remaining work is centered on deeper rollout, better packaging, and decision-value refinement.
 
 Related documents:
 
-- [product-source-of-truth.md](../../product-source-of-truth.md)
-- [gap-list.md](../../gap-list.md)
-- [technical.md](../../technical.md)
+- [product-source-of-truth.md](../product/product-source-of-truth.md)
+- [gap-list.md](../reference/gap-list.md)
+- [technical.md](../reference/technical.md)
 - [src/lib/estimated-leverage.ts](../../src/lib/estimated-leverage.ts)
 - [src/lib/types.ts](../../src/lib/types.ts)
 - [db/views.sql](../../db/views.sql)

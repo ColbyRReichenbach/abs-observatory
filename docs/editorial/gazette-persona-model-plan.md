@@ -1,14 +1,14 @@
-# Gazette Persona And Model Plan
+# The Absolute Observer Persona And Model Plan
 
-> Persona selection and model policy defer to [product-source-of-truth.md](./product-source-of-truth.md). Keep this file as the Gazette-specific execution appendix.
+> Persona selection and model policy defer to [product-source-of-truth.md](../product/product-source-of-truth.md). Keep this file as the The Absolute Observer-specific execution appendix.
 
-This document defines how each Gazette persona should work, which layers stay deterministic, which layers get LLM access, and the expected token and cost profile.
+This document defines how each The Absolute Observer persona should work, which layers stay deterministic, which layers get LLM access, and the expected token and cost profile.
 
 It is the reference for future technical specs and implementation.
 
 ## 1. Core Decision
 
-The Gazette workflow should **not** be "four AI agents talking to the database."
+The Absolute Observer workflow should **not** be "four AI agents talking to the database."
 
 It should be:
 
@@ -30,7 +30,7 @@ Rules:
 - the actual model used must be persisted in `editorial.generation_steps.model_name`
 
 Required implementation shape:
-- add a server-side Gazette step registry
+- add a server-side editorial step registry
 - each step resolves:
   - `provider`
   - `model`
@@ -48,10 +48,10 @@ This keeps:
 
 ## 2. Editorial Window Rule
 
-Daily Gazette articles should use a **slate-based** window, not a naive calendar day.
+Daily The Absolute Observer articles should use a **slate-based** window, not a naive calendar day.
 
 Example:
-- Gazette article published on `2026-03-08`
+- The Absolute Observer article published on `2026-03-08`
 - summarizes the `2026-03-07` slate
 - allows West Coast games to finish after midnight Eastern
 - runs only after the slate is stable
@@ -226,7 +226,7 @@ Recommendation:
 - launch with `gpt-4.1-mini`
 - only escalate if real article quality proves insufficient
 
-### Gazette Validator
+### Observer Validator
 
 Purpose:
 - ensure every section is evidence-backed
@@ -270,7 +270,7 @@ Estimated token/cost if model is added:
 - output: `400-900`
 - estimated cost with `gpt-4.1-mini`: about `$0.004 to $0.007`
 
-### Gazette Publisher
+### Observer Publisher
 
 Purpose:
 - persist the validated article
@@ -304,8 +304,8 @@ Why:
 - Scout Bot 1: `deterministic`
 - Theo Telemetry: `deterministic`
 - Author Persona: `gpt-4.1-mini`
-- Gazette Validator: `deterministic`
-- Gazette Publisher: `none`
+- Observer Validator: `deterministic`
+- Observer Publisher: `none`
 - Atlas Absolute: `none`
 
 This is the recommended launch architecture.
@@ -385,7 +385,7 @@ Recommendation:
 ## 7. Weekly Editorial Recommendation
 
 For the weekly article you write yourself:
-- no need for a full Gazette multi-agent daily pipeline
+- no need for a full The Absolute Observer multi-agent daily pipeline
 - use deterministic weekly evidence packages first
 - optionally add an AI writing assistant later for:
   - outline generation

@@ -14,15 +14,15 @@ This file tracks the gaps that prevent AiBS documentation from making broader cl
 
 Related documents:
 
-- [README.md](./README.md)
+- [README.md](../../README.md)
 - [technical.md](./technical.md)
 - [security.md](./security.md)
-- [product-source-of-truth.md](./product-source-of-truth.md)
-- [stack-selection.md](./stack-selection.md)
-- [docs/launch/provider-setup-checklist.md](./docs/launch/provider-setup-checklist.md)
-- [docs/launch/private-alpha-checklist.md](./docs/launch/private-alpha-checklist.md)
-- [docs/launch/alpha-success-scorecard.md](./docs/launch/alpha-success-scorecard.md)
-- [docs/launch/challenge-context-analytics-plan.md](./docs/launch/challenge-context-analytics-plan.md)
+- [product-source-of-truth.md](../product/product-source-of-truth.md)
+- [stack-selection.md](../architecture/stack-selection.md)
+- [docs/launch/provider-setup-checklist.md](../launch/provider-setup-checklist.md)
+- [docs/launch/private-alpha-checklist.md](../launch/private-alpha-checklist.md)
+- [docs/launch/alpha-success-scorecard.md](../launch/alpha-success-scorecard.md)
+- [docs/launch/challenge-context-analytics-plan.md](../launch/challenge-context-analytics-plan.md)
 
 ## 1. Infrastructure and Deployment
 
@@ -49,7 +49,7 @@ These items are referenced in stack and launch docs but are not fully implemente
 These are important truth boundaries for the AI docs:
 
 - `Anthropic runtime support`
-  - provider-aware pricing and Gazette step provider types exist
+  - provider-aware pricing and The Absolute Observer step provider types exist
   - live model-backed runtime code is currently OpenAI-based
   - do not describe Anthropic as an active production provider until a real runtime client path exists
 
@@ -99,7 +99,7 @@ These are real product gaps that affect how far the documentation should go:
   - curated production asset library is deferred
 
 - `Editorial expansion`
-  - daily Gazette authoring is implemented with persisted workflow telemetry
+  - daily The Absolute Observer authoring is implemented with persisted workflow telemetry
   - broader editorial studio / multi-editor workflow is still out of scope
 
 ## 6. Documentation Rule

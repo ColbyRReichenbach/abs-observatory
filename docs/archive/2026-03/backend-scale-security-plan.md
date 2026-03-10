@@ -12,8 +12,8 @@ It is intentionally practical:
 
 ## Execution Tracking
 
-Canonical sprint tracking lives in [roadmap.md](./roadmap.md).
-Canonical sprint verification lives in [sprint-test-plan.md](./sprint-test-plan.md).
+Canonical sprint tracking lives in [roadmap.md](../../product/roadmap.md).
+Canonical sprint verification lives in [sprint-test-plan.md](../../product/sprint-test-plan.md).
 
 This checklist keeps the major backend/product decisions visible here:
 - [x] Sprint 1 complete: auth, profiles, comments, moderation baseline. `[Stack: Clerk, Next.js, Postgres]`

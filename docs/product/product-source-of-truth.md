@@ -8,15 +8,15 @@ Use this file for:
 - rubric definitions
 - backend read-model requirements
 - buildable-now vs blocked decisions
-- editorial/Gazette integration
+- editorial/The Absolute Observer integration
 
 Do not use older planning docs as parallel sources of truth. They are retained only for historical context and should defer to this document.
 
 Supporting execution docs:
 - [roadmap.md](./roadmap.md)
 - [sprint-test-plan.md](./sprint-test-plan.md)
-- [stack-selection.md](./stack-selection.md)
-- [gazette-backend-spec.md](./gazette-backend-spec.md)
+- [stack-selection.md](../architecture/stack-selection.md)
+- [gazette-backend-spec.md](../editorial/gazette-backend-spec.md)
 
 ## Current Product Truth
 
@@ -24,13 +24,14 @@ What is real today:
 - Next.js app and API layer are backed by Postgres.
 - Real MLB game, pitch, challenge, team, and umpire data can be ingested locally.
 - Fan/org mode plumbing already exists at the routing/state level.
-- Gazette workflow persistence exists with staged generation runs and steps.
-- Advanced CLS/WPA surfaces remain intentionally disabled rather than simulated.
+- The Absolute Observer workflow persistence exists with staged generation runs and steps.
+- Run expectancy and win expectancy layers now exist with confidence-aware fallbacks.
+- Advanced CLS/WPA branding remains intentionally disabled rather than simulated.
 
 What is intentionally not treated as complete:
 - Fan/org page differentiation is only partially implemented.
 - Sprint 9 advanced leverage features are still deferred unless backed by real models.
-- Gazette Author is not yet model-backed in the production flow.
+- Expected challenge decision value is still in an early model phase and should not yet be treated as a fully matured org product.
 
 ## Canonical Mode Rules
 
@@ -397,7 +398,7 @@ Keep with moderate trim:
 - postgame: decision review framing
 
 Blocked for now:
-- live overturn probability
+- fully calibrated live overturn probability
 - real CLS/WPA
 
 ## Query
@@ -418,15 +419,15 @@ Role:
 
 - mostly fan-facing in this phase
 - org mode may reference articles as supporting context
-- daily Gazette stays fan-first
+- daily The Absolute Observer stays fan-first
 
-## Gazette / Editorial Integration
+## The Absolute Observer / Editorial Integration
 
-Gazette is part of the same product system, not a parallel plan.
+The Absolute Observer is part of the same product system, not a parallel plan.
 
 Core rules:
-- daily Gazette is mostly fan-facing
-- org mode may reference Gazette, but it is not the main org surface
+- daily The Absolute Observer is mostly fan-facing
+- org mode may reference The Absolute Observer, but it is not the main org surface
 - slate-window logic is server-resolved
 - Scout, Theo, Author, Validator remain staged workflow roles
 - model selection is enforced in backend code, never in prompts
@@ -446,7 +447,7 @@ Backend workstream:
 - controversy hero ranking
 - 9-zone umpire aggregations
 - org watch-list scoring
-- Gazette evidence alignment
+- The Absolute Observer evidence alignment
 
 ## Buildable Now
 
@@ -457,11 +458,12 @@ Backend workstream:
 - pregame umpire intel
 - challenge map
 - fan/org module reordering and label changes
+- confidence-aware RE/WE challenge value surfaces
 
 ## Blocked Or Deferred
 
 - real CLS / WPA model
-- live overturn probability
+- fully calibrated live overturn probability
 - PDF export
 - X bot
 - deep multi-season analytics unless more history is loaded
@@ -472,16 +474,16 @@ Canonical:
 - this file
 - [roadmap.md](./roadmap.md)
 - [sprint-test-plan.md](./sprint-test-plan.md)
-- [stack-selection.md](./stack-selection.md)
+- [stack-selection.md](../architecture/stack-selection.md)
 
 Historical/supporting:
-- [analytics-audit.md](./analytics-audit.md)
-- [ANALYST_REPORT.md](./ANALYST_REPORT.md)
-- [gazette-backend-spec.md](./gazette-backend-spec.md)
-- [ai-backend-plan.md](./ai-backend-plan.md)
-- [ai-implementation-sequence.md](./ai-implementation-sequence.md)
-- [decision_doc.md](./decision_doc.md)
-- [plan.md](./plan.md)
+- [analytics-audit.md](../archive/2026-03/analytics-audit.md)
+- [ANALYST_REPORT.md](../archive/2026-03/analyst-report.md)
+- [gazette-backend-spec.md](../editorial/gazette-backend-spec.md)
+- [ai-backend-plan.md](../architecture/ai-backend-plan.md)
+- [ai-implementation-sequence.md](../architecture/ai-implementation-sequence.md)
+- [decision_doc.md](../architecture/challenge-location-inference-decision.md)
+- [plan.md](../archive/2026-03/backend-scale-security-plan.md)
 
 Archived exploratory docs:
-- [docs/archive/2026-03/README.md](./docs/archive/2026-03/README.md)
+- [docs/archive/2026-03/README.md](../archive/2026-03/README.md)

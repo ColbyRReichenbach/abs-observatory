@@ -24,8 +24,8 @@ This plan is grounded in two things:
 Related documents:
 
 - [challenge-context-analytics-plan.md](./challenge-context-analytics-plan.md)
-- [technical.md](../../technical.md)
-- [gap-list.md](../../gap-list.md)
+- [technical.md](../reference/technical.md)
+- [gap-list.md](../reference/gap-list.md)
 - [src/lib/challenge-value.ts](../../src/lib/challenge-value.ts)
 - [src/lib/estimated-leverage.ts](../../src/lib/estimated-leverage.ts)
 - [src/lib/data.ts](../../src/lib/data.ts)
@@ -66,7 +66,14 @@ Current Layer 3 status:
 - `mart_win_expectancy_by_count_state` is implemented
 - `mart_win_expectancy_fallbacks` is implemented
 - shared WE resolution logic exists in `src/lib/server/win-expectancy.ts`
-- first product wiring is underway for game and team challenge surfaces
+- first product wiring is live for game and team challenge surfaces
+
+Current Layer 4 status:
+
+- official Savant ABS historical ingestion is implemented
+- smoothed overturn-probability inputs exist
+- the first empirical challenge decision model is implemented on game surfaces
+- broader team/org rollout is still pending
 
 ## 1. Mandate
 

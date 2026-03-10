@@ -45,7 +45,7 @@ AiBS currently ships four product layers:
    - Unified AI feedback collection and admin review
 
 4. `Editorial and community`
-   - Gazette article system
+   - The Absolute Observer article system
    - Daily auto-generation workflow with persisted generation runs and steps
    - Comments tied to articles and challenge-related discussion surfaces
 
@@ -111,7 +111,7 @@ Primary runtime and data stack:
 - `Clerk` for auth and verified identity
 - `Vitest` + `Playwright` + Python `unittest` for validation
 
-More detail: [technical.md](./technical.md)
+More detail: [technical.md](./docs/reference/technical.md)
 
 ## Security Posture
 
@@ -125,7 +125,7 @@ AiBS is built with explicit boundaries between user input, model access, and dat
 - worker-token protection for internal job processing
 - log redaction for sensitive metadata
 
-More detail: [security.md](./security.md)
+More detail: [security.md](./docs/reference/security.md)
 
 ## Local Setup
 
@@ -203,13 +203,14 @@ npm run smoke:release
 
 ## Documentation Map
 
-- Product truth: [product-source-of-truth.md](./product-source-of-truth.md)
-- Stack decisions: [stack-selection.md](./stack-selection.md)
-- Technical implementation: [technical.md](./technical.md)
-- Security controls: [security.md](./security.md)
-- Documentation and product gaps: [gap-list.md](./gap-list.md)
-- Gazette backend: [gazette-backend-spec.md](./gazette-backend-spec.md)
-- AI backend: [ai-backend-plan.md](./ai-backend-plan.md)
+- Docs index: [docs/README.md](./docs/README.md)
+- Product truth: [product-source-of-truth.md](./docs/product/product-source-of-truth.md)
+- Stack decisions: [stack-selection.md](./docs/architecture/stack-selection.md)
+- Technical implementation: [technical.md](./docs/reference/technical.md)
+- Security controls: [security.md](./docs/reference/security.md)
+- Documentation and product gaps: [gap-list.md](./docs/reference/gap-list.md)
+- The Absolute Observer backend: [gazette-backend-spec.md](./docs/editorial/gazette-backend-spec.md)
+- AI backend: [ai-backend-plan.md](./docs/architecture/ai-backend-plan.md)
 - Launch and provider setup: [docs/launch/provider-setup-checklist.md](./docs/launch/provider-setup-checklist.md)
 - Private alpha checklist: [docs/launch/private-alpha-checklist.md](./docs/launch/private-alpha-checklist.md)
 - Alpha success scorecard: [docs/launch/alpha-success-scorecard.md](./docs/launch/alpha-success-scorecard.md)
@@ -224,4 +225,4 @@ What AiBS does not claim today:
 - finished matchup backdrop asset rollout
 - fully separate fan and org products beyond the current shared-design, different-framing model
 
-Those gaps are tracked explicitly in [gap-list.md](./gap-list.md).
+Those gaps are tracked explicitly in [gap-list.md](./docs/reference/gap-list.md).

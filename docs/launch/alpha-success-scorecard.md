@@ -19,8 +19,8 @@ Related documents:
 - [docs/launch/private-alpha-checklist.md](./private-alpha-checklist.md)
 - [docs/launch/provider-setup-checklist.md](./provider-setup-checklist.md)
 - [docs/launch/monitoring-alerts.md](./monitoring-alerts.md)
-- [gap-list.md](../../gap-list.md)
-- [product-source-of-truth.md](../../product-source-of-truth.md)
+- [gap-list.md](../reference/gap-list.md)
+- [product-source-of-truth.md](../product/product-source-of-truth.md)
 
 ## 1. How To Use This Scorecard
 
@@ -104,7 +104,7 @@ Track which surfaces users actually use and return to.
 - `game views`
 - `team pages`
 - `umpire pages`
-- `Gazette`
+- `The Absolute Observer`
 - `comments`
 
 For each surface, track:
