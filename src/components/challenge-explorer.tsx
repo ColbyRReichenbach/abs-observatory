@@ -92,6 +92,17 @@ export function ChallengeExplorer({
       impactType: selected.impactType ?? null,
     };
   }, [selected]);
+  const selectedConsequence = useMemo(() => {
+    if (!selected) return null;
+    if (selected.umpireCount && selected.countAfter && selected.umpireCount !== selected.countAfter) {
+      return `Count shifted ${selected.umpireCount} -> ${selected.countAfter}`;
+    }
+    return selected.umpireCount ?? selected.countAfter ?? null;
+  }, [selected]);
+  const selectedOutcomeRead = useMemo(() => {
+    if (!selected || selected.positiveOutcomeDelta === null || selected.positiveOutcomeDelta === undefined) return null;
+    return `${selected.positiveOutcomeDelta >= 0 ? "+" : "-"}${(Math.abs(selected.positiveOutcomeDelta) * 100).toFixed(1)} pts positive outcome rate`;
+  }, [selected]);
 
   useEffect(() => {
     if (!replayEnabled || filtered.length <= 1 || selectedIndex < 0) return;
@@ -278,6 +289,20 @@ export function ChallengeExplorer({
                     </span>
                   </div>
                 </div>
+
+                {(selectedConsequence || selectedOutcomeRead) && (
+                  <div className="rounded-xl border border-gray-200 bg-white/70 px-4 py-3">
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--ink-3)]">
+                      Count-State Consequence
+                    </p>
+                    {selectedConsequence ? (
+                      <p className="mt-2 text-sm font-bold text-[var(--ink-1)]">{selectedConsequence}</p>
+                    ) : null}
+                    {selectedOutcomeRead ? (
+                      <p className="mt-1 text-[11px] font-medium text-[var(--ink-2)]">{selectedOutcomeRead}</p>
+                    ) : null}
+                  </div>
+                )}
 
                 {aiInsight && (
                   <AIStatInsight {...aiInsight} insightId={selected.challengeId} />

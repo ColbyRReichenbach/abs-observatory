@@ -485,7 +485,8 @@ async function getRecentGameChallenges(
 
 export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[]> {
   return withCachedValue(getCacheKey(["game-challenges", gamePk]), 10_000, async () => {
-    const rows = await sql<{
+    const [rows, baselines] = await Promise.all([
+      sql<{
       challenge_id: string;
       game_pk: number;
       challenged_at: string | null;
@@ -522,7 +523,7 @@ export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[
       impact_type: string | null;
       impact_summary: string | null;
     }>(
-      `
+        `
     SELECT DISTINCT ON (c.challenge_id)
       c.challenge_id,
       c.game_pk,
@@ -570,53 +571,70 @@ export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[
     WHERE c.game_pk = $1
     ORDER BY c.challenge_id, c.challenged_at ASC NULLS LAST
     `,
-      [gamePk],
-    );
+        [gamePk],
+      ),
+      getCountStateBaselines(),
+    ]);
+    const baselineMap = buildCountStateBaselineMap(baselines);
 
-    return rows.map((r) => ({
-      challengeId: r.challenge_id,
-      gamePk: r.game_pk,
-      challengedAt: r.challenged_at,
-      inning: r.inning,
-      halfInning: r.half_inning,
-      balls: r.balls,
-      strikes: r.strikes,
-      outs: r.outs,
-      basesState: r.bases_state,
-      homeScore: r.home_score,
-      awayScore: r.away_score,
-      challengeTeamId: r.challenge_team_id,
-      challengeTeamName: r.challenge_team_name,
-      challengePlayerName: r.challenge_player_name,
-      batterName: r.batter_name,
-      pitcherName: r.pitcher_name,
-      calledDescription: r.called_description,
-      pitchNumber: r.pitchnumber,
-      pitchType: r.pitchtype,
-      startSpeed: r.startspeed === null ? null : Number(r.startspeed),
-      spinRate: r.spinrate === null ? null : Number(r.spinrate),
-      isOverturned: r.is_overturned,
-      px: r.px === null ? null : Number(r.px),
-      pz: r.pz === null ? null : Number(r.pz),
-      strikeZoneTop: r.strike_zone_top === null ? null : Number(r.strike_zone_top),
-      strikeZoneBottom: r.strike_zone_bottom === null ? null : Number(r.strike_zone_bottom),
-      countBefore:
-        r.balls_before === null || r.strikes_before === null ? null : `${r.balls_before}-${r.strikes_before}`,
-      countAfter:
-        r.balls_after === null || r.strikes_after === null ? null : `${r.balls_after}-${r.strikes_after}`,
-      umpireCount: (() => {
-        if (r.balls_before === null || r.strikes_before === null) return null;
-        if (!r.is_overturned) return r.balls_after === null || r.strikes_after === null ? null : `${r.balls_after}-${r.strikes_after}`;
-        if (r.balls_after !== null && r.balls_after > r.balls_before) return `${r.balls_before}-${r.strikes_before + 1}`;
-        if (r.strikes_after !== null && r.strikes_after > r.strikes_before) return `${r.balls_before + 1}-${r.strikes_before}`;
-        return r.balls_after === null || r.strikes_after === null ? null : `${r.balls_after}-${r.strikes_after}`;
-      })(),
-      impactType: r.impact_type,
-      impactSummary: r.impact_summary,
-      locationSource: r.location_source,
-      inferenceMethod: r.inference_method,
-      inferenceConfidence: r.inference_confidence,
-    }));
+    return rows.map((r) => {
+      const challenge: ChallengeEvent = {
+        challengeId: r.challenge_id,
+        gamePk: r.game_pk,
+        challengedAt: r.challenged_at,
+        inning: r.inning,
+        halfInning: r.half_inning,
+        balls: r.balls,
+        strikes: r.strikes,
+        outs: r.outs,
+        basesState: r.bases_state,
+        homeScore: r.home_score,
+        awayScore: r.away_score,
+        challengeTeamId: r.challenge_team_id,
+        challengeTeamName: r.challenge_team_name,
+        challengePlayerName: r.challenge_player_name,
+        batterName: r.batter_name,
+        pitcherName: r.pitcher_name,
+        calledDescription: r.called_description,
+        pitchNumber: r.pitchnumber,
+        pitchType: r.pitchtype,
+        startSpeed: r.startspeed === null ? null : Number(r.startspeed),
+        spinRate: r.spinrate === null ? null : Number(r.spinrate),
+        isOverturned: r.is_overturned,
+        px: r.px === null ? null : Number(r.px),
+        pz: r.pz === null ? null : Number(r.pz),
+        strikeZoneTop: r.strike_zone_top === null ? null : Number(r.strike_zone_top),
+        strikeZoneBottom: r.strike_zone_bottom === null ? null : Number(r.strike_zone_bottom),
+        countBefore:
+          r.balls_before === null || r.strikes_before === null ? null : `${r.balls_before}-${r.strikes_before}`,
+        countAfter:
+          r.balls_after === null || r.strikes_after === null ? null : `${r.balls_after}-${r.strikes_after}`,
+        umpireCount: (() => {
+          if (r.balls_before === null || r.strikes_before === null) return null;
+          if (!r.is_overturned) return r.balls_after === null || r.strikes_after === null ? null : `${r.balls_after}-${r.strikes_after}`;
+          if (r.balls_after !== null && r.balls_after > r.balls_before) return `${r.balls_before}-${r.strikes_before + 1}`;
+          if (r.strikes_after !== null && r.strikes_after > r.strikes_before) return `${r.balls_before + 1}-${r.strikes_before}`;
+          return r.balls_after === null || r.strikes_after === null ? null : `${r.balls_after}-${r.strikes_after}`;
+        })(),
+        impactType: r.impact_type,
+        impactSummary: r.impact_summary,
+        locationSource: r.location_source,
+        inferenceMethod: r.inference_method,
+        inferenceConfidence: r.inference_confidence,
+      };
+      const snapshot = buildChallengeValueSnapshot(challenge, baselineMap);
+
+      return {
+        ...challenge,
+        estimatedLeverageIndex: snapshot.leverage.estimatedLeverageIndex,
+        estimatedChallengeSwing: snapshot.leverage.estimatedChallengeSwing,
+        leverageBucket: snapshot.leverage.leverageBucket,
+        positiveOutcomeDelta: roundMetric(snapshot.countStateDelta.positiveOutcomeDelta),
+        battingAverageDelta: roundMetric(snapshot.countStateDelta.battingAverageDelta),
+        walkRateDelta: roundMetric(snapshot.countStateDelta.walkRateDelta),
+        strikeoutRateDelta: roundMetric(snapshot.countStateDelta.strikeoutRateDelta),
+      };
+    });
   });
 }
 

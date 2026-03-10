@@ -20,6 +20,9 @@ export function AtBatContextCard({ challenge }: { challenge: ChallengeEvent }) {
         : "Location unavailable";
     const leverage = summarizeEstimatedLeverage(challenge);
     const scenarioTags = getChallengeScenarioTags(challenge);
+    const positiveOutcomeDelta = challenge.positiveOutcomeDelta ?? null;
+    const battingAverageDelta = challenge.battingAverageDelta ?? null;
+    const walkRateDelta = challenge.walkRateDelta ?? null;
     const scoreState =
         challenge.homeScore === null || challenge.awayScore === null
             ? "Score unavailable"
@@ -28,6 +31,17 @@ export function AtBatContextCard({ challenge }: { challenge: ChallengeEvent }) {
                 : `${challenge.awayScore}-${challenge.homeScore}`;
     const inningLabel = `${challenge.halfInning === "Top" ? "Top" : challenge.halfInning === "Bottom" ? "Bot" : "?"} ${challenge.inning ?? "-"}`;
     const baseStateLabel = formatBasesStateLabel(challenge.basesState);
+    const plateContextLabel = challenge.halfInning === "Top" ? "Away offense batting" : challenge.halfInning === "Bottom" ? "Home offense batting" : "Offense batting";
+    const countConsequence =
+        challenge.umpireCount && challenge.countAfter && challenge.umpireCount !== challenge.countAfter
+            ? `Review shifted the plate appearance from ${challenge.umpireCount} to ${challenge.countAfter}.`
+            : "Review held the plate appearance in the same count state.";
+    const deltaNarrative =
+        positiveOutcomeDelta === null
+            ? "No comparable count-state baseline is available for this review."
+            : positiveOutcomeDelta >= 0
+                ? `Comparable plate appearances improve by ${(positiveOutcomeDelta * 100).toFixed(1)} points from this shift.`
+                : `Comparable plate appearances lose ${(Math.abs(positiveOutcomeDelta) * 100).toFixed(1)} points from this shift.`;
 
     return (
         <motion.div
@@ -49,6 +63,7 @@ export function AtBatContextCard({ challenge }: { challenge: ChallengeEvent }) {
                         <p className="mt-1 text-[11px] font-medium text-slate-600">
                             {inningLabel} • {scoreState} • {challenge.outs ?? 0} out{(challenge.outs ?? 0) === 1 ? "" : "s"}
                         </p>
+                        <p className="mt-1 text-[11px] font-medium text-slate-500">{plateContextLabel}</p>
                     </div>
                     <div className="min-w-[96px] rounded-xl border border-blue-100 bg-blue-50/60 px-3 py-2 text-right">
                         <p className="text-[9px] uppercase tracking-wider text-blue-500 font-bold">Estimated Leverage</p>
@@ -92,6 +107,32 @@ export function AtBatContextCard({ challenge }: { challenge: ChallengeEvent }) {
                     </div>
                 </div>
 
+                <div className="mt-4 rounded-lg border border-gray-200/50 bg-white/50 p-3">
+                    <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold">Count-State Consequence</span>
+                    <p className="mt-1 text-xs font-bold text-slate-900">{countConsequence}</p>
+                    <p className="mt-1 text-[11px] font-medium leading-relaxed text-slate-600">{deltaNarrative}</p>
+                </div>
+
+                {battingAverageDelta !== null || walkRateDelta !== null ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        {battingAverageDelta !== null ? (
+                            <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                                AVG {formatDelta(battingAverageDelta)}
+                            </span>
+                        ) : null}
+                        {walkRateDelta !== null ? (
+                            <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                                BB {formatDelta(walkRateDelta)}
+                            </span>
+                        ) : null}
+                        {positiveOutcomeDelta !== null ? (
+                            <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                                Positive Outcome {formatDelta(positiveOutcomeDelta)}
+                            </span>
+                        ) : null}
+                    </div>
+                ) : null}
+
                 {scenarioTags.length > 0 ? (
                     <div className="mt-4 flex flex-wrap gap-2">
                         {scenarioTags.map((tag) => (
@@ -114,4 +155,8 @@ export function AtBatContextCard({ challenge }: { challenge: ChallengeEvent }) {
             </div>
         </motion.div>
     );
+}
+
+function formatDelta(value: number) {
+    return `${value >= 0 ? "+" : "-"}${(Math.abs(value) * 100).toFixed(1)} pts`;
 }

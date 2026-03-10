@@ -39,6 +39,10 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
   const totalSuccessful = teams.reduce((s, t) => s + t.usedSuccessful, 0);
   const leagueAvgRate = totalChallenges > 0 ? totalSuccessful / totalChallenges : 0;
   const leagueAvgRemaining = teams.length > 0 ? teams.reduce((s, t) => s + t.avgRemaining, 0) / teams.length : 0;
+  const leagueAvgLatePressureShare =
+    teams.length > 0 ? teams.reduce((sum, team) => sum + team.lateLeverageShare, 0) / teams.length : 0;
+  const leagueAvgEarlyBurnShare =
+    teams.length > 0 ? teams.reduce((sum, team) => sum + team.earlyLowLeverageShare, 0) / teams.length : 0;
 
   // Find the position where league avg row should be inserted (between teams above and below league avg overturn rate)
   const avgInsertIdx = sorted.findIndex((t) => t.overturnRate < leagueAvgRate);
@@ -65,8 +69,8 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
           </p>
           <p className="mt-1 text-xs text-[var(--ink-3)]">
             {viewMode === "org"
-              ? `${biggestMover.orgStyleLabel} with ${biggestMover.challengeRatePerGame.toFixed(2)} challenges per game and ${(biggestMover.overturnRate * 100).toFixed(1)}% overturn rate.`
-              : `${biggestMover.style} profile with ${(biggestMover.overturnRate * 100).toFixed(1)}% effectiveness and a visible trend swing.`}
+              ? `${biggestMover.orgStyleLabel} with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews in higher-pressure windows and ${biggestMover.challengeRatePerGame.toFixed(2)} challenges per game.`
+              : `${biggestMover.style} profile with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews coming in bigger spots and a visible trend swing.`}
           </p>
         </div>
         <ProfileBadge
@@ -93,7 +97,8 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
               <th className="min-w-[180px]">Rank & Team</th>
               <th className="text-left w-36">{copy.tableProfileHeader}</th>
               <th className="text-center">Rate / Game</th>
-              <th className="text-center">{copy.tableRateHeader}</th>
+              <th className="text-center">{viewMode === "org" ? "Pressure Share" : "Big-Spot Share"}</th>
+              <th className="text-center">{viewMode === "org" ? "Discipline" : "Timing"}</th>
               <th className="text-center">Trend</th>
               <th className="text-right">{viewMode === "org" ? "Avg Remaining" : "Avg Rem"}</th>
               <th className="text-right">{copy.tableVolumeHeader}</th>
@@ -102,7 +107,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={7} className="!py-32 text-center text-gray-400 font-semibold">
+                <td colSpan={8} className="!py-32 text-center text-gray-400 font-semibold">
                   No data points match the selected criteria.
                 </td>
               </tr>
@@ -133,20 +138,30 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
                         {(teams.length > 0 ? totalChallenges / Math.max(1, teams.reduce((sum, team) => sum + team.gamesTracked, 0) / teams.length) : 0).toFixed(2)}
                       </td>
                       <td className="text-center font-mono text-gray-400 italic font-bold">
-                        {`${Math.round(
-                          (teams.reduce((sum, team) => sum + team.lateLeverageShare, 0) / Math.max(teams.length, 1)) * 100,
-                        )}%`}
+                        {`${Math.round(leagueAvgLatePressureShare * 100)}%`}
                       </td>
                       <td className="text-center">
-                        <span className="inline-flex rounded-xl border px-3 py-1.5 text-[10px] font-black font-mono uppercase tracking-widest shadow-sm bg-gray-50 text-gray-500 border-gray-200 italic">
-                          {(leagueAvgRate * 100).toFixed(1)}%
-                        </span>
+                        <StrategyChip
+                          label={getStrategyLabel(leagueAvgLatePressureShare, leagueAvgEarlyBurnShare, viewMode)}
+                          tone={getStrategyTone(leagueAvgLatePressureShare, leagueAvgEarlyBurnShare)}
+                        />
                       </td>
                       <td className="text-center">
                         <span className="text-[10px] text-[var(--ink-3)]">—</span>
                       </td>
                       <td className="text-right font-mono text-gray-400 italic font-medium pr-8">
                         {leagueAvgRemaining.toFixed(2)}
+                      </td>
+                      <td className="text-right font-mono text-gray-400 italic font-medium pr-8">
+                        {viewMode === "org"
+                          ? (teams.length > 0
+                              ? teams.reduce((sum, team) => sum + team.gamesTracked, 0) / teams.length
+                              : 0
+                            ).toFixed(1)
+                          : (teams.length > 0
+                              ? teams.reduce((sum, team) => sum + team.challengesTotal, 0) / teams.length
+                              : 0
+                            ).toFixed(1)}
                       </td>
                     </tr>
                   )}
@@ -176,13 +191,13 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
                       {t.challengeRatePerGame.toFixed(2)}
                     </td>
                     <td className="text-center">
-                      {viewMode === "org" ? (
-                        <span className="inline-flex rounded-xl border px-3 py-1.5 text-[10px] font-black font-mono uppercase tracking-widest shadow-sm bg-blue-50 text-blue-700 border-blue-100">
-                          {(t.lateLeverageShare * 100).toFixed(0)}%
-                        </span>
-                      ) : (
-                        <RateChip value={t.overturnRate} />
-                      )}
+                      <PressureShareChip value={t.lateLeverageShare} />
+                    </td>
+                    <td className="text-center">
+                      <StrategyChip
+                        label={getStrategyLabel(t.lateLeverageShare, t.earlyLowLeverageShare, viewMode)}
+                        tone={getStrategyTone(t.lateLeverageShare, t.earlyLowLeverageShare)}
+                      />
                     </td>
                     <td className="text-center">
                       <div className="flex justify-center">
@@ -226,19 +241,62 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
   );
 }
 
-function RateChip({ value }: { value: number }) {
+function PressureShareChip({ value }: { value: number }) {
   const pct = value * 100;
-  const isHigh = pct >= 60;
-  const isMid = pct >= 40;
+  const tone =
+    pct >= 45
+      ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+      : pct >= 30
+        ? "bg-amber-50 text-amber-700 border-amber-100"
+        : "bg-gray-50 text-gray-600 border-gray-200";
 
   return (
     <span
-      className={`inline-flex rounded-xl border px-3 py-1.5 text-[10px] font-black font-mono uppercase tracking-widest shadow-sm ${isHigh ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
-        isMid ? "bg-amber-50 text-amber-700 border-amber-100" :
-          "bg-blue-50 text-blue-700 border-blue-100"
-        }`}
+      className={`inline-flex rounded-xl border px-3 py-1.5 text-[10px] font-black font-mono uppercase tracking-widest shadow-sm ${tone}`}
     >
-      {pct.toFixed(1)}%
+      {pct.toFixed(0)}%
     </span>
   );
+}
+
+function StrategyChip({
+  label,
+  tone,
+}: {
+  label: string;
+  tone: "emerald" | "amber" | "gray";
+}) {
+  const classes =
+    tone === "emerald"
+      ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+      : tone === "amber"
+        ? "bg-amber-50 text-amber-700 border-amber-100"
+        : "bg-gray-50 text-gray-600 border-gray-200";
+
+  return (
+    <span
+      className={`inline-flex rounded-xl border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm ${classes}`}
+    >
+      {label}
+    </span>
+  );
+}
+
+function getStrategyLabel(lateShare: number, earlyBurnShare: number, viewMode: "fan" | "org") {
+  if (lateShare >= 0.45 && earlyBurnShare <= 0.2) {
+    return viewMode === "org" ? "Disciplined" : "Clutch";
+  }
+  if (earlyBurnShare >= 0.3) {
+    return viewMode === "org" ? "Early Burn" : "Loose";
+  }
+  if (lateShare >= 0.35) {
+    return viewMode === "org" ? "Pressure Smart" : "Opportunistic";
+  }
+  return viewMode === "org" ? "Mixed" : "Mixed";
+}
+
+function getStrategyTone(lateShare: number, earlyBurnShare: number) {
+  if (lateShare >= 0.45 && earlyBurnShare <= 0.2) return "emerald" as const;
+  if (earlyBurnShare >= 0.3) return "amber" as const;
+  return "gray" as const;
 }

@@ -58,6 +58,13 @@ export type ChallengeEvent = {
   locationSource?: string | null;
   inferenceMethod?: string | null;
   inferenceConfidence?: string | null;
+  estimatedLeverageIndex?: number | null;
+  estimatedChallengeSwing?: number | null;
+  leverageBucket?: "low" | "medium" | "high" | null;
+  positiveOutcomeDelta?: number | null;
+  battingAverageDelta?: number | null;
+  walkRateDelta?: number | null;
+  strikeoutRateDelta?: number | null;
 };
 
 export type PitchTimelineEntry = {
