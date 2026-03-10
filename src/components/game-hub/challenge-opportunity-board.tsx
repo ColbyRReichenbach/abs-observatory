@@ -20,6 +20,47 @@ export function ChallengeOpportunityBoard({
   const colLabels = useMemo(() => Array.from(new Set(board.cells.map((cell) => cell.colLabel))), [board.cells]);
   const cellMap = useMemo(() => new Map(board.cells.map((cell) => [`${cell.rowLabel}:${cell.colLabel}`, cell])), [board.cells]);
   const hovered = hoveredKey ? cellMap.get(hoveredKey) ?? null : null;
+  const populatedCells = useMemo(
+    () => board.cells.filter((cell) => cell.homeChallenges + cell.awayChallenges > 0),
+    [board.cells],
+  );
+  const flashpointCell = useMemo(
+    () =>
+      [...populatedCells].sort((left, right) => {
+        const usageDiff =
+          right.homeChallenges + right.awayChallenges - (left.homeChallenges + left.awayChallenges);
+        if (usageDiff !== 0) return usageDiff;
+        return (
+          Math.max(right.homeAvgEstimatedLeverage, right.awayAvgEstimatedLeverage) -
+          Math.max(left.homeAvgEstimatedLeverage, left.awayAvgEstimatedLeverage)
+        );
+      })[0] ?? null,
+    [populatedCells],
+  );
+  const homeWindow = useMemo(
+    () =>
+      [...board.cells]
+        .filter((cell) => cell.homeChallenges > 0)
+        .sort((left, right) => {
+          if (right.homeChallenges !== left.homeChallenges) {
+            return right.homeChallenges - left.homeChallenges;
+          }
+          return right.homeAvgEstimatedLeverage - left.homeAvgEstimatedLeverage;
+        })[0] ?? null,
+    [board.cells],
+  );
+  const awayWindow = useMemo(
+    () =>
+      [...board.cells]
+        .filter((cell) => cell.awayChallenges > 0)
+        .sort((left, right) => {
+          if (right.awayChallenges !== left.awayChallenges) {
+            return right.awayChallenges - left.awayChallenges;
+          }
+          return right.awayAvgEstimatedLeverage - left.awayAvgEstimatedLeverage;
+        })[0] ?? null,
+    [board.cells],
+  );
 
   return (
     <div className="panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50 bg-white">
@@ -36,6 +77,38 @@ export function ChallengeOpportunityBoard({
           <LegendSwatch color={board.homePrimaryColor ?? "#3b82f6"} label={board.homeAbbreviation ?? "HOME"} />
           <LegendSwatch color={board.awayPrimaryColor ?? "#8b5cf6"} label={board.awayAbbreviation ?? "AWAY"} />
         </div>
+      </div>
+
+      <div className="mb-6 grid gap-3 lg:grid-cols-3">
+        <InsightCard
+          eyebrow={viewMode === "org" ? "Primary Flashpoint" : "Likeliest Swing Spot"}
+          title={flashpointCell ? `${flashpointCell.rowLabel} • ${flashpointCell.colLabel}` : "Window pending"}
+          detail={
+            flashpointCell
+              ? `${flashpointCell.homeChallenges + flashpointCell.awayChallenges} combined reviews tracked`
+              : "Historical challenge windows will fill in as sample grows."
+          }
+        />
+        <InsightCard
+          eyebrow={`${board.homeAbbreviation ?? "HOME"} Lean`}
+          title={homeWindow ? `${homeWindow.rowLabel} • ${homeWindow.colLabel}` : "No clear lean"}
+          detail={
+            homeWindow
+              ? `${homeWindow.homeChallenges} tracked reviews, avg ELI ${homeWindow.homeAvgEstimatedLeverage.toFixed(1)}`
+              : "No tracked reviews in this matchup sample."
+          }
+          accent={board.homePrimaryColor ?? "#3b82f6"}
+        />
+        <InsightCard
+          eyebrow={`${board.awayAbbreviation ?? "AWAY"} Lean`}
+          title={awayWindow ? `${awayWindow.rowLabel} • ${awayWindow.colLabel}` : "No clear lean"}
+          detail={
+            awayWindow
+              ? `${awayWindow.awayChallenges} tracked reviews, avg ELI ${awayWindow.awayAvgEstimatedLeverage.toFixed(1)}`
+              : "No tracked reviews in this matchup sample."
+          }
+          accent={board.awayPrimaryColor ?? "#8b5cf6"}
+        />
       </div>
 
       <div className="overflow-x-auto" onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}>
@@ -87,6 +160,12 @@ export function ChallengeOpportunityBoard({
                         align="right"
                       />
                     </div>
+                    <p className="mt-4 text-[9px] font-black uppercase tracking-widest text-gray-400">
+                      {viewMode === "org" ? "Combined Usage" : "Total Challenges"}
+                    </p>
+                    <p className="mt-1 text-lg font-display text-gray-900">
+                      {(cell?.homeChallenges ?? 0) + (cell?.awayChallenges ?? 0)}
+                    </p>
                     <p className="mt-3 text-[9px] font-black uppercase tracking-widest text-gray-400">
                       {viewMode === "org" ? "Avg ELI" : "Pressure"}
                     </p>
@@ -132,6 +211,14 @@ export function ChallengeOpportunityBoard({
                 label: `${board.awayAbbreviation ?? "AWAY"} Avg ELI`,
                 value: hovered.awayAvgEstimatedLeverage.toFixed(1),
               },
+              {
+                label: `${board.homeAbbreviation ?? "HOME"} High Pressure`,
+                value: `${(hovered.homeHighPressureShare * 100).toFixed(0)}%`,
+              },
+              {
+                label: `${board.awayAbbreviation ?? "AWAY"} High Pressure`,
+                value: `${(hovered.awayHighPressureShare * 100).toFixed(0)}%`,
+              },
             ]}
           />
         ) : null}
@@ -166,6 +253,30 @@ function LegendSwatch({ color, label }: { color: string; label: string }) {
     <div className="flex items-center gap-2">
       <div className="h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
       <span>{label}</span>
+    </div>
+  );
+}
+
+function InsightCard({
+  eyebrow,
+  title,
+  detail,
+  accent = "#111827",
+}: {
+  eyebrow: string;
+  title: string;
+  detail: string;
+  accent?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-gray-100 bg-gray-50/60 px-4 py-4">
+      <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">{eyebrow}</p>
+      <p className="mt-2 text-base font-display leading-tight text-gray-900">{title}</p>
+      <p className="mt-2 text-[11px] font-medium leading-relaxed text-gray-600">
+        <span className="font-black" style={{ color: accent }}>
+          {detail}
+        </span>
+      </p>
     </div>
   );
 }

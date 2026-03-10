@@ -6,6 +6,15 @@ import type { ChallengeValueTimelineEntry } from "@/lib/types";
 export function ChallengeValueTimeline({ entries }: { entries: ChallengeValueTimelineEntry[] }) {
   if (!entries.length) return null;
 
+  const biggestSwing = [...entries].sort(
+    (left, right) => Math.abs(right.estimatedChallengeSwing) - Math.abs(left.estimatedChallengeSwing),
+  )[0];
+  const highestPressure = [...entries].sort(
+    (left, right) => right.estimatedLeverageIndex - left.estimatedLeverageIndex,
+  )[0];
+  const overturnedCount = entries.filter((entry) => entry.isOverturned).length;
+  const maxSwing = Math.max(...entries.map((entry) => Math.abs(entry.estimatedChallengeSwing)), 1);
+
   return (
     <div className="mt-6 flex flex-col">
       <div className="mb-4 flex items-end justify-between px-2">
@@ -17,6 +26,28 @@ export function ChallengeValueTimeline({ entries }: { entries: ChallengeValueTim
             Scenario <span className="text-gray-400">Timeline</span>
           </p>
         </div>
+      </div>
+
+      <div className="mb-6 grid gap-3 md:grid-cols-3">
+        <SummaryCard
+          eyebrow="Biggest Swing"
+          title={biggestSwing ? `${biggestSwing.challengeTeamName ?? "Team"} ${biggestSwing.isOverturned ? "won" : "lost"} the top spot` : "No swing data"}
+          detail={
+            biggestSwing
+              ? `${formatInning(biggestSwing)} • ${signedValue(biggestSwing.estimatedChallengeSwing)} ECS`
+              : "Timeline will populate once challenges are tracked."
+          }
+        />
+        <SummaryCard
+          eyebrow="Highest Pressure"
+          title={highestPressure ? `${highestPressure.baseStateLabel} • ${highestPressure.scoreStateLabel}` : "No pressure spot"}
+          detail={highestPressure ? `${formatInning(highestPressure)} • ELI ${highestPressure.estimatedLeverageIndex}` : "No timeline yet."}
+        />
+        <SummaryCard
+          eyebrow="Decision Mix"
+          title={`${overturnedCount} overturned • ${entries.length - overturnedCount} confirmed`}
+          detail={`${entries.length} reviewed moments in this game narrative`}
+        />
       </div>
 
       <div className="grid gap-4">
@@ -62,6 +93,21 @@ export function ChallengeValueTimeline({ entries }: { entries: ChallengeValueTim
                 <MetricCard label="At-Bat" value={`${entry.batterName ?? "Batter"} vs ${entry.pitcherName ?? "Pitcher"}`} />
               </div>
 
+              <div className="mt-3">
+                <div className="mb-1 flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-gray-400">
+                  <span>Estimated Challenge Swing</span>
+                  <span>{signedValue(entry.estimatedChallengeSwing)}</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-white/80">
+                  <div
+                    className={`h-full rounded-full ${
+                      entry.estimatedChallengeSwing >= 0 ? "bg-emerald-500" : "bg-gray-900"
+                    }`}
+                    style={{ width: `${Math.max(10, (Math.abs(entry.estimatedChallengeSwing) / maxSwing) * 100)}%` }}
+                  />
+                </div>
+              </div>
+
               {entry.scenarioTags.length > 0 ? (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {entry.scenarioTags.map((tag) => (
@@ -72,6 +118,21 @@ export function ChallengeValueTimeline({ entries }: { entries: ChallengeValueTim
                       {tag}
                     </span>
                   ))}
+                </div>
+              ) : null}
+
+              {entry.battingAverageDelta !== null || entry.walkRateDelta !== null ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {entry.battingAverageDelta !== null ? (
+                    <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-gray-500">
+                      AVG {signedPercent(entry.battingAverageDelta)}
+                    </span>
+                  ) : null}
+                  {entry.walkRateDelta !== null ? (
+                    <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-gray-500">
+                      BB {signedPercent(entry.walkRateDelta)}
+                    </span>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -102,4 +163,34 @@ function formatCountShift(entry: ChallengeValueTimelineEntry) {
     return initial === final ? initial : `${initial} -> ${final}`;
   }
   return initial ?? final ?? "Unavailable";
+}
+
+function formatInning(entry: ChallengeValueTimelineEntry) {
+  return `${entry.halfInning === "Top" ? "T" : "B"}${entry.inning ?? "-"}`;
+}
+
+function signedValue(value: number) {
+  return `${value >= 0 ? "+" : ""}${value}`;
+}
+
+function signedPercent(value: number) {
+  return `${value >= 0 ? "+" : ""}${(value * 100).toFixed(1)} pts`;
+}
+
+function SummaryCard({
+  eyebrow,
+  title,
+  detail,
+}: {
+  eyebrow: string;
+  title: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-gray-100 bg-gray-50/60 px-4 py-4">
+      <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">{eyebrow}</p>
+      <p className="mt-2 text-base font-display leading-tight text-gray-900">{title}</p>
+      <p className="mt-2 text-[11px] font-medium leading-relaxed text-gray-600">{detail}</p>
+    </div>
+  );
 }

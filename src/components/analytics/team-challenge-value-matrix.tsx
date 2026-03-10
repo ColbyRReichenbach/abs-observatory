@@ -23,6 +23,24 @@ export function TeamChallengeValueMatrix({
   const rowLabels = useMemo(() => Array.from(new Set(cells.map((cell) => cell.rowLabel))), [cells]);
   const colLabels = useMemo(() => Array.from(new Set(cells.map((cell) => cell.colLabel))), [cells]);
   const cellMap = useMemo(() => new Map(cells.map((cell) => [`${cell.rowLabel}:${cell.colLabel}`, cell])), [cells]);
+  const preferredCell = useMemo(
+    () =>
+      [...cells].sort((left, right) => {
+        if (right.challenges !== left.challenges) return right.challenges - left.challenges;
+        return right.avgEstimatedLeverage - left.avgEstimatedLeverage;
+      })[0] ?? null,
+    [cells],
+  );
+  const deploymentRead =
+    summary.totalChallenges === 0
+      ? "Challenge timing profile will appear once the club has a larger tracked sample."
+      : summary.highPressureShare >= 0.5
+        ? viewMode === "org"
+          ? "This club is already spending a healthy share of reviews in genuine pressure pockets."
+          : "This team usually saves challenges for spots that actually feel big."
+        : viewMode === "org"
+          ? "This club still spends too many reviews outside of its highest-value windows."
+          : "This team still burns too many challenges before the biggest moments arrive.";
 
   const hoveredCell = hoveredKey ? cellMap.get(hoveredKey) ?? null : null;
 
@@ -39,7 +57,7 @@ export function TeamChallengeValueMatrix({
         </div>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <SummaryPill label="High-Pressure Share" value={`${(summary.highPressureShare * 100).toFixed(0)}%`} />
-          <SummaryPill label="Low-Pressure Share" value={`${(summary.lowPressureShare * 100).toFixed(0)}%`} />
+          <SummaryPill label="RISP <2 Outs" value={`${(summary.rispLessThanTwoOutsShare * 100).toFixed(0)}%`} />
           <SummaryPill label="Avg ELI" value={summary.averageEstimatedLeverage.toFixed(1)} />
           <SummaryPill
             label={viewMode === "org" ? "Realized Count Edge" : "Smart Count Gain"}
@@ -52,15 +70,31 @@ export function TeamChallengeValueMatrix({
         </div>
       </div>
 
-      <div className="mb-4 rounded-2xl border border-gray-100 bg-gray-50/60 px-4 py-3">
-        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-          {viewMode === "org" ? "Best Realized Window" : "Best Challenge Window"}
-        </p>
-        <p className="mt-1 text-sm font-medium text-gray-700">
-          {summary.bestScenarioLabel
-            ? `${summary.bestScenarioLabel} across ${summary.bestScenarioChallenges} tracked challenges`
-            : "Scenario window will appear once tracked challenges accumulate."}
-        </p>
+      <div className="mb-4 grid gap-3 lg:grid-cols-[1.4fr_1fr]">
+        <div className="rounded-2xl border border-gray-100 bg-gray-50/60 px-4 py-4">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+            {viewMode === "org" ? "Best Realized Window" : "Best Challenge Window"}
+          </p>
+          <p className="mt-1 text-sm font-medium text-gray-700">
+            {summary.bestScenarioLabel
+              ? `${summary.bestScenarioLabel} across ${summary.bestScenarioChallenges} tracked challenges`
+              : "Scenario window will appear once tracked challenges accumulate."}
+          </p>
+          <p className="mt-3 text-[11px] font-medium leading-relaxed text-gray-600">{deploymentRead}</p>
+        </div>
+        <div className="rounded-2xl border border-gray-100 bg-gray-50/60 px-4 py-4">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+            {viewMode === "org" ? "Preferred Window" : "Favorite Spot"}
+          </p>
+          <p className="mt-1 text-sm font-medium text-gray-700">
+            {preferredCell ? `${preferredCell.rowLabel} • ${preferredCell.colLabel}` : "No clear favorite yet"}
+          </p>
+          <p className="mt-3 text-[11px] font-medium leading-relaxed text-gray-600">
+            {preferredCell
+              ? `${preferredCell.challenges} tracked reviews with avg ELI ${preferredCell.avgEstimatedLeverage.toFixed(1)}`
+              : "No scenario trend yet."}
+          </p>
+        </div>
       </div>
 
       <div className="overflow-x-auto" onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}>
@@ -117,6 +151,9 @@ export function TeamChallengeValueMatrix({
                       {cell.challenges === 1 ? "Challenge" : "Challenges"}
                     </p>
                     <p className="mt-3 text-xs font-medium text-gray-600">ELI {cell.avgEstimatedLeverage.toFixed(1)}</p>
+                    <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                      {(cell.overturnRate * 100).toFixed(0)}% overturned
+                    </p>
                   </button>
                 );
               })}
@@ -140,6 +177,7 @@ export function TeamChallengeValueMatrix({
             value={hoveredCell.challenges}
             subValueLabel="Challenges"
             extra={[
+              { label: "Overturned", value: hoveredCell.overturned },
               { label: "Overturn Rate", value: `${(hoveredCell.overturnRate * 100).toFixed(1)}%` },
               { label: "Avg ELI", value: hoveredCell.avgEstimatedLeverage.toFixed(1) },
               {

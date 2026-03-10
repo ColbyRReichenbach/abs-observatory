@@ -14,6 +14,35 @@ export function CurrentChallengeWindowCard({
 }) {
   if (!snapshot) return null;
 
+  const ballGain = snapshot.nextBallPositiveOutcomeDelta;
+  const strikeGain = snapshot.nextStrikePositiveOutcomeDelta;
+  const bestSwing =
+    ballGain === null && strikeGain === null
+      ? null
+      : strikeGain === null || (ballGain !== null && ballGain >= strikeGain)
+        ? {
+            label: viewMode === "org" ? "Ball overturn path" : "Flip strike to ball",
+            countKey: snapshot.nextBallCountKey,
+            delta: ballGain,
+          }
+        : {
+            label: viewMode === "org" ? "Strike confirmation path" : "Flip ball to strike",
+            countKey: snapshot.nextStrikeCountKey,
+            delta: strikeGain,
+          };
+  const contextualSummary =
+    bestSwing?.delta === null || bestSwing?.delta === undefined
+      ? viewMode === "org"
+        ? "This spot has pressure, but the count-state model does not show a strong comparable swing."
+        : "This is a pressure spot, but the count history does not show a clear edge either way."
+      : bestSwing.delta >= 0
+        ? viewMode === "org"
+          ? `${bestSwing.label} would move this plate appearance to ${bestSwing.countKey ?? "a new count"} and historically improve positive outcomes by ${(bestSwing.delta * 100).toFixed(1)} points.`
+          : `${bestSwing.label} would push the at-bat to ${bestSwing.countKey ?? "a new count"} and usually gives hitters ${(bestSwing.delta * 100).toFixed(1)} more points of favorable outcome rate.`
+        : viewMode === "org"
+          ? `${bestSwing.label} leads to ${bestSwing.countKey ?? "a new count"}, but comparable plate appearances have performed ${(Math.abs(bestSwing.delta) * 100).toFixed(1)} points worse from there.`
+          : `${bestSwing.label} leads to ${bestSwing.countKey ?? "a new count"}, but hitters usually do ${(Math.abs(bestSwing.delta) * 100).toFixed(1)} points worse from there.`;
+
   return (
     <div className="panel p-6 shadow-xl border border-gray-100 bg-white overflow-hidden">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -31,6 +60,13 @@ export function CurrentChallengeWindowCard({
         </div>
       </div>
 
+      <div className="mt-5 rounded-2xl border border-orange-100 bg-orange-50/60 px-4 py-4">
+        <p className="text-[9px] font-black uppercase tracking-widest text-orange-500">
+          {viewMode === "org" ? "Decision Read" : "Why This Spot Matters"}
+        </p>
+        <p className="mt-2 text-sm font-medium leading-relaxed text-gray-700">{contextualSummary}</p>
+      </div>
+
       <div className="mt-6 flex flex-col gap-4 lg:flex-row lg:items-center">
         <div className="flex items-center gap-4 rounded-2xl border border-gray-100 bg-gray-50/60 px-4 py-4">
           <BaseStateDiamond basesState={snapshot.basesState} accent={homeColor} />
@@ -45,8 +81,9 @@ export function CurrentChallengeWindowCard({
           </div>
         </div>
 
-        <div className="grid flex-1 gap-3 md:grid-cols-3">
+        <div className="grid flex-1 gap-3 md:grid-cols-4">
           <MetricCard label="Current Count" value={snapshot.currentCountKey ?? "N/A"} />
+          <MetricCard label="Score State" value={snapshot.scoreStateLabel} />
           <MetricCard
             label={viewMode === "org" ? "Current Outcome Edge" : "Current Count Value"}
             value={
@@ -58,6 +95,30 @@ export function CurrentChallengeWindowCard({
           <MetricCard label="Pressure Band" value={snapshot.leverageBucket.toUpperCase()} />
         </div>
       </div>
+
+      {bestSwing ? (
+        <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50/60 px-4 py-4">
+          <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">
+            {viewMode === "org" ? "Best Count Swing" : "Most Favorable Path"}
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm font-medium text-gray-700">
+            <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-gray-500">
+              {bestSwing.label}
+            </span>
+            <span>{bestSwing.countKey ?? "No follow-on count"}</span>
+            {bestSwing.delta !== null ? (
+              <span
+                className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${
+                  bestSwing.delta >= 0 ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
+                }`}
+              >
+                {bestSwing.delta >= 0 ? "+" : "-"}
+                {(Math.abs(bestSwing.delta) * 100).toFixed(1)} pts
+              </span>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <ProjectionCard
