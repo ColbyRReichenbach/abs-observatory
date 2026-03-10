@@ -199,6 +199,105 @@ export type TeamSideSplit = {
   overturnRate: number;
 };
 
+export type TeamChallengeScenarioCell = {
+  rowKey: string;
+  rowLabel: string;
+  colKey: string;
+  colLabel: string;
+  challenges: number;
+  overturned: number;
+  overturnRate: number;
+  avgEstimatedLeverage: number;
+  avgPositiveOutcomeDelta: number | null;
+  highPressureShare: number;
+};
+
+export type TeamChallengeValueSummary = {
+  totalChallenges: number;
+  highPressureShare: number;
+  lowPressureShare: number;
+  rispLessThanTwoOutsShare: number;
+  averageEstimatedLeverage: number;
+  averagePositiveOutcomeDelta: number | null;
+  bestScenarioLabel: string | null;
+  bestScenarioChallenges: number;
+};
+
+export type GameChallengeOpportunityCell = {
+  rowKey: string;
+  rowLabel: string;
+  colKey: string;
+  colLabel: string;
+  homeChallenges: number;
+  awayChallenges: number;
+  homeAvgEstimatedLeverage: number;
+  awayAvgEstimatedLeverage: number;
+  homeHighPressureShare: number;
+  awayHighPressureShare: number;
+};
+
+export type GameChallengeOpportunityBoard = {
+  homeTeamId: number;
+  awayTeamId: number;
+  homeAbbreviation: string | null;
+  awayAbbreviation: string | null;
+  homePrimaryColor: string | null;
+  awayPrimaryColor: string | null;
+  cells: GameChallengeOpportunityCell[];
+};
+
+export type ChallengeValueTimelineEntry = {
+  challengeId: string;
+  challengedAt: string | null;
+  inning: number | null;
+  halfInning: string | null;
+  challengeTeamName: string | null;
+  batterName: string | null;
+  pitcherName: string | null;
+  calledDescription: string | null;
+  isOverturned: boolean;
+  countBefore: string | null;
+  umpireCount: string | null;
+  countAfter: string | null;
+  outs: number | null;
+  basesState: string | null;
+  homeScore: number | null;
+  awayScore: number | null;
+  impactType: string | null;
+  impactSummary: string | null;
+  estimatedLeverageIndex: number;
+  estimatedChallengeSwing: number;
+  leverageBucket: "low" | "medium" | "high";
+  baseStateLabel: string;
+  scoreStateLabel: string;
+  scenarioTags: string[];
+  positiveOutcomeDelta: number | null;
+  battingAverageDelta: number | null;
+  walkRateDelta: number | null;
+};
+
+export type LiveChallengeWindow = {
+  inning: number | null;
+  halfInning: string | null;
+  balls: number | null;
+  strikes: number | null;
+  outs: number | null;
+  basesState: string | null;
+  homeScore: number | null;
+  awayScore: number | null;
+  estimatedLeverageIndex: number;
+  leverageBucket: "low" | "medium" | "high";
+  baseStateLabel: string;
+  scoreStateLabel: string;
+  scenarioTags: string[];
+  currentCountKey: string | null;
+  currentPositiveOutcomeRate: number | null;
+  nextBallCountKey: string | null;
+  nextBallPositiveOutcomeDelta: number | null;
+  nextStrikeCountKey: string | null;
+  nextStrikePositiveOutcomeDelta: number | null;
+};
+
 export type AIQueryResponse = {
   answer: string;
   sql: string;
@@ -227,6 +326,8 @@ export type AIChatResponse = {
 };
 
 export type PregameIntel = {
+  homeTeamId: number;
+  awayTeamId: number;
   umpireId: number | null;
   umpireName: string | null;
   awayTeam: {

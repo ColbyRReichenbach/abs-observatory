@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { GameShell } from "@/components/game-shell";
-import { getGame, getGameAbsCounters, getGameChallenges, getGameLiveStatus } from "@/lib/data";
+import { getGame, getGameAbsCounters, getGameChallenges, getGameLiveStatus, getLiveChallengeWindow } from "@/lib/data";
 import { PregameScoutingReport } from "@/components/game-hub/pregame-hub";
 import { LiveWarRoom } from "@/components/game-hub/live-hub";
 import { PostgameAAR } from "@/components/game-hub/postgame-hub";
@@ -23,11 +23,12 @@ export default async function GamePage({
   const challengeId = sp.challengeId;
   const gameId = Number(gamePk);
   const viewMode = await resolveViewMode(sp as Record<string, string | string[] | undefined>);
-  const [game, challenges, counters, liveStatus] = await Promise.all([
+  const [game, challenges, counters, liveStatus, liveChallengeWindow] = await Promise.all([
     getGame(gameId),
     getGameChallenges(gameId),
     getGameAbsCounters(gameId),
     getGameLiveStatus(gameId),
+    getLiveChallengeWindow(gameId),
   ]);
 
   if (!game) return notFound();
@@ -48,7 +49,15 @@ export default async function GamePage({
       ) : isFinal ? (
         <PostgameAAR game={game} challenges={challenges} initialChallengeId={challengeId} viewMode={viewMode} />
       ) : (
-        <LiveWarRoom game={game} challenges={challenges} liveStatus={liveStatus} counters={counters} initialChallengeId={challengeId} viewMode={viewMode} />
+        <LiveWarRoom
+          game={game}
+          challenges={challenges}
+          liveStatus={liveStatus}
+          counters={counters}
+          liveChallengeWindow={liveChallengeWindow}
+          initialChallengeId={challengeId}
+          viewMode={viewMode}
+        />
       )}
     </main>
   );

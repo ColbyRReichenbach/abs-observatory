@@ -1,10 +1,21 @@
 import { notFound } from "next/navigation";
 import type { CSSProperties } from "react";
 
-
 import { MotionIn } from "@/components/motion-in";
 import { RangeSelector } from "@/components/range-selector";
-import { getTeamAggression, getTeamHitterEyeHeatmap, getTeamIdentity, getTeamInningEfficiency, getTeamLeaderboardModel, getTeamSchedule, getTeamSideSplits, getTeamSummary, getTeamTrend, getTeamUmpireMatchups } from "@/lib/data";
+import {
+  getTeamAggression,
+  getTeamChallengeScenarioMatrix,
+  getTeamChallengeValueSummary,
+  getTeamHitterEyeHeatmap,
+  getTeamIdentity,
+  getTeamInningEfficiency,
+  getTeamLeaderboardModel,
+  getTeamSchedule,
+  getTeamSummary,
+  getTeamTrend,
+  getTeamUmpireMatchups,
+} from "@/lib/data";
 import { TeamMotifHero } from "@/components/team-motif-hero";
 import { TeamTrendChart } from "@/components/analytics-charts";
 import { FilterStrip } from "@/components/analytics/filter-strip";
@@ -20,6 +31,7 @@ import { TeamMotifBackdrop } from "@/components/team-motif-backdrop";
 import { AIBSVisualizerChat } from "@/components/analytics/ai-bs-visualizer-chat";
 import { BackPill } from "@/components/ui/back-pill";
 import { getTeamDetailViewCopy } from "@/lib/view-mode-contract";
+import { TeamChallengeValueMatrix } from "@/components/analytics/team-challenge-value-matrix";
 
 function toInningRange(value?: string): SituationalFilters["inningRange"] {
   if (value === "early" || value === "middle" || value === "late" || value === "extras") return value;
@@ -69,10 +81,9 @@ export default async function TeamPage({
     if (s) sanitizedParams[key] = s;
   });
 
-  const [summary, trend, splits, identity, aggression, schedule, umpires, hittersEyeAll, hittersEyeOffense, hittersEyeDefense, inningEfficiency, leaderboard] = await Promise.all([
+  const [summary, trend, identity, aggression, schedule, umpires, hittersEyeAll, hittersEyeOffense, hittersEyeDefense, inningEfficiency, leaderboard, challengeMatrix, challengeValueSummary] = await Promise.all([
     getTeamSummary(Number(teamId), range, filters),
     getTeamTrend(Number(teamId), range, filters),
-    getTeamSideSplits(Number(teamId), range, filters),
     getTeamIdentity(Number(teamId)),
     getTeamAggression(Number(teamId), range, filters),
     getTeamSchedule(Number(teamId)),
@@ -82,6 +93,8 @@ export default async function TeamPage({
     getTeamHitterEyeHeatmap(Number(teamId), range, { ...filters, side: "defense" }),
     getTeamInningEfficiency(Number(teamId), range, filters),
     getTeamLeaderboardModel(range),
+    getTeamChallengeScenarioMatrix(Number(teamId), range, filters),
+    getTeamChallengeValueSummary(Number(teamId), range, filters),
   ]);
   if (!summary) return notFound();
   const currentTeam = leaderboard.find((entry) => entry.teamId === summary.teamId) ?? null;
@@ -98,46 +111,53 @@ export default async function TeamPage({
       <div className="panel p-8 h-fit">
         <div className="mb-6">
           <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
-            Location Variance
+            {viewMode === "org" ? "Decision Quality" : "Challenge Timing"}
           </h4>
           <p className="text-xl font-display leading-none text-gray-900">
             {viewMode === "org" ? (
-              <>Context <span className="text-gray-400">Split</span></>
+              <>Timing <span className="text-gray-400">Efficiency</span></>
             ) : (
-              <>Home / Away <span className="text-gray-400">Split</span></>
+              <>Smart / Risky <span className="text-gray-400">Share</span></>
             )}
           </p>
         </div>
-        {splits.map((split) => {
-          const rate = split.overturnRate * 100;
-          const isHome = split.side === "home";
-          return (
-            <div key={split.side} className="mb-5 last:mb-0">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-2)]">
-                  {isHome ? "🏠 Home" : "✈️ Away"}
-                </span>
-                <span className="text-xs font-mono font-bold text-[var(--ink-1)]">
-                  {rate.toFixed(1)}%
-                </span>
-              </div>
-              <div className="relative h-3 w-full overflow-hidden rounded-full bg-gray-100">
-                <div
-                  className="h-full rounded-full transition-all duration-700 ease-out"
-                  style={{
-                    width: `${Math.min(100, rate)}%`,
-                    backgroundColor: isHome ? teamPrimary : teamSecondary,
-                  }}
-                />
-              </div>
-              <div className="mt-1.5 flex gap-3 text-[10px] font-medium text-[var(--ink-3)]">
-                <span>{split.games} games</span>
-                <span>{split.challengesTotal} challenges</span>
-                <span>Avg rem: {split.avgRemaining.toFixed(2)}</span>
-              </div>
-            </div>
-          );
-        })}
+        <div className="space-y-4">
+          <TimingMetric
+            label={viewMode === "org" ? "High-Pressure Share" : "Pressure Smart Share"}
+            value={`${(challengeValueSummary.highPressureShare * 100).toFixed(0)}%`}
+            meter={challengeValueSummary.highPressureShare}
+            color={teamPrimary}
+          />
+          <TimingMetric
+            label={viewMode === "org" ? "Low-Pressure Spend" : "Early Burn Share"}
+            value={`${(challengeValueSummary.lowPressureShare * 100).toFixed(0)}%`}
+            meter={challengeValueSummary.lowPressureShare}
+            color={teamSecondary}
+          />
+          <TimingMetric
+            label={viewMode === "org" ? "RISP, <2 Outs" : "Big Spot Usage"}
+            value={`${(challengeValueSummary.rispLessThanTwoOutsShare * 100).toFixed(0)}%`}
+            meter={challengeValueSummary.rispLessThanTwoOutsShare}
+            color={teamPrimary}
+          />
+        </div>
+        <div className="mt-6 rounded-[1.5rem] border border-gray-100 bg-gray-50/60 p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">
+            {viewMode === "org" ? "Realized Count Edge" : "Challenge Payoff"}
+          </p>
+          <p className="mt-2 text-3xl font-display text-[var(--ink-0)]">
+            {challengeValueSummary.averagePositiveOutcomeDelta === null
+              ? "N/A"
+              : `${challengeValueSummary.averagePositiveOutcomeDelta >= 0 ? "+" : ""}${(
+                  challengeValueSummary.averagePositiveOutcomeDelta * 100
+                ).toFixed(1)}`}
+          </p>
+          <p className="mt-2 text-[11px] font-medium text-[var(--ink-2)] leading-relaxed">
+            {challengeValueSummary.bestScenarioLabel
+              ? `${summary.teamName} has done its best realized challenge work in ${challengeValueSummary.bestScenarioLabel.toLowerCase()}.`
+              : "Best challenge window will appear once the club builds more scenario sample."}
+          </p>
+        </div>
       </div>
     ),
     umpires: (
@@ -321,6 +341,17 @@ export default async function TeamPage({
           </section>
         </MotionIn>
 
+        <MotionIn delay={0.28}>
+          <section className="mt-8">
+            <TeamChallengeValueMatrix
+              cells={challengeMatrix}
+              summary={challengeValueSummary}
+              teamColor={teamPrimary}
+              viewMode={viewMode}
+            />
+          </section>
+        </MotionIn>
+
 
 
         {/* Splits & Umpire Matchups */}
@@ -337,6 +368,23 @@ export default async function TeamPage({
         </MotionIn>
       </main>
     </>
+  );
+}
+
+function TimingMetric({ label, value, meter, color }: { label: string; value: string; meter: number; color: string }) {
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center justify-between">
+        <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-2)]">{label}</span>
+        <span className="text-xs font-mono font-bold text-[var(--ink-1)]">{value}</span>
+      </div>
+      <div className="relative h-3 w-full overflow-hidden rounded-full bg-gray-100">
+        <div
+          className="h-full rounded-full transition-all duration-700 ease-out"
+          style={{ width: `${Math.min(100, meter * 100)}%`, backgroundColor: color }}
+        />
+      </div>
+    </div>
   );
 }
 

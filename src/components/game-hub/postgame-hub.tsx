@@ -1,11 +1,12 @@
 import { AIFeedback } from "@/components/ai-feedback";
 import { MotionIn } from "@/components/motion-in";
 import { ChallengeExplorer } from "@/components/challenge-explorer";
+import { ChallengeValueTimeline } from "@/components/game-hub/challenge-value-timeline";
 import { RegenerateDebriefButton } from "@/components/game-hub/regenerate-debrief-button";
-import { WPASwapWaterfall } from "@/components/game-hub/wpa-swap-waterfall";
 import { getGameReport } from "@/lib/game-reports";
 import { normalizeNarrativeMarkdown, REPORT_SECTION_LABELS } from "@/lib/game-report-markdown";
 import { assertCanManageGameReports, canManageGameReports, regenerateGameReport } from "@/lib/server/game-reports";
+import { getGameChallengeValueTimeline } from "@/lib/data";
 import ReactMarkdown from "react-markdown";
 import type { ChallengeEvent, GameHubGame } from "@/lib/types";
 import type { ViewMode } from "@/lib/view-mode";
@@ -16,6 +17,7 @@ export async function PostgameAAR({ game, challenges, initialChallengeId = null,
     const report = await getGameReport(game.gamepk);
     const canRegenerateDebrief = await canManageGameReports();
     const copy = getGameViewCopy(viewMode, "final");
+    const challengeValueTimeline = await getGameChallengeValueTimeline(game.gamepk);
 
     const homeAbbr = game.homeabbreviation;
     const awayAbbr = game.awayabbreviation;
@@ -201,7 +203,7 @@ export async function PostgameAAR({ game, challenges, initialChallengeId = null,
 
     const waterfallSection = (
         <section className="mb-8 panel p-6 shadow-2xl shadow-black/[0.02] border border-gray-50 bg-white">
-            <WPASwapWaterfall challenges={challenges} />
+            <ChallengeValueTimeline entries={challengeValueTimeline} />
         </section>
     );
 

@@ -2,9 +2,10 @@
 
 import { MotionIn } from "@/components/motion-in";
 import { ChallengeExplorer } from "@/components/challenge-explorer";
+import { CurrentChallengeWindowCard } from "@/components/game-hub/current-challenge-window-card";
 import { DynamicLeverageMeter } from "@/components/game-hub/dynamic-leverage-meter";
 import { motion, AnimatePresence } from "framer-motion";
-import type { ChallengeEvent, GameHubGame, GameLiveStatus } from "@/lib/types";
+import type { ChallengeEvent, GameHubGame, GameLiveStatus, LiveChallengeWindow } from "@/lib/types";
 import type { ViewMode } from "@/lib/view-mode";
 import { getGameViewCopy } from "@/lib/view-mode-contract";
 
@@ -13,11 +14,12 @@ type GameAbsCounters = {
     awayRemaining: number;
 } | null;
 
-export function LiveWarRoom({ game, challenges, liveStatus, counters, initialChallengeId = null, viewMode }: {
+export function LiveWarRoom({ game, challenges, liveStatus, counters, liveChallengeWindow, initialChallengeId = null, viewMode }: {
     game: GameHubGame,
     challenges: ChallengeEvent[],
     liveStatus: GameLiveStatus | null,
     counters: GameAbsCounters,
+    liveChallengeWindow: LiveChallengeWindow | null,
     initialChallengeId?: string | null,
     viewMode: ViewMode
 }) {
@@ -85,6 +87,11 @@ export function LiveWarRoom({ game, challenges, liveStatus, counters, initialCha
                     </div>
                 </div>
             </div>
+            <CurrentChallengeWindowCard
+                snapshot={liveChallengeWindow}
+                viewMode={viewMode}
+                homeColor={game.homeprimarycolor || "#3b82f6"}
+            />
         </>
     );
     const feedSection = (

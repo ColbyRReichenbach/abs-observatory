@@ -1,14 +1,18 @@
 import { MotionIn } from "@/components/motion-in";
 import { getGamePregameIntel } from "@/lib/pregame-intel";
+import { getGameChallengeOpportunityBoard } from "@/lib/data";
+import { ChallengeOpportunityBoard } from "@/components/game-hub/challenge-opportunity-board";
 import { MatchupRadarChart } from "@/components/game-hub/matchup-radar-chart";
 import { UmpireHeatmap } from "@/components/game-hub/umpire-heatmap";
-import { ChallengeDistributionTimeline } from "@/components/game-hub/challenge-distribution-timeline";
 import type { GameHubGame } from "@/lib/types";
 import type { ViewMode } from "@/lib/view-mode";
 import { getGameViewCopy } from "@/lib/view-mode-contract";
 
 export async function PregameScoutingReport({ game, viewMode }: { game: GameHubGame; viewMode: ViewMode }) {
-    const intel = await getGamePregameIntel(game.gamepk);
+    const [intel, opportunityBoard] = await Promise.all([
+        getGamePregameIntel(game.gamepk),
+        getGameChallengeOpportunityBoard(game.gamepk),
+    ]);
     const copy = getGameViewCopy(viewMode, "pregame");
     const sections = {
         signals: intel ? (
@@ -189,16 +193,11 @@ export async function PregameScoutingReport({ game, viewMode }: { game: GameHubG
                     </div>
                 </section>
 
-                <ChallengeDistributionTimeline
-                    homeTeamName={game.homeabbreviation || "HOME"}
-                    awayTeamName={game.awayabbreviation || "AWAY"}
-                    homeData={intel.challengeTiming.home}
-                    awayData={intel.challengeTiming.away}
-                    leagueAverage={intel.challengeTiming.leagueAverage}
-                    homeColor={game.homeprimarycolor || "#3b82f6"}
-                    awayColor={game.awayprimarycolor || "#8b5cf6"}
-                    title={viewMode === "org" ? "Challenge Timing Patterns" : "When These Clubs Usually Challenge"}
-                />
+                {opportunityBoard ? (
+                    <section className="mt-8">
+                        <ChallengeOpportunityBoard board={opportunityBoard} viewMode={viewMode} />
+                    </section>
+                ) : null}
             </>
         ) : null,
     } as const;

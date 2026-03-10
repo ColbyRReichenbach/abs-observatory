@@ -184,6 +184,8 @@ export async function getGamePregameIntel(gamePk: number): Promise<PregameIntel 
   const leagueAverage = Number(leagueRow[0]?.league_average ?? 0);
 
   return {
+    homeTeamId: Number(context.home_team_id),
+    awayTeamId: Number(context.away_team_id),
     umpireId: context.umpire_id,
     umpireName: context.umpire_name ?? "Unknown Umpire",
     awayTeam: {

@@ -20,6 +20,9 @@ Related documents:
 - [product-source-of-truth.md](./product-source-of-truth.md)
 - [stack-selection.md](./stack-selection.md)
 - [docs/launch/provider-setup-checklist.md](./docs/launch/provider-setup-checklist.md)
+- [docs/launch/private-alpha-checklist.md](./docs/launch/private-alpha-checklist.md)
+- [docs/launch/alpha-success-scorecard.md](./docs/launch/alpha-success-scorecard.md)
+- [docs/launch/challenge-context-analytics-plan.md](./docs/launch/challenge-context-analytics-plan.md)
 
 ## 1. Infrastructure and Deployment
 
