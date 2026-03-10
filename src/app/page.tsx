@@ -32,13 +32,13 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const topTeams =
     viewMode === "org"
       ? [...teams]
-        .sort((a, b) => b.overturnRate * (b.avgRemaining + 1) - a.overturnRate * (a.avgRemaining + 1))
+        .sort(compareOrgTeamOperators)
         .slice(0, 3)
       : [...teams].sort((a, b) => b.challengesTotal - a.challengesTotal).slice(0, 3);
   const bottomTeams =
     viewMode === "org"
       ? [...teams]
-        .sort((a, b) => b.overturnRate * (b.avgRemaining + 1) - a.overturnRate * (a.avgRemaining + 1))
+        .sort(compareOrgTeamOperators)
         .slice(-3)
       : [];
   const spotlightUmps = [...umpires].sort((a, b) => a.reportCardScore - b.reportCardScore).slice(0, 3);
@@ -208,7 +208,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                 <p className="mt-2 text-lg font-semibold text-[var(--ink-0)]">{mostDisciplinedTeam?.teamName ?? "No signal"}</p>
                 <p className="mt-1 text-xs text-[var(--ink-3)]">
                   {mostDisciplinedTeam
-                    ? `${mostDisciplinedTeam.orgStyleLabel} · ${mostDisciplinedTeam.avgRemaining.toFixed(2)} avg challenges remaining`
+                    ? `${mostDisciplinedTeam.orgStyleLabel} · ${formatOrgOperatorValue(mostDisciplinedTeam) ?? `${mostDisciplinedTeam.avgRemaining.toFixed(2)} avg challenges remaining`}`
                     : "No discipline signal available yet."}
                 </p>
               </div>
@@ -254,7 +254,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                         <div className="min-w-0">
                           <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{team.teamName}</p>
                           <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-3)]">
-                            {team.orgStyleLabel} · #{idx + 1}
+                            {team.orgStyleLabel} · {formatOrgOperatorValue(team) ?? `#${idx + 1}`}
                           </p>
                         </div>
                       </Link>
@@ -271,7 +271,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                             <div className="min-w-0">
                               <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{team.teamName}</p>
                               <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-3)]">
-                                {team.orgStyleLabel} · #{rank}
+                                {team.orgStyleLabel} · {formatOrgOperatorValue(team) ?? `#${rank}`}
                               </p>
                             </div>
                           </Link>
@@ -315,4 +315,55 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       </main>
     </div>
   );
+}
+
+function compareOrgTeamOperators(
+  left: {
+    overturnRate: number;
+    avgRemaining: number;
+    avgWinExpectancyDelta: number | null;
+    highWinValueShare: number;
+    avgRunExpectancyDelta: number | null;
+    highRunValueShare: number;
+  },
+  right: {
+    overturnRate: number;
+    avgRemaining: number;
+    avgWinExpectancyDelta: number | null;
+    highWinValueShare: number;
+    avgRunExpectancyDelta: number | null;
+    highRunValueShare: number;
+  },
+) {
+  const leftMetric = left.avgWinExpectancyDelta ?? left.avgRunExpectancyDelta;
+  const rightMetric = right.avgWinExpectancyDelta ?? right.avgRunExpectancyDelta;
+
+  if (leftMetric !== null || rightMetric !== null) {
+    if (leftMetric === null) return 1;
+    if (rightMetric === null) return -1;
+    if (rightMetric !== leftMetric) {
+      return rightMetric - leftMetric;
+    }
+
+    const leftShare = left.avgWinExpectancyDelta !== null ? left.highWinValueShare : left.highRunValueShare;
+    const rightShare = right.avgWinExpectancyDelta !== null ? right.highWinValueShare : right.highRunValueShare;
+    if (rightShare !== leftShare) {
+      return rightShare - leftShare;
+    }
+  }
+
+  return right.overturnRate * (right.avgRemaining + 1) - left.overturnRate * (left.avgRemaining + 1);
+}
+
+function formatOrgOperatorValue(team: {
+  avgWinExpectancyDelta: number | null;
+  avgRunExpectancyDelta: number | null;
+}) {
+  if (team.avgWinExpectancyDelta !== null) {
+    return `${team.avgWinExpectancyDelta >= 0 ? "+" : ""}${(team.avgWinExpectancyDelta * 100).toFixed(2)}% WE`;
+  }
+  if (team.avgRunExpectancyDelta !== null) {
+    return `${team.avgRunExpectancyDelta >= 0 ? "+" : ""}${team.avgRunExpectancyDelta.toFixed(3)} RE`;
+  }
+  return null;
 }

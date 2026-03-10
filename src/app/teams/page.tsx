@@ -31,9 +31,6 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
         return Math.abs(bDelta) - Math.abs(aDelta);
       })[0] ?? null;
 
-  // Sort by overturn rate for table display
-  const sorted = [...teams].sort((a, b) => b.overturnRate - a.overturnRate);
-
   // Compute league averages for floating avg row insertion
   const totalChallenges = teams.reduce((s, t) => s + t.challengesTotal, 0);
   const totalSuccessful = teams.reduce((s, t) => s + t.usedSuccessful, 0);
@@ -53,9 +50,23 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
     teamsWithWinValue.length > 0
       ? teamsWithWinValue.reduce((sum, team) => sum + (team.avgWinExpectancyDelta ?? 0), 0) / teamsWithWinValue.length
       : null;
+  const useWinValue = viewMode === "org" && leagueAvgWinExpectancyDelta !== null;
+
+  // Sort org view by modeled value once it exists; fan view stays overturn-rate led.
+  const sorted = [...teams].sort((a, b) => compareTeamsForTable(a, b, viewMode, useWinValue));
 
   // Find the position where league avg row should be inserted (between teams above and below league avg overturn rate)
-  const avgInsertIdx = sorted.findIndex((t) => t.overturnRate < leagueAvgRate);
+  const avgInsertIdx = sorted.findIndex((team) => {
+    if (viewMode !== "org") {
+      return team.overturnRate < leagueAvgRate;
+    }
+
+    const teamMetric = useWinValue ? team.avgWinExpectancyDelta : team.avgRunExpectancyDelta;
+    const leagueMetric = useWinValue ? leagueAvgWinExpectancyDelta : leagueAvgRunExpectancyDelta;
+    if (leagueMetric === null) return false;
+    if (teamMetric === null) return true;
+    return teamMetric < leagueMetric;
+  });
   const insertAt = avgInsertIdx === -1 ? sorted.length : avgInsertIdx;
 
   // Scatter plot data
@@ -80,11 +91,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
           <p className="mt-1 text-xs text-[var(--ink-3)]">
             {viewMode === "org"
               ? `${biggestMover.orgStyleLabel} with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews in higher-pressure windows${
-                  biggestMover.avgWinExpectancyDelta !== null
-                    ? ` and ${biggestMover.avgWinExpectancyDelta >= 0 ? "+" : ""}${(biggestMover.avgWinExpectancyDelta * 100).toFixed(2)}% average WE per review`
-                    : biggestMover.avgRunExpectancyDelta !== null
-                      ? ` and ${biggestMover.avgRunExpectancyDelta >= 0 ? "+" : ""}${biggestMover.avgRunExpectancyDelta.toFixed(3)} average RE per review`
-                      : ""
+                  formatOrgValueCopy(biggestMover)
                 }.`
               : `${biggestMover.style} profile with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews coming in bigger spots and a visible trend swing.`}
           </p>
@@ -269,6 +276,59 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
       ))}
     </main>
   );
+}
+
+function compareTeamsForTable(
+  left: {
+    overturnRate: number;
+    highWinValueShare: number;
+    avgWinExpectancyDelta: number | null;
+    highRunValueShare: number;
+    avgRunExpectancyDelta: number | null;
+  },
+  right: {
+    overturnRate: number;
+    highWinValueShare: number;
+    avgWinExpectancyDelta: number | null;
+    highRunValueShare: number;
+    avgRunExpectancyDelta: number | null;
+  },
+  viewMode: "fan" | "org",
+  useWinValue: boolean,
+) {
+  if (viewMode !== "org") {
+    return right.overturnRate - left.overturnRate;
+  }
+
+  const leftMetric = useWinValue ? left.avgWinExpectancyDelta : left.avgRunExpectancyDelta;
+  const rightMetric = useWinValue ? right.avgWinExpectancyDelta : right.avgRunExpectancyDelta;
+
+  if (leftMetric === null && rightMetric === null) {
+    return right.overturnRate - left.overturnRate;
+  }
+  if (leftMetric === null) return 1;
+  if (rightMetric === null) return -1;
+  if (rightMetric !== leftMetric) {
+    return rightMetric - leftMetric;
+  }
+
+  const leftShare = useWinValue ? left.highWinValueShare : left.highRunValueShare;
+  const rightShare = useWinValue ? right.highWinValueShare : right.highRunValueShare;
+  if (rightShare !== leftShare) {
+    return rightShare - leftShare;
+  }
+
+  return right.overturnRate - left.overturnRate;
+}
+
+function formatOrgValueCopy(team: { avgWinExpectancyDelta: number | null; avgRunExpectancyDelta: number | null }) {
+  if (team.avgWinExpectancyDelta !== null) {
+    return ` and ${team.avgWinExpectancyDelta >= 0 ? "+" : ""}${(team.avgWinExpectancyDelta * 100).toFixed(2)}% average WE per review`;
+  }
+  if (team.avgRunExpectancyDelta !== null) {
+    return ` and ${team.avgRunExpectancyDelta >= 0 ? "+" : ""}${team.avgRunExpectancyDelta.toFixed(3)} average RE per review`;
+  }
+  return "";
 }
 
 function PressureShareChip({ value }: { value: number }) {
