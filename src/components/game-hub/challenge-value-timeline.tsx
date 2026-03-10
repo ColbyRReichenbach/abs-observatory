@@ -12,6 +12,9 @@ export function ChallengeValueTimeline({ entries }: { entries: ChallengeValueTim
   const highestPressure = [...entries].sort(
     (left, right) => right.estimatedLeverageIndex - left.estimatedLeverageIndex,
   )[0];
+  const biggestRunValue = [...entries]
+    .filter((entry) => entry.runExpectancyDelta !== null)
+    .sort((left, right) => Math.abs(right.runExpectancyDelta ?? 0) - Math.abs(left.runExpectancyDelta ?? 0))[0];
   const overturnedCount = entries.filter((entry) => entry.isOverturned).length;
   const maxSwing = Math.max(...entries.map((entry) => Math.abs(entry.estimatedChallengeSwing)), 1);
 
@@ -44,9 +47,17 @@ export function ChallengeValueTimeline({ entries }: { entries: ChallengeValueTim
           detail={highestPressure ? `${formatInning(highestPressure)} • ELI ${highestPressure.estimatedLeverageIndex}` : "No timeline yet."}
         />
         <SummaryCard
-          eyebrow="Decision Mix"
-          title={`${overturnedCount} overturned • ${entries.length - overturnedCount} confirmed`}
-          detail={`${entries.length} reviewed moments in this game narrative`}
+          eyebrow="Run Value"
+          title={
+            biggestRunValue
+              ? `${biggestRunValue.challengeTeamName ?? "Team"} ${biggestRunValue.runExpectancyDelta !== null && biggestRunValue.runExpectancyDelta >= 0 ? "captured" : "lost"} the top run-value spot`
+              : `${overturnedCount} overturned • ${entries.length - overturnedCount} confirmed`
+          }
+          detail={
+            biggestRunValue && biggestRunValue.runExpectancyDelta !== null
+              ? `${formatInning(biggestRunValue)} • ${signedRunValue(biggestRunValue.runExpectancyDelta)} RE`
+              : `${entries.length} reviewed moments in this game narrative`
+          }
         />
       </div>
 
@@ -90,7 +101,14 @@ export function ChallengeValueTimeline({ entries }: { entries: ChallengeValueTim
                 <MetricCard label="Count Shift" value={formatCountShift(entry)} />
                 <MetricCard label="Base / Score" value={`${entry.baseStateLabel} • ${entry.scoreStateLabel}`} />
                 <MetricCard label="Count Edge" value={deltaLabel} />
-                <MetricCard label="At-Bat" value={`${entry.batterName ?? "Batter"} vs ${entry.pitcherName ?? "Pitcher"}`} />
+                <MetricCard
+                  label={entry.runExpectancyDelta !== null ? "Run Value" : "At-Bat"}
+                  value={
+                    entry.runExpectancyDelta !== null
+                      ? `${signedRunValue(entry.runExpectancyDelta)} RE`
+                      : `${entry.batterName ?? "Batter"} vs ${entry.pitcherName ?? "Pitcher"}`
+                  }
+                />
               </div>
 
               <div className="mt-3">
@@ -175,6 +193,10 @@ function signedValue(value: number) {
 
 function signedPercent(value: number) {
   return `${value >= 0 ? "+" : ""}${(value * 100).toFixed(1)} pts`;
+}
+
+function signedRunValue(value: number) {
+  return `${value >= 0 ? "+" : ""}${value.toFixed(3)}`;
 }
 
 function SummaryCard({

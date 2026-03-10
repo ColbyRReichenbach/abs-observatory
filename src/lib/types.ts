@@ -65,6 +65,10 @@ export type ChallengeEvent = {
   battingAverageDelta?: number | null;
   walkRateDelta?: number | null;
   strikeoutRateDelta?: number | null;
+  preRunExpectancy?: number | null;
+  postRunExpectancy?: number | null;
+  runExpectancyDelta?: number | null;
+  runExpectancyConfidence?: ConfidenceBand | null;
 };
 
 export type PitchTimelineEntry = {
@@ -216,6 +220,7 @@ export type TeamChallengeScenarioCell = {
   overturnRate: number;
   avgEstimatedLeverage: number;
   avgPositiveOutcomeDelta: number | null;
+  avgRunExpectancyDelta: number | null;
   highPressureShare: number;
 };
 
@@ -226,6 +231,12 @@ export type TeamChallengeValueSummary = {
   rispLessThanTwoOutsShare: number;
   averageEstimatedLeverage: number;
   averagePositiveOutcomeDelta: number | null;
+  averageRunExpectancyDelta: number | null;
+  medianRunExpectancyDelta: number | null;
+  highRunValueShare: number;
+  lowRunValueBurnShare: number;
+  lateCloseRunValueShare: number;
+  runExpectancyConfidence: ConfidenceBand | null;
   bestScenarioLabel: string | null;
   bestScenarioChallenges: number;
 };
@@ -281,6 +292,10 @@ export type ChallengeValueTimelineEntry = {
   positiveOutcomeDelta: number | null;
   battingAverageDelta: number | null;
   walkRateDelta: number | null;
+  preRunExpectancy: number | null;
+  postRunExpectancy: number | null;
+  runExpectancyDelta: number | null;
+  runExpectancyConfidence: ConfidenceBand | null;
 };
 
 export type LiveChallengeWindow = {
@@ -299,10 +314,14 @@ export type LiveChallengeWindow = {
   scenarioTags: string[];
   currentCountKey: string | null;
   currentPositiveOutcomeRate: number | null;
+  currentRunExpectancy: number | null;
   nextBallCountKey: string | null;
   nextBallPositiveOutcomeDelta: number | null;
+  nextBallRunExpectancyDelta: number | null;
   nextStrikeCountKey: string | null;
   nextStrikePositiveOutcomeDelta: number | null;
+  nextStrikeRunExpectancyDelta: number | null;
+  runExpectancyConfidence: ConfidenceBand | null;
 };
 
 export type AIQueryResponse = {
@@ -560,6 +579,8 @@ export type TeamLeaderboardEntry = TeamSummary & {
   challengeRatePerGame: number;
   lateLeverageShare: number;
   earlyLowLeverageShare: number;
+  avgRunExpectancyDelta: number | null;
+  highRunValueShare: number;
 };
 
 export type UmpireLeaderboardEntry = UmpireSummary & {

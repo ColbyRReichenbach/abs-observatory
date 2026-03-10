@@ -60,11 +60,15 @@ export function TeamChallengeValueMatrix({
           <SummaryPill label="RISP <2 Outs" value={`${(summary.rispLessThanTwoOutsShare * 100).toFixed(0)}%`} />
           <SummaryPill label="Avg ELI" value={summary.averageEstimatedLeverage.toFixed(1)} />
           <SummaryPill
-            label={viewMode === "org" ? "Realized Count Edge" : "Smart Count Gain"}
+            label={viewMode === "org" ? "Avg RE Delta" : "Smart Count Gain"}
             value={
-              summary.averagePositiveOutcomeDelta === null
-                ? "N/A"
-                : `${summary.averagePositiveOutcomeDelta >= 0 ? "+" : ""}${(summary.averagePositiveOutcomeDelta * 100).toFixed(1)}`
+              viewMode === "org"
+                ? summary.averageRunExpectancyDelta === null
+                  ? "N/A"
+                  : `${summary.averageRunExpectancyDelta >= 0 ? "+" : ""}${summary.averageRunExpectancyDelta.toFixed(3)}`
+                : summary.averagePositiveOutcomeDelta === null
+                  ? "N/A"
+                  : `${summary.averagePositiveOutcomeDelta >= 0 ? "+" : ""}${(summary.averagePositiveOutcomeDelta * 100).toFixed(1)}`
             }
           />
         </div>
@@ -91,7 +95,7 @@ export function TeamChallengeValueMatrix({
           </p>
           <p className="mt-3 text-[11px] font-medium leading-relaxed text-gray-600">
             {preferredCell
-              ? `${preferredCell.challenges} tracked reviews with avg ELI ${preferredCell.avgEstimatedLeverage.toFixed(1)}`
+              ? `${preferredCell.challenges} tracked reviews with avg ELI ${preferredCell.avgEstimatedLeverage.toFixed(1)}${preferredCell.avgRunExpectancyDelta !== null ? ` and ${preferredCell.avgRunExpectancyDelta >= 0 ? "+" : ""}${preferredCell.avgRunExpectancyDelta.toFixed(3)} RE` : ""}`
               : "No scenario trend yet."}
           </p>
         </div>
@@ -128,6 +132,7 @@ export function TeamChallengeValueMatrix({
                   overturnRate: 0,
                   avgEstimatedLeverage: 0,
                   avgPositiveOutcomeDelta: null,
+                  avgRunExpectancyDelta: null,
                   highPressureShare: 0,
                 };
                 const key = `${rowLabel}:${colLabel}`;
@@ -181,7 +186,18 @@ export function TeamChallengeValueMatrix({
               { label: "Overturn Rate", value: `${(hoveredCell.overturnRate * 100).toFixed(1)}%` },
               { label: "Avg ELI", value: hoveredCell.avgEstimatedLeverage.toFixed(1) },
               {
-                label: viewMode === "org" ? "Realized Edge" : "Count Gain",
+                label: viewMode === "org" ? "Avg RE Delta" : "Count Gain",
+                value:
+                  viewMode === "org"
+                    ? hoveredCell.avgRunExpectancyDelta === null
+                      ? "N/A"
+                      : `${hoveredCell.avgRunExpectancyDelta >= 0 ? "+" : ""}${hoveredCell.avgRunExpectancyDelta.toFixed(3)} RE`
+                    : hoveredCell.avgPositiveOutcomeDelta === null
+                      ? "N/A"
+                      : `${hoveredCell.avgPositiveOutcomeDelta >= 0 ? "+" : ""}${(hoveredCell.avgPositiveOutcomeDelta * 100).toFixed(1)} pts`,
+              },
+              {
+                label: viewMode === "org" ? "Count Edge" : "Count Gain",
                 value:
                   hoveredCell.avgPositiveOutcomeDelta === null
                     ? "N/A"

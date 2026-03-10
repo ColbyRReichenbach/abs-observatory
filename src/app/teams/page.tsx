@@ -43,6 +43,11 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
     teams.length > 0 ? teams.reduce((sum, team) => sum + team.lateLeverageShare, 0) / teams.length : 0;
   const leagueAvgEarlyBurnShare =
     teams.length > 0 ? teams.reduce((sum, team) => sum + team.earlyLowLeverageShare, 0) / teams.length : 0;
+  const teamsWithRunValue = teams.filter((team) => team.avgRunExpectancyDelta !== null);
+  const leagueAvgRunExpectancyDelta =
+    teamsWithRunValue.length > 0
+      ? teamsWithRunValue.reduce((sum, team) => sum + (team.avgRunExpectancyDelta ?? 0), 0) / teamsWithRunValue.length
+      : null;
 
   // Find the position where league avg row should be inserted (between teams above and below league avg overturn rate)
   const avgInsertIdx = sorted.findIndex((t) => t.overturnRate < leagueAvgRate);
@@ -69,7 +74,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
           </p>
           <p className="mt-1 text-xs text-[var(--ink-3)]">
             {viewMode === "org"
-              ? `${biggestMover.orgStyleLabel} with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews in higher-pressure windows and ${biggestMover.challengeRatePerGame.toFixed(2)} challenges per game.`
+              ? `${biggestMover.orgStyleLabel} with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews in higher-pressure windows${biggestMover.avgRunExpectancyDelta !== null ? ` and ${biggestMover.avgRunExpectancyDelta >= 0 ? "+" : ""}${biggestMover.avgRunExpectancyDelta.toFixed(3)} average RE per review` : ""}.`
               : `${biggestMover.style} profile with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews coming in bigger spots and a visible trend swing.`}
           </p>
         </div>
@@ -100,7 +105,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
               <th className="text-center">{viewMode === "org" ? "Pressure Share" : "Big-Spot Share"}</th>
               <th className="text-center">{viewMode === "org" ? "Discipline" : "Timing"}</th>
               <th className="text-center">Trend</th>
-              <th className="text-right">{viewMode === "org" ? "Avg Remaining" : "Avg Rem"}</th>
+              <th className="text-right">{viewMode === "org" ? "Avg RE Δ" : "Avg Rem"}</th>
               <th className="text-right">{copy.tableVolumeHeader}</th>
             </tr>
           </thead>
@@ -150,7 +155,11 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
                         <span className="text-[10px] text-[var(--ink-3)]">—</span>
                       </td>
                       <td className="text-right font-mono text-gray-400 italic font-medium pr-8">
-                        {leagueAvgRemaining.toFixed(2)}
+                        {viewMode === "org"
+                          ? leagueAvgRunExpectancyDelta === null
+                            ? "N/A"
+                            : `${leagueAvgRunExpectancyDelta >= 0 ? "+" : ""}${leagueAvgRunExpectancyDelta.toFixed(3)}`
+                          : leagueAvgRemaining.toFixed(2)}
                       </td>
                       <td className="text-right font-mono text-gray-400 italic font-medium pr-8">
                         {viewMode === "org"
@@ -204,7 +213,13 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
                         <TrendSparkline data={trendlineMap.get(t.teamId) ?? []} />
                       </div>
                     </td>
-                    <td className="text-right font-mono text-gray-400 font-medium pr-8">{t.avgRemaining.toFixed(2)}</td>
+                    <td className="text-right font-mono text-gray-400 font-medium pr-8">
+                      {viewMode === "org"
+                        ? t.avgRunExpectancyDelta === null
+                          ? "N/A"
+                          : `${t.avgRunExpectancyDelta >= 0 ? "+" : ""}${t.avgRunExpectancyDelta.toFixed(3)}`
+                        : t.avgRemaining.toFixed(2)}
+                    </td>
                     <td className="text-right font-mono text-gray-400 font-medium pr-8">{viewMode === "org" ? t.gamesTracked : t.challengesTotal}</td>
                   </tr>
                 </>

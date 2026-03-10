@@ -87,9 +87,11 @@ export function CurrentChallengeWindowCard({
           <MetricCard
             label={viewMode === "org" ? "Current Outcome Edge" : "Current Count Value"}
             value={
-              snapshot.currentPositiveOutcomeRate === null
-                ? "N/A"
-                : `${(snapshot.currentPositiveOutcomeRate * 100).toFixed(1)}%`
+              snapshot.currentRunExpectancy !== null
+                ? `${snapshot.currentRunExpectancy.toFixed(3)} RE`
+                : snapshot.currentPositiveOutcomeRate === null
+                  ? "N/A"
+                  : `${(snapshot.currentPositiveOutcomeRate * 100).toFixed(1)}%`
             }
           />
           <MetricCard label="Pressure Band" value={snapshot.leverageBucket.toUpperCase()} />
@@ -125,12 +127,14 @@ export function CurrentChallengeWindowCard({
           label="If Strike Flips To Ball"
           countKey={snapshot.nextBallCountKey}
           delta={snapshot.nextBallPositiveOutcomeDelta}
+          runDelta={snapshot.nextBallRunExpectancyDelta}
           tone="emerald"
         />
         <ProjectionCard
           label="If Ball Flips To Strike"
           countKey={snapshot.nextStrikeCountKey}
           delta={snapshot.nextStrikePositiveOutcomeDelta}
+          runDelta={snapshot.nextStrikeRunExpectancyDelta}
           tone="rose"
         />
       </div>
@@ -164,11 +168,13 @@ function ProjectionCard({
   label,
   countKey,
   delta,
+  runDelta,
   tone,
 }: {
   label: string;
   countKey: string | null;
   delta: number | null;
+  runDelta: number | null;
   tone: "emerald" | "rose";
 }) {
   const toneClasses =
@@ -183,6 +189,12 @@ function ProjectionCard({
       <p className="mt-1 text-[11px] font-medium">
         {delta === null ? "No comparable count-state delta" : `${delta >= 0 ? "+" : ""}${(delta * 100).toFixed(1)} pts positive outcome rate`}
       </p>
+      {runDelta !== null ? (
+        <p className="mt-1 text-[11px] font-medium">
+          {runDelta >= 0 ? "+" : ""}
+          {runDelta.toFixed(3)} RE
+        </p>
+      ) : null}
     </div>
   );
 }

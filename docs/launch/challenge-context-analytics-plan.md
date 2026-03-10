@@ -25,6 +25,34 @@ Related documents:
 - [src/lib/types.ts](../../src/lib/types.ts)
 - [db/views.sql](../../db/views.sql)
 
+## Status Update
+
+As of March 10, 2026, the historical RE foundation for this plan is no longer hypothetical.
+
+AiBS now has:
+
+- `15,480` regular-season games across `2019-2025`
+- `4,566,992` raw historical pitches
+- `4,566,992` canonical historical pitch-state rows
+- `1,152` run expectancy state rows
+
+Current RE confidence:
+
+- `826` high
+- `248` medium
+- `78` low
+
+Current ABS challenge-state fit:
+
+- `532 / 532` exact before-state matches
+- `532 / 532` exact after-state matches
+- challenge-state confidence:
+  - `365` high
+  - `38` medium
+  - `2` low
+
+That means Stage 2 is now viable as a real product layer. The historical ingestion phase for RE is complete enough to shift focus toward productization and then win expectancy.
+
 ## 1. Why This Matters
 
 ABS is not only about whether a pitch was called correctly. It is also about challenge deployment.

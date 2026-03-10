@@ -46,6 +46,7 @@ pnpm-debug.log*
 
 # python caches and local envs
 __pycache__/
+etl/.statcast_backfill_checkpoint.json
 *.py[cod]
 *.pyo
 *.pyd

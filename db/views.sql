@@ -1,5 +1,11 @@
 DROP VIEW IF EXISTS mart_weekly_editorial_summary CASCADE;
 DROP VIEW IF EXISTS mart_daily_editorial_summary CASCADE;
+DROP VIEW IF EXISTS mart_team_challenge_run_value CASCADE;
+DROP VIEW IF EXISTS mart_run_expectancy_fallbacks CASCADE;
+DROP VIEW IF EXISTS mart_run_expectancy_by_count_state CASCADE;
+DROP VIEW IF EXISTS mart_state_coverage CASCADE;
+DROP VIEW IF EXISTS mart_count_state_baselines_v2 CASCADE;
+DROP VIEW IF EXISTS mart_pitch_state_baselines CASCADE;
 DROP VIEW IF EXISTS mart_pitch_type_count_baselines CASCADE;
 DROP VIEW IF EXISTS mart_zone_outcome_baselines CASCADE;
 DROP VIEW IF EXISTS mart_count_state_delta_baselines CASCADE;
@@ -312,6 +318,129 @@ SELECT
 FROM mart_game_pitch_timeline
 GROUP BY balls_before, strikes_before, balls_after, strikes_after;
 
+CREATE OR REPLACE VIEW mart_pitch_state_baselines AS
+SELECT
+  season,
+  inning_bucket,
+  outs,
+  bases_state,
+  count_key,
+  COUNT(*) AS sample_size,
+  AVG(COALESCE(runs_to_inning_end, 0))::NUMERIC AS expected_runs_to_end_inning,
+  AVG(CASE WHEN batting_team_won IS TRUE THEN 1 ELSE 0 END)::NUMERIC AS batting_team_win_probability
+FROM historical_pitch_states
+GROUP BY season, inning_bucket, outs, bases_state, count_key;
+
+CREATE OR REPLACE VIEW mart_count_state_baselines_v2 AS
+SELECT
+  count_key,
+  COUNT(*) AS plate_appearances,
+  COUNT(*) FILTER (WHERE hit_event = TRUE) AS hits,
+  COUNT(*) FILTER (WHERE walk_event = TRUE) AS walks,
+  COUNT(*) FILTER (WHERE strikeout_event = TRUE) AS strikeouts,
+  COUNT(*) FILTER (WHERE official_at_bat = TRUE) AS official_at_bats,
+  CASE
+    WHEN COUNT(*) FILTER (WHERE official_at_bat = TRUE) > 0
+      THEN COUNT(*) FILTER (WHERE hit_event = TRUE)::NUMERIC / COUNT(*) FILTER (WHERE official_at_bat = TRUE)
+    ELSE 0
+  END AS batting_average,
+  CASE
+    WHEN COUNT(*) > 0
+      THEN COUNT(*) FILTER (WHERE positive_outcome = TRUE)::NUMERIC / COUNT(*)
+    ELSE 0
+  END AS positive_outcome_rate
+FROM historical_pitch_states
+WHERE is_last_pitch_of_pa = TRUE
+  AND count_key IS NOT NULL
+GROUP BY count_key;
+
+CREATE OR REPLACE VIEW mart_state_coverage AS
+SELECT
+  season,
+  inning_bucket,
+  outs,
+  bases_state,
+  count_key,
+  COUNT(*) AS sample_size,
+  CASE
+    WHEN COUNT(*) >= 500 THEN 'high'
+    WHEN COUNT(*) >= 150 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band,
+  CASE
+    WHEN COUNT(*) >= 100 THEN 'exact'
+    WHEN COUNT(*) >= 40 THEN 'drop_inning_bucket'
+    ELSE 'drop_count_key'
+  END AS fallback_tier_candidate
+FROM historical_pitch_states
+GROUP BY season, inning_bucket, outs, bases_state, count_key;
+
+CREATE OR REPLACE VIEW mart_run_expectancy_by_count_state AS
+SELECT
+  CONCAT(MIN(season), '-', MAX(season)) AS season_window,
+  inning_bucket,
+  outs,
+  bases_state,
+  count_key,
+  COUNT(*) AS sample_size,
+  AVG(COALESCE(runs_to_inning_end, 0))::NUMERIC AS expected_runs_to_end_inning,
+  CASE
+    WHEN COUNT(*) >= 500 THEN 'high'
+    WHEN COUNT(*) >= 150 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM historical_pitch_states
+GROUP BY inning_bucket, outs, bases_state, count_key;
+
+CREATE OR REPLACE VIEW mart_run_expectancy_fallbacks AS
+SELECT
+  'exact'::TEXT AS fallback_tier,
+  inning_bucket,
+  outs,
+  bases_state,
+  count_key,
+  COUNT(*) AS sample_size,
+  AVG(COALESCE(runs_to_inning_end, 0))::NUMERIC AS expected_runs_to_end_inning,
+  CASE
+    WHEN COUNT(*) >= 500 THEN 'high'
+    WHEN COUNT(*) >= 150 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM historical_pitch_states
+GROUP BY inning_bucket, outs, bases_state, count_key
+UNION ALL
+SELECT
+  'drop_inning_bucket'::TEXT AS fallback_tier,
+  NULL::TEXT AS inning_bucket,
+  outs,
+  bases_state,
+  count_key,
+  COUNT(*) AS sample_size,
+  AVG(COALESCE(runs_to_inning_end, 0))::NUMERIC AS expected_runs_to_end_inning,
+  CASE
+    WHEN COUNT(*) >= 500 THEN 'high'
+    WHEN COUNT(*) >= 150 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM historical_pitch_states
+GROUP BY outs, bases_state, count_key
+UNION ALL
+SELECT
+  'drop_count_key'::TEXT AS fallback_tier,
+  NULL::TEXT AS inning_bucket,
+  outs,
+  bases_state,
+  NULL::TEXT AS count_key,
+  COUNT(*) AS sample_size,
+  AVG(COALESCE(runs_to_inning_end, 0))::NUMERIC AS expected_runs_to_end_inning,
+  CASE
+    WHEN COUNT(*) >= 500 THEN 'high'
+    WHEN COUNT(*) >= 150 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM historical_pitch_states
+GROUP BY outs, bases_state;
+
 CREATE OR REPLACE VIEW mart_zone_outcome_baselines AS
 SELECT
   zone,
@@ -337,6 +466,123 @@ SELECT
   COUNT(*) FILTER (WHERE challenge_id IS NOT NULL) AS challenged_pitch_count
 FROM mart_game_pitch_timeline
 GROUP BY pitch_type_code, pitch_type_description, balls_before, strikes_before;
+
+CREATE OR REPLACE VIEW mart_team_challenge_run_value AS
+WITH challenge_re AS (
+  SELECT
+    c.challenge_id,
+    c.challenge_team_id AS team_id,
+    c.game_pk,
+    c.inning,
+    c.half_inning,
+    c.outs,
+    c.bases_state,
+    c.home_score,
+    c.away_score,
+    CASE
+      WHEN COALESCE(c.pitch_number, c.inferred_pitch_number) IS NULL THEN NULL
+      WHEN p.balls_before IS NULL OR p.strikes_before IS NULL THEN NULL
+      WHEN c.is_overturned = FALSE THEN
+        CASE WHEN p.balls_after IS NULL OR p.strikes_after IS NULL THEN NULL ELSE CONCAT(p.balls_after, '-', p.strikes_after) END
+      WHEN p.balls_after IS NOT NULL AND p.balls_before IS NOT NULL AND p.balls_after > p.balls_before THEN CONCAT(p.balls_before, '-', p.strikes_before + 1)
+      WHEN p.strikes_after IS NOT NULL AND p.strikes_before IS NOT NULL AND p.strikes_after > p.strikes_before THEN CONCAT(p.balls_before + 1, '-', p.strikes_before)
+      ELSE CASE WHEN p.balls_after IS NULL OR p.strikes_after IS NULL THEN NULL ELSE CONCAT(p.balls_after, '-', p.strikes_after) END
+    END AS held_count_key,
+    CASE
+      WHEN p.balls_after IS NULL OR p.strikes_after IS NULL THEN NULL
+      ELSE CONCAT(p.balls_after, '-', p.strikes_after)
+    END AS corrected_count_key,
+    CASE
+      WHEN c.inning >= 9 THEN '9+'
+      WHEN c.inning >= 7 THEN '7-8'
+      WHEN c.inning >= 4 THEN '4-6'
+      ELSE '1-3'
+    END AS inning_bucket
+  FROM abs_challenges c
+  LEFT JOIN pitches p
+    ON p.game_pk = c.game_pk
+   AND p.at_bat_index = c.at_bat_index
+   AND p.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
+  WHERE c.challenge_team_id IS NOT NULL
+),
+lookup AS (
+  SELECT
+    cr.*,
+    held_exact.expected_runs_to_end_inning AS held_exact_re,
+    corrected_exact.expected_runs_to_end_inning AS corrected_exact_re,
+    held_no_inning.expected_runs_to_end_inning AS held_no_inning_re,
+    corrected_no_inning.expected_runs_to_end_inning AS corrected_no_inning_re,
+    held_base_out.expected_runs_to_end_inning AS held_base_out_re,
+    corrected_base_out.expected_runs_to_end_inning AS corrected_base_out_re
+  FROM challenge_re cr
+  LEFT JOIN mart_run_expectancy_fallbacks held_exact
+    ON held_exact.fallback_tier = 'exact'
+   AND held_exact.inning_bucket = cr.inning_bucket
+   AND held_exact.outs = cr.outs
+   AND held_exact.bases_state = cr.bases_state
+   AND held_exact.count_key = cr.held_count_key
+  LEFT JOIN mart_run_expectancy_fallbacks corrected_exact
+    ON corrected_exact.fallback_tier = 'exact'
+   AND corrected_exact.inning_bucket = cr.inning_bucket
+   AND corrected_exact.outs = cr.outs
+   AND corrected_exact.bases_state = cr.bases_state
+   AND corrected_exact.count_key = cr.corrected_count_key
+  LEFT JOIN mart_run_expectancy_fallbacks held_no_inning
+    ON held_no_inning.fallback_tier = 'drop_inning_bucket'
+   AND held_no_inning.outs = cr.outs
+   AND held_no_inning.bases_state = cr.bases_state
+   AND held_no_inning.count_key = cr.held_count_key
+  LEFT JOIN mart_run_expectancy_fallbacks corrected_no_inning
+    ON corrected_no_inning.fallback_tier = 'drop_inning_bucket'
+   AND corrected_no_inning.outs = cr.outs
+   AND corrected_no_inning.bases_state = cr.bases_state
+   AND corrected_no_inning.count_key = cr.corrected_count_key
+  LEFT JOIN mart_run_expectancy_fallbacks held_base_out
+    ON held_base_out.fallback_tier = 'drop_count_key'
+   AND held_base_out.outs = cr.outs
+   AND held_base_out.bases_state = cr.bases_state
+  LEFT JOIN mart_run_expectancy_fallbacks corrected_base_out
+    ON corrected_base_out.fallback_tier = 'drop_count_key'
+   AND corrected_base_out.outs = cr.outs
+   AND corrected_base_out.bases_state = cr.bases_state
+)
+SELECT
+  team_id,
+  CONCAT(MIN(g.season), '-', MAX(g.season)) AS season_window,
+  COUNT(*) AS challenges_total,
+  AVG(
+    COALESCE(corrected_exact_re, corrected_no_inning_re, corrected_base_out_re)
+    - COALESCE(held_exact_re, held_no_inning_re, held_base_out_re)
+  )::NUMERIC AS avg_re_delta,
+  PERCENTILE_CONT(0.5) WITHIN GROUP (
+    ORDER BY COALESCE(corrected_exact_re, corrected_no_inning_re, corrected_base_out_re)
+      - COALESCE(held_exact_re, held_no_inning_re, held_base_out_re)
+  )::NUMERIC AS median_re_delta,
+  AVG(
+    CASE
+      WHEN COALESCE(corrected_exact_re, corrected_no_inning_re, corrected_base_out_re)
+        - COALESCE(held_exact_re, held_no_inning_re, held_base_out_re) > 0
+      THEN 1 ELSE 0
+    END
+  )::NUMERIC AS high_re_share,
+  AVG(
+    CASE
+      WHEN COALESCE(corrected_exact_re, corrected_no_inning_re, corrected_base_out_re)
+        - COALESCE(held_exact_re, held_no_inning_re, held_base_out_re) <= 0
+      THEN 1 ELSE 0
+    END
+  )::NUMERIC AS low_re_burn_share,
+  AVG(
+    CASE WHEN l.inning >= 7 AND ABS(COALESCE(l.home_score, 0) - COALESCE(l.away_score, 0)) <= 2 THEN 1 ELSE 0 END
+  )::NUMERIC AS late_close_re_share,
+  CASE
+    WHEN COUNT(*) >= 80 THEN 'high'
+    WHEN COUNT(*) >= 25 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM lookup l
+JOIN games g ON g.game_pk = l.game_pk
+GROUP BY team_id;
 
 CREATE OR REPLACE VIEW mart_daily_editorial_summary AS
 SELECT

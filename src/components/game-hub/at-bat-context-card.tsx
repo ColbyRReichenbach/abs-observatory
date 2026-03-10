@@ -23,6 +23,7 @@ export function AtBatContextCard({ challenge }: { challenge: ChallengeEvent }) {
     const positiveOutcomeDelta = challenge.positiveOutcomeDelta ?? null;
     const battingAverageDelta = challenge.battingAverageDelta ?? null;
     const walkRateDelta = challenge.walkRateDelta ?? null;
+    const runExpectancyDelta = challenge.runExpectancyDelta ?? null;
     const scoreState =
         challenge.homeScore === null || challenge.awayScore === null
             ? "Score unavailable"
@@ -37,8 +38,10 @@ export function AtBatContextCard({ challenge }: { challenge: ChallengeEvent }) {
             ? `Review shifted the plate appearance from ${challenge.umpireCount} to ${challenge.countAfter}.`
             : "Review held the plate appearance in the same count state.";
     const deltaNarrative =
-        positiveOutcomeDelta === null
-            ? "No comparable count-state baseline is available for this review."
+        runExpectancyDelta !== null
+            ? `Comparable game states shift run expectancy by ${runExpectancyDelta >= 0 ? "+" : ""}${runExpectancyDelta.toFixed(3)} runs from this review state.`
+            : positiveOutcomeDelta === null
+                ? "No comparable count-state baseline is available for this review."
             : positiveOutcomeDelta >= 0
                 ? `Comparable plate appearances improve by ${(positiveOutcomeDelta * 100).toFixed(1)} points from this shift.`
                 : `Comparable plate appearances lose ${(Math.abs(positiveOutcomeDelta) * 100).toFixed(1)} points from this shift.`;
@@ -113,8 +116,13 @@ export function AtBatContextCard({ challenge }: { challenge: ChallengeEvent }) {
                     <p className="mt-1 text-[11px] font-medium leading-relaxed text-slate-600">{deltaNarrative}</p>
                 </div>
 
-                {battingAverageDelta !== null || walkRateDelta !== null ? (
+                {runExpectancyDelta !== null || battingAverageDelta !== null || walkRateDelta !== null ? (
                     <div className="mt-3 flex flex-wrap gap-2">
+                        {runExpectancyDelta !== null ? (
+                            <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                                RE {formatRunDelta(runExpectancyDelta)}
+                            </span>
+                        ) : null}
                         {battingAverageDelta !== null ? (
                             <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-slate-500">
                                 AVG {formatDelta(battingAverageDelta)}
@@ -159,4 +167,8 @@ export function AtBatContextCard({ challenge }: { challenge: ChallengeEvent }) {
 
 function formatDelta(value: number) {
     return `${value >= 0 ? "+" : "-"}${(Math.abs(value) * 100).toFixed(1)} pts`;
+}
+
+function formatRunDelta(value: number) {
+    return `${value >= 0 ? "+" : "-"}${Math.abs(value).toFixed(3)}`;
 }

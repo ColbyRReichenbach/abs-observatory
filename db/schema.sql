@@ -910,6 +910,118 @@ CREATE TABLE IF NOT EXISTS ops.source_snapshots (
   payload JSONB NOT NULL
 );
 
+CREATE SCHEMA IF NOT EXISTS raw;
+
+CREATE TABLE IF NOT EXISTS raw.statcast_games (
+  game_pk BIGINT PRIMARY KEY,
+  game_date DATE NOT NULL,
+  season INTEGER NOT NULL,
+  game_type TEXT NOT NULL DEFAULT 'R',
+  home_team_id INTEGER,
+  away_team_id INTEGER,
+  home_score_final INTEGER,
+  away_score_final INTEGER,
+  winning_team_id INTEGER,
+  source TEXT NOT NULL DEFAULT 'baseball_savant',
+  imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS raw.statcast_pitches (
+  game_pk BIGINT NOT NULL,
+  game_date DATE NOT NULL,
+  season INTEGER NOT NULL,
+  inning INTEGER NOT NULL,
+  half_inning TEXT NOT NULL,
+  at_bat_number INTEGER NOT NULL,
+  pitch_number INTEGER NOT NULL,
+  balls INTEGER,
+  strikes INTEGER,
+  outs INTEGER,
+  on_1b BIGINT,
+  on_2b BIGINT,
+  on_3b BIGINT,
+  bases_state TEXT,
+  home_score INTEGER,
+  away_score INTEGER,
+  bat_score INTEGER,
+  fld_score INTEGER,
+  post_bat_score INTEGER,
+  post_fld_score INTEGER,
+  score_diff_batting INTEGER,
+  batter_id BIGINT,
+  pitcher_id BIGINT,
+  stand TEXT,
+  p_throws TEXT,
+  batting_team_id INTEGER,
+  fielding_team_id INTEGER,
+  winning_team_id INTEGER,
+  pitch_type TEXT,
+  pitch_name TEXT,
+  description TEXT,
+  events TEXT,
+  plate_x NUMERIC,
+  plate_z NUMERIC,
+  is_in_play BOOLEAN NOT NULL DEFAULT FALSE,
+  is_last_pitch_of_pa BOOLEAN NOT NULL DEFAULT FALSE,
+  source_payload JSONB,
+  imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (game_pk, at_bat_number, pitch_number),
+  FOREIGN KEY (game_pk) REFERENCES raw.statcast_games(game_pk) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS historical_pitch_states (
+  game_pk BIGINT NOT NULL,
+  game_date DATE NOT NULL,
+  season INTEGER NOT NULL,
+  inning INTEGER NOT NULL,
+  inning_bucket TEXT NOT NULL,
+  half_inning TEXT NOT NULL,
+  at_bat_number INTEGER NOT NULL,
+  pitch_number INTEGER NOT NULL,
+  balls INTEGER,
+  strikes INTEGER,
+  outs INTEGER,
+  count_key TEXT,
+  bases_state TEXT NOT NULL,
+  on_1b BOOLEAN NOT NULL DEFAULT FALSE,
+  on_2b BOOLEAN NOT NULL DEFAULT FALSE,
+  on_3b BOOLEAN NOT NULL DEFAULT FALSE,
+  home_score INTEGER,
+  away_score INTEGER,
+  bat_score INTEGER,
+  fld_score INTEGER,
+  post_bat_score INTEGER,
+  post_fld_score INTEGER,
+  batting_team_id INTEGER,
+  fielding_team_id INTEGER,
+  winning_team_id INTEGER,
+  score_diff_batting INTEGER,
+  batter_id BIGINT,
+  pitcher_id BIGINT,
+  stand TEXT,
+  p_throws TEXT,
+  pitch_type TEXT,
+  pitch_name TEXT,
+  description TEXT,
+  events TEXT,
+  plate_x NUMERIC,
+  plate_z NUMERIC,
+  is_in_play BOOLEAN NOT NULL DEFAULT FALSE,
+  is_last_pitch_of_pa BOOLEAN NOT NULL DEFAULT FALSE,
+  positive_outcome BOOLEAN NOT NULL DEFAULT FALSE,
+  official_at_bat BOOLEAN NOT NULL DEFAULT FALSE,
+  walk_event BOOLEAN NOT NULL DEFAULT FALSE,
+  strikeout_event BOOLEAN NOT NULL DEFAULT FALSE,
+  hit_event BOOLEAN NOT NULL DEFAULT FALSE,
+  batting_team_won BOOLEAN,
+  runs_to_inning_end NUMERIC,
+  source TEXT NOT NULL DEFAULT 'statcast_backfill',
+  imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (game_pk, at_bat_number, pitch_number),
+  FOREIGN KEY (game_pk) REFERENCES raw.statcast_games(game_pk) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_product_users_external_auth ON product.users (external_auth_provider, external_auth_id);
 CREATE INDEX IF NOT EXISTS idx_product_profiles_favorite_team ON product.user_profiles (favorite_team_id);
 CREATE INDEX IF NOT EXISTS idx_editorial_articles_status_published ON editorial.articles (status, published_at DESC);
@@ -949,6 +1061,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_ops_job_runs_idempotency ON ops.job_runs (
 CREATE INDEX IF NOT EXISTS idx_ops_webhook_deliveries_provider_processed ON ops.webhook_deliveries (provider, processed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ops_audit_log_action_created ON ops.audit_log (action, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ops_source_snapshots_source_entity ON ops.source_snapshots (source_name, entity_key, fetched_at DESC);
+CREATE INDEX IF NOT EXISTS idx_raw_statcast_games_season_date ON raw.statcast_games (season, game_date);
+CREATE INDEX IF NOT EXISTS idx_raw_statcast_pitches_season_date ON raw.statcast_pitches (season, game_date);
+CREATE INDEX IF NOT EXISTS idx_raw_statcast_pitches_game_atbat ON raw.statcast_pitches (game_pk, at_bat_number, pitch_number);
+CREATE INDEX IF NOT EXISTS idx_historical_pitch_states_season ON historical_pitch_states (season, game_date);
+CREATE INDEX IF NOT EXISTS idx_historical_pitch_states_re_state ON historical_pitch_states (inning_bucket, outs, bases_state, count_key);
+CREATE INDEX IF NOT EXISTS idx_historical_pitch_states_we_state ON historical_pitch_states (inning, half_inning, score_diff_batting, outs, bases_state, count_key);
 
 DROP TRIGGER IF EXISTS trg_product_users_touch ON product.users;
 CREATE TRIGGER trg_product_users_touch BEFORE UPDATE ON product.users FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
@@ -979,3 +1097,6 @@ CREATE TRIGGER trg_ai_conversations_touch BEFORE UPDATE ON ai.conversations FOR 
 
 DROP TRIGGER IF EXISTS trg_ai_user_entitlements_touch ON ai.user_entitlements;
 CREATE TRIGGER trg_ai_user_entitlements_touch BEFORE UPDATE ON ai.user_entitlements FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+
+DROP TRIGGER IF EXISTS trg_historical_pitch_states_touch ON historical_pitch_states;
+CREATE TRIGGER trg_historical_pitch_states_touch BEFORE UPDATE ON historical_pitch_states FOR EACH ROW EXECUTE FUNCTION touch_updated_at();

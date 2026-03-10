@@ -11,6 +11,8 @@ export type TeamStyleMetric = {
   teamId: number;
   lateLeverageShare: number;
   earlyLowLeverageShare: number;
+  avgRunExpectancyDelta: number | null;
+  highRunValueShare: number;
 };
 
 export type UmpireRubricMetric = {
@@ -53,6 +55,8 @@ export function buildTeamLeaderboardEntries(
       teamId: team.teamId,
       lateLeverageShare: 0,
       earlyLowLeverageShare: 0,
+      avgRunExpectancyDelta: null,
+      highRunValueShare: 0,
     };
     const style = computeTeamChallengeStyle({
       sampleSize: team.challengesTotal,
@@ -77,6 +81,8 @@ export function buildTeamLeaderboardEntries(
       challengeRatePerGame: team.gamesTracked > 0 ? team.challengesTotal / team.gamesTracked : 0,
       lateLeverageShare: metric.lateLeverageShare,
       earlyLowLeverageShare: metric.earlyLowLeverageShare,
+      avgRunExpectancyDelta: metric.avgRunExpectancyDelta,
+      highRunValueShare: metric.highRunValueShare,
     };
   });
 }
