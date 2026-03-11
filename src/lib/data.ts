@@ -84,6 +84,17 @@ type TeamDecisionWindowAggregate = {
   winModeChallenges: number;
 };
 
+type ModeledTeamDecisionRow = {
+  row: TeamDecisionMetricRow;
+  label: string;
+  expectedWpDelta: number;
+  realizedWpDelta: number;
+  recommendation: "challenge" | "hold" | "cannot_challenge";
+  decisionValueMode: "win_expectancy" | "heuristic";
+  highPressurePositive: boolean;
+  lateClosePositive: boolean;
+};
+
 function rangeWhere(range: RangeKey, dateField = "g.game_date"): { clause: string; params: unknown[] } {
   if (range === "7d") {
     return { clause: `${dateField} >= NOW() - INTERVAL '7 days'`, params: [] };
@@ -289,11 +300,60 @@ async function getTeamDecisionMetricRows(range: RangeKey = "season", filters?: S
   );
 }
 
-async function buildTeamDecisionValueMetrics(rows: TeamDecisionMetricRow[]) {
+async function modelTeamDecisionRows(rows: TeamDecisionMetricRow[]) {
   const [overturnProbabilityRows, winExpectancyRows] = await Promise.all([
     getOverturnProbabilityFallbackRows(),
     getWinExpectancyFallbackRows(),
   ]);
+
+  const modeledRows: ModeledTeamDecisionRow[] = [];
+
+  for (const row of rows) {
+    const calledPitch = resolveCalledPitchFromDescription(row.calledDescription);
+    if (!calledPitch) {
+      continue;
+    }
+
+    const decision = await estimateChallengeDecisionValue(
+      {
+        inning: row.inning ?? 1,
+        halfInning: row.halfInning === "Bottom" ? "Bottom" : "Top",
+        balls: row.ballsBefore ?? row.balls ?? 0,
+        strikes: row.strikesBefore ?? row.strikes ?? 0,
+        outs: row.outs ?? 0,
+        scoreDiffBattingTeam: getScoreDiffBattingTeam(row.halfInning, row.homeScore, row.awayScore),
+        runnersOnBase: countOccupiedBases(row.basesState),
+        calledPitch,
+        challengesRemaining: 1,
+      },
+      { probabilityRows: overturnProbabilityRows, winRows: winExpectancyRows },
+    );
+
+    const realizedValue = row.isOverturned ? decision.wpDeltaIfSuccess : decision.wpDeltaIfFail;
+    const highPressure = (row.inning ?? 0) >= 7 || Math.abs((row.homeScore ?? 0) - (row.awayScore ?? 0)) <= 2;
+    const lateClose =
+      (row.inning ?? 0) >= 7 &&
+      row.homeScore !== null &&
+      row.awayScore !== null &&
+      Math.abs(row.homeScore - row.awayScore) <= 2;
+
+    modeledRows.push({
+      row,
+      label: buildDecisionWindowLabel(row),
+      expectedWpDelta: decision.expectedWpDelta,
+      realizedWpDelta: realizedValue,
+      recommendation: decision.recommendation,
+      decisionValueMode: decision.decisionValueMode,
+      highPressurePositive: highPressure && decision.expectedWpDelta > 0,
+      lateClosePositive: lateClose && decision.expectedWpDelta > 0,
+    });
+  }
+
+  return modeledRows;
+}
+
+async function buildTeamDecisionValueMetrics(rows: TeamDecisionMetricRow[], modeledRows?: ModeledTeamDecisionRow[]) {
+  const resolvedModeledRows = modeledRows ?? (await modelTeamDecisionRows(rows));
 
   const aggregates = new Map<
     number,
@@ -334,66 +394,41 @@ async function buildTeamDecisionValueMetrics(rows: TeamDecisionMetricRow[]) {
     };
 
     aggregate.totalChallenges += 1;
-    const calledPitch = resolveCalledPitchFromDescription(row.calledDescription);
-    if (!calledPitch) {
-      aggregates.set(row.teamId, aggregate);
-      continue;
-    }
+    aggregates.set(row.teamId, aggregate);
+  }
 
-    const decision = await estimateChallengeDecisionValue(
-      {
-        inning: row.inning ?? 1,
-        halfInning: row.halfInning === "Bottom" ? "Bottom" : "Top",
-        balls: row.ballsBefore ?? row.balls ?? 0,
-        strikes: row.strikesBefore ?? row.strikes ?? 0,
-        outs: row.outs ?? 0,
-        scoreDiffBattingTeam: getScoreDiffBattingTeam(row.halfInning, row.homeScore, row.awayScore),
-        runnersOnBase: countOccupiedBases(row.basesState),
-        calledPitch,
-        challengesRemaining: 1,
-      },
-      { probabilityRows: overturnProbabilityRows, winRows: winExpectancyRows },
-    );
+  for (const modeled of resolvedModeledRows) {
+    const aggregate = aggregates.get(modeled.row.teamId);
+    if (!aggregate) continue;
 
-    const realizedValue = row.isOverturned ? decision.wpDeltaIfSuccess : decision.wpDeltaIfFail;
     aggregate.modeledChallenges += 1;
-    aggregate.totalExpected += decision.expectedWpDelta;
-    aggregate.totalRealized += realizedValue;
-    if (decision.decisionValueMode === "win_expectancy") {
+    aggregate.totalExpected += modeled.expectedWpDelta;
+    aggregate.totalRealized += modeled.realizedWpDelta;
+    if (modeled.decisionValueMode === "win_expectancy") {
       aggregate.winModeChallenges += 1;
     }
-    if (decision.recommendation === "challenge") {
+    if (modeled.recommendation === "challenge") {
       aggregate.challengeRecommendations += 1;
-    } else if (decision.recommendation === "hold") {
+    } else if (modeled.recommendation === "hold") {
       aggregate.holdRecommendations += 1;
     }
-    if (realizedValue >= decision.expectedWpDelta) {
+    if (modeled.realizedWpDelta >= modeled.expectedWpDelta) {
       aggregate.capturedValueCount += 1;
     }
-    if (decision.expectedWpDelta <= 0) {
+    if (modeled.expectedWpDelta <= 0) {
       aggregate.wastedValueCount += 1;
     }
-
-    const highPressure = (row.inning ?? 0) >= 7 || Math.abs((row.homeScore ?? 0) - (row.awayScore ?? 0)) <= 2;
-    const lateClose =
-      (row.inning ?? 0) >= 7 &&
-      row.homeScore !== null &&
-      row.awayScore !== null &&
-      Math.abs(row.homeScore - row.awayScore) <= 2;
-    if (highPressure && decision.expectedWpDelta > 0) {
+    if (modeled.highPressurePositive) {
       aggregate.highPressureExpectedCount += 1;
     }
-    if (lateClose && decision.expectedWpDelta > 0) {
+    if (modeled.lateClosePositive) {
       aggregate.lateCloseExpectedCount += 1;
     }
 
-    const decisionWindowLabel = buildDecisionWindowLabel(row);
-    const window = aggregate.windows.get(decisionWindowLabel) ?? { totalExpected: 0, count: 0 };
-    window.totalExpected += decision.expectedWpDelta;
+    const window = aggregate.windows.get(modeled.label) ?? { totalExpected: 0, count: 0 };
+    window.totalExpected += modeled.expectedWpDelta;
     window.count += 1;
-    aggregate.windows.set(decisionWindowLabel, window);
-
-    aggregates.set(row.teamId, aggregate);
+    aggregate.windows.set(modeled.label, window);
   }
 
   return new Map<number, TeamDecisionMetricAggregate>(
@@ -458,36 +493,12 @@ async function buildTeamDecisionValueMetrics(rows: TeamDecisionMetricRow[]) {
   );
 }
 
-async function buildTeamDecisionWindowReport(rows: TeamDecisionMetricRow[]) {
-  const [overturnProbabilityRows, winExpectancyRows] = await Promise.all([
-    getOverturnProbabilityFallbackRows(),
-    getWinExpectancyFallbackRows(),
-  ]);
-
+async function buildTeamDecisionWindowReport(modeledRows: ModeledTeamDecisionRow[]) {
   const windows = new Map<string, TeamDecisionWindowAggregate>();
 
-  for (const row of rows) {
-    const calledPitch = resolveCalledPitchFromDescription(row.calledDescription);
-    if (!calledPitch) continue;
-
-    const decision = await estimateChallengeDecisionValue(
-      {
-        inning: row.inning ?? 1,
-        halfInning: row.halfInning === "Bottom" ? "Bottom" : "Top",
-        balls: row.ballsBefore ?? row.balls ?? 0,
-        strikes: row.strikesBefore ?? row.strikes ?? 0,
-        outs: row.outs ?? 0,
-        scoreDiffBattingTeam: getScoreDiffBattingTeam(row.halfInning, row.homeScore, row.awayScore),
-        runnersOnBase: countOccupiedBases(row.basesState),
-        calledPitch,
-        challengesRemaining: 1,
-      },
-      { probabilityRows: overturnProbabilityRows, winRows: winExpectancyRows },
-    );
-
-    const label = buildDecisionWindowLabel(row);
-    const aggregate = windows.get(label) ?? {
-      label,
+  for (const modeled of modeledRows) {
+    const aggregate = windows.get(modeled.label) ?? {
+      label: modeled.label,
       challenges: 0,
       modeledChallenges: 0,
       totalExpected: 0,
@@ -499,27 +510,26 @@ async function buildTeamDecisionWindowReport(rows: TeamDecisionMetricRow[]) {
       winModeChallenges: 0,
     };
 
-    const realizedValue = row.isOverturned ? decision.wpDeltaIfSuccess : decision.wpDeltaIfFail;
     aggregate.challenges += 1;
     aggregate.modeledChallenges += 1;
-    aggregate.totalExpected += decision.expectedWpDelta;
-    aggregate.totalRealized += realizedValue;
-    if (decision.recommendation === "challenge") {
+    aggregate.totalExpected += modeled.expectedWpDelta;
+    aggregate.totalRealized += modeled.realizedWpDelta;
+    if (modeled.recommendation === "challenge") {
       aggregate.challengeRecommendations += 1;
-    } else if (decision.recommendation === "hold") {
+    } else if (modeled.recommendation === "hold") {
       aggregate.holdRecommendations += 1;
     }
-    if (decision.decisionValueMode === "win_expectancy") {
+    if (modeled.decisionValueMode === "win_expectancy") {
       aggregate.winModeChallenges += 1;
     }
-    if (realizedValue >= decision.expectedWpDelta) {
+    if (modeled.realizedWpDelta >= modeled.expectedWpDelta) {
       aggregate.capturedValueCount += 1;
     }
-    if (decision.expectedWpDelta <= 0) {
+    if (modeled.expectedWpDelta <= 0) {
       aggregate.wastedValueCount += 1;
     }
 
-    windows.set(label, aggregate);
+    windows.set(modeled.label, aggregate);
   }
 
   const entries: TeamDecisionWindowEntry[] = [...windows.values()]
@@ -564,9 +574,9 @@ async function buildTeamDecisionWindowReport(rows: TeamDecisionMetricRow[]) {
     weakestWindow: rankedEntries.length > 0 ? rankedEntries[rankedEntries.length - 1] : null,
     topWindows: rankedEntries.slice(0, 4),
     bottomWindows: [...rankedEntries].reverse().slice(0, 4),
-    positiveWindowCount: entries.filter((entry) => (entry.decisionSurplus ?? 0) > 0.0005).length,
-    negativeWindowCount: entries.filter((entry) => (entry.decisionSurplus ?? 0) < -0.0005).length,
-    neutralWindowCount: entries.filter((entry) => Math.abs(entry.decisionSurplus ?? 0) <= 0.0005).length,
+    positiveWindowCount: rankedEntries.filter((entry) => (entry.decisionSurplus ?? 0) > 0.0005).length,
+    negativeWindowCount: rankedEntries.filter((entry) => (entry.decisionSurplus ?? 0) < -0.0005).length,
+    neutralWindowCount: rankedEntries.filter((entry) => Math.abs(entry.decisionSurplus ?? 0) <= 0.0005).length,
   };
 }
 
@@ -618,9 +628,10 @@ export async function getTeamDecisionValueReport(
   filters?: SituationalFilters,
 ): Promise<TeamDecisionValueReport> {
   const rows = (await getTeamDecisionMetricRows(range, filters)).filter((row) => row.teamId === teamId);
+  const modeledRows = await modelTeamDecisionRows(rows);
   const [metrics, windows] = await Promise.all([
-    buildTeamDecisionValueMetrics(rows),
-    buildTeamDecisionWindowReport(rows),
+    buildTeamDecisionValueMetrics(rows, modeledRows),
+    buildTeamDecisionWindowReport(modeledRows),
   ]);
 
   const summary =
