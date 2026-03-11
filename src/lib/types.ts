@@ -276,6 +276,30 @@ export type TeamDecisionValueSummary = {
   modeledWinCoverageRate: number;
 };
 
+export type TeamDecisionWindowEntry = {
+  label: string;
+  challenges: number;
+  averageExpectedChallengeValue: number | null;
+  averageRealizedChallengeValue: number | null;
+  decisionSurplus: number | null;
+  capturedValueShare: number;
+  wastedValueShare: number;
+  challengeRecommendationRate: number;
+  holdRecommendationRate: number;
+  modelConfidence: ConfidenceBand | null;
+};
+
+export type TeamDecisionValueReport = {
+  summary: TeamDecisionValueSummary;
+  strongestWindow: TeamDecisionWindowEntry | null;
+  weakestWindow: TeamDecisionWindowEntry | null;
+  topWindows: TeamDecisionWindowEntry[];
+  bottomWindows: TeamDecisionWindowEntry[];
+  positiveWindowCount: number;
+  negativeWindowCount: number;
+  neutralWindowCount: number;
+};
+
 export type GameChallengeOpportunityCell = {
   rowKey: string;
   rowLabel: string;

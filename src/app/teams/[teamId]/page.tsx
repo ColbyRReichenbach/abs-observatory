@@ -6,7 +6,7 @@ import { RangeSelector } from "@/components/range-selector";
 import {
   getTeamAggression,
   getTeamChallengeScenarioMatrix,
-  getTeamDecisionValueSummary,
+  getTeamDecisionValueReport,
   getTeamChallengeValueSummary,
   getTeamHitterEyeHeatmap,
   getTeamIdentity,
@@ -34,6 +34,7 @@ import { BackPill } from "@/components/ui/back-pill";
 import { getTeamDetailViewCopy } from "@/lib/view-mode-contract";
 import { TeamChallengeValueMatrix } from "@/components/analytics/team-challenge-value-matrix";
 import { TeamDecisionValueSummaryCard } from "@/components/analytics/team-decision-value-summary";
+import { TeamDecisionWindowBoard } from "@/components/analytics/team-decision-window-board";
 import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
 
 function toInningRange(value?: string): SituationalFilters["inningRange"] {
@@ -236,7 +237,7 @@ async function TeamAnalyticsSections({
     inningEfficiency,
     challengeMatrix,
     challengeValueSummary,
-    decisionValueSummary,
+    decisionValueReport,
   ] = await Promise.all([
     getTeamTrend(teamId, range, filters),
     getTeamAggression(teamId, range, filters),
@@ -248,7 +249,7 @@ async function TeamAnalyticsSections({
     getTeamInningEfficiency(teamId, range, filters),
     getTeamChallengeScenarioMatrix(teamId, range, filters),
     getTeamChallengeValueSummary(teamId, range, filters),
-    getTeamDecisionValueSummary(teamId, range, filters),
+    getTeamDecisionValueReport(teamId, range, filters),
   ]);
 
   const usesTrustedWinValue =
@@ -481,7 +482,11 @@ async function TeamAnalyticsSections({
       </MotionIn>
 
       <MotionIn delay={0.29}>
-        <TeamDecisionValueSummaryCard summary={decisionValueSummary} teamColor={teamPrimary} viewMode={viewMode} />
+        <TeamDecisionValueSummaryCard summary={decisionValueReport.summary} teamColor={teamPrimary} viewMode={viewMode} />
+      </MotionIn>
+
+      <MotionIn delay={0.295}>
+        <TeamDecisionWindowBoard report={decisionValueReport} teamColor={teamPrimary} viewMode={viewMode} />
       </MotionIn>
 
       <MotionIn delay={0.3}>
