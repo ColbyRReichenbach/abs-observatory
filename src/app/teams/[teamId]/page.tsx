@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import type { CSSProperties } from "react";
+import { Suspense, type CSSProperties } from "react";
 
 import { MotionIn } from "@/components/motion-in";
 import { RangeSelector } from "@/components/range-selector";
@@ -82,35 +82,176 @@ export default async function TeamPage({
     if (s) sanitizedParams[key] = s;
   });
 
-  const [summary, trend, identity, aggression, schedule, umpires, hittersEyeAll, hittersEyeOffense, hittersEyeDefense, inningEfficiency, leaderboard, challengeMatrix, challengeValueSummary] = await Promise.all([
+  const [summary, identity, leaderboard] = await Promise.all([
     getTeamSummary(Number(teamId), range, filters),
-    getTeamTrend(Number(teamId), range, filters),
     getTeamIdentity(Number(teamId)),
-    getTeamAggression(Number(teamId), range, filters),
-    getTeamSchedule(Number(teamId)),
-    getTeamUmpireMatchups(Number(teamId), range, filters),
-    getTeamHitterEyeHeatmap(Number(teamId), range, { ...filters, side: undefined }),
-    getTeamHitterEyeHeatmap(Number(teamId), range, { ...filters, side: "offense" }),
-    getTeamHitterEyeHeatmap(Number(teamId), range, { ...filters, side: "defense" }),
-    getTeamInningEfficiency(Number(teamId), range, filters),
     getTeamLeaderboardModel(range),
-    getTeamChallengeScenarioMatrix(Number(teamId), range, filters),
-    getTeamChallengeValueSummary(Number(teamId), range, filters),
   ]);
   if (!summary) return notFound();
   const currentTeam = leaderboard.find((entry) => entry.teamId === summary.teamId) ?? null;
+  const teamPrimary = identity?.primaryColor ?? "#007aff";
+  const teamSecondary = identity?.secondaryColor ?? "#0040dd";
+  const copy = getTeamDetailViewCopy(viewMode);
+
+  return (
+    <>
+      <TeamMotifBackdrop teamId={summary.teamId} />
+      <main
+        className="relative mx-auto max-w-7xl px-6 pt-32 pb-40"
+        style={
+          {
+            "--team-primary": teamPrimary,
+            "--team-secondary": teamSecondary,
+            "--team-primary-soft": `${teamPrimary}15`,
+          } as CSSProperties
+        }
+      >
+        <BackPill label="Teams" href="/teams" />
+        <MotionIn>
+          <TeamMotifHero
+            teamId={summary.teamId}
+            teamName={summary.teamName}
+            abbreviation={identity?.abbreviation}
+            primaryColor={identity?.primaryColor}
+            secondaryColor={identity?.secondaryColor}
+            logoSvgUrl={identity?.logoSvgUrl}
+            wins={identity?.wins}
+            losses={identity?.losses}
+            divisionRank={identity?.divisionRank}
+            wildCardRank={identity?.wildCardRank}
+            divisionName={identity?.divisionName}
+            leagueName={identity?.leagueName}
+            subtitle={`${summary.teamName}. ${copy.heroSubtitle}`}
+          />
+        </MotionIn>
+
+        {copy.schedulePlacement === "early" ? (
+          <Suspense fallback={<SectionPanelFallback title="Schedule Flow" heightClass="min-h-[220px]" className="mt-8" />}>
+            <TeamScheduleSection teamId={summary.teamId} teamPrimary={teamPrimary} />
+          </Suspense>
+        ) : null}
+
+        <div className="mt-12 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <RangeSelector basePath={`/teams/${summary.teamId}`} range={range} searchParams={sanitizedParams} />
+          </div>
+          {viewMode === "org" && <FilterStrip filters={filters} />}
+        </div>
+
+
+        {/* KPI Row */}
+        <MotionIn delay={0.1}>
+          <div className={`mt-8 grid gap-4 grid-cols-2 ${viewMode === "org" && currentTeam ? "md:grid-cols-6" : "md:grid-cols-5"}`}>
+            <StatCard label={viewMode === "org" ? "Games Tracked" : "Games"} value={summary.gamesTracked.toString()} />
+            <StatCard label={viewMode === "org" ? "Total Challenges" : "Challenges"} value={summary.challengesTotal.toString()} />
+            <StatCard label={viewMode === "org" ? "Overturned" : "Successful"} value={summary.usedSuccessful.toString()} />
+            <StatCard label={viewMode === "org" ? "Upheld" : "Failed"} value={summary.usedFailed.toString()} />
+            <StatCard
+              label={viewMode === "org" ? "Overturn Rate" : "Success Rate"}
+              value={`${(summary.overturnRate * 100).toFixed(1)}%`}
+              subLabel={viewMode === "org" ? `${summary.challengesTotal} sample` : undefined}
+            />
+            {viewMode === "org" && currentTeam ? (
+              <StatCard
+                label="High-Pressure Share"
+                value={`${(currentTeam.lateLeverageShare * 100).toFixed(0)}%`}
+                subLabel="Late leverage mix"
+                highlight
+              />
+            ) : null}
+          </div>
+        </MotionIn>
+
+        <Suspense fallback={<TeamAnalyticsFallback scheduleLate={copy.schedulePlacement === "late"} />}>
+          <TeamAnalyticsSections
+            teamId={summary.teamId}
+            range={range}
+            filters={filters}
+            teamPrimary={teamPrimary}
+            teamSecondary={teamSecondary}
+            viewMode={viewMode}
+            copy={copy}
+            currentTeam={currentTeam}
+            schedulePlacement={copy.schedulePlacement}
+          />
+        </Suspense>
+
+        <MotionIn delay={0.4}>
+          <AIBSVisualizerChat context={`${summary.teamName} Strategy`} teamColor={teamPrimary} />
+        </MotionIn>
+      </main>
+    </>
+  );
+}
+
+async function TeamScheduleSection({
+  teamId,
+  teamPrimary,
+}: {
+  teamId: number;
+  teamPrimary: string;
+}) {
+  const schedule = await getTeamSchedule(teamId);
+
+  return (
+    <MotionIn delay={0.05}>
+      <section className="mt-8">
+        <TeamScheduleMorph schedule={schedule as TeamScheduleGame[]} teamId={teamId} primaryColor={teamPrimary} />
+      </section>
+    </MotionIn>
+  );
+}
+
+async function TeamAnalyticsSections({
+  teamId,
+  range,
+  filters,
+  teamPrimary,
+  teamSecondary,
+  viewMode,
+  copy,
+  currentTeam,
+  schedulePlacement,
+}: {
+  teamId: number;
+  range: RangeKey;
+  filters: SituationalFilters;
+  teamPrimary: string;
+  teamSecondary: string;
+  viewMode: "fan" | "org";
+  copy: ReturnType<typeof getTeamDetailViewCopy>;
+  currentTeam: TeamLeaderboardEntry | null;
+  schedulePlacement: "early" | "late";
+}) {
+  const [
+    trend,
+    aggression,
+    schedule,
+    umpires,
+    hittersEyeAll,
+    hittersEyeOffense,
+    hittersEyeDefense,
+    inningEfficiency,
+    challengeMatrix,
+    challengeValueSummary,
+  ] = await Promise.all([
+    getTeamTrend(teamId, range, filters),
+    getTeamAggression(teamId, range, filters),
+    schedulePlacement === "late" ? getTeamSchedule(teamId) : Promise.resolve(null),
+    getTeamUmpireMatchups(teamId, range, filters),
+    getTeamHitterEyeHeatmap(teamId, range, { ...filters, side: undefined }),
+    getTeamHitterEyeHeatmap(teamId, range, { ...filters, side: "offense" }),
+    getTeamHitterEyeHeatmap(teamId, range, { ...filters, side: "defense" }),
+    getTeamInningEfficiency(teamId, range, filters),
+    getTeamChallengeScenarioMatrix(teamId, range, filters),
+    getTeamChallengeValueSummary(teamId, range, filters),
+  ]);
+
   const usesTrustedWinValue =
     challengeValueSummary.averageWinExpectancyDelta !== null &&
     hasTrustedModelConfidenceBand(challengeValueSummary.winExpectancyConfidence);
   const averageWinValue = usesTrustedWinValue ? challengeValueSummary.averageWinExpectancyDelta : null;
-  const teamPrimary = identity?.primaryColor ?? "#007aff";
-  const teamSecondary = identity?.secondaryColor ?? "#0040dd";
-  const copy = getTeamDetailViewCopy(viewMode);
-  const scheduleSection = (
-    <MotionIn delay={0.05}>
-      <TeamScheduleMorph schedule={schedule as TeamScheduleGame[]} teamId={summary.teamId} primaryColor={teamPrimary} />
-    </MotionIn>
-  );
+
   const lowerSections = {
     splits: (
       <div className="panel p-8 h-fit">
@@ -148,31 +289,21 @@ export default async function TeamPage({
           {viewMode === "org" ? (
             <>
               <TimingMetric
-              label={usesTrustedWinValue ? "High-WE Share" : "High-RE Share"}
-                value={`${
-                  (
-                    (usesTrustedWinValue
-                      ? challengeValueSummary.highWinValueShare
-                      : challengeValueSummary.highRunValueShare) * 100
-                  ).toFixed(0)
-                }%`}
+                label={usesTrustedWinValue ? "High-WE Share" : "High-RE Share"}
+                value={`${(
+                  (usesTrustedWinValue ? challengeValueSummary.highWinValueShare : challengeValueSummary.highRunValueShare) * 100
+                ).toFixed(0)}%`}
                 meter={usesTrustedWinValue ? challengeValueSummary.highWinValueShare : challengeValueSummary.highRunValueShare}
                 color={teamPrimary}
               />
               <TimingMetric
                 label={usesTrustedWinValue ? "Late-Close WE Capture" : "Late-Close RE Share"}
-                value={`${
-                  (
-                    (usesTrustedWinValue
-                      ? challengeValueSummary.lateCloseWinValueShare
-                      : challengeValueSummary.lateCloseRunValueShare) * 100
-                  ).toFixed(0)
-                }%`}
-                meter={
-                  usesTrustedWinValue
+                value={`${(
+                  (usesTrustedWinValue
                     ? challengeValueSummary.lateCloseWinValueShare
-                    : challengeValueSummary.lateCloseRunValueShare
-                }
+                    : challengeValueSummary.lateCloseRunValueShare) * 100
+                ).toFixed(0)}%`}
+                meter={usesTrustedWinValue ? challengeValueSummary.lateCloseWinValueShare : challengeValueSummary.lateCloseRunValueShare}
                 color={teamSecondary}
               />
             </>
@@ -198,12 +329,12 @@ export default async function TeamPage({
           <p className="mt-2 text-[11px] font-medium text-[var(--ink-2)] leading-relaxed">
             {viewMode === "org"
               ? usesTrustedWinValue
-                ? `${summary.teamName} is averaging ${(averageWinValue ?? 0) >= 0 ? "a positive" : "a negative"} win-expectancy swing per tracked review, with ${(challengeValueSummary.highWinValueShare * 100).toFixed(0)}% of reviews creating positive win value.`
+                ? `This club is averaging ${(averageWinValue ?? 0) >= 0 ? "a positive" : "a negative"} win-expectancy swing per tracked review, with ${(challengeValueSummary.highWinValueShare * 100).toFixed(0)}% of reviews creating positive win value.`
                 : challengeValueSummary.averageRunExpectancyDelta === null
                   ? "Run-value read will appear once this club builds enough modeled challenge sample."
-                  : `${summary.teamName} is averaging ${challengeValueSummary.averageRunExpectancyDelta >= 0 ? "a positive" : "a negative"} run-expectancy swing per tracked review, with ${(challengeValueSummary.highRunValueShare * 100).toFixed(0)}% of reviews creating positive run value.${challengeValueSummary.averageWinExpectancyDelta !== null && !hasTrustedModelConfidenceBand(challengeValueSummary.winExpectancyConfidence) ? " Win-value coverage is still low-confidence in this slice, so this view stays on run value." : ""}`
+                  : `This club is averaging ${challengeValueSummary.averageRunExpectancyDelta >= 0 ? "a positive" : "a negative"} run-expectancy swing per tracked review, with ${(challengeValueSummary.highRunValueShare * 100).toFixed(0)}% of reviews creating positive run value.${challengeValueSummary.averageWinExpectancyDelta !== null && !hasTrustedModelConfidenceBand(challengeValueSummary.winExpectancyConfidence) ? " Win-value coverage is still low-confidence in this slice, so this view stays on run value." : ""}`
               : challengeValueSummary.bestScenarioLabel
-                ? `${summary.teamName} has done its best realized challenge work in ${challengeValueSummary.bestScenarioLabel.toLowerCase()}.`
+                ? `This club has done its best realized challenge work in ${challengeValueSummary.bestScenarioLabel.toLowerCase()}.`
                 : "Best challenge window will appear once the club builds more scenario sample."}
           </p>
           {viewMode === "org" ? (
@@ -264,167 +395,133 @@ export default async function TeamPage({
 
   return (
     <>
-      <TeamMotifBackdrop teamId={summary.teamId} />
-      <main
-        className="relative mx-auto max-w-7xl px-6 pt-32 pb-40"
-        style={
-          {
-            "--team-primary": teamPrimary,
-            "--team-secondary": teamSecondary,
-            "--team-primary-soft": `${teamPrimary}15`,
-          } as CSSProperties
-        }
-      >
-        <BackPill label="Teams" href="/teams" />
-        <MotionIn>
-          <TeamMotifHero
-            teamId={summary.teamId}
-            teamName={summary.teamName}
-            abbreviation={identity?.abbreviation}
-            primaryColor={identity?.primaryColor}
-            secondaryColor={identity?.secondaryColor}
-            logoSvgUrl={identity?.logoSvgUrl}
-            wins={identity?.wins}
-            losses={identity?.losses}
-            divisionRank={identity?.divisionRank}
-            wildCardRank={identity?.wildCardRank}
-            divisionName={identity?.divisionName}
-            leagueName={identity?.leagueName}
-            subtitle={`${summary.teamName}. ${copy.heroSubtitle}`}
-          />
-        </MotionIn>
-
-        {copy.schedulePlacement === "early" ? scheduleSection : null}
-
-        <div className="mt-12 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <RangeSelector basePath={`/teams/${summary.teamId}`} range={range} searchParams={sanitizedParams} />
+      <MotionIn delay={0.2}>
+        <section className="mt-8 grid gap-6 lg:grid-cols-3">
+          <div className="panel p-6 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col justify-between">
+            <div>
+              <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
+                {copy.trendEyebrow}
+              </h4>
+              <p className="text-2xl font-display leading-none text-gray-900">
+                {copy.trendTitle.split(" ").slice(0, 1).join(" ")} <span className="text-gray-400">{copy.trendTitle.split(" ").slice(1).join(" ")}</span>
+              </p>
+            </div>
+            <div className="flex-1 min-h-[300px] w-full mt-4">
+              <TeamTrendChart data={trend} teamColor={teamPrimary} />
+            </div>
           </div>
-          {viewMode === "org" && <FilterStrip filters={filters} />}
-        </div>
 
+          <div className="panel p-6 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col">
+            <div>
+              <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
+                {copy.aggressionEyebrow}
+              </h4>
+              <p className="text-2xl font-display leading-none text-gray-900">
+                {copy.aggressionTitle.split(" ").slice(0, -1).join(" ")} <span className="text-gray-400">{copy.aggressionTitle.split(" ").slice(-1).join(" ")}</span>
+              </p>
+            </div>
+            <div className="flex-1 min-h-[300px] w-full mt-4">
+              <ChallengeAggressionRadial data={aggression} teamColor={teamPrimary} />
+            </div>
+          </div>
 
-        {/* KPI Row */}
-        <MotionIn delay={0.1}>
-          <div className={`mt-8 grid gap-4 grid-cols-2 ${viewMode === "org" && currentTeam ? "md:grid-cols-6" : "md:grid-cols-5"}`}>
-            <StatCard label={viewMode === "org" ? "Games Tracked" : "Games"} value={summary.gamesTracked.toString()} />
-            <StatCard label={viewMode === "org" ? "Total Challenges" : "Challenges"} value={summary.challengesTotal.toString()} />
-            <StatCard label={viewMode === "org" ? "Overturned" : "Successful"} value={summary.usedSuccessful.toString()} />
-            <StatCard label={viewMode === "org" ? "Upheld" : "Failed"} value={summary.usedFailed.toString()} />
-            <StatCard
-              label={viewMode === "org" ? "Overturn Rate" : "Success Rate"}
-              value={`${(summary.overturnRate * 100).toFixed(1)}%`}
-              subLabel={viewMode === "org" ? `${summary.challengesTotal} sample` : undefined}
-            />
-            {viewMode === "org" && currentTeam ? (
-              <StatCard
-                label="High-Pressure Share"
-                value={`${(currentTeam.lateLeverageShare * 100).toFixed(0)}%`}
-                subLabel="Late leverage mix"
-                highlight
+          <div className="panel p-6 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col items-center">
+            <div className="w-full">
+              <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
+                {copy.heatmapEyebrow}
+              </h4>
+              <p className="text-2xl font-display leading-none text-gray-900">
+                {copy.heatmapTitle.split(" ").slice(0, -2).join(" ")} <span className="text-gray-400">{copy.heatmapTitle.split(" ").slice(-2).join(" ")}</span>
+              </p>
+            </div>
+            <div className="flex-1 w-full mt-6 mb-2">
+              <HittersEyeHeatmap
+                data={{ all: hittersEyeAll, offense: hittersEyeOffense, defense: hittersEyeDefense }}
+                teamColor={teamPrimary}
+                viewMode={viewMode}
               />
-            ) : null}
+            </div>
           </div>
-        </MotionIn>
+        </section>
+      </MotionIn>
 
-        <MotionIn delay={0.2}>
-          <section className="mt-8 grid gap-6 lg:grid-cols-3">
-            {/* Trend Chart */}
-            <div className="panel p-6 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col justify-between">
-              <div>
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
-                  {copy.trendEyebrow}
-                </h4>
-                <p className="text-2xl font-display leading-none text-gray-900">
-                  {copy.trendTitle.split(" ").slice(0, 1).join(" ")} <span className="text-gray-400">{copy.trendTitle.split(" ").slice(1).join(" ")}</span>
-                </p>
-              </div>
-              <div className="flex-1 min-h-[300px] w-full mt-4">
-                <TeamTrendChart data={trend} teamColor={teamPrimary} />
-              </div>
-            </div>
-
-            {/* Aggression Radial */}
-            <div className="panel p-6 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col">
-              <div>
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
-                  {copy.aggressionEyebrow}
-                </h4>
-                <p className="text-2xl font-display leading-none text-gray-900">
-                  {copy.aggressionTitle.split(" ").slice(0, -1).join(" ")} <span className="text-gray-400">{copy.aggressionTitle.split(" ").slice(-1).join(" ")}</span>
-                </p>
-              </div>
-              <div className="flex-1 min-h-[300px] w-full mt-4">
-                <ChallengeAggressionRadial data={aggression} teamColor={teamPrimary} />
-              </div>
-            </div>
-
-            {/* Hitter's Eye Heatmap */}
-            <div className="panel p-6 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col items-center">
-              <div className="w-full">
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
-                  {copy.heatmapEyebrow}
-                </h4>
-                <p className="text-2xl font-display leading-none text-gray-900">
-                  {copy.heatmapTitle.split(" ").slice(0, -2).join(" ")} <span className="text-gray-400">{copy.heatmapTitle.split(" ").slice(-2).join(" ")}</span>
-                </p>
-              </div>
-              <div className="flex-1 w-full mt-6 mb-2">
-                <HittersEyeHeatmap
-                  data={{
-                    all: hittersEyeAll,
-                    offense: hittersEyeOffense,
-                    defense: hittersEyeDefense
-                  }}
-                  teamColor={teamPrimary}
-                  viewMode={viewMode}
-                />
-              </div>
-            </div>
-          </section>
-        </MotionIn>
-
-        {copy.schedulePlacement === "late" ? <section className="mt-8">{scheduleSection}</section> : null}
-
-        {/* S3-6: Inning Efficiency Heatmap */}
-        <MotionIn delay={0.25}>
+      {schedulePlacement === "late" && schedule ? (
+        <MotionIn delay={0.05}>
           <section className="mt-8">
-            <InningEfficiencyHeatmap
-              data={inningEfficiency}
-              teamPrimary={teamPrimary}
-              teamSecondary={teamSecondary}
-              title={copy.efficiencyTitle}
-              accent={copy.efficiencyAccent}
-            />
+            <TeamScheduleMorph schedule={schedule as TeamScheduleGame[]} teamId={teamId} primaryColor={teamPrimary} />
           </section>
         </MotionIn>
+      ) : null}
 
-        <MotionIn delay={0.28}>
-          <section className="mt-8">
-            <TeamChallengeValueMatrix
-              cells={challengeMatrix}
-              summary={challengeValueSummary}
-              teamColor={teamPrimary}
-              viewMode={viewMode}
-            />
-          </section>
-        </MotionIn>
+      <MotionIn delay={0.25}>
+        <section className="mt-8">
+          <InningEfficiencyHeatmap
+            data={inningEfficiency}
+            teamPrimary={teamPrimary}
+            teamSecondary={teamSecondary}
+            title={copy.efficiencyTitle}
+            accent={copy.efficiencyAccent}
+          />
+        </section>
+      </MotionIn>
 
+      <MotionIn delay={0.28}>
+        <section className="mt-8">
+          <TeamChallengeValueMatrix
+            cells={challengeMatrix}
+            summary={challengeValueSummary}
+            teamColor={teamPrimary}
+            viewMode={viewMode}
+          />
+        </section>
+      </MotionIn>
 
+      <MotionIn delay={0.3}>
+        <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_1fr_1fr]">
+          {copy.lowerSectionOrder.map((section) => (
+            <div key={section}>{lowerSections[section]}</div>
+          ))}
+        </section>
+      </MotionIn>
+    </>
+  );
+}
 
-        {/* Splits & Umpire Matchups */}
-        <MotionIn delay={0.3}>
-          <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_1fr_1fr]">
-            {copy.lowerSectionOrder.map((section) => (
-              <div key={section}>{lowerSections[section]}</div>
-            ))}
-          </section>
-        </MotionIn>
+function SectionPanelFallback({
+  title,
+  heightClass,
+  className,
+}: {
+  title: string;
+  heightClass: string;
+  className?: string;
+}) {
+  return (
+    <section className={className}>
+      <div className={`panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50 ${heightClass}`}>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-3">{title}</p>
+        <div className="h-full w-full rounded-[1.5rem] bg-gradient-to-br from-gray-100 via-gray-50 to-white animate-pulse" />
+      </div>
+    </section>
+  );
+}
 
-        <MotionIn delay={0.4}>
-          <AIBSVisualizerChat context={`${summary.teamName} Strategy`} teamColor={teamPrimary} />
-        </MotionIn>
-      </main>
+function TeamAnalyticsFallback({ scheduleLate }: { scheduleLate: boolean }) {
+  return (
+    <>
+      <section className="mt-8 grid gap-6 lg:grid-cols-3">
+        <SectionPanelFallback title="Trend Overview" heightClass="min-h-[360px]" />
+        <SectionPanelFallback title="Aggression Profile" heightClass="min-h-[360px]" />
+        <SectionPanelFallback title="Hitter's Eye" heightClass="min-h-[360px]" />
+      </section>
+      {scheduleLate ? <SectionPanelFallback title="Schedule Flow" heightClass="min-h-[220px]" className="mt-8" /> : null}
+      <SectionPanelFallback title="Inning Efficiency" heightClass="min-h-[320px]" className="mt-8" />
+      <SectionPanelFallback title="Challenge Value Matrix" heightClass="min-h-[360px]" className="mt-8" />
+      <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_1fr_1fr]">
+        <SectionPanelFallback title="Timing Efficiency" heightClass="min-h-[280px]" />
+        <SectionPanelFallback title="Umpire Matrix" heightClass="min-h-[280px]" />
+        <SectionPanelFallback title="Challenge Style" heightClass="min-h-[280px]" />
+      </section>
     </>
   );
 }

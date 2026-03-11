@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { MotionIn } from "@/components/motion-in";
@@ -71,15 +72,9 @@ export default async function UmpirePage({
     if (s) sanitizedParams[key] = s;
   });
 
-  const [summary, profile, trend, challenges, dna, allUmpires, pitchTypes, seasonTrend] = await Promise.all([
+  const [summary, allUmpires] = await Promise.all([
     getUmpireSummary(Number(umpireId), range, filters),
-    getUmpireProfile(Number(umpireId), range, filters),
-    getUmpireTrend(Number(umpireId), range, filters),
-    getUmpireChallenges(Number(umpireId), range, filters),
-    getUmpirePerformanceDNA(Number(umpireId), range),
     getUmpireLeaderboardModel(range),
-    getUmpirePitchTypeBreakdown(Number(umpireId), range, filters),
-    getUmpireSeasonTrend(Number(umpireId)),
   ]);
 
   if (!summary) return notFound();
@@ -87,75 +82,7 @@ export default async function UmpirePage({
   const rankedByScore = [...allUmpires].sort((left, right) => right.reportCardScore - left.reportCardScore);
   const rankIndex = rankedByScore.findIndex((umpire) => umpire.umpireId === summary.umpireId);
   const displayRank = rankIndex >= 0 ? rankIndex + 1 : null;
-  const shouldShowSeasonTrend = seasonTrend.filter((point) => point.gamesWorked > 0).length >= 2;
-  const zoneGrid = buildNineZoneGrid(challenges);
-  const highPressureExposure =
-    challenges.length > 0
-      ? challenges.filter((challenge) => computeEstimatedLeverageIndex(challenge) >= 65).length / challenges.length
-      : 0;
   const copy = getUmpireDetailViewCopy(viewMode);
-  const historySection = (
-    <MotionIn delay={0.05}>
-      <section className="mb-20">
-        <div className="mb-8 flex items-end justify-between border-b border-gray-100 pb-8">
-          <div>
-            <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
-              {copy.historyEyebrow}
-            </h4>
-            <p className="text-3xl font-display leading-none text-gray-900">
-              {copy.historyTitle.split(" ").slice(0, 1).join(" ")} <span className="text-gray-400 italic">{copy.historyTitle.split(" ").slice(1).join(" ")}</span>
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <button className="p-3 rounded-2xl bg-white border border-gray-200 text-gray-400 hover:text-black hover:border-black transition-all shadow-sm">
-              <ChevronLeft size={20} />
-            </button>
-            <button className="p-3 rounded-2xl bg-white border border-gray-200 text-gray-400 hover:text-black hover:border-black transition-all shadow-sm">
-              <ChevronRight size={20} />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex gap-6 overflow-x-auto pt-2 pb-6 px-1 scrollbar-hide">
-          {trend.map((g: UmpireTrendPoint) => (
-            <Link href={`/game/${g.gamePk}`} key={g.gamePk} className="block flex-shrink-0 w-72 p-6 rounded-[2.5rem] bg-white border border-gray-100 shadow-xl shadow-black/[0.02] transition-all hover:shadow-black/[0.05] hover:-translate-y-1 hover:border-blue-200 group">
-              <div className="flex justify-between items-start mb-6">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                  {new Date(g.gameDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                </span>
-                <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${g.accuracy >= 0.95 ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
-                  {(g.accuracy * 100).toFixed(1)}% Acc
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-3 mb-6">
-                <div className="flex flex-col items-center gap-2 flex-1 transition-transform duration-300 group-hover:translate-x-3">
-                  <TeamIcon teamId={g.awayTeamId} name={g.awayTeamAbbr} size={40} className="shadow-lg transition-all group-hover:scale-110 group-hover:shadow-[0_0_15px_rgba(37,99,235,0.2)]" />
-                  <span className="text-[10px] font-black text-gray-400 group-hover:text-blue-600 transition-colors">{g.awayTeamAbbr}</span>
-                </div>
-
-                <span className="text-[10px] font-black text-gray-200 italic transition-transform duration-300 group-hover:scale-95">vs</span>
-
-                <div className="flex flex-col items-center gap-2 flex-1 transition-transform duration-300 group-hover:-translate-x-3">
-                  <TeamIcon teamId={g.homeTeamId} name={g.homeTeamAbbr} size={40} className="shadow-lg transition-all group-hover:scale-110 group-hover:shadow-[0_0_15px_rgba(37,99,235,0.2)]" />
-                  <span className="text-[10px] font-black text-gray-400 group-hover:text-blue-600 transition-colors">{g.homeTeamAbbr}</span>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 border-t border-gray-50 pt-5">
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Overturns</p>
-                  <p className="text-2xl font-display text-gray-900">{g.overturnedCount}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Challenges</p>
-                  <p className="text-2xl font-display text-blue-600">{g.challengedCount}</p>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
-    </MotionIn>
-  );
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-12 lg:py-24 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.02),transparent)]">
@@ -213,25 +140,159 @@ export default async function UmpirePage({
             subLabel={currentUmpire ? (viewMode === "org" ? currentUmpire.orgDescriptor : currentUmpire.fanDescriptor) : "Monitor"}
           />
           <StatCard
-            label={viewMode === "org" ? "Watch Tier" : "League Rank"}
-            value={viewMode === "org" ? currentUmpire?.riskTier ?? "Moderate" : displayRank ? `#${displayRank}` : "—"}
-            highlight={viewMode === "org"}
-            subLabel={viewMode === "org" ? `${currentUmpire?.confidence ?? "medium"} confidence` : `Overturn ${(summary.overturnRate * 100).toFixed(1)}%`}
-          />
-          {viewMode === "org" ? (
-            <StatCard
-              label="High-Pressure Exposure"
-              value={`${(highPressureExposure * 100).toFixed(0)}%`}
-              subLabel="Estimated leverage"
-              highlight
+              label={viewMode === "org" ? "Watch Tier" : "League Rank"}
+              value={viewMode === "org" ? currentUmpire?.riskTier ?? "Moderate" : displayRank ? `#${displayRank}` : "—"}
+              highlight={viewMode === "org"}
+              subLabel={viewMode === "org" ? `${currentUmpire?.confidence ?? "medium"} confidence` : `Overturn ${(summary.overturnRate * 100).toFixed(1)}%`}
             />
-          ) : null}
+          {viewMode === "org" ? <UmpireExposureStatCard umpireId={summary.umpireId} range={range} filters={filters} /> : null}
         </div>
       </MotionIn>
 
-      {copy.historyPlacement === "late" ? historySection : null}
+      <Suspense fallback={<UmpireAnalyticsFallback showHistory={copy.historyPlacement === "early"} />}>
+        <UmpireAnalyticsSections
+          umpireId={summary.umpireId}
+          umpireName={summary.umpireName}
+          range={range}
+          filters={filters}
+          viewMode={viewMode}
+          currentUmpire={currentUmpire}
+          displayRank={displayRank}
+          rankedByScoreLength={rankedByScore.length}
+          copy={copy}
+        />
+      </Suspense>
 
-      {/* Performance DNA / Rhythm - Full Width */}
+      <MotionIn delay={0.35}>
+        <AIBSVisualizerChat context={`${summary.umpireName} Umpiring`} />
+      </MotionIn>
+    </main >
+  );
+}
+
+async function UmpireExposureStatCard({
+  umpireId,
+  range,
+  filters,
+}: {
+  umpireId: number;
+  range: ReturnType<typeof parseRange>;
+  filters: SituationalFilters;
+}) {
+  const challenges = await getUmpireChallenges(umpireId, range, filters);
+  const highPressureExposure =
+    challenges.length > 0
+      ? challenges.filter((challenge) => computeEstimatedLeverageIndex(challenge) >= 65).length / challenges.length
+      : 0;
+
+  return (
+    <StatCard
+      label="High-Pressure Exposure"
+      value={`${(highPressureExposure * 100).toFixed(0)}%`}
+      subLabel="Estimated leverage"
+      highlight
+    />
+  );
+}
+
+async function UmpireAnalyticsSections({
+  umpireId,
+  umpireName,
+  range,
+  filters,
+  viewMode,
+  currentUmpire,
+  displayRank,
+  rankedByScoreLength,
+  copy,
+}: {
+  umpireId: number;
+  umpireName: string;
+  range: ReturnType<typeof parseRange>;
+  filters: SituationalFilters;
+  viewMode: "fan" | "org";
+  currentUmpire: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number] | null;
+  displayRank: number | null;
+  rankedByScoreLength: number;
+  copy: ReturnType<typeof getUmpireDetailViewCopy>;
+}) {
+  const [profile, trend, challenges, dna, pitchTypes, seasonTrend] = await Promise.all([
+    getUmpireProfile(umpireId, range, filters),
+    getUmpireTrend(umpireId, range, filters),
+    getUmpireChallenges(umpireId, range, filters),
+    getUmpirePerformanceDNA(umpireId, range),
+    getUmpirePitchTypeBreakdown(umpireId, range, filters),
+    getUmpireSeasonTrend(umpireId),
+  ]);
+
+  const shouldShowSeasonTrend = seasonTrend.filter((point) => point.gamesWorked > 0).length >= 2;
+  const zoneGrid = buildNineZoneGrid(challenges);
+
+  const historySection = (
+    <MotionIn delay={0.05}>
+      <section className="mb-20">
+        <div className="mb-8 flex items-end justify-between border-b border-gray-100 pb-8">
+          <div>
+            <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
+              {copy.historyEyebrow}
+            </h4>
+            <p className="text-3xl font-display leading-none text-gray-900">
+              {copy.historyTitle.split(" ").slice(0, 1).join(" ")} <span className="text-gray-400 italic">{copy.historyTitle.split(" ").slice(1).join(" ")}</span>
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button className="p-3 rounded-2xl bg-white border border-gray-200 text-gray-400 hover:text-black hover:border-black transition-all shadow-sm">
+              <ChevronLeft size={20} />
+            </button>
+            <button className="p-3 rounded-2xl bg-white border border-gray-200 text-gray-400 hover:text-black hover:border-black transition-all shadow-sm">
+              <ChevronRight size={20} />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex gap-6 overflow-x-auto pt-2 pb-6 px-1 scrollbar-hide">
+          {trend.map((g: UmpireTrendPoint) => (
+            <Link href={`/game/${g.gamePk}`} key={g.gamePk} className="block flex-shrink-0 w-72 p-6 rounded-[2.5rem] bg-white border border-gray-100 shadow-xl shadow-black/[0.02] transition-all hover:shadow-black/[0.05] hover:-translate-y-1 hover:border-blue-200 group">
+              <div className="flex justify-between items-start mb-6">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                  {new Date(g.gameDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                </span>
+                <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${g.accuracy >= 0.95 ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
+                  {(g.accuracy * 100).toFixed(1)}% Acc
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3 mb-6">
+                <div className="flex flex-col items-center gap-2 flex-1 transition-transform duration-300 group-hover:translate-x-3">
+                  <TeamIcon teamId={g.awayTeamId} name={g.awayTeamAbbr} size={40} className="shadow-lg transition-all group-hover:scale-110 group-hover:shadow-[0_0_15px_rgba(37,99,235,0.2)]" />
+                  <span className="text-[10px] font-black text-gray-400 group-hover:text-blue-600 transition-colors">{g.awayTeamAbbr}</span>
+                </div>
+                <span className="text-[10px] font-black text-gray-200 italic transition-transform duration-300 group-hover:scale-95">vs</span>
+                <div className="flex flex-col items-center gap-2 flex-1 transition-transform duration-300 group-hover:-translate-x-3">
+                  <TeamIcon teamId={g.homeTeamId} name={g.homeTeamAbbr} size={40} className="shadow-lg transition-all group-hover:scale-110 group-hover:shadow-[0_0_15px_rgba(37,99,235,0.2)]" />
+                  <span className="text-[10px] font-black text-gray-400 group-hover:text-blue-600 transition-colors">{g.homeTeamAbbr}</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 border-t border-gray-50 pt-5">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Overturns</p>
+                  <p className="text-2xl font-display text-gray-900">{g.overturnedCount}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Challenges</p>
+                  <p className="text-2xl font-display text-blue-600">{g.challengedCount}</p>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+    </MotionIn>
+  );
+
+  return (
+    <>
+      {copy.historyPlacement === "early" ? historySection : null}
+
       <MotionIn delay={0.15}>
         <section className="mb-12">
           <div className="panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col">
@@ -245,9 +306,9 @@ export default async function UmpirePage({
                 </p>
               </div>
               <AIInsightBubble
-                insight={buildRhythmInsight(summary.umpireName, dna.rhythm)}
-                insightId={`umpire-rhythm:${summary.umpireId}`}
-                metadata={{ umpireId: summary.umpireId, surface: "umpire_rhythm" }}
+                insight={buildRhythmInsight(umpireName, dna.rhythm)}
+                insightId={`umpire-rhythm:${umpireId}`}
+                metadata={{ umpireId, surface: "umpire_rhythm" }}
               />
             </div>
 
@@ -255,7 +316,6 @@ export default async function UmpirePage({
               <UmpireRhythmChart data={dna.rhythm} />
             </div>
 
-            {/* S4-8: Late-Inning Fatigue Detection */}
             {dna.rhythm.length >= 7 && (() => {
               const earlyAvg = dna.rhythm.slice(0, 3).reduce((sum, rhythmPoint) => sum + (rhythmPoint.accuracy || 0), 0) / 3;
               const lateAvg = dna.rhythm.slice(-3).reduce((sum, rhythmPoint) => sum + (rhythmPoint.accuracy || 0), 0) / 3;
@@ -274,10 +334,8 @@ export default async function UmpirePage({
         </section>
       </MotionIn>
 
-      {/* Shared Row: Report Card & Accuracy Trajectory */}
       <MotionIn delay={0.18}>
         <section className="grid gap-8 lg:grid-cols-3 mb-12">
-          {/* Modeled report card summary - Column 1 */}
           <div className="panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col justify-center bg-white/50">
             <h4 className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mb-1">
               {viewMode === "org" ? "Operational Profile" : "Report Card"}
@@ -297,7 +355,7 @@ export default async function UmpirePage({
                     <span className="rounded-full bg-blue-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-600 mb-2">
                       {viewMode === "org" ? currentUmpire.riskTier : currentUmpire.fanDescriptor}
                     </span>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic">{summary.umpireName}</span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic">{umpireName}</span>
                   </div>
                 </div>
                 <div className="relative h-6 w-full overflow-hidden rounded-full bg-gray-100 mb-6 shadow-inner p-1">
@@ -318,7 +376,7 @@ export default async function UmpirePage({
                   <p className="text-[10px] font-medium text-gray-400 text-center uppercase tracking-widest bg-gray-50/50 py-2 rounded-lg border border-gray-50">
                     Overturn Rate: <span className="text-gray-900 font-bold">{(summary.overturnRate * 100).toFixed(1)}%</span>
                     {displayRank ? <span className="mx-2 opacity-30">|</span> : ""}
-                    {displayRank ? <span>Rank <span className="text-gray-900 font-bold">#{displayRank}</span> of {rankedByScore.length}</span> : ""}
+                    {displayRank ? <span>Rank <span className="text-gray-900 font-bold">#{displayRank}</span> of {rankedByScoreLength}</span> : ""}
                   </p>
                 </div>
               </div>
@@ -327,7 +385,6 @@ export default async function UmpirePage({
             )}
           </div>
 
-          {/* Accuracy Trajectory - Column 2-3 */}
           <div className="lg:col-span-2 panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col">
             <div>
               <h4 className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mb-1">
@@ -346,7 +403,6 @@ export default async function UmpirePage({
 
       <MotionIn delay={0.2}>
         <section className="grid gap-8 lg:grid-cols-2">
-          {/* Zone Personality */}
           <div className="panel p-8 shadow-2xl shadow-black/[0.02]">
             <div className="mb-8 pb-4 border-b border-gray-50 flex items-center justify-between">
               <div>
@@ -363,17 +419,16 @@ export default async function UmpirePage({
               </div>
               <AIInsightBubble
                 insight={buildZoneInsight(profile.zoneBuckets)}
-                insightId={`umpire-zone:${summary.umpireId}`}
-                metadata={{ umpireId: summary.umpireId, surface: "umpire_zone" }}
+                insightId={`umpire-zone:${umpireId}`}
+                metadata={{ umpireId, surface: "umpire_zone" }}
               />
             </div>
             <div className="mt-8">
               <UmpireNineZoneGrid cells={zoneGrid} />
-              <HeatmapDeepDive challenges={challenges} umpireName={summary.umpireName} />
+              <HeatmapDeepDive challenges={challenges} umpireName={umpireName} />
             </div>
           </div>
 
-          {/* Directional Bias */}
           <div className="panel p-8 shadow-2xl shadow-black/[0.02] flex flex-col">
             <div className="mb-8 pb-4 border-b border-gray-50">
               <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
@@ -384,10 +439,10 @@ export default async function UmpirePage({
               </p>
             </div>
             <div className="grid grid-cols-2 gap-4 mb-12">
-              <BiasCard label="S->B Overturns" value={profile.directionalBias.strikeToBall} color="#f59e0b" total={summary.challengedCalls} />
-              <BiasCard label="B->S Overturns" value={profile.directionalBias.ballToStrike} color="#10b981" total={summary.challengedCalls} />
-              <BiasCard label="Other Overturns" value={profile.directionalBias.otherOverturns} color="#06b6d4" total={summary.challengedCalls} />
-              <BiasCard label="Confirmed" value={profile.directionalBias.confirmed} color="#ef4444" total={summary.challengedCalls} />
+              <BiasCard label="S->B Overturns" value={profile.directionalBias.strikeToBall} color="#f59e0b" total={challenges.length} />
+              <BiasCard label="B->S Overturns" value={profile.directionalBias.ballToStrike} color="#10b981" total={challenges.length} />
+              <BiasCard label="Other Overturns" value={profile.directionalBias.otherOverturns} color="#06b6d4" total={challenges.length} />
+              <BiasCard label="Confirmed" value={profile.directionalBias.confirmed} color="#ef4444" total={challenges.length} />
             </div>
 
             <div className="mb-6">
@@ -432,17 +487,65 @@ export default async function UmpirePage({
         </div>
       </MotionIn>
 
+      {copy.historyPlacement === "late" ? historySection : null}
+
       <MotionIn delay={0.3}>
         <div className={`grid gap-8 ${shouldShowSeasonTrend ? "md:grid-cols-2" : "md:grid-cols-1"} mb-8`}>
           <PitchTypeBreakdownChart data={pitchTypes} />
-          {shouldShowSeasonTrend && <SeasonOverSeasonChart data={seasonTrend} />}
+          {shouldShowSeasonTrend ? <SeasonOverSeasonChart data={seasonTrend} /> : null}
         </div>
       </MotionIn>
+    </>
+  );
+}
 
-      <MotionIn delay={0.35}>
-        <AIBSVisualizerChat context={`${summary.umpireName} Umpiring`} />
-      </MotionIn>
-    </main >
+function UmpireAnalyticsFallback({ showHistory }: { showHistory: boolean }) {
+  return (
+    <>
+      {showHistory ? (
+        <section className="mb-12">
+          <div className="panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50 min-h-[240px]">
+            <div className="h-4 w-28 rounded bg-gray-100 animate-pulse mb-4" />
+            <div className="flex gap-6 overflow-hidden">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="min-h-[180px] w-72 shrink-0 rounded-[2rem] bg-gradient-to-br from-gray-100 via-gray-50 to-white animate-pulse" />
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      <section className="mb-12">
+        <div className="panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50 min-h-[320px]">
+          <div className="h-4 w-32 rounded bg-gray-100 animate-pulse mb-4" />
+          <div className="h-[240px] rounded-[1.5rem] bg-gradient-to-br from-gray-100 via-gray-50 to-white animate-pulse" />
+        </div>
+      </section>
+
+      <section className="grid gap-8 lg:grid-cols-3 mb-12">
+        <div className="panel p-8 min-h-[320px]">
+          <div className="h-full w-full rounded-[1.5rem] bg-gradient-to-br from-gray-100 via-gray-50 to-white animate-pulse" />
+        </div>
+        <div className="panel p-8 min-h-[320px] lg:col-span-2">
+          <div className="h-full w-full rounded-[1.5rem] bg-gradient-to-br from-gray-100 via-gray-50 to-white animate-pulse" />
+        </div>
+      </section>
+
+      <section className="grid gap-8 lg:grid-cols-2">
+        <div className="panel p-8 min-h-[420px]">
+          <div className="h-full w-full rounded-[1.5rem] bg-gradient-to-br from-gray-100 via-gray-50 to-white animate-pulse" />
+        </div>
+        <div className="panel p-8 min-h-[420px]">
+          <div className="h-full w-full rounded-[1.5rem] bg-gradient-to-br from-gray-100 via-gray-50 to-white animate-pulse" />
+        </div>
+      </section>
+
+      <section className="mt-8">
+        <div className="panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50 min-h-[220px]">
+          <div className="h-full w-full rounded-[1.5rem] bg-gradient-to-br from-gray-100 via-gray-50 to-white animate-pulse" />
+        </div>
+      </section>
+    </>
   );
 }
 

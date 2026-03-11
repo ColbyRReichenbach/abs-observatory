@@ -158,13 +158,13 @@ export function LiveWarRoom({ game, challenges, liveStatus, counters, liveChalle
                     <BurnRow
                         teamName={game.homeabbreviation || "HOME"}
                         teamColor={game.homeprimarycolor || "#3b82f6"}
-                        challengesUsed={challenges.filter((c) => c.challengeTeamName === game.homeabbreviation).length}
+                        challengesUsed={challenges.filter((c) => c.challengeTeamId === game.hometeamid).length}
                         currentInning={currentInning}
                     />
                     <BurnRow
                         teamName={game.awayabbreviation || "AWAY"}
                         teamColor={game.awayprimarycolor || "#8b5cf6"}
-                        challengesUsed={challenges.filter((c) => c.challengeTeamName === game.awayabbreviation).length}
+                        challengesUsed={challenges.filter((c) => c.challengeTeamId === game.awayteamid).length}
                         currentInning={currentInning}
                     />
                 </div>
