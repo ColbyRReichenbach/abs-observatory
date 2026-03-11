@@ -54,6 +54,12 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           .filter((team) => team.decisionSurplus !== null && hasTrustedModelConfidenceBand(team.decisionValueConfidence))
           .sort((left, right) => (left.decisionSurplus ?? Infinity) - (right.decisionSurplus ?? Infinity))[0] ?? null
       : null;
+  const bigSpotDecisionClub =
+    viewMode === "org"
+      ? [...teams]
+          .filter((team) => hasTrustedModelConfidenceBand(team.decisionValueConfidence))
+          .sort((left, right) => right.lateCloseExpectedValueShare - left.lateCloseExpectedValueShare)[0] ?? null
+      : null;
   const spotlightUmps = [...umpires].sort((a, b) => a.reportCardScore - b.reportCardScore).slice(0, 3);
   const mostDisciplinedTeam =
     [...teams].sort((a, b) => (b.avgRemaining * b.overturnRate) - (a.avgRemaining * a.overturnRate))[0] ?? null;
@@ -241,6 +247,15 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                   {mostWastefulClub
                     ? `${formatOrgOperatorValue(mostWastefulClub)} · ${(mostWastefulClub.wastedValueShare * 100).toFixed(0)}% low-value share`
                     : "Wasteful decision signals will appear once modeled samples stabilize."}
+                </p>
+              </div>
+              <div className="panel border-gray-100 bg-white p-5 shadow-2xl shadow-black/[0.03]">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-500">Big-Spot Decision Club</p>
+                <p className="mt-2 text-lg font-semibold text-[var(--ink-0)]">{bigSpotDecisionClub?.teamName ?? "No signal"}</p>
+                <p className="mt-1 text-xs text-[var(--ink-3)]">
+                  {bigSpotDecisionClub
+                    ? `${formatOrgOperatorValue(bigSpotDecisionClub)} · ${(bigSpotDecisionClub.lateCloseExpectedValueShare * 100).toFixed(0)}% late-close EV share`
+                    : "Big-spot decision signals will appear once modeled samples stabilize."}
                 </p>
               </div>
             </div>

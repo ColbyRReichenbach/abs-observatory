@@ -35,6 +35,7 @@ import { getTeamDetailViewCopy } from "@/lib/view-mode-contract";
 import { TeamChallengeValueMatrix } from "@/components/analytics/team-challenge-value-matrix";
 import { TeamDecisionValueSummaryCard } from "@/components/analytics/team-decision-value-summary";
 import { TeamDecisionWindowBoard } from "@/components/analytics/team-decision-window-board";
+import { TeamDecisionBreakdownBoard } from "@/components/analytics/team-decision-breakdown-board";
 import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
 
 function toInningRange(value?: string): SituationalFilters["inningRange"] {
@@ -488,6 +489,12 @@ async function TeamAnalyticsSections({
       <MotionIn delay={0.295}>
         <TeamDecisionWindowBoard report={decisionValueReport} teamColor={teamPrimary} viewMode={viewMode} />
       </MotionIn>
+
+      {viewMode === "org" ? (
+        <MotionIn delay={0.297}>
+          <TeamDecisionBreakdownBoard report={decisionValueReport} teamColor={teamPrimary} />
+        </MotionIn>
+      ) : null}
 
       <MotionIn delay={0.3}>
         <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_1fr_1fr]">

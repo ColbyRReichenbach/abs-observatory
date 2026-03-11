@@ -289,6 +289,28 @@ export type TeamDecisionWindowEntry = {
   modelConfidence: ConfidenceBand | null;
 };
 
+export type TeamDecisionBreakdownEntry = {
+  label: string;
+  challenges: number;
+  averageExpectedChallengeValue: number | null;
+  averageRealizedChallengeValue: number | null;
+  decisionSurplus: number | null;
+  capturedValueShare: number;
+  wastedValueShare: number;
+  modelConfidence: ConfidenceBand | null;
+};
+
+export type TeamDecisionBreakdownSection = {
+  key: "inning_phase" | "count_state" | "base_out_state";
+  title: string;
+  bestEntry: TeamDecisionBreakdownEntry | null;
+  weakestEntry: TeamDecisionBreakdownEntry | null;
+  entries: TeamDecisionBreakdownEntry[];
+  positiveCount: number;
+  negativeCount: number;
+  neutralCount: number;
+};
+
 export type TeamDecisionValueReport = {
   summary: TeamDecisionValueSummary;
   strongestWindow: TeamDecisionWindowEntry | null;
@@ -298,6 +320,7 @@ export type TeamDecisionValueReport = {
   positiveWindowCount: number;
   negativeWindowCount: number;
   neutralWindowCount: number;
+  breakdownSections: TeamDecisionBreakdownSection[];
 };
 
 export type GameChallengeOpportunityCell = {

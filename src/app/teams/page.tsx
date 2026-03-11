@@ -143,6 +143,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
               <th className="text-center">{viewMode === "org" ? "Pressure Share" : "Big-Spot Share"}</th>
               <th className="text-center">{viewMode === "org" ? "Decision Read" : "Timing"}</th>
               <th className="text-center">Trend</th>
+              {viewMode === "org" ? <th className="text-right">Late-Close EV</th> : null}
               {viewMode === "org" ? <th className="text-right">Decision Surplus</th> : null}
               <th className="text-right">{viewMode === "org" ? (leagueAvgWinExpectancyDelta !== null ? "Avg WE Δ" : "Avg RE Δ") : "Avg Rem"}</th>
               <th className="text-right">{copy.tableVolumeHeader}</th>
@@ -151,7 +152,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={viewMode === "org" ? 9 : 8} className="!py-32 text-center text-gray-400 font-semibold">
+                <td colSpan={viewMode === "org" ? 10 : 8} className="!py-32 text-center text-gray-400 font-semibold">
                   No data points match the selected criteria.
                 </td>
               </tr>
@@ -197,6 +198,11 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
                       <td className="text-center">
                         <span className="text-[10px] text-[var(--ink-3)]">—</span>
                       </td>
+                      {viewMode === "org" ? (
+                        <td className="text-right font-mono text-gray-400 italic font-medium pr-8">
+                          {`${Math.round(teams.length > 0 ? teams.reduce((sum, team) => sum + team.lateCloseExpectedValueShare, 0) / teams.length * 100 : 0)}%`}
+                        </td>
+                      ) : null}
                       {viewMode === "org" ? (
                         <td className="text-right font-mono text-gray-400 italic font-medium pr-8">
                           {leagueAvgDecisionSurplus === null
@@ -275,6 +281,13 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
                     </td>
                     {viewMode === "org" ? (
                       <td className="text-right font-mono text-gray-400 font-medium pr-8">
+                        {hasTrustedModelConfidenceBand(t.decisionValueConfidence)
+                          ? `${Math.round(t.lateCloseExpectedValueShare * 100)}%`
+                          : "N/A"}
+                      </td>
+                    ) : null}
+                    {viewMode === "org" ? (
+                      <td className="text-right font-mono text-gray-400 font-medium pr-8">
                         {t.decisionSurplus === null || !hasTrustedModelConfidenceBand(t.decisionValueConfidence)
                           ? "N/A"
                           : `${t.decisionSurplus >= 0 ? "+" : ""}${(t.decisionSurplus * 100).toFixed(2)}%`}
@@ -330,6 +343,7 @@ function compareTeamsForTable(
     overturnRate: number;
     decisionSurplus: number | null;
     decisionValueConfidence: "high" | "medium" | "low" | null;
+    lateCloseExpectedValueShare: number;
     highWinValueShare: number;
     avgWinExpectancyDelta: number | null;
     winValueConfidence: "high" | "medium" | "low" | null;
@@ -341,6 +355,7 @@ function compareTeamsForTable(
     overturnRate: number;
     decisionSurplus: number | null;
     decisionValueConfidence: "high" | "medium" | "low" | null;
+    lateCloseExpectedValueShare: number;
     highWinValueShare: number;
     avgWinExpectancyDelta: number | null;
     winValueConfidence: "high" | "medium" | "low" | null;
@@ -366,6 +381,10 @@ function compareTeamsForTable(
         return rightDecision - leftDecision;
       }
     }
+  }
+
+  if (viewMode === "org" && useDecisionValue && right.lateCloseExpectedValueShare !== left.lateCloseExpectedValueShare) {
+    return right.lateCloseExpectedValueShare - left.lateCloseExpectedValueShare;
   }
 
   const leftMetric =

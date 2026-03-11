@@ -32,6 +32,8 @@ import type {
   TeamChallengeScenarioCell,
   TeamDecisionValueSummary,
   TeamDecisionValueReport,
+  TeamDecisionBreakdownEntry,
+  TeamDecisionBreakdownSection,
   TeamDecisionWindowEntry,
   TeamChallengeValueSummary,
   TeamSideSplit,
@@ -81,6 +83,17 @@ type TeamDecisionWindowAggregate = {
   wastedValueCount: number;
   challengeRecommendations: number;
   holdRecommendations: number;
+  winModeChallenges: number;
+};
+
+type TeamDecisionBreakdownAggregate = {
+  label: string;
+  challenges: number;
+  modeledChallenges: number;
+  totalExpected: number;
+  totalRealized: number;
+  capturedValueCount: number;
+  wastedValueCount: number;
   winModeChallenges: number;
 };
 
@@ -226,6 +239,35 @@ function buildDecisionWindowLabel(input: {
           : "Even Count";
 
   return `${baseLabel} • ${countLabel}`;
+}
+
+function buildDecisionInningLabel(inning: number | null | undefined) {
+  if ((inning ?? 0) >= 10) return "Extras";
+  if ((inning ?? 0) >= 7) return "Late (7-9)";
+  if ((inning ?? 0) >= 4) return "Middle (4-6)";
+  return "Early (1-3)";
+}
+
+function buildDecisionCountLabel(input: { ballsBefore: number | null; strikesBefore: number | null }) {
+  const ballsBefore = input.ballsBefore ?? 0;
+  const strikesBefore = input.strikesBefore ?? 0;
+
+  if (ballsBefore === 3 && strikesBefore === 2) return "Full Count";
+  if (ballsBefore > strikesBefore) return "Hitter Ahead";
+  if (ballsBefore < strikesBefore) return "Pitcher Ahead";
+  return "Even Count";
+}
+
+function buildDecisionBaseOutLabel(input: { basesState: string | null; outs: number | null }) {
+  const outs = input.outs ?? 0;
+  const basesState = input.basesState ?? "000";
+  const occupied = countOccupiedBases(basesState);
+  const hasRisp = basesState[1] === "1" || basesState[2] === "1";
+
+  if (basesState === "111") return "Bases Loaded";
+  if (hasRisp) return outs < 2 ? "RISP, <2 Outs" : "RISP, 2 Outs";
+  if (occupied === 0) return outs < 2 ? "Bases Empty, <2 Outs" : "Bases Empty, 2 Outs";
+  return outs < 2 ? "Runner On, <2 Outs" : "Runner On, 2 Outs";
 }
 
 async function getTeamDecisionMetricRows(range: RangeKey = "season", filters?: SituationalFilters) {
@@ -580,6 +622,90 @@ async function buildTeamDecisionWindowReport(modeledRows: ModeledTeamDecisionRow
   };
 }
 
+function buildTeamDecisionBreakdownSection(
+  key: TeamDecisionBreakdownSection["key"],
+  title: string,
+  modeledRows: ModeledTeamDecisionRow[],
+  labelBuilder: (modeled: ModeledTeamDecisionRow) => string,
+): TeamDecisionBreakdownSection {
+  const aggregates = new Map<string, TeamDecisionBreakdownAggregate>();
+
+  for (const modeled of modeledRows) {
+    const label = labelBuilder(modeled);
+    const aggregate = aggregates.get(label) ?? {
+      label,
+      challenges: 0,
+      modeledChallenges: 0,
+      totalExpected: 0,
+      totalRealized: 0,
+      capturedValueCount: 0,
+      wastedValueCount: 0,
+      winModeChallenges: 0,
+    };
+
+    aggregate.challenges += 1;
+    aggregate.modeledChallenges += 1;
+    aggregate.totalExpected += modeled.expectedWpDelta;
+    aggregate.totalRealized += modeled.realizedWpDelta;
+    if (modeled.realizedWpDelta >= modeled.expectedWpDelta) {
+      aggregate.capturedValueCount += 1;
+    }
+    if (modeled.expectedWpDelta <= 0) {
+      aggregate.wastedValueCount += 1;
+    }
+    if (modeled.decisionValueMode === "win_expectancy") {
+      aggregate.winModeChallenges += 1;
+    }
+
+    aggregates.set(label, aggregate);
+  }
+
+  const entries: TeamDecisionBreakdownEntry[] = [...aggregates.values()]
+    .map((aggregate) => {
+      const averageExpectedChallengeValue =
+        aggregate.modeledChallenges > 0 ? roundMetric(aggregate.totalExpected / aggregate.modeledChallenges, 4) : null;
+      const averageRealizedChallengeValue =
+        aggregate.modeledChallenges > 0 ? roundMetric(aggregate.totalRealized / aggregate.modeledChallenges, 4) : null;
+      const modeledWinCoverageRate =
+        aggregate.modeledChallenges > 0 ? aggregate.winModeChallenges / aggregate.modeledChallenges : 0;
+
+      return {
+        label: aggregate.label,
+        challenges: aggregate.challenges,
+        averageExpectedChallengeValue,
+        averageRealizedChallengeValue,
+        decisionSurplus:
+          averageExpectedChallengeValue === null || averageRealizedChallengeValue === null
+            ? null
+            : roundMetric(averageRealizedChallengeValue - averageExpectedChallengeValue, 4),
+        capturedValueShare: aggregate.modeledChallenges > 0 ? aggregate.capturedValueCount / aggregate.modeledChallenges : 0,
+        wastedValueShare: aggregate.modeledChallenges > 0 ? aggregate.wastedValueCount / aggregate.modeledChallenges : 0,
+        modelConfidence:
+          aggregate.modeledChallenges > 0 ? getDecisionValueConfidenceBand(aggregate.modeledChallenges, modeledWinCoverageRate) : null,
+      };
+    })
+    .sort((left, right) => {
+      const rightValue = right.decisionSurplus ?? -Infinity;
+      const leftValue = left.decisionSurplus ?? -Infinity;
+      if (rightValue !== leftValue) return rightValue - leftValue;
+      return right.challenges - left.challenges;
+    });
+
+  const trustedEntries = entries.filter((entry) => hasTrustedModelConfidenceBand(entry.modelConfidence));
+  const rankedEntries = trustedEntries.length > 0 ? trustedEntries : entries;
+
+  return {
+    key,
+    title,
+    bestEntry: rankedEntries[0] ?? null,
+    weakestEntry: rankedEntries.length > 0 ? rankedEntries[rankedEntries.length - 1] : null,
+    entries: rankedEntries.slice(0, 4),
+    positiveCount: rankedEntries.filter((entry) => (entry.decisionSurplus ?? 0) > 0.0005).length,
+    negativeCount: rankedEntries.filter((entry) => (entry.decisionSurplus ?? 0) < -0.0005).length,
+    neutralCount: rankedEntries.filter((entry) => Math.abs(entry.decisionSurplus ?? 0) <= 0.0005).length,
+  };
+}
+
 export async function getTeamDecisionValueLeaderboard(range: RangeKey = "season") {
   const rows = await getTeamDecisionMetricRows(range);
   return buildTeamDecisionValueMetrics(rows);
@@ -656,6 +782,17 @@ export async function getTeamDecisionValueReport(
   return {
     summary,
     ...windows,
+    breakdownSections: [
+      buildTeamDecisionBreakdownSection("inning_phase", "Inning Phase", modeledRows, (modeled) =>
+        buildDecisionInningLabel(modeled.row.inning),
+      ),
+      buildTeamDecisionBreakdownSection("count_state", "Count State", modeledRows, (modeled) =>
+        buildDecisionCountLabel(modeled.row),
+      ),
+      buildTeamDecisionBreakdownSection("base_out_state", "Base / Out State", modeledRows, (modeled) =>
+        buildDecisionBaseOutLabel(modeled.row),
+      ),
+    ],
   };
 }
 
