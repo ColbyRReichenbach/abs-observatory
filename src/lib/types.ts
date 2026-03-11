@@ -258,6 +258,48 @@ export type TeamChallengeValueSummary = {
   bestScenarioChallenges: number;
 };
 
+export type TeamDecisionValueSummary = {
+  totalChallenges: number;
+  averageExpectedChallengeValue: number | null;
+  averageRealizedChallengeValue: number | null;
+  decisionSurplus: number | null;
+  challengeRecommendationRate: number;
+  holdRecommendationRate: number;
+  capturedValueShare: number;
+  wastedValueShare: number;
+  highPressureExpectedValueShare: number;
+  lateCloseExpectedValueShare: number;
+  bestDecisionWindowLabel: string | null;
+  bestDecisionWindowExpectedValue: number | null;
+  bestDecisionWindowChallenges: number;
+  modelConfidence: ConfidenceBand | null;
+  modeledWinCoverageRate: number;
+};
+
+export type TeamDecisionWindowEntry = {
+  label: string;
+  challenges: number;
+  averageExpectedChallengeValue: number | null;
+  averageRealizedChallengeValue: number | null;
+  decisionSurplus: number | null;
+  capturedValueShare: number;
+  wastedValueShare: number;
+  challengeRecommendationRate: number;
+  holdRecommendationRate: number;
+  modelConfidence: ConfidenceBand | null;
+};
+
+export type TeamDecisionValueReport = {
+  summary: TeamDecisionValueSummary;
+  strongestWindow: TeamDecisionWindowEntry | null;
+  weakestWindow: TeamDecisionWindowEntry | null;
+  topWindows: TeamDecisionWindowEntry[];
+  bottomWindows: TeamDecisionWindowEntry[];
+  positiveWindowCount: number;
+  negativeWindowCount: number;
+  neutralWindowCount: number;
+};
+
 export type GameChallengeOpportunityCell = {
   rowKey: string;
   rowLabel: string;
@@ -625,6 +667,18 @@ export type TeamLeaderboardEntry = TeamSummary & {
   avgWinExpectancyDelta: number | null;
   highWinValueShare: number;
   winValueConfidence: ConfidenceBand | null;
+  averageExpectedChallengeValue: number | null;
+  averageRealizedChallengeValue: number | null;
+  decisionSurplus: number | null;
+  challengeRecommendationRate: number;
+  holdRecommendationRate: number;
+  capturedValueShare: number;
+  wastedValueShare: number;
+  highPressureExpectedValueShare: number;
+  lateCloseExpectedValueShare: number;
+  bestDecisionWindowLabel: string | null;
+  bestDecisionWindowExpectedValue: number | null;
+  decisionValueConfidence: ConfidenceBand | null;
 };
 
 export type UmpireLeaderboardEntry = UmpireSummary & {

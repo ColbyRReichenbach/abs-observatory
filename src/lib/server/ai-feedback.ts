@@ -106,6 +106,7 @@ export async function saveAIFeedback(request: Request, input: AIFeedbackInput) {
     !existing ||
     existing.sentiment !== input.sentiment ||
     normalizeComment(existing.comment) !== comment;
+  const initialReviewPriority = input.sentiment === "up" ? "low" : "normal";
 
   const row = await sqlOne<{ feedbackid: string }>(
     `
@@ -124,9 +125,10 @@ export async function saveAIFeedback(request: Request, input: AIFeedbackInput) {
       game_pk,
       comment,
       classification_status,
+      review_priority,
       metadata
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
     ON CONFLICT (actor_key, surface, target_type, target_id) DO UPDATE SET
       sentiment = EXCLUDED.sentiment,
       generation_id = COALESCE(EXCLUDED.generation_id, ai.feedback.generation_id),
@@ -155,6 +157,11 @@ export async function saveAIFeedback(request: Request, input: AIFeedbackInput) {
           THEN NULL
         ELSE ai.feedback.classification_notes
       END,
+      review_priority = CASE
+        WHEN ai.feedback.comment IS DISTINCT FROM EXCLUDED.comment OR ai.feedback.sentiment IS DISTINCT FROM EXCLUDED.sentiment
+          THEN EXCLUDED.review_priority
+        ELSE ai.feedback.review_priority
+      END,
       metadata = COALESCE(EXCLUDED.metadata, ai.feedback.metadata),
       updated_at = NOW()
     RETURNING feedback_id AS feedbackId
@@ -174,6 +181,7 @@ export async function saveAIFeedback(request: Request, input: AIFeedbackInput) {
       input.gamePk ?? null,
       comment,
       initialClassificationStatus,
+      initialReviewPriority,
       input.metadata ?? null,
     ],
   );

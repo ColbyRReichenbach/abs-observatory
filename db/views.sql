@@ -4,6 +4,7 @@ DROP VIEW IF EXISTS mart_historical_abs_overturn_probability_fallbacks CASCADE;
 DROP VIEW IF EXISTS mart_historical_abs_overturn_probability CASCADE;
 DROP VIEW IF EXISTS mart_historical_abs_team_summary CASCADE;
 DROP VIEW IF EXISTS mart_historical_abs_overturn_inputs CASCADE;
+DROP VIEW IF EXISTS mart_team_challenge_decision_value CASCADE;
 DROP VIEW IF EXISTS mart_team_challenge_win_value CASCADE;
 DROP VIEW IF EXISTS mart_team_challenge_run_value CASCADE;
 DROP VIEW IF EXISTS mart_win_expectancy_fallbacks CASCADE;
@@ -1154,6 +1155,296 @@ SELECT
   END AS confidence_band
 FROM lookup l
 JOIN games g ON g.game_pk = l.game_pk
+GROUP BY team_id;
+
+CREATE OR REPLACE VIEW mart_team_challenge_decision_value AS
+WITH decision_inputs AS (
+  SELECT
+    c.challenge_id,
+    c.challenge_team_id AS team_id,
+    c.game_pk,
+    c.inning,
+    c.half_inning,
+    c.outs,
+    c.bases_state,
+    c.home_score,
+    c.away_score,
+    c.is_overturned,
+    COALESCE(p.balls_before, c.balls, 0) AS balls_before,
+    COALESCE(p.strikes_before, c.strikes, 0) AS strikes_before,
+    CASE
+      WHEN UPPER(COALESCE(p.called_description, c.called_description, '')) LIKE 'CALLED STRIKE%' THEN 'called_strike'
+      WHEN UPPER(COALESCE(p.called_description, c.called_description, '')) LIKE 'BALL%' THEN 'ball'
+      ELSE NULL
+    END AS called_pitch,
+    CASE
+      WHEN UPPER(COALESCE(p.called_description, c.called_description, '')) LIKE 'CALLED STRIKE%' THEN 'strike_to_ball'
+      WHEN UPPER(COALESCE(p.called_description, c.called_description, '')) LIKE 'BALL%' THEN 'ball_to_strike'
+      ELSE NULL
+    END AS challenge_direction,
+    CASE
+      WHEN c.half_inning = 'Top' THEN
+        CASE
+          WHEN c.away_score IS NULL OR c.home_score IS NULL THEN NULL
+          WHEN c.away_score - c.home_score <= -4 THEN 'trail4plus'
+          WHEN c.away_score - c.home_score = -3 THEN 'trail3'
+          WHEN c.away_score - c.home_score = -2 THEN 'trail2'
+          WHEN c.away_score - c.home_score = -1 THEN 'trail1'
+          WHEN c.away_score - c.home_score = 0 THEN 'tied'
+          WHEN c.away_score - c.home_score = 1 THEN 'lead1'
+          WHEN c.away_score - c.home_score = 2 THEN 'lead2'
+          WHEN c.away_score - c.home_score = 3 THEN 'lead3'
+          ELSE 'lead4plus'
+        END
+      WHEN c.half_inning = 'Bottom' THEN
+        CASE
+          WHEN c.home_score IS NULL OR c.away_score IS NULL THEN NULL
+          WHEN c.home_score - c.away_score <= -4 THEN 'trail4plus'
+          WHEN c.home_score - c.away_score = -3 THEN 'trail3'
+          WHEN c.home_score - c.away_score = -2 THEN 'trail2'
+          WHEN c.home_score - c.away_score = -1 THEN 'trail1'
+          WHEN c.home_score - c.away_score = 0 THEN 'tied'
+          WHEN c.home_score - c.away_score = 1 THEN 'lead1'
+          WHEN c.home_score - c.away_score = 2 THEN 'lead2'
+          WHEN c.home_score - c.away_score = 3 THEN 'lead3'
+          ELSE 'lead4plus'
+        END
+      ELSE NULL
+    END AS score_diff_bucket,
+    CASE
+      WHEN c.inning >= 9 THEN '9+'
+      WHEN c.inning >= 7 THEN '7-8'
+      WHEN c.inning >= 4 THEN '4-6'
+      ELSE '1-3'
+    END AS inning_bucket,
+    CASE
+      WHEN UPPER(COALESCE(p.called_description, c.called_description, '')) LIKE 'CALLED STRIKE%' THEN
+        CASE WHEN COALESCE(p.strikes_before, c.strikes, 0) >= 2 THEN NULL ELSE CONCAT(COALESCE(p.balls_before, c.balls, 0), '-', COALESCE(p.strikes_before, c.strikes, 0) + 1) END
+      WHEN UPPER(COALESCE(p.called_description, c.called_description, '')) LIKE 'BALL%' THEN
+        CASE WHEN COALESCE(p.balls_before, c.balls, 0) >= 3 THEN NULL ELSE CONCAT(COALESCE(p.balls_before, c.balls, 0) + 1, '-', COALESCE(p.strikes_before, c.strikes, 0)) END
+      ELSE NULL
+    END AS held_count_key,
+    CASE
+      WHEN UPPER(COALESCE(p.called_description, c.called_description, '')) LIKE 'CALLED STRIKE%' THEN
+        CASE WHEN COALESCE(p.balls_before, c.balls, 0) >= 3 THEN NULL ELSE CONCAT(COALESCE(p.balls_before, c.balls, 0) + 1, '-', COALESCE(p.strikes_before, c.strikes, 0)) END
+      WHEN UPPER(COALESCE(p.called_description, c.called_description, '')) LIKE 'BALL%' THEN
+        CASE WHEN COALESCE(p.strikes_before, c.strikes, 0) >= 2 THEN NULL ELSE CONCAT(COALESCE(p.balls_before, c.balls, 0), '-', COALESCE(p.strikes_before, c.strikes, 0) + 1) END
+      ELSE NULL
+    END AS corrected_count_key,
+    CONCAT(
+      CASE
+        WHEN c.bases_state = '111' THEN 'Bases Loaded'
+        WHEN (c.bases_state IN ('011', '101', '110')) AND COALESCE(c.outs, 0) < 2 THEN 'RISP, <2 Outs'
+        WHEN (c.bases_state IN ('011', '101', '110')) THEN 'RISP, 2 Outs'
+        WHEN c.bases_state = '000' THEN 'Bases Empty'
+        ELSE 'Runner On'
+      END,
+      ' • ',
+      CASE
+        WHEN COALESCE(p.balls_before, c.balls, 0) = 3 AND COALESCE(p.strikes_before, c.strikes, 0) = 2 THEN 'Full Count'
+        WHEN COALESCE(p.balls_before, c.balls, 0) > COALESCE(p.strikes_before, c.strikes, 0) THEN 'Hitter Ahead'
+        WHEN COALESCE(p.balls_before, c.balls, 0) < COALESCE(p.strikes_before, c.strikes, 0) THEN 'Pitcher Ahead'
+        ELSE 'Even Count'
+      END
+    ) AS decision_window_label
+  FROM abs_challenges c
+  LEFT JOIN pitches p
+    ON p.game_pk = c.game_pk
+   AND p.at_bat_index = c.at_bat_index
+   AND p.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
+  WHERE c.challenge_team_id IS NOT NULL
+),
+decision_lookup AS (
+  SELECT
+    di.*,
+    prob.overturn_probability,
+    prob.confidence_band AS overturn_probability_confidence,
+    held_exact.batting_team_win_probability AS held_exact_we,
+    corrected_exact.batting_team_win_probability AS corrected_exact_we,
+    held_bucket.batting_team_win_probability AS held_bucket_we,
+    corrected_bucket.batting_team_win_probability AS corrected_bucket_we,
+    held_drop_count.batting_team_win_probability AS held_drop_count_we,
+    corrected_drop_count.batting_team_win_probability AS corrected_drop_count_we,
+    held_drop_count_bucket.batting_team_win_probability AS held_drop_count_bucket_we,
+    corrected_drop_count_bucket.batting_team_win_probability AS corrected_drop_count_bucket_we
+  FROM decision_inputs di
+  LEFT JOIN mart_historical_abs_overturn_probability_fallbacks prob
+    ON (
+      (prob.fallback_tier = 'exact' AND prob.challenge_direction = di.challenge_direction AND prob.edge_bucket IS NULL)
+      OR (prob.fallback_tier = 'direction_only' AND prob.challenge_direction = di.challenge_direction AND prob.edge_bucket IS NULL)
+      OR (prob.fallback_tier = 'global' AND prob.challenge_direction IS NULL AND prob.edge_bucket IS NULL)
+    )
+  LEFT JOIN mart_win_expectancy_fallbacks held_exact
+    ON held_exact.fallback_tier = 'exact'
+   AND held_exact.inning = di.inning
+   AND held_exact.half_inning = di.half_inning
+   AND held_exact.score_diff_bucket = di.score_diff_bucket
+   AND held_exact.outs = di.outs
+   AND held_exact.bases_state = di.bases_state
+   AND held_exact.count_key = di.held_count_key
+  LEFT JOIN mart_win_expectancy_fallbacks corrected_exact
+    ON corrected_exact.fallback_tier = 'exact'
+   AND corrected_exact.inning = di.inning
+   AND corrected_exact.half_inning = di.half_inning
+   AND corrected_exact.score_diff_bucket = di.score_diff_bucket
+   AND corrected_exact.outs = di.outs
+   AND corrected_exact.bases_state = di.bases_state
+   AND corrected_exact.count_key = di.corrected_count_key
+  LEFT JOIN mart_win_expectancy_fallbacks held_bucket
+    ON held_bucket.fallback_tier = 'drop_inning_to_bucket'
+   AND held_bucket.inning_bucket = di.inning_bucket
+   AND held_bucket.half_inning = di.half_inning
+   AND held_bucket.score_diff_bucket = di.score_diff_bucket
+   AND held_bucket.outs = di.outs
+   AND held_bucket.bases_state = di.bases_state
+   AND held_bucket.count_key = di.held_count_key
+  LEFT JOIN mart_win_expectancy_fallbacks corrected_bucket
+    ON corrected_bucket.fallback_tier = 'drop_inning_to_bucket'
+   AND corrected_bucket.inning_bucket = di.inning_bucket
+   AND corrected_bucket.half_inning = di.half_inning
+   AND corrected_bucket.score_diff_bucket = di.score_diff_bucket
+   AND corrected_bucket.outs = di.outs
+   AND corrected_bucket.bases_state = di.bases_state
+   AND corrected_bucket.count_key = di.corrected_count_key
+  LEFT JOIN mart_win_expectancy_fallbacks held_drop_count
+    ON held_drop_count.fallback_tier = 'drop_count_key_exact_inning'
+   AND held_drop_count.inning = di.inning
+   AND held_drop_count.half_inning = di.half_inning
+   AND held_drop_count.score_diff_bucket = di.score_diff_bucket
+   AND held_drop_count.outs = di.outs
+   AND held_drop_count.bases_state = di.bases_state
+  LEFT JOIN mart_win_expectancy_fallbacks corrected_drop_count
+    ON corrected_drop_count.fallback_tier = 'drop_count_key_exact_inning'
+   AND corrected_drop_count.inning = di.inning
+   AND corrected_drop_count.half_inning = di.half_inning
+   AND corrected_drop_count.score_diff_bucket = di.score_diff_bucket
+   AND corrected_drop_count.outs = di.outs
+   AND corrected_drop_count.bases_state = di.bases_state
+  LEFT JOIN mart_win_expectancy_fallbacks held_drop_count_bucket
+    ON held_drop_count_bucket.fallback_tier = 'drop_count_key_bucketed_inning'
+   AND held_drop_count_bucket.inning_bucket = di.inning_bucket
+   AND held_drop_count_bucket.half_inning = di.half_inning
+   AND held_drop_count_bucket.score_diff_bucket = di.score_diff_bucket
+   AND held_drop_count_bucket.outs = di.outs
+   AND held_drop_count_bucket.bases_state = di.bases_state
+  LEFT JOIN mart_win_expectancy_fallbacks corrected_drop_count_bucket
+    ON corrected_drop_count_bucket.fallback_tier = 'drop_count_key_bucketed_inning'
+   AND corrected_drop_count_bucket.inning_bucket = di.inning_bucket
+   AND corrected_drop_count_bucket.half_inning = di.half_inning
+   AND corrected_drop_count_bucket.score_diff_bucket = di.score_diff_bucket
+   AND corrected_drop_count_bucket.outs = di.outs
+   AND corrected_drop_count_bucket.bases_state = di.bases_state
+  WHERE di.called_pitch IS NOT NULL
+),
+decision_rows AS (
+  SELECT DISTINCT ON (challenge_id)
+    dl.*,
+    GREATEST(
+      0.2,
+      LEAST(
+        3.0,
+        GREATEST(0.1, LEAST(COALESCE(dl.inning, 1)::NUMERIC / 9.0, 1.7))
+        * GREATEST(0.3, LEAST(1.5 - ABS(COALESCE(dl.home_score, 0) - COALESCE(dl.away_score, 0)) * 0.15, 1.5))
+        * CASE
+            WHEN dl.balls_before = 3 AND dl.strikes_before = 2 THEN 1.2
+            WHEN dl.strikes_before = 2 THEN 1.1
+            ELSE 1.0
+          END
+        * CASE
+            WHEN LENGTH(REPLACE(COALESCE(dl.bases_state, '000'), '0', '')) > 0
+              THEN 1 + (LENGTH(REPLACE(dl.bases_state, '0', '')) * 0.12)
+            ELSE 0.95
+          END
+      )
+    ) AS leverage_index_approx,
+    COALESCE(dl.corrected_exact_we, dl.corrected_bucket_we, dl.corrected_drop_count_we, dl.corrected_drop_count_bucket_we)
+      - COALESCE(dl.held_exact_we, dl.held_bucket_we, dl.held_drop_count_we, dl.held_drop_count_bucket_we) AS success_we_delta
+  FROM decision_lookup dl
+  ORDER BY challenge_id,
+    CASE dl.overturn_probability_confidence WHEN 'high' THEN 3 WHEN 'medium' THEN 2 ELSE 1 END DESC,
+    CASE
+      WHEN dl.corrected_exact_we IS NOT NULL AND dl.held_exact_we IS NOT NULL THEN 4
+      WHEN dl.corrected_bucket_we IS NOT NULL AND dl.held_bucket_we IS NOT NULL THEN 3
+      WHEN dl.corrected_drop_count_we IS NOT NULL AND dl.held_drop_count_we IS NOT NULL THEN 2
+      WHEN dl.corrected_drop_count_bucket_we IS NOT NULL AND dl.held_drop_count_bucket_we IS NOT NULL THEN 1
+      ELSE 0
+    END DESC
+),
+decision_value AS (
+  SELECT
+    dr.*,
+    CASE
+      WHEN dr.success_we_delta IS NOT NULL THEN dr.success_we_delta
+      ELSE ROUND((0.012 * dr.leverage_index_approx)::NUMERIC, 4)
+    END AS wp_delta_if_success,
+    ROUND((-0.0025 * dr.leverage_index_approx)::NUMERIC, 4) AS wp_delta_if_fail
+  FROM decision_rows dr
+)
+SELECT
+  team_id,
+  CONCAT(MIN(g.season), '-', MAX(g.season)) AS season_window,
+  COUNT(*) AS challenges_total,
+  AVG((COALESCE(overturn_probability, 0.5) * wp_delta_if_success) + ((1 - COALESCE(overturn_probability, 0.5)) * wp_delta_if_fail))::NUMERIC AS avg_expected_wp_delta,
+  AVG(CASE WHEN is_overturned THEN wp_delta_if_success ELSE wp_delta_if_fail END)::NUMERIC AS avg_realized_wp_delta,
+  (
+    AVG(CASE WHEN is_overturned THEN wp_delta_if_success ELSE wp_delta_if_fail END)
+    - AVG((COALESCE(overturn_probability, 0.5) * wp_delta_if_success) + ((1 - COALESCE(overturn_probability, 0.5)) * wp_delta_if_fail))
+  )::NUMERIC AS decision_surplus,
+  AVG(
+    CASE
+      WHEN ((COALESCE(overturn_probability, 0.5) * wp_delta_if_success) + ((1 - COALESCE(overturn_probability, 0.5)) * wp_delta_if_fail))
+           > CASE WHEN 1 = 1 THEN 0.0005 ELSE 0 END
+      THEN 1 ELSE 0
+    END
+  )::NUMERIC AS challenge_recommendation_rate,
+  AVG(
+    CASE
+      WHEN ((COALESCE(overturn_probability, 0.5) * wp_delta_if_success) + ((1 - COALESCE(overturn_probability, 0.5)) * wp_delta_if_fail))
+           <= CASE WHEN 1 = 1 THEN 0.0005 ELSE 0 END
+      THEN 1 ELSE 0
+    END
+  )::NUMERIC AS hold_recommendation_rate,
+  AVG(
+    CASE
+      WHEN (CASE WHEN is_overturned THEN wp_delta_if_success ELSE wp_delta_if_fail END)
+           >= ((COALESCE(overturn_probability, 0.5) * wp_delta_if_success) + ((1 - COALESCE(overturn_probability, 0.5)) * wp_delta_if_fail))
+      THEN 1 ELSE 0
+    END
+  )::NUMERIC AS captured_value_share,
+  AVG(
+    CASE
+      WHEN ((COALESCE(overturn_probability, 0.5) * wp_delta_if_success) + ((1 - COALESCE(overturn_probability, 0.5)) * wp_delta_if_fail)) <= 0
+      THEN 1 ELSE 0
+    END
+  )::NUMERIC AS wasted_value_share,
+  AVG(
+    CASE
+      WHEN dv.inning >= 7 OR ABS(COALESCE(dv.home_score, 0) - COALESCE(dv.away_score, 0)) <= 2 THEN
+        ((COALESCE(overturn_probability, 0.5) * wp_delta_if_success) + ((1 - COALESCE(overturn_probability, 0.5)) * wp_delta_if_fail))
+      ELSE NULL
+    END
+  )::NUMERIC AS high_pressure_expected_value,
+  AVG(
+    CASE
+      WHEN dv.inning >= 7 AND ABS(COALESCE(dv.home_score, 0) - COALESCE(dv.away_score, 0)) <= 2 THEN
+        ((COALESCE(overturn_probability, 0.5) * wp_delta_if_success) + ((1 - COALESCE(overturn_probability, 0.5)) * wp_delta_if_fail))
+      ELSE NULL
+    END
+  )::NUMERIC AS late_close_expected_value,
+  (
+    ARRAY_AGG(decision_window_label ORDER BY ((COALESCE(overturn_probability, 0.5) * wp_delta_if_success) + ((1 - COALESCE(overturn_probability, 0.5)) * wp_delta_if_fail)) DESC, decision_window_label ASC)
+    FILTER (WHERE decision_window_label IS NOT NULL)
+  )[1] AS best_decision_window_label,
+  MAX(((COALESCE(overturn_probability, 0.5) * wp_delta_if_success) + ((1 - COALESCE(overturn_probability, 0.5)) * wp_delta_if_fail)))::NUMERIC AS best_decision_window_expected_value,
+  CASE
+    WHEN COUNT(*) >= 80
+         AND AVG(CASE WHEN success_we_delta IS NOT NULL THEN 1 ELSE 0 END) >= 0.6 THEN 'high'
+    WHEN COUNT(*) >= 30
+         AND AVG(CASE WHEN success_we_delta IS NOT NULL THEN 1 ELSE 0 END) >= 0.35 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM decision_value dv
+JOIN games g ON g.game_pk = dv.game_pk
 GROUP BY team_id;
 
 CREATE OR REPLACE VIEW mart_daily_editorial_summary AS

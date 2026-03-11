@@ -6,6 +6,7 @@ import { RangeSelector } from "@/components/range-selector";
 import {
   getTeamAggression,
   getTeamChallengeScenarioMatrix,
+  getTeamDecisionValueReport,
   getTeamChallengeValueSummary,
   getTeamHitterEyeHeatmap,
   getTeamIdentity,
@@ -26,12 +27,14 @@ import { HittersEyeHeatmap } from "@/components/analytics/hitters-eye-heatmap";
 import { InningEfficiencyHeatmap } from "@/components/analytics/inning-efficiency-heatmap";
 import { parseRange } from "@/lib/range";
 import { resolveViewMode } from "@/lib/view-mode";
-import type { SituationalFilters, TeamLeaderboardEntry, TeamScheduleGame } from "@/lib/types";
+import type { RangeKey, SituationalFilters, TeamLeaderboardEntry, TeamScheduleGame } from "@/lib/types";
 import { TeamMotifBackdrop } from "@/components/team-motif-backdrop";
 import { AIBSVisualizerChat } from "@/components/analytics/ai-bs-visualizer-chat";
 import { BackPill } from "@/components/ui/back-pill";
 import { getTeamDetailViewCopy } from "@/lib/view-mode-contract";
 import { TeamChallengeValueMatrix } from "@/components/analytics/team-challenge-value-matrix";
+import { TeamDecisionValueSummaryCard } from "@/components/analytics/team-decision-value-summary";
+import { TeamDecisionWindowBoard } from "@/components/analytics/team-decision-window-board";
 import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
 
 function toInningRange(value?: string): SituationalFilters["inningRange"] {
@@ -234,6 +237,7 @@ async function TeamAnalyticsSections({
     inningEfficiency,
     challengeMatrix,
     challengeValueSummary,
+    decisionValueReport,
   ] = await Promise.all([
     getTeamTrend(teamId, range, filters),
     getTeamAggression(teamId, range, filters),
@@ -245,6 +249,7 @@ async function TeamAnalyticsSections({
     getTeamInningEfficiency(teamId, range, filters),
     getTeamChallengeScenarioMatrix(teamId, range, filters),
     getTeamChallengeValueSummary(teamId, range, filters),
+    getTeamDecisionValueReport(teamId, range, filters),
   ]);
 
   const usesTrustedWinValue =
@@ -474,6 +479,14 @@ async function TeamAnalyticsSections({
             viewMode={viewMode}
           />
         </section>
+      </MotionIn>
+
+      <MotionIn delay={0.29}>
+        <TeamDecisionValueSummaryCard summary={decisionValueReport.summary} teamColor={teamPrimary} viewMode={viewMode} />
+      </MotionIn>
+
+      <MotionIn delay={0.295}>
+        <TeamDecisionWindowBoard report={decisionValueReport} teamColor={teamPrimary} viewMode={viewMode} />
       </MotionIn>
 
       <MotionIn delay={0.3}>
