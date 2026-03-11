@@ -42,6 +42,18 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         .sort(compareOrgTeamOperators)
         .slice(-3)
       : [];
+  const bestDecisionClub =
+    viewMode === "org"
+      ? [...teams]
+          .filter((team) => team.decisionSurplus !== null && hasTrustedModelConfidenceBand(team.decisionValueConfidence))
+          .sort((left, right) => (right.decisionSurplus ?? -Infinity) - (left.decisionSurplus ?? -Infinity))[0] ?? null
+      : null;
+  const mostWastefulClub =
+    viewMode === "org"
+      ? [...teams]
+          .filter((team) => team.decisionSurplus !== null && hasTrustedModelConfidenceBand(team.decisionValueConfidence))
+          .sort((left, right) => (left.decisionSurplus ?? Infinity) - (right.decisionSurplus ?? Infinity))[0] ?? null
+      : null;
   const spotlightUmps = [...umpires].sort((a, b) => a.reportCardScore - b.reportCardScore).slice(0, 3);
   const mostDisciplinedTeam =
     [...teams].sort((a, b) => (b.avgRemaining * b.overturnRate) - (a.avgRemaining * a.overturnRate))[0] ?? null;
@@ -213,6 +225,24 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                     : "No discipline signal available yet."}
                 </p>
               </div>
+              <div className="panel border-gray-100 bg-white p-5 shadow-2xl shadow-black/[0.03]">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-500">Best Decision Club</p>
+                <p className="mt-2 text-lg font-semibold text-[var(--ink-0)]">{bestDecisionClub?.teamName ?? "No signal"}</p>
+                <p className="mt-1 text-xs text-[var(--ink-3)]">
+                  {bestDecisionClub
+                    ? `${formatOrgOperatorValue(bestDecisionClub)} · ${(bestDecisionClub.capturedValueShare * 100).toFixed(0)}% captured value share`
+                    : "Decision-value leaders will appear once modeled samples stabilize."}
+                </p>
+              </div>
+              <div className="panel border-gray-100 bg-white p-5 shadow-2xl shadow-black/[0.03]">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-500">Most Wasteful Club</p>
+                <p className="mt-2 text-lg font-semibold text-[var(--ink-0)]">{mostWastefulClub?.teamName ?? "No signal"}</p>
+                <p className="mt-1 text-xs text-[var(--ink-3)]">
+                  {mostWastefulClub
+                    ? `${formatOrgOperatorValue(mostWastefulClub)} · ${(mostWastefulClub.wastedValueShare * 100).toFixed(0)}% low-value share`
+                    : "Wasteful decision signals will appear once modeled samples stabilize."}
+                </p>
+              </div>
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
@@ -254,9 +284,9 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                         <TeamIcon teamId={team.teamId} name={team.teamName} size={28} />
                         <div className="min-w-0">
                           <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{team.teamName}</p>
-                          <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-3)]">
-                            {team.orgStyleLabel} · {formatOrgOperatorValue(team) ?? `#${idx + 1}`}
-                          </p>
+                              <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-3)]">
+                                {team.orgStyleLabel} · {formatOrgOperatorValue(team) ?? `#${idx + 1}`}
+                              </p>
                         </div>
                       </Link>
                     ))}
@@ -322,6 +352,9 @@ function compareOrgTeamOperators(
   left: {
     overturnRate: number;
     avgRemaining: number;
+    decisionSurplus: number | null;
+    capturedValueShare: number;
+    decisionValueConfidence: "high" | "medium" | "low" | null;
     avgWinExpectancyDelta: number | null;
     highWinValueShare: number;
     winValueConfidence: "high" | "medium" | "low" | null;
@@ -332,6 +365,9 @@ function compareOrgTeamOperators(
   right: {
     overturnRate: number;
     avgRemaining: number;
+    decisionSurplus: number | null;
+    capturedValueShare: number;
+    decisionValueConfidence: "high" | "medium" | "low" | null;
     avgWinExpectancyDelta: number | null;
     highWinValueShare: number;
     winValueConfidence: "high" | "medium" | "low" | null;
@@ -340,6 +376,21 @@ function compareOrgTeamOperators(
     runValueConfidence: "high" | "medium" | "low" | null;
   },
 ) {
+  const leftDecision =
+    left.decisionSurplus !== null && hasTrustedModelConfidenceBand(left.decisionValueConfidence) ? left.decisionSurplus : null;
+  const rightDecision =
+    right.decisionSurplus !== null && hasTrustedModelConfidenceBand(right.decisionValueConfidence) ? right.decisionSurplus : null;
+  if (leftDecision !== null || rightDecision !== null) {
+    if (leftDecision === null) return 1;
+    if (rightDecision === null) return -1;
+    if (rightDecision !== leftDecision) {
+      return rightDecision - leftDecision;
+    }
+    if (right.capturedValueShare !== left.capturedValueShare) {
+      return right.capturedValueShare - left.capturedValueShare;
+    }
+  }
+
   const leftMetric =
     left.avgWinExpectancyDelta !== null && hasTrustedModelConfidenceBand(left.winValueConfidence)
       ? left.avgWinExpectancyDelta
@@ -373,10 +424,16 @@ function compareOrgTeamOperators(
 }
 
 function formatOrgOperatorValue(team: {
+  decisionSurplus: number | null;
+  capturedValueShare: number;
+  decisionValueConfidence: "high" | "medium" | "low" | null;
   avgWinExpectancyDelta: number | null;
   winValueConfidence: "high" | "medium" | "low" | null;
   avgRunExpectancyDelta: number | null;
 }) {
+  if (team.decisionSurplus !== null && hasTrustedModelConfidenceBand(team.decisionValueConfidence)) {
+    return `${team.decisionSurplus >= 0 ? "+" : ""}${(team.decisionSurplus * 100).toFixed(2)}% Decision Surplus`;
+  }
   if (team.avgWinExpectancyDelta !== null && hasTrustedModelConfidenceBand(team.winValueConfidence)) {
     return `${team.avgWinExpectancyDelta >= 0 ? "+" : ""}${(team.avgWinExpectancyDelta * 100).toFixed(2)}% WE`;
   }

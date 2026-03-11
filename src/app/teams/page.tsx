@@ -53,10 +53,18 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
     teamsWithWinValue.length > 0
       ? teamsWithWinValue.reduce((sum, team) => sum + (team.avgWinExpectancyDelta ?? 0), 0) / teamsWithWinValue.length
       : null;
+  const teamsWithDecisionValue = teams.filter(
+    (team) => team.decisionSurplus !== null && hasTrustedModelConfidenceBand(team.decisionValueConfidence),
+  );
+  const leagueAvgDecisionSurplus =
+    teamsWithDecisionValue.length > 0
+      ? teamsWithDecisionValue.reduce((sum, team) => sum + (team.decisionSurplus ?? 0), 0) / teamsWithDecisionValue.length
+      : null;
   const useWinValue = viewMode === "org" && leagueAvgWinExpectancyDelta !== null;
+  const useDecisionValue = viewMode === "org" && leagueAvgDecisionSurplus !== null;
 
   // Sort org view by modeled value once it exists; fan view stays overturn-rate led.
-  const sorted = [...teams].sort((a, b) => compareTeamsForTable(a, b, viewMode, useWinValue));
+  const sorted = [...teams].sort((a, b) => compareTeamsForTable(a, b, viewMode, useWinValue, useDecisionValue));
 
   // Find the position where league avg row should be inserted (between teams above and below league avg overturn rate)
   const avgInsertIdx = sorted.findIndex((team) => {
@@ -65,10 +73,16 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
     }
 
     const teamMetric =
-      useWinValue && hasTrustedModelConfidenceBand(team.winValueConfidence)
+      useDecisionValue && hasTrustedModelConfidenceBand(team.decisionValueConfidence)
+        ? team.decisionSurplus
+        : useWinValue && hasTrustedModelConfidenceBand(team.winValueConfidence)
         ? team.avgWinExpectancyDelta
         : team.avgRunExpectancyDelta;
-    const leagueMetric = useWinValue ? leagueAvgWinExpectancyDelta : leagueAvgRunExpectancyDelta;
+    const leagueMetric = useDecisionValue
+      ? leagueAvgDecisionSurplus
+      : useWinValue
+        ? leagueAvgWinExpectancyDelta
+        : leagueAvgRunExpectancyDelta;
     if (leagueMetric === null) return false;
     if (teamMetric === null) return true;
     return teamMetric < leagueMetric;
@@ -97,7 +111,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
           <p className="mt-1 text-xs text-[var(--ink-3)]">
             {viewMode === "org"
               ? `${biggestMover.orgStyleLabel} with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews in higher-pressure windows${
-                  formatOrgValueCopy(biggestMover, useWinValue)
+                  formatOrgValueCopy(biggestMover, useDecisionValue, useWinValue)
                 }.`
               : `${biggestMover.style} profile with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews coming in bigger spots and a visible trend swing.`}
           </p>
@@ -127,8 +141,9 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
               <th className="text-left w-36">{copy.tableProfileHeader}</th>
               <th className="text-center">Rate / Game</th>
               <th className="text-center">{viewMode === "org" ? "Pressure Share" : "Big-Spot Share"}</th>
-              <th className="text-center">{viewMode === "org" ? "Discipline" : "Timing"}</th>
+              <th className="text-center">{viewMode === "org" ? "Decision Read" : "Timing"}</th>
               <th className="text-center">Trend</th>
+              {viewMode === "org" ? <th className="text-right">Decision Surplus</th> : null}
               <th className="text-right">{viewMode === "org" ? (leagueAvgWinExpectancyDelta !== null ? "Avg WE Δ" : "Avg RE Δ") : "Avg Rem"}</th>
               <th className="text-right">{copy.tableVolumeHeader}</th>
             </tr>
@@ -136,7 +151,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={8} className="!py-32 text-center text-gray-400 font-semibold">
+                <td colSpan={viewMode === "org" ? 9 : 8} className="!py-32 text-center text-gray-400 font-semibold">
                   No data points match the selected criteria.
                 </td>
               </tr>
@@ -171,13 +186,24 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
                       </td>
                       <td className="text-center">
                         <StrategyChip
-                          label={getStrategyLabel(leagueAvgLatePressureShare, leagueAvgEarlyBurnShare, viewMode)}
-                          tone={getStrategyTone(leagueAvgLatePressureShare, leagueAvgEarlyBurnShare)}
+                          label={viewMode === "org" ? getDecisionReadLabel(leagueAvgDecisionSurplus, 0.5, 0.5) : getStrategyLabel(leagueAvgLatePressureShare, leagueAvgEarlyBurnShare, viewMode)}
+                          tone={
+                            viewMode === "org"
+                              ? getDecisionReadTone(leagueAvgDecisionSurplus, 0.5, 0.5)
+                              : getStrategyTone(leagueAvgLatePressureShare, leagueAvgEarlyBurnShare)
+                          }
                         />
                       </td>
                       <td className="text-center">
                         <span className="text-[10px] text-[var(--ink-3)]">—</span>
                       </td>
+                      {viewMode === "org" ? (
+                        <td className="text-right font-mono text-gray-400 italic font-medium pr-8">
+                          {leagueAvgDecisionSurplus === null
+                            ? "N/A"
+                            : `${leagueAvgDecisionSurplus >= 0 ? "+" : ""}${(leagueAvgDecisionSurplus * 100).toFixed(2)}%`}
+                        </td>
+                      ) : null}
                       <td className="text-right font-mono text-gray-400 italic font-medium pr-8">
                         {viewMode === "org"
                           ? leagueAvgWinExpectancyDelta !== null
@@ -230,8 +256,16 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
                     </td>
                     <td className="text-center">
                       <StrategyChip
-                        label={getStrategyLabel(t.lateLeverageShare, t.earlyLowLeverageShare, viewMode)}
-                        tone={getStrategyTone(t.lateLeverageShare, t.earlyLowLeverageShare)}
+                        label={
+                          viewMode === "org"
+                            ? getDecisionReadLabel(t.decisionSurplus, t.capturedValueShare, t.wastedValueShare)
+                            : getStrategyLabel(t.lateLeverageShare, t.earlyLowLeverageShare, viewMode)
+                        }
+                        tone={
+                          viewMode === "org"
+                            ? getDecisionReadTone(t.decisionSurplus, t.capturedValueShare, t.wastedValueShare)
+                            : getStrategyTone(t.lateLeverageShare, t.earlyLowLeverageShare)
+                        }
                       />
                     </td>
                     <td className="text-center">
@@ -239,6 +273,13 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
                         <TrendSparkline data={trendlineMap.get(t.teamId) ?? []} />
                       </div>
                     </td>
+                    {viewMode === "org" ? (
+                      <td className="text-right font-mono text-gray-400 font-medium pr-8">
+                        {t.decisionSurplus === null || !hasTrustedModelConfidenceBand(t.decisionValueConfidence)
+                          ? "N/A"
+                          : `${t.decisionSurplus >= 0 ? "+" : ""}${(t.decisionSurplus * 100).toFixed(2)}%`}
+                      </td>
+                    ) : null}
                     <td className="text-right font-mono text-gray-400 font-medium pr-8">
                       {viewMode === "org"
                         ? useWinValue && hasTrustedModelConfidenceBand(t.winValueConfidence) && t.avgWinExpectancyDelta !== null
@@ -287,6 +328,8 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
 function compareTeamsForTable(
   left: {
     overturnRate: number;
+    decisionSurplus: number | null;
+    decisionValueConfidence: "high" | "medium" | "low" | null;
     highWinValueShare: number;
     avgWinExpectancyDelta: number | null;
     winValueConfidence: "high" | "medium" | "low" | null;
@@ -296,6 +339,8 @@ function compareTeamsForTable(
   },
   right: {
     overturnRate: number;
+    decisionSurplus: number | null;
+    decisionValueConfidence: "high" | "medium" | "low" | null;
     highWinValueShare: number;
     avgWinExpectancyDelta: number | null;
     winValueConfidence: "high" | "medium" | "low" | null;
@@ -305,9 +350,22 @@ function compareTeamsForTable(
   },
   viewMode: "fan" | "org",
   useWinValue: boolean,
+  useDecisionValue: boolean,
 ) {
   if (viewMode !== "org") {
     return right.overturnRate - left.overturnRate;
+  }
+
+  if (useDecisionValue) {
+    const leftDecision = hasTrustedModelConfidenceBand(left.decisionValueConfidence) ? left.decisionSurplus : null;
+    const rightDecision = hasTrustedModelConfidenceBand(right.decisionValueConfidence) ? right.decisionSurplus : null;
+    if (leftDecision !== null || rightDecision !== null) {
+      if (leftDecision === null) return 1;
+      if (rightDecision === null) return -1;
+      if (rightDecision !== leftDecision) {
+        return rightDecision - leftDecision;
+      }
+    }
   }
 
   const leftMetric =
@@ -337,12 +395,18 @@ function compareTeamsForTable(
 
 function formatOrgValueCopy(
   team: {
+    decisionSurplus: number | null;
+    decisionValueConfidence: "high" | "medium" | "low" | null;
     avgWinExpectancyDelta: number | null;
     winValueConfidence: "high" | "medium" | "low" | null;
     avgRunExpectancyDelta: number | null;
   },
+  useDecisionValue: boolean,
   useWinValue: boolean,
 ) {
+  if (useDecisionValue && team.decisionSurplus !== null && hasTrustedModelConfidenceBand(team.decisionValueConfidence)) {
+    return ` and ${team.decisionSurplus >= 0 ? "+" : ""}${(team.decisionSurplus * 100).toFixed(2)}% decision surplus`;
+  }
   if (useWinValue && team.avgWinExpectancyDelta !== null && hasTrustedModelConfidenceBand(team.winValueConfidence)) {
     return ` and ${team.avgWinExpectancyDelta >= 0 ? "+" : ""}${(team.avgWinExpectancyDelta * 100).toFixed(2)}% average WE per review`;
   }
@@ -350,6 +414,29 @@ function formatOrgValueCopy(
     return ` and ${team.avgRunExpectancyDelta >= 0 ? "+" : ""}${team.avgRunExpectancyDelta.toFixed(3)} average RE per review`;
   }
   return "";
+}
+
+function getDecisionReadLabel(
+  decisionSurplus: number | null,
+  capturedValueShare: number,
+  wastedValueShare: number,
+) {
+  if (decisionSurplus !== null && decisionSurplus >= 0.001) return "Captures Value";
+  if (decisionSurplus !== null && decisionSurplus <= -0.001) return "Over-Burns";
+  if (capturedValueShare > wastedValueShare) return "Captures Value";
+  if (wastedValueShare > capturedValueShare) return "Over-Burns";
+  return "Neutral";
+}
+
+function getDecisionReadTone(
+  decisionSurplus: number | null,
+  capturedValueShare: number,
+  wastedValueShare: number,
+): "emerald" | "amber" | "gray" {
+  const label = getDecisionReadLabel(decisionSurplus, capturedValueShare, wastedValueShare);
+  if (label === "Captures Value") return "emerald";
+  if (label === "Over-Burns") return "amber";
+  return "gray";
 }
 
 function PressureShareChip({ value }: { value: number }) {

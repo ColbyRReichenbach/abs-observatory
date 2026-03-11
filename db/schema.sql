@@ -774,6 +774,11 @@ CREATE TABLE IF NOT EXISTS ai.feedback (
   classification_notes TEXT,
   review_status TEXT NOT NULL DEFAULT 'new',
   review_notes TEXT,
+  review_priority TEXT NOT NULL DEFAULT 'normal',
+  issue_owner TEXT,
+  root_cause TEXT,
+  resolution_type TEXT,
+  resolution_notes TEXT,
   reviewed_by_user_id UUID REFERENCES product.users(user_id) ON DELETE SET NULL,
   reviewed_at TIMESTAMPTZ,
   override_bucket TEXT,
@@ -783,12 +788,18 @@ CREATE TABLE IF NOT EXISTS ai.feedback (
   CONSTRAINT ai_feedback_sentiment_check CHECK (sentiment IN ('up', 'down')),
   CONSTRAINT ai_feedback_classification_status_check CHECK (classification_status IN ('pending', 'classified', 'skipped')),
   CONSTRAINT ai_feedback_review_status_check CHECK (review_status IN ('new', 'triaged', 'resolved')),
+  CONSTRAINT ai_feedback_review_priority_check CHECK (review_priority IN ('low', 'normal', 'high')),
   CONSTRAINT ai_feedback_unique_actor_target UNIQUE (actor_key, surface, target_type, target_id)
 );
 
 ALTER TABLE IF EXISTS ai.feedback
   ADD COLUMN IF NOT EXISTS review_status TEXT NOT NULL DEFAULT 'new',
   ADD COLUMN IF NOT EXISTS review_notes TEXT,
+  ADD COLUMN IF NOT EXISTS review_priority TEXT NOT NULL DEFAULT 'normal',
+  ADD COLUMN IF NOT EXISTS issue_owner TEXT,
+  ADD COLUMN IF NOT EXISTS root_cause TEXT,
+  ADD COLUMN IF NOT EXISTS resolution_type TEXT,
+  ADD COLUMN IF NOT EXISTS resolution_notes TEXT,
   ADD COLUMN IF NOT EXISTS reviewed_by_user_id UUID REFERENCES product.users(user_id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS override_bucket TEXT;
@@ -1130,7 +1141,9 @@ CREATE INDEX IF NOT EXISTS idx_ai_feedback_surface_created ON ai.feedback (surfa
 CREATE INDEX IF NOT EXISTS idx_ai_feedback_sentiment_created ON ai.feedback (sentiment, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_feedback_target_created ON ai.feedback (target_type, target_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_feedback_review_status_created ON ai.feedback (review_status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_feedback_review_priority_created ON ai.feedback (review_priority, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_feedback_override_bucket_created ON ai.feedback (override_bucket, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_feedback_root_cause_created ON ai.feedback (root_cause, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ops_job_runs_status_ready ON ops.job_runs (status, queue_class, run_after, started_at);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_ops_job_runs_idempotency ON ops.job_runs (idempotency_key) WHERE idempotency_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_ops_webhook_deliveries_provider_processed ON ops.webhook_deliveries (provider, processed_at DESC);

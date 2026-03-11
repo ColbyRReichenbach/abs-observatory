@@ -6,6 +6,8 @@ export const WIN_EXPECTANCY_HIGH_CONFIDENCE_SAMPLE = 2000;
 export const WIN_EXPECTANCY_MEDIUM_CONFIDENCE_SAMPLE = 500;
 export const OVERTURN_PROBABILITY_HIGH_CONFIDENCE_SAMPLE = 100;
 export const OVERTURN_PROBABILITY_MEDIUM_CONFIDENCE_SAMPLE = 25;
+export const DECISION_VALUE_HIGH_CONFIDENCE_SAMPLE = 80;
+export const DECISION_VALUE_MEDIUM_CONFIDENCE_SAMPLE = 30;
 
 export function getRunEnvironmentConfidenceBand(sampleSize: number | null | undefined): ConfidenceBand {
   const resolved = sampleSize ?? 0;
@@ -25,6 +27,18 @@ export function getOverturnProbabilityConfidenceBand(sampleSize: number | null |
   const resolved = sampleSize ?? 0;
   if (resolved >= OVERTURN_PROBABILITY_HIGH_CONFIDENCE_SAMPLE) return "high";
   if (resolved >= OVERTURN_PROBABILITY_MEDIUM_CONFIDENCE_SAMPLE) return "medium";
+  return "low";
+}
+
+export function getDecisionValueConfidenceBand(
+  sampleSize: number | null | undefined,
+  modeledWinRate: number | null | undefined = 1,
+): ConfidenceBand {
+  const resolved = sampleSize ?? 0;
+  const modeledCoverage = modeledWinRate ?? 0;
+
+  if (resolved >= DECISION_VALUE_HIGH_CONFIDENCE_SAMPLE && modeledCoverage >= 0.6) return "high";
+  if (resolved >= DECISION_VALUE_MEDIUM_CONFIDENCE_SAMPLE && modeledCoverage >= 0.35) return "medium";
   return "low";
 }
 

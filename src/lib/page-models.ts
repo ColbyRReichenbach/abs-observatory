@@ -18,6 +18,18 @@ export type TeamStyleMetric = {
   avgWinExpectancyDelta: number | null;
   highWinValueShare: number;
   winValueConfidence: ConfidenceBand | null;
+  averageExpectedChallengeValue: number | null;
+  averageRealizedChallengeValue: number | null;
+  decisionSurplus: number | null;
+  challengeRecommendationRate: number;
+  holdRecommendationRate: number;
+  capturedValueShare: number;
+  wastedValueShare: number;
+  highPressureExpectedValueShare: number;
+  lateCloseExpectedValueShare: number;
+  bestDecisionWindowLabel: string | null;
+  bestDecisionWindowExpectedValue: number | null;
+  decisionValueConfidence: ConfidenceBand | null;
 };
 
 export type UmpireRubricMetric = {
@@ -66,6 +78,18 @@ export function buildTeamLeaderboardEntries(
       avgWinExpectancyDelta: null,
       highWinValueShare: 0,
       winValueConfidence: null,
+      averageExpectedChallengeValue: null,
+      averageRealizedChallengeValue: null,
+      decisionSurplus: null,
+      challengeRecommendationRate: 0,
+      holdRecommendationRate: 0,
+      capturedValueShare: 0,
+      wastedValueShare: 0,
+      highPressureExpectedValueShare: 0,
+      lateCloseExpectedValueShare: 0,
+      bestDecisionWindowLabel: null,
+      bestDecisionWindowExpectedValue: null,
+      decisionValueConfidence: null,
     };
     const style = computeTeamChallengeStyle({
       sampleSize: team.challengesTotal,
@@ -96,6 +120,18 @@ export function buildTeamLeaderboardEntries(
       avgWinExpectancyDelta: metric.avgWinExpectancyDelta,
       highWinValueShare: metric.highWinValueShare,
       winValueConfidence: metric.winValueConfidence,
+      averageExpectedChallengeValue: metric.averageExpectedChallengeValue,
+      averageRealizedChallengeValue: metric.averageRealizedChallengeValue,
+      decisionSurplus: metric.decisionSurplus,
+      challengeRecommendationRate: metric.challengeRecommendationRate,
+      holdRecommendationRate: metric.holdRecommendationRate,
+      capturedValueShare: metric.capturedValueShare,
+      wastedValueShare: metric.wastedValueShare,
+      highPressureExpectedValueShare: metric.highPressureExpectedValueShare,
+      lateCloseExpectedValueShare: metric.lateCloseExpectedValueShare,
+      bestDecisionWindowLabel: metric.bestDecisionWindowLabel,
+      bestDecisionWindowExpectedValue: metric.bestDecisionWindowExpectedValue,
+      decisionValueConfidence: metric.decisionValueConfidence,
     };
   });
 }
