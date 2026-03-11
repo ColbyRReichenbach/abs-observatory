@@ -383,7 +383,16 @@ function compareTeamsForTable(
     }
   }
 
-  if (viewMode === "org" && useDecisionValue && right.lateCloseExpectedValueShare !== left.lateCloseExpectedValueShare) {
+  const leftTrustedDecision = hasTrustedModelConfidenceBand(left.decisionValueConfidence);
+  const rightTrustedDecision = hasTrustedModelConfidenceBand(right.decisionValueConfidence);
+
+  if (
+    viewMode === "org" &&
+    useDecisionValue &&
+    leftTrustedDecision &&
+    rightTrustedDecision &&
+    right.lateCloseExpectedValueShare !== left.lateCloseExpectedValueShare
+  ) {
     return right.lateCloseExpectedValueShare - left.lateCloseExpectedValueShare;
   }
 
