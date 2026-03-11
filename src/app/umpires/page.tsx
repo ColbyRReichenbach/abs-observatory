@@ -73,6 +73,8 @@ export default async function UmpiresPage({ searchParams }: { searchParams: Prom
         <RangeSelector basePath="/umpires" range={range} searchParams={sp} />
       </div>
 
+      {copy.leaderboardPlacement === "early" ? <div className="mt-10">{leaderboardSection}</div> : null}
+
       {viewMode === "org" ? (
         <div className="mt-8 mb-8 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
           <UmpireRiskScatter data={riskScatterData} />
@@ -114,7 +116,7 @@ export default async function UmpiresPage({ searchParams }: { searchParams: Prom
         </div>
       )}
 
-      <div className="mt-10">{leaderboardSection}</div>
+      {copy.leaderboardPlacement === "late" ? <div className="mt-10">{leaderboardSection}</div> : null}
     </main>
   );
 }

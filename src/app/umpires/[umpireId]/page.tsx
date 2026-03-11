@@ -374,7 +374,7 @@ async function UmpireAnalyticsSections({
                       : `${currentUmpire.fanDescriptor} based on current-season challenged calls`}
                   </p>
                   <p className="text-[10px] font-medium text-gray-400 text-center uppercase tracking-widest bg-gray-50/50 py-2 rounded-lg border border-gray-50">
-                    Overturn Rate: <span className="text-gray-900 font-bold">{(currentUmpire.overturnRate * 100).toFixed(1)}%</span>
+                    Overturn Rate: <span className="text-gray-900 font-bold">{(summary.overturnRate * 100).toFixed(1)}%</span>
                     {displayRank ? <span className="mx-2 opacity-30">|</span> : ""}
                     {displayRank ? <span>Rank <span className="text-gray-900 font-bold">#{displayRank}</span> of {rankedByScoreLength}</span> : ""}
                   </p>
