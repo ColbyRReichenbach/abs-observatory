@@ -477,6 +477,7 @@ async function UmpireAnalyticsSections({
                 </tbody>
               </table>
             </div>
+            {viewMode === "org" ? <UmpireChallengeOpportunityRead profile={profile} /> : null}
           </div>
         </section>
       </MotionIn>
@@ -546,6 +547,45 @@ function UmpireAnalyticsFallback({ showHistory }: { showHistory: boolean }) {
         </div>
       </section>
     </>
+  );
+}
+
+function UmpireChallengeOpportunityRead({ profile }: { profile: Awaited<ReturnType<typeof getUmpireProfile>> }) {
+  const topCount = profile.countHotspots[0] ?? null;
+  const topZone = [...profile.zoneBuckets].sort((left, right) => right.overturnRate - left.overturnRate)[0] ?? null;
+  const dominantBias =
+    profile.directionalBias.strikeToBall > profile.directionalBias.ballToStrike
+      ? "strike-to-ball overturns"
+      : profile.directionalBias.ballToStrike > profile.directionalBias.strikeToBall
+        ? "ball-to-strike overturns"
+        : "balanced overturn pressure";
+
+  return (
+    <div className="mt-6 rounded-[1.5rem] border border-gray-100 bg-gray-50/60 p-5">
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Challenge Opportunity Read</p>
+      <p className="mt-2 text-sm leading-7 text-[var(--ink-2)]">
+        {topCount || topZone
+          ? `The clearest challenge pressure shows up ${topCount ? `in ${topCount.countKey} counts` : "in repeated count windows"}${
+              topZone ? ` and in the ${topZone.zone} bucket` : ""
+            }, where ${dominantBias} currently lead this umpire's overturned-call profile.`
+          : "Challenge opportunity patterns will appear once more modeled count and zone sample is available."}
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {topCount ? (
+          <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-gray-500">
+            Top count {topCount.countKey}
+          </span>
+        ) : null}
+        {topZone ? (
+          <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-gray-500">
+            Top zone {topZone.zone}
+          </span>
+        ) : null}
+        <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-gray-500">
+          {dominantBias}
+        </span>
+      </div>
+    </div>
   );
 }
 
