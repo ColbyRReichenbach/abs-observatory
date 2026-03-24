@@ -196,7 +196,7 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                     </span>
                 </div>
 
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={400}>
                     <ScatterChart
                         margin={{ top: 40, right: 100, bottom: 60, left: 80 }}
                         style={{ overflow: 'visible' }}

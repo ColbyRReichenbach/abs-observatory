@@ -107,7 +107,7 @@ export function DynamicChart({ type, data, xAxisKey, yAxisKey, title, colors = [
                     {title}
                 </h5>
             )}
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={260}>
                 {renderChart()}
             </ResponsiveContainer>
         </div>

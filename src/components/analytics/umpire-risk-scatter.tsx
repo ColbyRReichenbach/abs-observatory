@@ -181,7 +181,7 @@ export function UmpireRiskScatter({ data }: { data: UmpireRiskPoint[] }) {
           </span>
         </div>
 
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300}>
           <ScatterChart margin={{ top: 28, right: 30, bottom: 50, left: 72 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
             <XAxis

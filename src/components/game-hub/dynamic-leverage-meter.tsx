@@ -63,7 +63,7 @@ export function DynamicLeverageMeter({
             />
 
             <div className="w-full h-full pb-8">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={220}>
                     <RadialBarChart
                         cx="50%"
                         cy="100%"

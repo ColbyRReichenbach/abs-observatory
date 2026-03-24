@@ -40,7 +40,7 @@ export function TeamTrendChart({ data, teamColor }: { data: TeamTrendPoint[]; te
 
     return (
         <div className="h-[250px] w-full mt-6">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={250}>
                 <LineChart data={formattedData} margin={{ top: 15, right: 15, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
                     <XAxis
@@ -126,7 +126,7 @@ export function UmpireAccuracyChart({ data }: { data: UmpireTrendPoint[] }) {
 
     return (
         <div className="h-[250px] w-full mt-6">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={250}>
                 <AreaChart data={formattedData} margin={{ top: 15, right: 15, left: 0, bottom: 5 }}>
                     <defs>
                         <linearGradient id="colorAccuracy" x1="0" y1="0" x2="0" y2="1">

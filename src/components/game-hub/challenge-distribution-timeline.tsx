@@ -50,7 +50,7 @@ export function ChallengeDistributionTimeline({
             </p>
 
             <div className="h-[300px] w-full mt-4">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={320}>
                     <AreaChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
                         <defs>
                             <linearGradient id="colorHome" x1="0" y1="0" x2="0" y2="1">
