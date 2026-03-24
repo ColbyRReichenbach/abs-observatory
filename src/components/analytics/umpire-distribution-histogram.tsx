@@ -74,8 +74,8 @@ export function UmpireDistributionHistogram({ data, onBucketClick }: Props) {
                 </p>
             </div>
 
-            <div className="h-[250px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
+            <div className="h-[250px] w-full min-h-[250px]">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={250}>
                     <BarChart data={buckets} margin={{ top: 25, right: 10, bottom: 40, left: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
                         <XAxis
