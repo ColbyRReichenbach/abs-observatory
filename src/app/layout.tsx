@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { AuthProvider } from "@/components/auth-provider";
 import { ContextualCopilotFAB } from "@/components/contextual-copilot-fab";
 import { Nav } from "@/components/nav";
+import { launchConfig } from "@/lib/launch-config";
 import { canAccessAdmin } from "@/lib/server/admin";
 import { validateServerEnv } from "@/lib/server/env";
 import { resolveViewMode } from "@/lib/view-mode";
@@ -49,9 +50,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           <main id="main-content">
             {children}
           </main>
-          <Suspense fallback={null}>
-            <ContextualCopilotFAB />
-          </Suspense>
+          {launchConfig.publicCopilotEnabled ? (
+            <Suspense fallback={null}>
+              <ContextualCopilotFAB />
+            </Suspense>
+          ) : null}
         </AuthProvider>
       </body>
     </html>

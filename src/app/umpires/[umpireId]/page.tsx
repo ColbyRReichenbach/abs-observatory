@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { MotionIn } from "@/components/motion-in";
@@ -83,6 +82,22 @@ export default async function UmpirePage({
   const rankIndex = rankedByScore.findIndex((umpire) => umpire.umpireId === summary.umpireId);
   const displayRank = rankIndex >= 0 ? rankIndex + 1 : null;
   const copy = getUmpireDetailViewCopy(viewMode);
+  const exposureCard =
+    viewMode === "org"
+      ? await UmpireExposureStatCard({ umpireId: summary.umpireId, range, filters })
+      : null;
+  const analyticsSections = await UmpireAnalyticsSections({
+    umpireId: summary.umpireId,
+    umpireName: summary.umpireName,
+    range,
+    filters,
+    viewMode,
+    currentUmpire,
+    displayRank,
+    rankedByScoreLength: rankedByScore.length,
+    overturnRate: summary.overturnRate,
+    copy,
+  });
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-12 lg:py-24 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.02),transparent)]">
@@ -143,24 +158,11 @@ export default async function UmpirePage({
               highlight={viewMode === "org"}
               subLabel={viewMode === "org" ? `${currentUmpire?.confidence ?? "medium"} confidence` : `Overturn ${(summary.overturnRate * 100).toFixed(1)}%`}
             />
-          {viewMode === "org" ? <UmpireExposureStatCard umpireId={summary.umpireId} range={range} filters={filters} /> : null}
+          {exposureCard}
         </div>
       </MotionIn>
 
-      <Suspense fallback={<UmpireAnalyticsFallback showHistory={copy.historyPlacement === "early"} />}>
-        <UmpireAnalyticsSections
-          umpireId={summary.umpireId}
-          umpireName={summary.umpireName}
-          range={range}
-          filters={filters}
-          viewMode={viewMode}
-          currentUmpire={currentUmpire}
-          displayRank={displayRank}
-          rankedByScoreLength={rankedByScore.length}
-          overturnRate={summary.overturnRate}
-          copy={copy}
-        />
-      </Suspense>
+      {analyticsSections}
 
       <MotionIn delay={0.35}>
         <AIBSVisualizerChat context={`${summary.umpireName} Umpiring`} />
