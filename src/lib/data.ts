@@ -9,10 +9,19 @@ import {
   type TeamStyleMetric,
 } from "@/lib/page-models";
 import { estimateChallengeDecisionValue, getOverturnProbabilityFallbackRows, type CalledPitch } from "@/lib/server/challenge-decision-value";
+import { withServerTiming } from "@/lib/server/performance";
 import { confidenceBandFromRank, getDecisionValueConfidenceBand, hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
 import { getChallengeRunExpectancyDelta, getRunExpectancyFallbackRows, resolveRunExpectancyWithFallback } from "@/lib/server/run-expectancy";
 import { getChallengeWinExpectancyDelta, getWinExpectancyFallbackRows, resolveWinExpectancyWithFallback } from "@/lib/server/win-expectancy";
 import { getCacheKey, withCachedValue } from "@/lib/server/scale";
+import type { GameScoreboardData } from "@/lib/game-scoreboard";
+import {
+  computeObservedZoneMissDistance,
+  classifyNormalizedZoneLane,
+  classifyObservedZoneAxisBucket,
+  type NormalizedZoneLane,
+  type ObservedZoneAxisBucket,
+} from "@/lib/zone-model";
 import type {
   ChallengeEvent,
   GameChallengeOpportunityBoard,
@@ -42,6 +51,8 @@ import type {
   TeamScheduleGame,
   TeamTrendPoint,
   UmpireLeaderboardEntry,
+  UmpireHandednessSplit,
+  UmpireMatchupVulnerability,
   UmpirePitchTypeBreakdown,
   UmpireProfile,
   UmpirePerformanceDNA,
@@ -797,7 +808,8 @@ export async function getTeamDecisionValueReport(
 }
 
 export async function getLiveGames(): Promise<LiveGameCard[]> {
-  return withCachedValue(getCacheKey(["live-games"]), 5_000, async () => {
+  return withServerTiming("data.getLiveGames", () =>
+    withCachedValue(getCacheKey(["live-games"]), 5_000, async () => {
     const rows = await sql<{
       gamepk: number;
       gamedate: string;
@@ -886,11 +898,20 @@ export async function getLiveGames(): Promise<LiveGameCard[]> {
       inning: r.inning,
       inningHalf: r.inninghalf,
     }));
-  });
+    }),
+  { warnAtMs: 500 });
 }
 
 export async function getHomeChallengeMoments(limit = 8): Promise<HomeChallengeMoment[]> {
-  const rows = await sql<{
+  return withServerTiming(
+    "data.getHomeChallengeMoments",
+    () => withCachedValue(getCacheKey(["home-challenge-moments", limit]), 15_000, async () => {
+      const [overturnProbabilityRows, winExpectancyRows] = await Promise.all([
+        getOverturnProbabilityFallbackRows(),
+        getWinExpectancyFallbackRows(),
+      ]);
+
+      const rows = await sql<{
     challengeid: string;
     gamepk: number;
     challengedat: string | null;
@@ -953,41 +974,76 @@ export async function getHomeChallengeMoments(limit = 8): Promise<HomeChallengeM
     [limit],
   );
 
-  const moments = rows.map((r) => ({
-    challengeId: r.challengeid,
-    gamePk: Number(r.gamepk),
-    challengedAt: r.challengedat,
-    gameLabel: `${r.awayteam ?? "Away"} at ${r.hometeam ?? "Home"}`,
-    inning: r.inning,
-    halfInning: r.halfinning,
-    calledDescription: r.calleddescription,
-    challengeTeamName: r.challengeteamname,
-    isOverturned: r.isoverturned,
-    leverageScore: 0,
-    gameStatus: r.gamestatus,
-    balls: r.balls,
-    strikes: r.strikes,
-    outs: r.outs,
-    basesState: r.basesstate,
-    homeScore: r.homescore,
-    awayScore: r.awayscore,
-    impactType: null,
-    umpireCount: (() => {
-      if (r.balls_before === null || r.strikes_before === null) return null;
-      if (!r.isoverturned) return r.balls_after === null || r.strikes_after === null ? null : `${r.balls_after}-${r.strikes_after}`;
-      if (r.balls_after !== null && r.balls_after > r.balls_before) return `${r.balls_before}-${r.strikes_before + 1}`;
-      if (r.strikes_after !== null && r.strikes_after > r.strikes_before) return `${r.balls_before + 1}-${r.strikes_before}`;
-      return r.balls_after === null || r.strikes_after === null ? null : `${r.balls_after}-${r.strikes_after}`;
-    })(),
-    playerName: r.playername,
-    pitchNumber: r.pitchnumber,
-  }));
+      const moments = await Promise.all(
+        rows.map(async (r) => {
+      const calledPitch = resolveCalledPitchFromDescription(r.calleddescription);
+      const decisionValue = calledPitch
+        ? await estimateChallengeDecisionValue(
+            {
+              inning: r.inning ?? 1,
+              halfInning: r.halfinning === "Bottom" ? "Bottom" : "Top",
+              balls: r.balls_before ?? r.balls ?? 0,
+              strikes: r.strikes_before ?? r.strikes ?? 0,
+              outs: r.outs ?? 0,
+              scoreDiffBattingTeam: getScoreDiffBattingTeam(r.halfinning, r.homescore, r.awayscore),
+              runnersOnBase: countOccupiedBases(r.basesstate),
+              calledPitch,
+              challengesRemaining: 1,
+            },
+            { probabilityRows: overturnProbabilityRows, winRows: winExpectancyRows },
+          )
+        : null;
 
-  return buildHomeChallengeMoments(moments);
+      return {
+        challengeId: r.challengeid,
+        gamePk: Number(r.gamepk),
+        challengedAt: r.challengedat,
+        gameLabel: `${r.awayteam ?? "Away"} at ${r.hometeam ?? "Home"}`,
+        inning: r.inning,
+        halfInning: r.halfinning,
+        calledDescription: r.calleddescription,
+        challengeTeamName: r.challengeteamname,
+        isOverturned: r.isoverturned,
+        leverageScore: 0,
+        gameStatus: r.gamestatus,
+        balls: r.balls,
+        strikes: r.strikes,
+        outs: r.outs,
+        basesState: r.basesstate,
+        homeScore: r.homescore,
+        awayScore: r.awayscore,
+        impactType: null,
+        realizedChallengeValue: decisionValue
+          ? r.isoverturned
+            ? decisionValue.wpDeltaIfSuccess
+            : decisionValue.wpDeltaIfFail
+          : null,
+        expectedChallengeValue: decisionValue?.expectedWpDelta ?? null,
+        overturnProbabilityConfidence: decisionValue?.overturnProbabilityConfidence ?? null,
+        decisionValueMode: decisionValue?.decisionValueMode ?? null,
+        umpireCount: (() => {
+          if (r.balls_before === null || r.strikes_before === null) return null;
+          if (!r.isoverturned) return r.balls_after === null || r.strikes_after === null ? null : `${r.balls_after}-${r.strikes_after}`;
+          if (r.balls_after !== null && r.balls_after > r.balls_before) return `${r.balls_before}-${r.strikes_before + 1}`;
+          if (r.strikes_after !== null && r.strikes_after > r.strikes_before) return `${r.balls_before + 1}-${r.strikes_before}`;
+          return r.balls_after === null || r.strikes_after === null ? null : `${r.balls_after}-${r.strikes_after}`;
+        })(),
+        playerName: r.playername,
+        pitchNumber: r.pitchnumber,
+      };
+        }),
+      );
+
+      return buildHomeChallengeMoments(moments);
+    }),
+    { warnAtMs: 500, metadata: { limit } },
+  );
 }
 
 export async function getGame(gamePk: number) {
-  return withCachedValue(getCacheKey(["game", gamePk]), 15_000, async () => {
+  return withServerTiming(
+    "data.getGame",
+    () => withCachedValue(getCacheKey(["game", gamePk]), 15_000, async () => {
     const rows = await sql<{
       gamepk: number;
       gamedate: string;
@@ -1037,7 +1093,66 @@ export async function getGame(gamePk: number) {
     `,
       [gamePk],
     );
-    return rows[0] ?? null;
+      return rows[0] ?? null;
+    }),
+    { warnAtMs: 900, metadata: { gamePk } },
+  );
+}
+
+export async function getGameScoreboardData(gamePk: number): Promise<GameScoreboardData | null> {
+  return withCachedValue(getCacheKey(["game-scoreboard", gamePk]), 15_000, async () => {
+    const rows = await sql<{ payload: unknown }>(
+      `
+      SELECT payload
+      FROM ops.source_snapshots
+      WHERE source_name = 'mlb_statsapi.feed_live'
+        AND entity_key = $1
+      ORDER BY fetched_at DESC
+      LIMIT 1
+      `,
+      [`game:${gamePk}`],
+    );
+
+    const payload = rows[0]?.payload as
+      | {
+          liveData?: {
+            linescore?: {
+              innings?: Array<{
+                num?: number | null;
+                home?: { runs?: number | null } | null;
+                away?: { runs?: number | null } | null;
+              }> | null;
+              teams?: {
+                home?: { runs?: number | null; hits?: number | null; errors?: number | null } | null;
+                away?: { runs?: number | null; hits?: number | null; errors?: number | null } | null;
+              } | null;
+            } | null;
+          } | null;
+        }
+      | undefined;
+
+    const linescore = payload?.liveData?.linescore;
+    if (!linescore) return null;
+
+    const innings = Array.isArray(linescore.innings)
+      ? linescore.innings
+          .map((entry, index) => ({
+            inning: Number(entry?.num ?? index + 1),
+            awayRuns: entry?.away?.runs ?? null,
+            homeRuns: entry?.home?.runs ?? null,
+          }))
+          .filter((entry) => Number.isFinite(entry.inning))
+      : [];
+
+    return {
+      innings,
+      awayRuns: linescore.teams?.away?.runs ?? null,
+      homeRuns: linescore.teams?.home?.runs ?? null,
+      awayHits: linescore.teams?.away?.hits ?? null,
+      homeHits: linescore.teams?.home?.hits ?? null,
+      awayErrors: linescore.teams?.away?.errors ?? null,
+      homeErrors: linescore.teams?.home?.errors ?? null,
+    };
   });
 }
 
@@ -1078,7 +1193,9 @@ export async function getGameAbsCounters(gamePk: number): Promise<{
 }
 
 export async function getGameLiveStatus(gamePk: number): Promise<GameLiveStatus | null> {
-  return withCachedValue(getCacheKey(["game-live-status", gamePk]), 3_000, async () => {
+  return withServerTiming(
+    "data.getGameLiveStatus",
+    () => withCachedValue(getCacheKey(["game-live-status", gamePk]), 3_000, async () => {
     const rows = await sql<{
       gamepk: number;
       statusabstract: string | null;
@@ -1123,7 +1240,7 @@ export async function getGameLiveStatus(gamePk: number): Promise<GameLiveStatus 
     );
     const r = rows[0];
     if (!r) return null;
-    return {
+      return {
       gamePk: Number(r.gamepk),
       statusAbstract: r.statusabstract,
       inning: r.inning,
@@ -1137,8 +1254,10 @@ export async function getGameLiveStatus(gamePk: number): Promise<GameLiveStatus 
       awayRemaining: Number(r.awayremaining ?? 0),
       updatedAt: r.updatedat,
       recentChallengeEvents: await getRecentGameChallenges(gamePk, 10),
-    };
-  });
+      };
+    }),
+    { warnAtMs: 900, metadata: { gamePk } },
+  );
 }
 
 async function getRecentGameChallenges(
@@ -1162,7 +1281,9 @@ async function getRecentGameChallenges(
 }
 
 export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[]> {
-  return withCachedValue(getCacheKey(["game-challenges", gamePk]), 10_000, async () => {
+  return withServerTiming(
+    "data.getGameChallenges",
+    () => withCachedValue(getCacheKey(["game-challenges", gamePk]), 10_000, async () => {
     const [rows, baselines, runExpectancyRows, winExpectancyRows, overturnProbabilityRows] = await Promise.all([
       sql<{
       challenge_id: string;
@@ -1230,8 +1351,8 @@ export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[
       c.is_overturned,
       COALESCE(c.px, c.inferred_px) AS px,
       COALESCE(c.pz, c.inferred_pz) AS pz,
-      COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) AS strike_zone_top,
-      COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strike_zone_bottom,
+      resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top) AS strike_zone_top,
+      resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strike_zone_bottom,
       p.balls_before,
       p.strikes_before,
       p.balls_after,
@@ -1258,7 +1379,7 @@ export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[
     ]);
     const baselineMap = buildCountStateBaselineMap(baselines);
 
-    return Promise.all(rows.map(async (r) => {
+      return Promise.all(rows.map(async (r) => {
       const challenge: ChallengeEvent = {
         challengeId: r.challenge_id,
         gamePk: r.game_pk,
@@ -1348,8 +1469,10 @@ export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[
         decisionRecommendation: decisionValue?.recommendation ?? null,
         decisionValueMode: decisionValue?.decisionValueMode ?? null,
       };
-    }));
-  });
+      }));
+    }),
+    { warnAtMs: 1_200, metadata: { gamePk } },
+  );
 }
 
 export async function getGameChallengeValueTimeline(gamePk: number): Promise<ChallengeValueTimelineEntry[]> {
@@ -1891,8 +2014,11 @@ export async function getGamePitchTimeline(
 }
 
 export async function getUmpireLeaderboard(range: RangeKey = "season"): Promise<UmpireSummary[]> {
-  const window = rangeWhere(range, "g.game_date");
-  const rows = await sql<{
+  return withServerTiming(
+    "data.getUmpireLeaderboard",
+    () => withCachedValue(getCacheKey(["umpire-leaderboard", range]), 30_000, async () => {
+      const window = rangeWhere(range, "g.game_date");
+      const rows = await sql<{
     umpireid: number;
     umpirename: string;
     challengedcalls: number;
@@ -1922,15 +2048,18 @@ export async function getUmpireLeaderboard(range: RangeKey = "season"): Promise<
     window.params,
   );
 
-  return rows.map((r) => ({
-    umpireId: Number(r.umpireid),
-    umpireName: r.umpirename,
-    challengedCalls: Number(r.challengedcalls),
-    overturnedCalls: Number(r.overturnedcalls),
-    confirmedCalls: Number(r.confirmedcalls),
-    overturnRate: Number(r.overturnrate),
-    gamesWorked: Number(r.gamesworked),
-  }));
+      return rows.map((r) => ({
+        umpireId: Number(r.umpireid),
+        umpireName: r.umpirename,
+        challengedCalls: Number(r.challengedcalls),
+        overturnedCalls: Number(r.overturnedcalls),
+        confirmedCalls: Number(r.confirmedcalls),
+        overturnRate: Number(r.overturnrate),
+        gamesWorked: Number(r.gamesworked),
+      }));
+    }),
+    { warnAtMs: 700, metadata: { range } },
+  );
 }
 
 async function getUmpireRubricMetrics(range: RangeKey = "season") {
@@ -1987,8 +2116,14 @@ async function getUmpireRubricMetrics(range: RangeKey = "season") {
 }
 
 export async function getUmpireLeaderboardModel(range: RangeKey = "season"): Promise<UmpireLeaderboardEntry[]> {
-  const [umpires, metrics] = await Promise.all([getUmpireLeaderboard(range), getUmpireRubricMetrics(range)]);
-  return buildUmpireLeaderboardEntries(umpires, metrics);
+  return withServerTiming(
+    "data.getUmpireLeaderboardModel",
+    () => withCachedValue(getCacheKey(["umpire-leaderboard-model", range]), 30_000, async () => {
+      const [umpires, metrics] = await Promise.all([getUmpireLeaderboard(range), getUmpireRubricMetrics(range)]);
+      return buildUmpireLeaderboardEntries(umpires, metrics);
+    }),
+    { warnAtMs: 1_000, metadata: { range } },
+  );
 }
 
 export async function getUmpireSummary(
@@ -1996,9 +2131,24 @@ export async function getUmpireSummary(
   range: RangeKey = "season",
   filters?: SituationalFilters
 ): Promise<UmpireSummary | null> {
-  const window = rangeWhere(range, "g.game_date");
-  const situational = situationalWhere(filters, "c");
-  const rows = await sql<{
+  return withServerTiming(
+    "data.getUmpireSummary",
+    () =>
+      withCachedValue(
+        getCacheKey([
+          "umpire-summary",
+          umpireId,
+          range,
+          filters?.inningRange ?? "all",
+          filters?.leverage ?? "all",
+          filters?.side ?? "all",
+          filters?.result ?? "all",
+        ]),
+        15_000,
+        async () => {
+          const window = rangeWhere(range, "g.game_date");
+          const situational = situationalWhere(filters, "c");
+          const rows = await sql<{
     umpireid: number;
     umpirename: string;
     challengedcalls: number;
@@ -2028,19 +2178,44 @@ export async function getUmpireSummary(
     GROUP BY 1, 2
     `,
     [umpireId, ...window.params, ...situational.params],
-  );
+          );
 
-  const r = rows[0];
-  if (!r) return null;
-  return {
-    umpireId: Number(r.umpireid),
-    umpireName: r.umpirename,
-    challengedCalls: Number(r.challengedcalls),
-    overturnedCalls: Number(r.overturnedcalls),
-    confirmedCalls: Number(r.confirmedcalls),
-    overturnRate: Number(r.overturnrate),
-    gamesWorked: Number(r.gamesworked),
-  };
+          const r = rows[0];
+          if (!r) {
+            const fallbackRows = await sql<{ umpirename: string | null }>(
+      `
+      SELECT official_name AS umpireName
+      FROM officials
+      WHERE official_id = $1
+      LIMIT 1
+      `,
+      [umpireId],
+            );
+            const fallback = fallbackRows[0];
+            if (!fallback?.umpirename) return null;
+            return {
+              umpireId,
+              umpireName: fallback.umpirename,
+              challengedCalls: 0,
+              overturnedCalls: 0,
+              confirmedCalls: 0,
+              overturnRate: 0,
+              gamesWorked: 0,
+            };
+          }
+          return {
+            umpireId: Number(r.umpireid),
+            umpireName: r.umpirename,
+            challengedCalls: Number(r.challengedcalls),
+            overturnedCalls: Number(r.overturnedcalls),
+            confirmedCalls: Number(r.confirmedcalls),
+            overturnRate: Number(r.overturnrate),
+            gamesWorked: Number(r.gamesworked),
+          };
+        },
+      ),
+    { warnAtMs: 500, metadata: { umpireId, range } },
+  );
 }
 
 export async function getUmpireProfile(
@@ -2048,9 +2223,24 @@ export async function getUmpireProfile(
   range: RangeKey = "season",
   filters?: SituationalFilters
 ): Promise<UmpireProfile> {
-  const window = rangeWhere(range, "g.game_date");
-  const situational = situationalWhere(filters, "c");
-  const [directionRows, zoneRows, hotspotRows] = await Promise.all([
+  return withServerTiming(
+    "data.getUmpireProfile",
+    () =>
+      withCachedValue(
+        getCacheKey([
+          "umpire-profile",
+          umpireId,
+          range,
+          filters?.inningRange ?? "all",
+          filters?.leverage ?? "all",
+          filters?.side ?? "all",
+          filters?.result ?? "all",
+        ]),
+        15_000,
+        async () => {
+          const window = rangeWhere(range, "g.game_date");
+          const situational = situationalWhere(filters, "c");
+          const [directionRows, zoneRows, hotspotRows, handednessRows] = await Promise.all([
     sql<{
       strike_to_ball: number;
       ball_to_strike: number;
@@ -2085,25 +2275,19 @@ export async function getUmpireProfile(
       [umpireId, ...window.params, ...situational.params],
     ),
     sql<{
-      zone: "up" | "down" | "glove" | "arm";
-      challenges: number;
-      overturnrate: number;
+      px: number | null;
+      pz: number | null;
+      strike_zone_top: number | null;
+      strike_zone_bottom: number | null;
+      is_overturned: boolean;
     }>(
       `
       SELECT
-        CASE
-          WHEN ABS(COALESCE(c.px, c.inferred_px)) >= ABS(
-            ((COALESCE(c.pz, c.inferred_pz) - COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom, 1.5))
-            / NULLIF((COALESCE(c.strike_zone_top, c.inferred_strike_zone_top, 3.5) - COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom, 1.5)), 0)) - 0.5
-          )
-            THEN CASE WHEN COALESCE(c.px, c.inferred_px) < 0 THEN 'glove' ELSE 'arm' END
-          ELSE CASE
-            WHEN COALESCE(c.pz, c.inferred_pz) >= ((COALESCE(c.strike_zone_top, c.inferred_strike_zone_top, 3.5) + COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom, 1.5)) / 2.0) THEN 'up'
-            ELSE 'down'
-          END
-        END AS zone,
-        COUNT(*) AS challenges,
-        AVG(CASE WHEN c.is_overturned THEN 1.0 ELSE 0.0 END)::NUMERIC AS overturnRate
+        COALESCE(c.px, c.inferred_px) AS px,
+        COALESCE(c.pz, c.inferred_pz) AS pz,
+        resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top) AS strike_zone_top,
+        resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strike_zone_bottom,
+        c.is_overturned
       FROM abs_challenges c
       JOIN games g ON g.game_pk = c.game_pk
       JOIN officials o ON o.game_pk = c.game_pk
@@ -2111,10 +2295,10 @@ export async function getUmpireProfile(
         AND o.official_id = $1
         AND COALESCE(c.px, c.inferred_px) IS NOT NULL
         AND COALESCE(c.pz, c.inferred_pz) IS NOT NULL
+        AND resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top) IS NOT NULL
+        AND resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) IS NOT NULL
         AND ${window.clause}
         AND ${situational.clause}
-      GROUP BY 1
-      ORDER BY challenges DESC
       `,
       [umpireId, ...window.params, ...situational.params],
     ),
@@ -2141,33 +2325,121 @@ export async function getUmpireProfile(
       `,
       [umpireId, ...window.params, ...situational.params],
     ),
-  ]);
+    sql<{
+      pitcher_throws: "R" | "L";
+      batter_stand: "R" | "L";
+      challenged_count: number;
+      overturned_count: number;
+      overturn_rate: number;
+    }>(
+      `
+      SELECT
+        hist.p_throws AS pitcher_throws,
+        hist.stand AS batter_stand,
+        COUNT(*) AS challenged_count,
+        COUNT(*) FILTER (WHERE c.is_overturned = TRUE) AS overturned_count,
+        CASE WHEN COUNT(*) > 0
+          THEN COUNT(*) FILTER (WHERE c.is_overturned = TRUE)::NUMERIC / COUNT(*)
+          ELSE 0
+        END AS overturn_rate
+      FROM abs_challenges c
+      JOIN games g ON g.game_pk = c.game_pk
+      JOIN officials o ON o.game_pk = c.game_pk
+      LEFT JOIN mart_historical_abs_overturn_inputs hist
+        ON hist.game_pk = c.game_pk
+        AND hist.at_bat_number = c.at_bat_index + 1
+        AND hist.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
+      WHERE o.official_type = 'Home Plate'
+        AND o.official_id = $1
+        AND hist.stand IN ('L', 'R')
+        AND hist.p_throws IN ('L', 'R')
+        AND ${window.clause}
+        AND ${situational.clause}
+      GROUP BY 1, 2
+      ORDER BY challenged_count DESC, pitcher_throws ASC, batter_stand ASC
+      `,
+      [umpireId, ...window.params, ...situational.params],
+    ),
+          ]);
 
-  const direction = directionRows[0] ?? { strike_to_ball: 0, ball_to_strike: 0, other_overturns: 0, confirmed: 0 };
+          const direction = directionRows[0] ?? { strike_to_ball: 0, ball_to_strike: 0, other_overturns: 0, confirmed: 0 };
+          const zoneBucketTotals = new Map<ObservedZoneAxisBucket, { challenges: number; overturned: number }>();
+          for (const row of zoneRows) {
+            const bucket = classifyObservedZoneAxisBucket({
+      px: row.px === null ? null : Number(row.px),
+      pz: row.pz === null ? null : Number(row.pz),
+      strikeZoneTop: row.strike_zone_top === null ? null : Number(row.strike_zone_top),
+      strikeZoneBottom: row.strike_zone_bottom === null ? null : Number(row.strike_zone_bottom),
+    });
+            if (!bucket) continue;
+            const current = zoneBucketTotals.get(bucket) ?? { challenges: 0, overturned: 0 };
+            current.challenges += 1;
+            if (row.is_overturned) current.overturned += 1;
+            zoneBucketTotals.set(bucket, current);
+          }
+          const handednessMap = new Map(
+            handednessRows.map((row) => [
+      `${row.pitcher_throws}-${row.batter_stand}`,
+      {
+        pitcherThrows: row.pitcher_throws,
+        batterStand: row.batter_stand,
+        challengedCount: Number(row.challenged_count),
+        overturnedCount: Number(row.overturned_count),
+        overturnRate: Number(row.overturn_rate ?? 0),
+      } satisfies UmpireHandednessSplit,
+    ]),
+          );
+          const handednessOrder: Array<Pick<UmpireHandednessSplit, "pitcherThrows" | "batterStand">> = [
+    { pitcherThrows: "R", batterStand: "R" },
+    { pitcherThrows: "R", batterStand: "L" },
+    { pitcherThrows: "L", batterStand: "L" },
+    { pitcherThrows: "L", batterStand: "R" },
+          ];
 
-  return {
-    directionalBias: {
+          return {
+            directionalBias: {
       strikeToBall: Number(direction.strike_to_ball ?? 0),
       ballToStrike: Number(direction.ball_to_strike ?? 0),
       otherOverturns: Number(direction.other_overturns ?? 0),
       confirmed: Number(direction.confirmed ?? 0),
     },
-    zoneBuckets: zoneRows.map((row) => ({
-      zone: row.zone,
-      challenges: Number(row.challenges),
-      overturnRate: Number(row.overturnrate ?? 0),
-    })),
+    zoneBuckets: [...zoneBucketTotals.entries()]
+      .map(([zone, totals]) => ({
+        zone,
+        challenges: totals.challenges,
+        overturnRate: totals.challenges > 0 ? totals.overturned / totals.challenges : 0,
+      }))
+      .sort((left, right) => right.challenges - left.challenges),
     countHotspots: hotspotRows.map((row) => ({
       countKey: row.countkey,
       challenges: Number(row.challenges),
       overturnRate: Number(row.overturnrate ?? 0),
     })),
-  };
+            handednessSplits: handednessOrder.map(({ pitcherThrows, batterStand }) => {
+      const key = `${pitcherThrows}-${batterStand}`;
+      return (
+        handednessMap.get(key) ?? {
+          pitcherThrows,
+          batterStand,
+          challengedCount: 0,
+          overturnedCount: 0,
+          overturnRate: 0,
+        }
+              );
+            }),
+          };
+        },
+      ),
+    { warnAtMs: 700, metadata: { umpireId, range } },
+  );
 }
 
 export async function getTeamLeaderboard(range: RangeKey = "season"): Promise<TeamSummary[]> {
-  const window = rangeWhere(range, "g.game_date");
-  const rows = await sql<{
+  return withServerTiming(
+    "data.getTeamLeaderboard",
+    () => withCachedValue(getCacheKey(["team-leaderboard", range]), 30_000, async () => {
+      const window = rangeWhere(range, "g.game_date");
+      const rows = await sql<{
     teamid: number;
     teamname: string;
     gamestracked: number;
@@ -2199,26 +2471,28 @@ export async function getTeamLeaderboard(range: RangeKey = "season"): Promise<Te
     window.params,
   );
 
-  // Deduplicate teams by name (taking the one with the most challenges) to prevent duplicates like CWS or SD
-  const uniqueTeamsMap = new Map();
-  for (const r of rows) {
-    if (!uniqueTeamsMap.has(r.teamname) || Number(r.challengestotal) > Number(uniqueTeamsMap.get(r.teamname).challengestotal)) {
-      uniqueTeamsMap.set(r.teamname, r);
-    }
-  }
+      const uniqueTeamsMap = new Map();
+      for (const r of rows) {
+        if (!uniqueTeamsMap.has(r.teamname) || Number(r.challengestotal) > Number(uniqueTeamsMap.get(r.teamname).challengestotal)) {
+          uniqueTeamsMap.set(r.teamname, r);
+        }
+      }
 
-  const uniqueRows = Array.from(uniqueTeamsMap.values());
+      const uniqueRows = Array.from(uniqueTeamsMap.values());
 
-  return uniqueRows.map((r) => ({
-    teamId: Number(r.teamid),
-    teamName: r.teamname,
-    gamesTracked: Number(r.gamestracked),
-    usedSuccessful: Number(r.usedsuccessful),
-    usedFailed: Number(r.usedfailed),
-    challengesTotal: Number(r.challengestotal),
-    avgRemaining: Number(r.avgremaining),
-    overturnRate: Number(r.overturnrate),
-  }));
+      return uniqueRows.map((r) => ({
+        teamId: Number(r.teamid),
+        teamName: r.teamname,
+        gamesTracked: Number(r.gamestracked),
+        usedSuccessful: Number(r.usedsuccessful),
+        usedFailed: Number(r.usedfailed),
+        challengesTotal: Number(r.challengestotal),
+        avgRemaining: Number(r.avgremaining),
+        overturnRate: Number(r.overturnrate),
+      }));
+    }),
+    { warnAtMs: 700, metadata: { range } },
+  );
 }
 
 async function getTeamStyleMetrics(range: RangeKey = "season") {
@@ -2349,12 +2623,18 @@ function mergeTeamStyleAndDecisionMetrics(
 }
 
 export async function getTeamLeaderboardModel(range: RangeKey = "season"): Promise<TeamLeaderboardEntry[]> {
-  const [teams, styleMetrics, decisionMetrics] = await Promise.all([
-    getTeamLeaderboard(range),
-    getTeamStyleMetrics(range),
-    getTeamDecisionValueLeaderboard(range),
-  ]);
-  return buildTeamLeaderboardEntries(teams, mergeTeamStyleAndDecisionMetrics(styleMetrics, decisionMetrics));
+  return withServerTiming(
+    "data.getTeamLeaderboardModel",
+    () => withCachedValue(getCacheKey(["team-leaderboard-model", range]), 30_000, async () => {
+      const [teams, styleMetrics, decisionMetrics] = await Promise.all([
+        getTeamLeaderboard(range),
+        getTeamStyleMetrics(range),
+        getTeamDecisionValueLeaderboard(range),
+      ]);
+      return buildTeamLeaderboardEntries(teams, mergeTeamStyleAndDecisionMetrics(styleMetrics, decisionMetrics));
+    }),
+    { warnAtMs: 1_000, metadata: { range } },
+  );
 }
 
 export async function getTeamSummary(
@@ -2362,9 +2642,24 @@ export async function getTeamSummary(
   range: RangeKey = "season",
   filters?: SituationalFilters
 ): Promise<TeamSummary | null> {
-  const window = rangeWhere(range, "g.game_date");
-  const situational = situationalWhere(filters, "c");
-  const rows = await sql<{
+  return withServerTiming(
+    "data.getTeamSummary",
+    () =>
+      withCachedValue(
+        getCacheKey([
+          "team-summary",
+          teamId,
+          range,
+          filters?.inningRange ?? "all",
+          filters?.leverage ?? "all",
+          filters?.side ?? "all",
+          filters?.result ?? "all",
+        ]),
+        15_000,
+        async () => {
+          const window = rangeWhere(range, "g.game_date");
+          const situational = situationalWhere(filters, "c");
+          const rows = await sql<{
     teamid: number;
     teamname: string;
     gamestracked: number;
@@ -2396,20 +2691,46 @@ export async function getTeamSummary(
     GROUP BY t.name
     `,
     [teamId, ...window.params, ...situational.params],
-  );
+          );
 
-  const r = rows[0];
-  if (!r) return null;
-  return {
-    teamId: Number(r.teamid),
-    teamName: r.teamname,
-    gamesTracked: Number(r.gamestracked),
-    usedSuccessful: Number(r.usedsuccessful),
-    usedFailed: Number(r.usedfailed),
-    challengesTotal: Number(r.challengestotal),
-    avgRemaining: Number(r.avgremaining),
-    overturnRate: Number(r.overturnrate),
-  };
+          const r = rows[0];
+          if (!r) {
+            const fallbackRows = await sql<{ teamid: number; teamname: string }>(
+      `
+      SELECT team_id AS teamId, name AS teamName
+      FROM teams
+      WHERE team_id = $1
+      LIMIT 1
+      `,
+      [teamId],
+            );
+            const fallback = fallbackRows[0];
+            if (!fallback) return null;
+            return {
+              teamId: Number(fallback.teamid),
+              teamName: fallback.teamname,
+              gamesTracked: 0,
+              usedSuccessful: 0,
+              usedFailed: 0,
+              challengesTotal: 0,
+              avgRemaining: 0,
+              overturnRate: 0,
+            };
+          }
+          return {
+            teamId: Number(r.teamid),
+            teamName: r.teamname,
+            gamesTracked: Number(r.gamestracked),
+            usedSuccessful: Number(r.usedsuccessful),
+            usedFailed: Number(r.usedfailed),
+            challengesTotal: Number(r.challengestotal),
+            avgRemaining: Number(r.avgremaining),
+            overturnRate: Number(r.overturnrate),
+          };
+        },
+      ),
+    { warnAtMs: 500, metadata: { teamId, range } },
+  );
 }
 
 export async function getTeamIdentity(teamId: number): Promise<TeamIdentity | null> {
@@ -2492,9 +2813,24 @@ export async function getTeamTrend(
   range: RangeKey = "season",
   filters?: SituationalFilters
 ): Promise<TeamTrendPoint[]> {
-  const window = rangeWhere(range, "g.game_date");
-  const situational = situationalWhere(filters, "c");
-  const rows = await sql<{
+  return withServerTiming(
+    "data.getTeamTrend",
+    () =>
+      withCachedValue(
+        getCacheKey([
+          "team-trend",
+          teamId,
+          range,
+          filters?.inningRange ?? "all",
+          filters?.leverage ?? "all",
+          filters?.side ?? "all",
+          filters?.result ?? "all",
+        ]),
+        15_000,
+        async () => {
+          const window = rangeWhere(range, "g.game_date");
+          const situational = situationalWhere(filters, "c");
+          const rows = await sql<{
     gamepk: number;
     gamedate: string;
     ishome: boolean;
@@ -2535,9 +2871,9 @@ export async function getTeamTrend(
     LIMIT 24
     `,
     [teamId, ...window.params, ...situational.params],
-  );
+          );
 
-  return rows.map((r) => ({
+          return rows.map((r) => ({
     gamePk: Number(r.gamepk),
     gameDate: r.gamedate,
     isHome: Boolean(r.ishome),
@@ -2549,8 +2885,12 @@ export async function getTeamTrend(
     usedSuccessful: Number(r.usedsuccessful),
     usedFailed: Number(r.usedfailed),
     challengesTotal: Number(r.challengestotal),
-    remaining: Number(r.remaining),
-  }));
+            remaining: Number(r.remaining),
+          }));
+        },
+      ),
+    { warnAtMs: 500, metadata: { teamId, range } },
+  );
 }
 
 export async function getTeamTrendSparklines(range: RangeKey = "season"): Promise<TeamTrendSparklinePoint[]> {
@@ -3127,9 +3467,24 @@ export async function getUmpireTrend(
   range: RangeKey = "season",
   filters?: SituationalFilters
 ): Promise<UmpireTrendPoint[]> {
-  const window = rangeWhere(range, "g.game_date");
-  const situational = situationalWhere(filters, "c");
-  const rows = await sql<{
+  return withServerTiming(
+    "data.getUmpireTrend",
+    () =>
+      withCachedValue(
+        getCacheKey([
+          "umpire-trend",
+          umpireId,
+          range,
+          filters?.inningRange ?? "all",
+          filters?.leverage ?? "all",
+          filters?.side ?? "all",
+          filters?.result ?? "all",
+        ]),
+        15_000,
+        async () => {
+          const window = rangeWhere(range, "g.game_date");
+          const situational = situationalWhere(filters, "c");
+          const rows = await sql<{
     gamepk: number;
     gamedate: string;
     hometeamid: number;
@@ -3164,9 +3519,9 @@ export async function getUmpireTrend(
     LIMIT 20
     `,
     [umpireId, ...window.params, ...situational.params],
-  );
+          );
 
-  return rows.map((r) => {
+          return rows.map((r) => {
     const total = Number(r.challenged_calls);
     const overturned = Number(r.overturned_calls);
     const confirmed = Number(r.confirmed_calls);
@@ -3183,8 +3538,12 @@ export async function getUmpireTrend(
       accuracy,
       challengedCount: total,
       overturnedCount: overturned,
-    };
-  });
+            };
+          });
+        },
+      ),
+    { warnAtMs: 500, metadata: { umpireId, range } },
+  );
 }
 
 export async function getTeamAggression(
@@ -3238,9 +3597,24 @@ export async function getUmpireChallenges(
   range: RangeKey = "season",
   filters?: SituationalFilters
 ): Promise<ChallengeEvent[]> {
-  const window = rangeWhere(range, "g.game_date");
-  const situational = situationalWhere(filters, "c");
-  const rows = await sql<{
+  return withServerTiming(
+    "data.getUmpireChallenges",
+    () =>
+      withCachedValue(
+        getCacheKey([
+          "umpire-challenges",
+          umpireId,
+          range,
+          filters?.inningRange ?? "all",
+          filters?.leverage ?? "all",
+          filters?.side ?? "all",
+          filters?.result ?? "all",
+        ]),
+        10_000,
+        async () => {
+          const window = rangeWhere(range, "g.game_date");
+          const situational = situationalWhere(filters, "c");
+          const rows = await sql<{
     challengeid: string;
     gamepk: number;
     atbatindex: number | null;
@@ -3272,8 +3646,8 @@ export async function getUmpireChallenges(
       p.called_description AS calledDescription,
       COALESCE(c.px, c.inferred_px) AS px,
       COALESCE(c.pz, c.inferred_pz) AS pz,
-      COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) AS strikeZoneTop,
-      COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strikeZoneBottom,
+      resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top) AS strikeZoneTop,
+      resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strikeZoneBottom,
       c.challenged_at AS challengedAt,
       c.balls,
       c.strikes,
@@ -3291,9 +3665,9 @@ export async function getUmpireChallenges(
     ORDER BY c.challenged_at DESC
     `,
     [umpireId, ...window.params, ...situational.params],
-  );
+          );
 
-  return rows.map((r) => ({
+          return rows.map((r) => ({
     challengeId: r.challengeid,
     gamePk: Number(r.gamepk),
     atBatIndex: Number(r.atbatindex),
@@ -3321,8 +3695,12 @@ export async function getUmpireChallenges(
     batterName: null,
     pitcherName: null,
     startSpeed: null,
-    spinRate: null,
-  }));
+            spinRate: null,
+          }));
+        },
+      ),
+    { warnAtMs: 700, metadata: { umpireId, range } },
+  );
 }
 
 export async function getTeamMemories(
@@ -3391,7 +3769,11 @@ export async function getTeamMemories(
 }
 
 export async function getTeamSchedule(teamId: number, season = 2026): Promise<TeamScheduleGame[]> {
-  const rows = await sql<{
+  return withServerTiming(
+    "data.getTeamSchedule",
+    () =>
+      withCachedValue(getCacheKey(["team-schedule", teamId, season]), 60_000, async () => {
+        const rows = await sql<{
     gamepk: number;
     gamedate: string;
     status: string;
@@ -3421,8 +3803,8 @@ export async function getTeamSchedule(teamId: number, season = 2026): Promise<Te
     ORDER BY g.game_date ASC
     `,
     [teamId, season]
-  );
-  return rows.map(r => ({
+        );
+        return rows.map(r => ({
     gamePk: Number(r.gamepk),
     gameDate: r.gamedate,
     status: r.status,
@@ -3431,8 +3813,66 @@ export async function getTeamSchedule(teamId: number, season = 2026): Promise<Te
     homeAbbr: r.homeabbr,
     awayAbbr: r.awayabbr,
     homeLogoUrl: r.homelogourl,
-    awayLogoUrl: r.awaylogourl
-  }));
+          awayLogoUrl: r.awaylogourl
+        }));
+      }),
+    { warnAtMs: 400, metadata: { teamId, season } },
+  );
+}
+
+export async function getUmpireSchedule(umpireId: number, season = 2026): Promise<TeamScheduleGame[]> {
+  return withServerTiming(
+    "data.getUmpireSchedule",
+    () =>
+      withCachedValue(getCacheKey(["umpire-schedule", umpireId, season]), 60_000, async () => {
+        const rows = await sql<{
+    gamepk: number;
+    gamedate: string;
+    status: string;
+    hometeamid: number;
+    awayteamid: number;
+    homeabbr: string;
+    awayabbr: string;
+    homelogourl: string;
+    awaylogourl: string;
+  }>(
+    `
+    SELECT DISTINCT
+      g.game_pk AS gamePk,
+      g.game_date AS gameDate,
+      g.status_abstract AS status,
+      g.home_team_id AS homeTeamId,
+      g.away_team_id AS awayTeamId,
+      home.abbreviation AS homeAbbr,
+      away.abbreviation AS awayAbbr,
+      home.logo_svg_url AS homeLogoUrl,
+      away.logo_svg_url AS awayLogoUrl
+    FROM officials o
+    JOIN games g ON g.game_pk = o.game_pk
+    JOIN teams home ON home.team_id = g.home_team_id
+    JOIN teams away ON away.team_id = g.away_team_id
+    WHERE o.official_id = $1
+      AND o.official_type = 'Home Plate'
+      AND EXTRACT(YEAR FROM g.game_date) = $2
+    ORDER BY g.game_date ASC
+    `,
+    [umpireId, season],
+        );
+
+        return rows.map((row) => ({
+    gamePk: Number(row.gamepk),
+    gameDate: row.gamedate,
+    status: row.status,
+    homeTeamId: Number(row.hometeamid),
+    awayTeamId: Number(row.awayteamid),
+    homeAbbr: row.homeabbr,
+    awayAbbr: row.awayabbr,
+    homeLogoUrl: row.homelogourl,
+          awayLogoUrl: row.awaylogourl,
+        }));
+      }),
+    { warnAtMs: 400, metadata: { umpireId, season } },
+  );
 }
 
 export async function getUmpirePerformanceDNA(umpireId: number, range: RangeKey = "season"): Promise<UmpirePerformanceDNA> {
@@ -3472,7 +3912,6 @@ export async function getUmpirePerformanceDNA(umpireId: number, range: RangeKey 
     strike_zone_bottom: number;
     is_overturned: boolean;
     called_description: string | null;
-    miss_distance: number;
   }>(
     `
         SELECT 
@@ -3481,21 +3920,49 @@ export async function getUmpirePerformanceDNA(umpireId: number, range: RangeKey 
             c.inning,
             COALESCE(c.px, c.inferred_px) AS px,
             COALESCE(c.pz, c.inferred_pz) AS pz,
-            COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) AS strike_zone_top,
-            COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strike_zone_bottom,
+            resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top) AS strike_zone_top,
+            resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strike_zone_bottom,
             c.is_overturned,
-            p.called_description,
-            ABS(COALESCE(c.px, c.inferred_px)) + ABS(COALESCE(c.pz, c.inferred_pz) - (COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) + COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom))/2) AS miss_distance
+            p.called_description
         FROM abs_challenges c
         JOIN games g ON g.game_pk = c.game_pk
         JOIN officials o ON o.game_pk = c.game_pk AND o.official_id = $1 AND o.official_type = 'Home Plate'
         LEFT JOIN pitches p ON p.game_pk = c.game_pk AND p.at_bat_index = c.at_bat_index AND p.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
         WHERE ${window.clause}
-        ORDER BY miss_distance DESC
-        LIMIT 10
+          AND COALESCE(c.px, c.inferred_px) IS NOT NULL
+          AND COALESCE(c.pz, c.inferred_pz) IS NOT NULL
+          AND resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top) IS NOT NULL
+          AND resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) IS NOT NULL
         `,
     [umpireId, ...window.params]
   );
+
+  const rankedExtremes = extremes
+    .map((r) => {
+      const px = Number(r.px);
+      const pz = Number(r.pz);
+      const szTop = Number(r.strike_zone_top);
+      const szBottom = Number(r.strike_zone_bottom);
+      return {
+        challengeId: r.challengeid,
+        gamePk: Number(r.gamepk),
+        inning: Number(r.inning),
+        px,
+        pz,
+        szTop,
+        szBottom,
+        isOverturned: Boolean(r.is_overturned),
+        calledDescription: r.called_description,
+        missDistance: computeObservedZoneMissDistance({
+          px,
+          pz,
+          strikeZoneTop: szTop,
+          strikeZoneBottom: szBottom,
+        }) ?? 0,
+      };
+    })
+    .sort((left, right) => right.missDistance - left.missDistance)
+    .slice(0, 10);
 
   return {
     rhythm: rhythm.map((r) => ({
@@ -3504,18 +3971,7 @@ export async function getUmpirePerformanceDNA(umpireId: number, range: RangeKey 
       overturned: Number(r.overturned),
       accuracy: Number(r.accuracy)
     })),
-    extremes: extremes.map((r) => ({
-      challengeId: r.challengeid,
-      gamePk: Number(r.gamepk),
-      inning: Number(r.inning),
-      px: Number(r.px),
-      pz: Number(r.pz),
-      szTop: Number(r.strike_zone_top),
-      szBottom: Number(r.strike_zone_bottom),
-      isOverturned: Boolean(r.is_overturned),
-      calledDescription: r.called_description,
-      missDistance: Number(r.miss_distance)
-    }))
+    extremes: rankedExtremes
   };
 }
 
@@ -3567,6 +4023,132 @@ export async function getUmpirePitchTypeBreakdown(
     overturnedCount: Number(r.overturned_count),
     overturnRate: Number(r.overturn_rate),
   }));
+}
+
+export async function getUmpireMatchupVulnerabilities(
+  umpireId: number,
+  range: RangeKey = "season",
+  filters?: SituationalFilters,
+): Promise<UmpireMatchupVulnerability[]> {
+  const window = rangeWhere(range, "g.game_date");
+  const situational = situationalWhere(filters, "c");
+  const rows = await sql<{
+    pitcher_throws: "R" | "L";
+    batter_stand: "R" | "L";
+    pitch_type_code: string;
+    pitch_type_name: string;
+    px: number | null;
+    pz: number | null;
+    strike_zone_top: number | null;
+    strike_zone_bottom: number | null;
+    challenged_count: number;
+    overturned_count: number;
+  }>(
+    `
+    SELECT
+      hist.p_throws AS pitcher_throws,
+      hist.stand AS batter_stand,
+      COALESCE(p.pitch_type_code, hist.pitch_type, 'UN') AS pitch_type_code,
+      COALESCE(p.pitch_type_description, hist.pitch_name, 'Unknown') AS pitch_type_name,
+      COALESCE(c.px, c.inferred_px) AS px,
+      COALESCE(c.pz, c.inferred_pz) AS pz,
+      resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top) AS strike_zone_top,
+      resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strike_zone_bottom,
+      COUNT(*) AS challenged_count,
+      COUNT(*) FILTER (WHERE c.is_overturned = TRUE) AS overturned_count
+    FROM abs_challenges c
+    JOIN games g ON g.game_pk = c.game_pk
+    JOIN officials o ON o.game_pk = c.game_pk AND o.official_type = 'Home Plate'
+    LEFT JOIN pitches p ON p.game_pk = c.game_pk AND p.at_bat_index = c.at_bat_index AND p.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
+    LEFT JOIN mart_historical_abs_overturn_inputs hist
+      ON hist.game_pk = c.game_pk
+      AND hist.at_bat_number = c.at_bat_index + 1
+      AND hist.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
+    WHERE o.official_id = $1
+      AND hist.stand IN ('L', 'R')
+      AND hist.p_throws IN ('L', 'R')
+      AND ${window.clause}
+      AND ${situational.clause}
+    GROUP BY 1, 2, 3, 4, 5, 6, 7, 8
+    ORDER BY challenged_count DESC, overturned_count DESC
+    `,
+    [umpireId, ...window.params, ...situational.params],
+  );
+
+  const matchupOrder: Array<Pick<UmpireMatchupVulnerability, "pitcherThrows" | "batterStand">> = [
+    { pitcherThrows: "R", batterStand: "R" },
+    { pitcherThrows: "R", batterStand: "L" },
+    { pitcherThrows: "L", batterStand: "L" },
+    { pitcherThrows: "L", batterStand: "R" },
+  ];
+
+  return matchupOrder.map(({ pitcherThrows, batterStand }) => {
+    const matchupRows = rows.filter((row) => row.pitcher_throws === pitcherThrows && row.batter_stand === batterStand);
+    const challengedCount = matchupRows.reduce((sum, row) => sum + Number(row.challenged_count), 0);
+    const overturnedCount = matchupRows.reduce((sum, row) => sum + Number(row.overturned_count), 0);
+    const pitchRows = new Map<string, { pitchTypeCode: string; pitchTypeName: string; challengedCount: number; overturnedCount: number }>();
+    const zoneRows = new Map<ObservedZoneAxisBucket, { challengedCount: number; overturnedCount: number }>();
+
+    for (const row of matchupRows) {
+      const pitchKey = `${row.pitch_type_code}:${row.pitch_type_name}`;
+      const existingPitch = pitchRows.get(pitchKey) ?? {
+        pitchTypeCode: row.pitch_type_code,
+        pitchTypeName: row.pitch_type_name,
+        challengedCount: 0,
+        overturnedCount: 0,
+      };
+      existingPitch.challengedCount += Number(row.challenged_count);
+      existingPitch.overturnedCount += Number(row.overturned_count);
+      pitchRows.set(pitchKey, existingPitch);
+
+      const zoneBucket = classifyObservedZoneAxisBucket({
+        px: row.px === null ? null : Number(row.px),
+        pz: row.pz === null ? null : Number(row.pz),
+        strikeZoneTop: row.strike_zone_top === null ? null : Number(row.strike_zone_top),
+        strikeZoneBottom: row.strike_zone_bottom === null ? null : Number(row.strike_zone_bottom),
+      });
+      if (zoneBucket) {
+        const existingZone = zoneRows.get(zoneBucket) ?? { challengedCount: 0, overturnedCount: 0 };
+        existingZone.challengedCount += Number(row.challenged_count);
+        existingZone.overturnedCount += Number(row.overturned_count);
+        zoneRows.set(zoneBucket, existingZone);
+      }
+    }
+
+    const topPitch = [...pitchRows.values()]
+      .map((pitch) => ({
+        ...pitch,
+        overturnRate: pitch.challengedCount > 0 ? pitch.overturnedCount / pitch.challengedCount : 0,
+      }))
+      .sort((left, right) => {
+        if (right.overturnRate !== left.overturnRate) return right.overturnRate - left.overturnRate;
+        return right.challengedCount - left.challengedCount;
+      })[0] ?? null;
+
+    const topZone = [...zoneRows.entries()]
+      .map(([zone, totals]) => ({
+        zone,
+        overturnRate: totals.challengedCount > 0 ? totals.overturnedCount / totals.challengedCount : 0,
+        challengedCount: totals.challengedCount,
+      }))
+      .sort((left, right) => {
+        if (right.overturnRate !== left.overturnRate) return right.overturnRate - left.overturnRate;
+        return right.challengedCount - left.challengedCount;
+      })[0] ?? null;
+
+    return {
+      pitcherThrows,
+      batterStand,
+      challengedCount,
+      overturnedCount,
+      overturnRate: challengedCount > 0 ? overturnedCount / challengedCount : 0,
+      topPitchTypeCode: topPitch?.pitchTypeCode ?? null,
+      topPitchTypeName: topPitch?.pitchTypeName ?? null,
+      topPitchTypeOverturnRate: topPitch?.overturnRate ?? null,
+      topZone: topZone?.zone ?? null,
+      topZoneOverturnRate: topZone?.overturnRate ?? null,
+    };
+  });
 }
 
 /**
@@ -3655,7 +4237,7 @@ export async function getTeamUmpireMatchups(
   }));
 }
 
-export type HittersEyeZone = "Top-L" | "Top-M" | "Top-R" | "Mid-L" | "Mid-M" | "Mid-R" | "Bot-L" | "Bot-M" | "Bot-R";
+export type HittersEyeZone = NormalizedZoneLane;
 
 export async function getTeamHitterEyeHeatmap(
   teamId: number,
@@ -3664,50 +4246,53 @@ export async function getTeamHitterEyeHeatmap(
 ): Promise<Array<{ zone: HittersEyeZone; challenges: number; overturnRate: number; }>> {
   const window = rangeWhere(range, "g.game_date");
   const situational = situationalWhere(filters, "c");
-
-  // A standard strike zone is roughly +/- 8.5 inches (0.708 feet) horizontally.
-  // nx represents horizontal position mapped such that [-1, 1] is the width of the plate.
-  // nz represents vertical position mapped such that [0, 1] is bottom-to-top of strike zone.
-
   const rows = await sql<{
-    zone: string;
-    challenges: number;
-    overturn_rate: number;
+    px: number | null;
+    pz: number | null;
+    strike_zone_top: number | null;
+    strike_zone_bottom: number | null;
+    is_overturned: boolean;
   }>(
     `
-    WITH normalized AS (
-      SELECT
-        CASE WHEN COALESCE(c.px, c.inferred_px) < -0.236 THEN 'L' WHEN COALESCE(c.px, c.inferred_px) > 0.236 THEN 'R' ELSE 'M' END AS x_tier,
-        CASE 
-          WHEN (COALESCE(c.pz, c.inferred_pz) - COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom)) / NULLIF(COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) - COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom), 0) > 0.66 THEN 'Top'
-          WHEN (COALESCE(c.pz, c.inferred_pz) - COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom)) / NULLIF(COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) - COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom), 0) < 0.33 THEN 'Bot'
-          ELSE 'Mid'
-        END AS z_tier,
-        c.is_overturned
-      FROM abs_challenges c
-      JOIN games g ON g.game_pk = c.game_pk
-      WHERE c.challenge_team_id = $1
-        AND COALESCE(c.px, c.inferred_px) IS NOT NULL
-        AND COALESCE(c.pz, c.inferred_pz) IS NOT NULL
-        AND COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) IS NOT NULL
-        AND COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) IS NOT NULL
-        AND ${window.clause}
-        AND ${situational.clause}
-    )
     SELECT
-      CONCAT(z_tier, '-', x_tier) AS zone,
-      COUNT(*) AS challenges,
-      AVG(CASE WHEN is_overturned THEN 1.0 ELSE 0.0 END)::NUMERIC AS overturn_rate
-    FROM normalized
-    GROUP BY z_tier, x_tier
+      COALESCE(c.px, c.inferred_px) AS px,
+      COALESCE(c.pz, c.inferred_pz) AS pz,
+      resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top) AS strike_zone_top,
+      resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strike_zone_bottom,
+      c.is_overturned
+    FROM abs_challenges c
+    JOIN games g ON g.game_pk = c.game_pk
+    WHERE c.challenge_team_id = $1
+      AND COALESCE(c.px, c.inferred_px) IS NOT NULL
+      AND COALESCE(c.pz, c.inferred_pz) IS NOT NULL
+      AND resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top) IS NOT NULL
+      AND resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) IS NOT NULL
+      AND ${window.clause}
+      AND ${situational.clause}
     `,
     [teamId, ...window.params, ...situational.params],
   );
 
-  return rows.map(r => ({
-    zone: r.zone as HittersEyeZone,
-    challenges: Number(r.challenges),
-    overturnRate: Number(r.overturn_rate),
+  const laneTotals = new Map<HittersEyeZone, { challenges: number; overturned: number }>();
+
+  for (const row of rows) {
+    const lane = classifyNormalizedZoneLane({
+      px: row.px === null ? null : Number(row.px),
+      pz: row.pz === null ? null : Number(row.pz),
+      strikeZoneTop: row.strike_zone_top === null ? null : Number(row.strike_zone_top),
+      strikeZoneBottom: row.strike_zone_bottom === null ? null : Number(row.strike_zone_bottom),
+    });
+    if (!lane) continue;
+    const current = laneTotals.get(lane) ?? { challenges: 0, overturned: 0 };
+    current.challenges += 1;
+    if (row.is_overturned) current.overturned += 1;
+    laneTotals.set(lane, current);
+  }
+
+  return [...laneTotals.entries()].map(([zone, totals]) => ({
+    zone,
+    challenges: totals.challenges,
+    overturnRate: totals.challenges > 0 ? totals.overturned / totals.challenges : 0,
   }));
 }
 
