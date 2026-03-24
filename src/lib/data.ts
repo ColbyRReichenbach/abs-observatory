@@ -834,6 +834,16 @@ export async function getLiveGames(): Promise<LiveGameCard[]> {
       inninghalf: string | null;
     }>(
       `
+    WITH live_game_ids AS (
+      SELECT
+        g.game_pk,
+        CASE WHEN g.status_abstract = 'Live' THEN 0 ELSE 1 END AS sort_bucket,
+        g.game_date
+      FROM games g
+      WHERE (g.game_date::date = CURRENT_DATE OR g.status_abstract = 'Live')
+      ORDER BY sort_bucket, g.game_date DESC
+      LIMIT 20
+    )
     SELECT
       g.game_pk AS gamePk,
       g.game_date AS gameDate,
@@ -856,22 +866,25 @@ export async function getLiveGames(): Promise<LiveGameCard[]> {
       COALESCE(ch.cnt, 0) AS challengeCount,
       gss.inning AS inning,
       gss.half_inning AS inningHalf
-    FROM games g
+    FROM live_game_ids ids
+    JOIN games g ON g.game_pk = ids.game_pk
     LEFT JOIN teams home ON home.team_id = g.home_team_id
     LEFT JOIN teams away ON away.team_id = g.away_team_id
     LEFT JOIN team_abs_game_summary home_sum ON home_sum.game_pk = g.game_pk AND home_sum.team_side = 'home'
     LEFT JOIN team_abs_game_summary away_sum ON away_sum.game_pk = g.game_pk AND away_sum.team_side = 'away'
-    LEFT JOIN (
-      SELECT DISTINCT ON (game_pk) *
-      FROM game_state_snapshots
-      ORDER BY game_pk, snapshot_time DESC
-    ) gss ON gss.game_pk = g.game_pk
-    LEFT JOIN (
-      SELECT game_pk, COUNT(*) AS cnt FROM abs_challenges GROUP BY game_pk
-    ) ch ON ch.game_pk = g.game_pk
-    WHERE (g.game_date::date = CURRENT_DATE OR g.status_abstract = 'Live')
-    ORDER BY CASE WHEN g.status_abstract = 'Live' THEN 0 ELSE 1 END, g.game_date DESC
-    LIMIT 20
+    LEFT JOIN LATERAL (
+      SELECT snapshot.inning, snapshot.half_inning
+      FROM game_state_snapshots snapshot
+      WHERE snapshot.game_pk = g.game_pk
+      ORDER BY snapshot.snapshot_time DESC
+      LIMIT 1
+    ) gss ON TRUE
+    LEFT JOIN LATERAL (
+      SELECT COUNT(*) AS cnt
+      FROM abs_challenges challenge
+      WHERE challenge.game_pk = g.game_pk
+    ) ch ON TRUE
+    ORDER BY ids.sort_bucket, ids.game_date DESC
     `,
     );
 
@@ -2028,6 +2041,12 @@ export async function getUmpireLeaderboard(range: RangeKey = "season"): Promise<
     gamesworked: number;
   }>(
     `
+    WITH filtered_summary AS (
+      SELECT s.*
+      FROM umpire_abs_game_summary s
+      JOIN games g ON g.game_pk = s.game_pk
+      WHERE ${window.clause}
+    )
     SELECT
       o.official_id AS umpireId,
       o.official_name AS umpireName,
@@ -2039,9 +2058,9 @@ export async function getUmpireLeaderboard(range: RangeKey = "season"): Promise<
         ELSE 0
       END AS overturnRate,
       COUNT(DISTINCT s.game_pk) AS gamesWorked
-    FROM (SELECT DISTINCT official_id, official_name FROM officials WHERE official_type = 'Home Plate') o
-    LEFT JOIN umpire_abs_game_summary s ON s.umpire_id = o.official_id
-    LEFT JOIN games g ON g.game_pk = s.game_pk AND ${window.clause}
+    FROM officials o
+    LEFT JOIN filtered_summary s ON s.umpire_id = o.official_id
+    WHERE o.official_type = 'Home Plate'
     GROUP BY o.official_id, o.official_name
     ORDER BY challengedCalls DESC, o.official_name ASC
     `,
@@ -2158,9 +2177,23 @@ export async function getUmpireSummary(
     gamesworked: number;
   }>(
     `
+    WITH home_plate_games AS (
+      SELECT DISTINCT game_pk
+      FROM officials
+      WHERE official_id = $1
+        AND official_type = 'Home Plate'
+    ),
+    filtered_challenges AS (
+      SELECT c.*
+      FROM abs_challenges c
+      JOIN home_plate_games hp ON hp.game_pk = c.game_pk
+      JOIN games g ON g.game_pk = c.game_pk
+      WHERE ${window.clause}
+        AND ${situational.clause}
+    )
     SELECT
       $1::INT AS umpireId,
-      (SELECT official_name FROM officials WHERE official_id = $1 LIMIT 1) AS umpireName,
+      o.umpireName,
       COUNT(c.challenge_id) AS challengedCalls,
       COUNT(*) FILTER (WHERE c.is_overturned = TRUE) AS overturnedCalls,
       COUNT(*) FILTER (WHERE c.is_overturned = FALSE AND c.challenge_id IS NOT NULL) AS confirmedCalls,
@@ -2169,12 +2202,13 @@ export async function getUmpireSummary(
         ELSE 0
       END AS overturnRate,
       COUNT(DISTINCT c.game_pk) AS gamesWorked
-    FROM (SELECT official_id FROM officials WHERE official_id = $1 LIMIT 1) o
-    LEFT JOIN officials o2 ON o2.official_id = o.official_id AND o2.official_type = 'Home Plate'
-    LEFT JOIN abs_challenges c ON c.game_pk = o2.game_pk
-    LEFT JOIN games g ON g.game_pk = c.game_pk AND ${window.clause}
-    WHERE o.official_id = $1
-      AND (c.challenge_id IS NULL OR ${situational.clause})
+    FROM (
+      SELECT official_name AS umpireName
+      FROM officials
+      WHERE official_id = $1
+      LIMIT 1
+    ) o
+    LEFT JOIN filtered_challenges c ON TRUE
     GROUP BY 1, 2
     `,
     [umpireId, ...window.params, ...situational.params],
@@ -2450,6 +2484,12 @@ export async function getTeamLeaderboard(range: RangeKey = "season"): Promise<Te
     overturnrate: number;
   }>(
     `
+    WITH filtered_summary AS (
+      SELECT s.*
+      FROM team_abs_game_summary s
+      JOIN games g ON g.game_pk = s.game_pk
+      WHERE ${window.clause}
+    )
     SELECT
       t.team_id AS teamId,
       t.name AS teamName,
@@ -2463,24 +2503,14 @@ export async function getTeamLeaderboard(range: RangeKey = "season"): Promise<Te
         ELSE 0
       END AS overturnRate
     FROM teams t
-    LEFT JOIN team_abs_game_summary s ON s.team_id = t.team_id
-    LEFT JOIN games g ON g.game_pk = s.game_pk AND ${window.clause}
+    LEFT JOIN filtered_summary s ON s.team_id = t.team_id
     GROUP BY t.team_id, t.name
     ORDER BY challengesTotal DESC, t.name ASC
     `,
     window.params,
   );
 
-      const uniqueTeamsMap = new Map();
-      for (const r of rows) {
-        if (!uniqueTeamsMap.has(r.teamname) || Number(r.challengestotal) > Number(uniqueTeamsMap.get(r.teamname).challengestotal)) {
-          uniqueTeamsMap.set(r.teamname, r);
-        }
-      }
-
-      const uniqueRows = Array.from(uniqueTeamsMap.values());
-
-      return uniqueRows.map((r) => ({
+      return rows.map((r) => ({
         teamId: Number(r.teamid),
         teamName: r.teamname,
         gamesTracked: Number(r.gamestracked),
@@ -2670,6 +2700,14 @@ export async function getTeamSummary(
     overturnrate: number;
   }>(
     `
+    WITH filtered_challenges AS (
+      SELECT c.*
+      FROM abs_challenges c
+      JOIN games g ON g.game_pk = c.game_pk
+      WHERE c.challenge_team_id = $1
+        AND ${window.clause}
+        AND ${situational.clause}
+    )
     SELECT
       $1::INT AS teamId,
       t.name AS teamName,
@@ -2683,11 +2721,9 @@ export async function getTeamSummary(
         ELSE 0
       END AS overturnRate
     FROM teams t
-    LEFT JOIN abs_challenges c ON c.challenge_team_id = t.team_id
-    LEFT JOIN games g ON g.game_pk = c.game_pk AND ${window.clause}
+    LEFT JOIN filtered_challenges c ON c.challenge_team_id = t.team_id
     LEFT JOIN team_abs_game_summary s ON s.game_pk = c.game_pk AND s.team_id = t.team_id
     WHERE t.team_id = $1
-      AND (c.challenge_id IS NULL OR ${situational.clause})
     GROUP BY t.name
     `,
     [teamId, ...window.params, ...situational.params],
