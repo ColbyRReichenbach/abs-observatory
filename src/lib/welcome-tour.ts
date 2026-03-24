@@ -261,7 +261,7 @@ export function getWelcomeTourOptionalStops(
   if (input.favoriteTeamHref) {
     stops.push({
       id: "favorite_team",
-      label: focus.id === "team" ? "Extra Innings: Favorite Club" : "Favorite Club",
+      label: focus.id === "teams" ? "Extra Innings: Favorite Club" : "Favorite Club",
       description: "Go straight to the team you care about most after the core path is finished.",
       href: input.favoriteTeamHref,
     });
