@@ -53,7 +53,10 @@ async function TeamsPageBody({
   copy: ReturnType<typeof getTeamsPageViewCopy>;
 }) {
   const [teams, trendlines] = await Promise.all([
-    getTeamLeaderboardModel(range, { includeDecisionMetrics: viewMode === "org" }),
+    getTeamLeaderboardModel(range, {
+      includeDecisionMetrics: viewMode === "org",
+      includeValueMetrics: viewMode === "org",
+    }),
     getTeamTrendSparklines(range),
   ]);
   const trendlineMap = new Map(trendlines.map((entry) => [entry.teamId, entry.values]));

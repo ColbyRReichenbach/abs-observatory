@@ -57,7 +57,10 @@ async function HomePageBody({
   const [games, moments, teams, umpires] = await Promise.all([
     getLiveGames(),
     getHomeChallengeMoments(12),
-    getTeamLeaderboardModel("season", { includeDecisionMetrics: viewMode === "org" }),
+    getTeamLeaderboardModel("season", {
+      includeDecisionMetrics: viewMode === "org",
+      includeValueMetrics: viewMode === "org",
+    }),
     getUmpireLeaderboardModel("season"),
   ]);
 

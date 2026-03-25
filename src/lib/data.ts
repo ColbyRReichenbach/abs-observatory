@@ -2494,7 +2494,11 @@ export async function getTeamLeaderboard(range: RangeKey = "season"): Promise<Te
   );
 }
 
-async function getTeamStyleMetrics(range: RangeKey = "season") {
+async function getTeamStyleMetrics(
+  range: RangeKey = "season",
+  options?: { includeValueMetrics?: boolean },
+) {
+  const includeValueMetrics = options?.includeValueMetrics ?? true;
   const window = rangeWhere(range, "g.game_date");
   const rows = await sql<{
     teamid: number;
@@ -2508,34 +2512,57 @@ async function getTeamStyleMetrics(range: RangeKey = "season") {
     winvalueconfidencerank: number | null;
   }>(
     `
+    WITH filtered_challenges AS (
+      SELECT c.*
+      FROM abs_challenges c
+      JOIN games g ON g.game_pk = c.game_pk
+      WHERE c.challenge_team_id IS NOT NULL
+        AND ${window.clause}
+    ),
+    challenge_style AS (
+      SELECT
+        c.challenge_team_id AS teamId,
+        AVG(
+          CASE
+            WHEN c.inning >= 7 OR ABS(COALESCE(c.home_score, 0) - COALESCE(c.away_score, 0)) <= 2 THEN 1.0
+            ELSE 0.0
+          END
+        )::NUMERIC AS lateLeverageShare,
+        AVG(
+          CASE
+            WHEN c.inning <= 3 AND ABS(COALESCE(c.home_score, 0) - COALESCE(c.away_score, 0)) >= 3 THEN 1.0
+            ELSE 0.0
+          END
+        )::NUMERIC AS earlyLowLeverageShare
+      FROM filtered_challenges c
+      GROUP BY c.challenge_team_id
+    )
     SELECT
-      c.challenge_team_id AS teamId,
-      AVG(
-        CASE
-          WHEN c.inning >= 7 OR ABS(COALESCE(c.home_score, 0) - COALESCE(c.away_score, 0)) <= 2 THEN 1.0
-          ELSE 0.0
-        END
-      )::NUMERIC AS lateLeverageShare,
-      AVG(
-        CASE
-          WHEN c.inning <= 3 AND ABS(COALESCE(c.home_score, 0) - COALESCE(c.away_score, 0)) >= 3 THEN 1.0
-          ELSE 0.0
-        END
-      )::NUMERIC AS earlyLowLeverageShare
-      ,
-      MAX(rv.avg_re_delta)::NUMERIC AS avgRunExpectancyDelta,
-      MAX(rv.high_re_share)::NUMERIC AS highRunValueShare,
-      MAX(CASE rv.confidence_band WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 ELSE 0 END) AS runValueConfidenceRank,
-      MAX(wv.avg_we_delta)::NUMERIC AS avgWinExpectancyDelta,
-      MAX(wv.high_we_share)::NUMERIC AS highWinValueShare,
-      MAX(CASE wv.confidence_band WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 ELSE 0 END) AS winValueConfidenceRank
-    FROM abs_challenges c
-    JOIN games g ON g.game_pk = c.game_pk
-    LEFT JOIN mart_team_challenge_run_value rv ON rv.team_id = c.challenge_team_id
-    LEFT JOIN mart_team_challenge_win_value wv ON wv.team_id = c.challenge_team_id
-    WHERE c.challenge_team_id IS NOT NULL
-      AND ${window.clause}
-    GROUP BY c.challenge_team_id
+      cs.teamId,
+      cs.lateLeverageShare,
+      cs.earlyLowLeverageShare,
+      ${
+        includeValueMetrics
+          ? `rv.avg_re_delta::NUMERIC AS avgRunExpectancyDelta,
+      rv.high_re_share::NUMERIC AS highRunValueShare,
+      CASE rv.confidence_band WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 ELSE 0 END AS runValueConfidenceRank,
+      wv.avg_we_delta::NUMERIC AS avgWinExpectancyDelta,
+      wv.high_we_share::NUMERIC AS highWinValueShare,
+      CASE wv.confidence_band WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 ELSE 0 END AS winValueConfidenceRank`
+          : `NULL::NUMERIC AS avgRunExpectancyDelta,
+      NULL::NUMERIC AS highRunValueShare,
+      NULL::INT AS runValueConfidenceRank,
+      NULL::NUMERIC AS avgWinExpectancyDelta,
+      NULL::NUMERIC AS highWinValueShare,
+      NULL::INT AS winValueConfidenceRank`
+      }
+    FROM challenge_style cs
+    ${
+      includeValueMetrics
+        ? `LEFT JOIN mart_team_challenge_run_value rv ON rv.team_id = cs.teamId
+    LEFT JOIN mart_team_challenge_win_value wv ON wv.team_id = cs.teamId`
+        : ""
+    }
     `,
     window.params,
   );
@@ -2623,20 +2650,21 @@ function mergeTeamStyleAndDecisionMetrics(
 
 export async function getTeamLeaderboardModel(
   range: RangeKey = "season",
-  options?: { includeDecisionMetrics?: boolean },
+  options?: { includeDecisionMetrics?: boolean; includeValueMetrics?: boolean },
 ): Promise<TeamLeaderboardEntry[]> {
   const includeDecisionMetrics = options?.includeDecisionMetrics ?? true;
+  const includeValueMetrics = options?.includeValueMetrics ?? true;
   return withServerTiming(
     "data.getTeamLeaderboardModel",
-    () => withCachedValue(getCacheKey(["team-leaderboard-model", range, includeDecisionMetrics ? "decision" : "style-only"]), 30_000, async () => {
+    () => withCachedValue(getCacheKey(["team-leaderboard-model", range, includeDecisionMetrics ? "decision" : "style-only", includeValueMetrics ? "value" : "no-value"]), 30_000, async () => {
       const [teams, styleMetrics, decisionMetrics] = await Promise.all([
         getTeamLeaderboard(range),
-        getTeamStyleMetrics(range),
+        getTeamStyleMetrics(range, { includeValueMetrics }),
         includeDecisionMetrics ? getTeamDecisionValueLeaderboard(range) : Promise.resolve(new Map()),
       ]);
       return buildTeamLeaderboardEntries(teams, mergeTeamStyleAndDecisionMetrics(styleMetrics, decisionMetrics));
     }),
-    { warnAtMs: 1_000, metadata: { range, includeDecisionMetrics } },
+    { warnAtMs: 1_000, metadata: { range, includeDecisionMetrics, includeValueMetrics } },
   );
 }
 
