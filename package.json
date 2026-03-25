@@ -23,6 +23,7 @@
     "test:visual:update": "playwright test --update-snapshots",
     "db:schema": "bash scripts/run-db-schema.sh",
     "db:smoke": "bash scripts/db-smoke.sh",
+    "db:publish:serving": "bash scripts/publish-serving-db.sh",
     "local:sample:refresh": "python3 scripts/build_local_sample.py",
     "local:sample:seed-community": "python3 scripts/seed_sample_community.py",
     "db:migration:verify": "bash scripts/db-verify-migrations.sh",
