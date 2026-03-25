@@ -257,6 +257,7 @@ npm run smoke:release
 - The Absolute Observer backend: [gazette-backend-spec.md](./docs/editorial/gazette-backend-spec.md)
 - AI backend: [ai-backend-plan.md](./docs/architecture/ai-backend-plan.md)
 - Launch and provider setup: [docs/launch/provider-setup-checklist.md](./docs/launch/provider-setup-checklist.md)
+- Vercel + Neon runbook: [docs/launch/vercel-neon-runbook.md](./docs/launch/vercel-neon-runbook.md)
 - Private alpha checklist: [docs/launch/private-alpha-checklist.md](./docs/launch/private-alpha-checklist.md)
 - Alpha success scorecard: [docs/launch/alpha-success-scorecard.md](./docs/launch/alpha-success-scorecard.md)
 
