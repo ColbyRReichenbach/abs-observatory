@@ -251,6 +251,7 @@ npm run smoke:release
 - Docs index: [docs/README.md](./docs/README.md)
 - Product truth: [product-source-of-truth.md](./docs/product/product-source-of-truth.md)
 - Stack decisions: [stack-selection.md](./docs/architecture/stack-selection.md)
+- Launch stack decision matrix: [docs/launch/hosting-decision-matrix.md](./docs/launch/hosting-decision-matrix.md)
 - Technical implementation: [technical.md](./docs/reference/technical.md)
 - Security controls: [security.md](./docs/reference/security.md)
 - Documentation and product gaps: [gap-list.md](./docs/reference/gap-list.md)

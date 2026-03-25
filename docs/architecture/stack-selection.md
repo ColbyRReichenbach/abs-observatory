@@ -2,6 +2,8 @@
 
 This document captures the recommended platform/tool choices for AiBS, why they were chosen, what is deferred, and what should trigger a revisit.
 
+For a shorter launch-oriented recommendation comparing realistic hosting/database options, see [hosting-decision-matrix.md](../launch/hosting-decision-matrix.md).
+
 The goal is not to optimize for theoretical scale on day one.
 
 The goal is:
