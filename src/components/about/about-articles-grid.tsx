@@ -29,10 +29,10 @@ export function AboutArticlesGrid({ articles }: { articles: AboutArticle[] }) {
       <div className="mb-8 flex flex-col gap-4 border-b border-black/10 pb-5 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[#7d6c54]">
-            Showing {visibleArticles.length} of {filteredArticles.length} articles
+            Showing {visibleArticles.length} of {filteredArticles.length} pages
           </p>
           <p className="mt-2 text-sm text-[#5a554d]">
-            Latest six by default. Expand the desk only when you want the full run.
+            The newest six dossier pages are shown by default. Expand only when you want the full project record.
           </p>
         </div>
 
@@ -65,7 +65,7 @@ export function AboutArticlesGrid({ articles }: { articles: AboutArticle[] }) {
               key={article.slug}
               href={`/about/${article.slug}`}
               className="group block h-full"
-              aria-label={`Read ${article.title}`}
+              aria-label={`Open ${article.title}`}
             >
               <article className="flex h-full flex-col rounded-[2rem] border border-black/10 bg-white/80 p-7 shadow-[0_20px_50px_rgba(0,0,0,0.04)] transition-all hover:-translate-y-1 hover:shadow-lg">
                 <div className="flex flex-wrap items-center gap-3 text-[11px] font-black uppercase tracking-[0.24em] text-[#7d6c54]">
@@ -91,7 +91,7 @@ export function AboutArticlesGrid({ articles }: { articles: AboutArticle[] }) {
                 </div>
 
                 <div className="mt-6 inline-flex text-[11px] font-black uppercase tracking-[0.24em] text-black transition-colors group-hover:text-[#8b0000]">
-                  Read Article
+                  Open Page
                 </div>
               </article>
             </Link>
@@ -106,7 +106,7 @@ export function AboutArticlesGrid({ articles }: { articles: AboutArticle[] }) {
             onClick={() => setShowAll((current) => !current)}
             className="rounded-2xl border-2 border-[#2c2c2c] px-6 py-3 text-[11px] font-black uppercase tracking-[0.24em] text-[#2c2c2c] transition-all hover:bg-[#2c2c2c] hover:text-[#fcf9f2]"
           >
-            {showAll ? "Show Less" : `View All (${filteredArticles.length})`}
+            {showAll ? "Show Less" : `View All Pages (${filteredArticles.length})`}
           </button>
         </div>
       ) : null}

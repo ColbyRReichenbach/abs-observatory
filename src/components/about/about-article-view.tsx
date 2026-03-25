@@ -6,10 +6,10 @@ import { ABOUT_ARTICLES, getAboutIssueMeta, type AboutArticle } from "@/lib/abou
 
 function ArticleTypeLabel({ articleType }: { articleType: AboutArticle["articleType"] }) {
   const labels: Record<AboutArticle["articleType"], string> = {
-    project: "Project Brief",
+    project: "Project Page",
     explainer: "Explainer",
-    founder: "Founder Note",
-    profile: "Profile",
+    founder: "Founder Page",
+    profile: "System Page",
   };
 
   return <>{labels[articleType]}</>;
@@ -62,7 +62,7 @@ export function AboutArticleView({ article }: { article: AboutArticle }) {
           <div className="lg:col-span-8 lg:border-r lg:border-black/15 lg:pr-10">
             <section>
               <p className={`text-[11px] font-black uppercase tracking-[0.28em] ${article.accentClass}`}>
-                Lead Story
+                Overview
               </p>
               <h2 className="mt-3 text-3xl font-display uppercase tracking-tight md:text-5xl">
                 {article.heroHeading}
@@ -79,7 +79,7 @@ export function AboutArticleView({ article }: { article: AboutArticle }) {
             {article.featureCards?.length ? (
               <section className="mt-12 border-y border-black/15 py-8">
                 <h3 className="text-center text-[11px] font-black uppercase tracking-[0.35em] text-[#7d6c54]">
-                  Read More
+                  Linked Pages
                 </h3>
                 <div className="mt-8 flex flex-wrap justify-center gap-10">
                   {article.featureCards.map((card) => (
@@ -158,7 +158,7 @@ export function AboutArticleView({ article }: { article: AboutArticle }) {
             {article.sources?.length ? (
               <section className="border-t border-black/15 pt-5">
                 <h3 className="text-[11px] font-black uppercase tracking-[0.28em] text-[#7d6c54]">
-                  Reporting Basis
+                  Source Material
                 </h3>
                 <div className="mt-5 space-y-3">
                   {article.sources.map((source) => (
@@ -178,7 +178,7 @@ export function AboutArticleView({ article }: { article: AboutArticle }) {
 
             <section className="border-t border-black/15 pt-5">
               <h3 className="text-[11px] font-black uppercase tracking-[0.28em] text-[#7d6c54]">
-                More from About
+                More from the Dossier
               </h3>
               <div className="mt-5 space-y-5">
                 {relatedArticles.map((relatedArticle) => (
