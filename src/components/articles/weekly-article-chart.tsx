@@ -39,7 +39,7 @@ function isSpringTimingConversionPoint(value: unknown): value is SpringTimingCon
 
 function isSpringUmpireExposurePoint(value: unknown): value is SpringUmpireExposurePoint {
   return isRecord(value)
-    && typeof value.umpireId === "number"
+    && (typeof value.umpireId === "number" || typeof value.umpireId === "string")
     && typeof value.umpireName === "string"
     && typeof value.challengedCalls === "number"
     && typeof value.overturnRate === "number";

@@ -18,7 +18,7 @@ import { buildLinearAxis, formatNumberTick, formatPercentTick } from "@/componen
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
 
 export type SpringUmpireExposurePoint = {
-  umpireId: number;
+  umpireId: number | string;
   umpireName: string;
   challengedCalls: number;
   overturnRate: number;
