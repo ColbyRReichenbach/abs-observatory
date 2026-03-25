@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { BroadcastStrip } from "@/components/broadcast-strip";
 import { ChallengeMomentCards } from "@/components/challenge-moment-cards";
 import { GameStrip } from "@/components/game-strip";
@@ -13,6 +14,46 @@ import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const sp = await searchParams;
   const viewMode = await resolveViewMode(sp);
+  const copy = getHomePageViewCopy(viewMode);
+
+  return (
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.03),transparent)] pt-36">
+      <Suspense fallback={null}>
+        <HomeBroadcastSection />
+      </Suspense>
+
+      <div className="px-6 py-8 text-center">
+        <h1 className="font-display text-5xl uppercase tracking-[-0.04em] text-[var(--ink-0)]">
+          ABS Observatory
+        </h1>
+        <p className="mt-2 text-sm font-medium text-[var(--ink-3)]">
+          {copy.heroDeck}
+        </p>
+      </div>
+
+      <Suspense fallback={<HomePageFallback viewMode={viewMode} copy={copy} />}>
+        <HomePageBody viewMode={viewMode} copy={copy} />
+      </Suspense>
+    </div>
+  );
+}
+
+async function HomeBroadcastSection() {
+  const moments = await getHomeChallengeMoments(12);
+  return (
+    <div className="relative z-40 bg-white/50 border-b border-gray-100">
+      <BroadcastStrip moments={moments} />
+    </div>
+  );
+}
+
+async function HomePageBody({
+  viewMode,
+  copy,
+}: {
+  viewMode: "fan" | "org";
+  copy: ReturnType<typeof getHomePageViewCopy>;
+}) {
   const [games, moments, teams, umpires] = await Promise.all([
     getLiveGames(),
     getHomeChallengeMoments(12),
@@ -63,23 +104,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const spotlightUmps = [...umpires].sort((a, b) => a.reportCardScore - b.reportCardScore).slice(0, 3);
   const mostDisciplinedTeam =
     [...teams].sort((a, b) => (b.avgRemaining * b.overturnRate) - (a.avgRemaining * a.overturnRate))[0] ?? null;
-  const copy = getHomePageViewCopy(viewMode);
-
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.03),transparent)] pt-36">
-      <div className="relative z-40 bg-white/50 border-b border-gray-100">
-        <BroadcastStrip moments={moments} />
-      </div>
-
-      <div className="px-6 py-8 text-center">
-        <h1 className="font-display text-5xl uppercase tracking-[-0.04em] text-[var(--ink-0)]">
-          ABS Observatory
-        </h1>
-        <p className="mt-2 text-sm font-medium text-[var(--ink-3)]">
-          {copy.heroDeck}
-        </p>
-      </div>
-
+    <>
       <GameStrip games={games} />
 
       <main className="mx-auto max-w-7xl px-6 pt-4 pb-40">
@@ -359,7 +385,68 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           </Link>
         </div>
       </main>
-    </div>
+    </>
+  );
+}
+
+function HomePageFallback({
+  viewMode,
+  copy,
+}: {
+  viewMode: "fan" | "org";
+  copy: ReturnType<typeof getHomePageViewCopy>;
+}) {
+  return (
+    <>
+      <div className="relative w-full bg-white/50 backdrop-blur-xl border-y border-gray-100 py-4">
+        <div className="mx-auto flex max-w-7xl gap-4 overflow-hidden px-6">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div key={index} className="h-16 w-[220px] shrink-0 rounded-xl border border-gray-100 bg-white/60" />
+          ))}
+        </div>
+      </div>
+
+      <main className="mx-auto max-w-7xl px-6 pt-4 pb-40">
+        <div className="mb-6 text-center">
+          <p className="text-[11px] font-medium text-[var(--ink-3)]">
+            Loading today&apos;s ABS slate...
+          </p>
+        </div>
+
+        {viewMode === "fan" ? (
+          <div className="mb-8 grid gap-6 lg:grid-cols-[1.35fr_0.95fr]">
+            <div className="panel min-h-[280px] border-gray-100 bg-white shadow-2xl shadow-black/[0.03]" />
+            <div className="space-y-6">
+              <div className="panel min-h-[136px] border-gray-100 bg-white/50 shadow-2xl shadow-black/[0.03]" />
+              <div className="panel min-h-[136px] border-gray-100 bg-white/50 shadow-2xl shadow-black/[0.03]" />
+            </div>
+          </div>
+        ) : (
+          <div className="mb-8 grid gap-4 md:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="panel min-h-[120px] border-gray-100 bg-white shadow-2xl shadow-black/[0.03]" />
+            ))}
+          </div>
+        )}
+
+        <section className="mt-16">
+          <div className="mb-20 flex flex-col items-center text-center">
+            <div className="h-12 w-px bg-blue-200 mb-8" />
+            <h2 className="w-full text-5xl md:text-7xl font-display uppercase tracking-tight text-gray-900 mb-6 leading-[1.2] py-4 px-12 overflow-visible">
+              Top <span className="opacity-20 italic px-2 pr-5">Pressure</span> Calls
+            </h2>
+            <p className="text-gray-500 text-lg max-w-xl font-medium text-balance">
+              {copy.heroDeck}
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="panel min-h-[180px] border-gray-100 bg-white shadow-2xl shadow-black/[0.03]" />
+            ))}
+          </div>
+        </section>
+      </main>
+    </>
   );
 }
 

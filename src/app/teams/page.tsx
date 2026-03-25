@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { RangeSelector } from "@/components/range-selector";
 import { TeamIcon } from "@/components/team-icon";
@@ -17,6 +18,40 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   const range = parseRange(sp.range);
   const viewMode = await resolveViewMode(sp);
+  const copy = getTeamsPageViewCopy(viewMode);
+
+  return (
+    <main className="mx-auto max-w-7xl px-6 pt-32 lg:pt-48 pb-40">
+      <div className="flex flex-col items-center text-center mb-20">
+        <h1 className="w-full text-6xl md:text-8xl font-display uppercase tracking-[-0.04em] text-gray-900 leading-[1.2] mb-8 py-4 px-12 overflow-visible">
+          Team <br />
+          <span className="opacity-20 italic px-2 pr-5">{copy.heroTitle.replace("Team ", "")}</span>
+        </h1>
+        <p className="max-w-xl text-[var(--ink-2)] font-medium text-lg leading-tight tracking-tight text-balance">
+          {copy.heroDeck}
+        </p>
+      </div>
+
+      <div className="mt-12 mb-8 flex items-center justify-center gap-4">
+        <RangeSelector basePath="/teams" range={range} searchParams={sp} />
+      </div>
+
+      <Suspense fallback={<TeamsPageFallback copy={copy} />}>
+        <TeamsPageBody range={range} viewMode={viewMode} copy={copy} />
+      </Suspense>
+    </main>
+  );
+}
+
+async function TeamsPageBody({
+  range,
+  viewMode,
+  copy,
+}: {
+  range: ReturnType<typeof parseRange>;
+  viewMode: "fan" | "org";
+  copy: ReturnType<typeof getTeamsPageViewCopy>;
+}) {
   const [teams, trendlines] = await Promise.all([
     getTeamLeaderboardModel(range, { includeDecisionMetrics: viewMode === "org" }),
     getTeamTrendSparklines(range),
@@ -97,7 +132,6 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
     challengeRatePerGame: t.challengeRatePerGame,
     overturnRate: t.overturnRate,
   }));
-  const copy = getTeamsPageViewCopy(viewMode);
   const spotlightSection = biggestMover ? (
     <div className="mb-8 panel border-gray-100 bg-white p-5 shadow-2xl shadow-black/[0.03]">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -314,27 +348,31 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
   );
 
   return (
-    <main className="mx-auto max-w-7xl px-6 pt-32 lg:pt-48 pb-40">
-      <div className="flex flex-col items-center text-center mb-20">
-        <h1 className="w-full text-6xl md:text-8xl font-display uppercase tracking-[-0.04em] text-gray-900 leading-[1.2] mb-8 py-4 px-12 overflow-visible">
-          Team <br />
-          <span className="opacity-20 italic px-2 pr-5">{copy.heroTitle.replace("Team ", "")}</span>
-        </h1>
-        <p className="max-w-xl text-[var(--ink-2)] font-medium text-lg leading-tight tracking-tight text-balance">
-          {copy.heroDeck}
-        </p>
-      </div>
-
-      <div className="mt-12 mb-8 flex items-center justify-center gap-4">
-        <RangeSelector basePath="/teams" range={range} searchParams={sp} />
-      </div>
-
+    <>
       {copy.sectionOrder.map((section) => (
         <div key={section}>
           {section === "spotlight" ? spotlightSection : section === "scatter" ? scatterSection : tableSection}
         </div>
       ))}
-    </main>
+    </>
+  );
+}
+
+function TeamsPageFallback({ copy }: { copy: ReturnType<typeof getTeamsPageViewCopy> }) {
+  return (
+    <>
+      {copy.sectionOrder.map((section) => (
+        <div key={section}>
+          {section === "spotlight" ? (
+            <div className="mb-8 panel border-gray-100 bg-white p-5 shadow-2xl shadow-black/[0.03] min-h-[140px]" />
+          ) : section === "scatter" ? (
+            <div className="mt-12 panel border-gray-100 bg-white shadow-2xl shadow-black/[0.03] min-h-[420px]" />
+          ) : (
+            <div className="panel overflow-hidden border-gray-100 bg-white shadow-2xl shadow-black/[0.03] min-h-[720px]" />
+          )}
+        </div>
+      ))}
+    </>
   );
 }
 
