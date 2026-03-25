@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
 import { buildLinearAxis, formatNumberTick, formatPercentTick } from "@/components/analytics/chart-axis";
 import { resolveTeamBranding } from "@/lib/team-branding";
+import { ClientOnly } from "@/components/ui/client-only";
 
 type TeamScatterPoint = {
     teamId: number;
@@ -196,88 +197,89 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                     </span>
                 </div>
 
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={400}>
-                    <ScatterChart
-                        margin={{ top: 40, right: 100, bottom: 60, left: 80 }}
-                        style={{ overflow: 'visible' }}
-                    >
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
-                        <XAxis
-                            type="number"
-                            dataKey="challengeRatePerGame"
-                            name="Challenge Rate / Game"
-                            tickLine={false}
-                            axisLine={false}
-                            tick={{ fontSize: 10, fill: "#86868b" }}
-                            tickFormatter={(v) => formatNumberTick(v, xTickDigits)}
-                            padding={{ left: 0, right: 0 }}
-                            domain={xAxis.domain}
-                            ticks={xAxis.ticks}
-                            allowDataOverflow={false}
+                <ClientOnly fallback={<div className="h-full w-full rounded-[1.5rem] bg-gradient-to-br from-gray-100 via-gray-50 to-white" />}>
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={400}>
+                        <ScatterChart
+                            margin={{ top: 40, right: 100, bottom: 60, left: 80 }}
+                            style={{ overflow: 'visible' }}
                         >
-                            <Label
-                                value="CHALLENGE RATE / GAME"
-                                position="bottom"
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
+                            <XAxis
+                                type="number"
+                                dataKey="challengeRatePerGame"
+                                name="Challenge Rate / Game"
+                                tickLine={false}
+                                axisLine={false}
+                                tick={{ fontSize: 10, fill: "#86868b" }}
+                                tickFormatter={(v) => formatNumberTick(v, xTickDigits)}
+                                padding={{ left: 0, right: 0 }}
+                                domain={xAxis.domain}
+                                ticks={xAxis.ticks}
+                                allowDataOverflow={false}
+                            >
+                                <Label
+                                    value="CHALLENGE RATE / GAME"
+                                    position="bottom"
+                                    offset={0}
+                                    style={{ fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em" }}
+                                />
+                            </XAxis>
+                            <YAxis
+                                type="number"
+                                dataKey="overturnPct"
+                                name="Overturn Rate"
+                                tickLine={false}
+                                axisLine={false}
+                                tick={{ fontSize: 10, fill: "#86868b" }}
+                                tickFormatter={(v) => formatPercentTick(v)}
+                                padding={{ top: 0, bottom: 0 }}
+                                domain={yAxis.domain}
+                                ticks={yAxis.ticks}
+                                allowDataOverflow={false}
+                            >
+                                <Label
+                                    value="OVERTURN RATE"
+                                    angle={-90}
+                                    position="insideLeft"
+                                    offset={10}
+                                    style={{ fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em" }}
+                                />
+                            </YAxis>
+
+                            <ReferenceLine
+                                x={avgChallengeRate}
+                                stroke="rgba(0,0,0,0.25)"
+                                strokeDasharray="4 4"
+                                label={{ value: `MLB AVG ${avgChallengeRate.toFixed(1)}`, position: "top", style: { fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em" } }}
+                            />
+                            <ReferenceLine
+                                y={avgOverturnRate * 100}
+                                stroke="rgba(0,0,0,0.25)"
+                                strokeDasharray="4 4"
+                                label={{ value: `MLB AVG ${(avgOverturnRate * 100).toFixed(0)}%`, position: "right", style: { fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em" } }}
+                            />
+
+                            <Scatter
+                                data={chartData}
+                                shape={renderDot}
+                                activeShape={renderActiveDot}
+                                onClick={(entry) => {
+                                    if (entry?.teamId) router.push(`/teams/${entry.teamId}`);
+                                }}
+                                isAnimationActive={false}
+                            />
+                            <Tooltip
+                                content={(props) => <ScatterTooltipContent {...(props as ScatterTooltipContentProps)} />}
+                                cursor={false}
                                 offset={0}
-                                style={{ fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em" }}
+                                allowEscapeViewBox={{ x: true, y: true }}
+                                wrapperStyle={{ zIndex: 10001, outline: "none", pointerEvents: "none" }}
+                                isAnimationActive={false}
+                                animationDuration={0}
                             />
-                        </XAxis>
-                        <YAxis
-                            type="number"
-                            dataKey="overturnPct"
-                            name="Overturn Rate"
-                            tickLine={false}
-                            axisLine={false}
-                            tick={{ fontSize: 10, fill: "#86868b" }}
-                            tickFormatter={(v) => formatPercentTick(v)}
-                            padding={{ top: 0, bottom: 0 }}
-                            domain={yAxis.domain}
-                            ticks={yAxis.ticks}
-                            allowDataOverflow={false}
-                        >
-                            <Label
-                                value="OVERTURN RATE"
-                                angle={-90}
-                                position="insideLeft"
-                                offset={10}
-                                style={{ fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em" }}
-                            />
-                        </YAxis>
-
-                        {/* League avg crosshair lines */}
-                        <ReferenceLine
-                            x={avgChallengeRate}
-                            stroke="rgba(0,0,0,0.25)"
-                            strokeDasharray="4 4"
-                            label={{ value: `MLB AVG ${avgChallengeRate.toFixed(1)}`, position: "top", style: { fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em" } }}
-                        />
-                        <ReferenceLine
-                            y={avgOverturnRate * 100}
-                            stroke="rgba(0,0,0,0.25)"
-                            strokeDasharray="4 4"
-                            label={{ value: `MLB AVG ${(avgOverturnRate * 100).toFixed(0)}%`, position: "right", style: { fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em" } }}
-                        />
-
-                        <Scatter
-                            data={chartData}
-                            shape={renderDot}
-                            activeShape={renderActiveDot}
-                            onClick={(entry) => {
-                                if (entry?.teamId) router.push(`/teams/${entry.teamId}`);
-                            }}
-                            isAnimationActive={false}
-                        />
-                        <Tooltip
-                            content={(props) => <ScatterTooltipContent {...(props as ScatterTooltipContentProps)} />}
-                            cursor={false}
-                            offset={0}
-                            allowEscapeViewBox={{ x: true, y: true }}
-                            wrapperStyle={{ zIndex: 10001, outline: "none", pointerEvents: "none" }}
-                            isAnimationActive={false}
-                            animationDuration={0}
-                        />
-                    </ScatterChart>
-                </ResponsiveContainer>
+                        </ScatterChart>
+                    </ResponsiveContainer>
+                </ClientOnly>
             </div>
         </div>
     );
