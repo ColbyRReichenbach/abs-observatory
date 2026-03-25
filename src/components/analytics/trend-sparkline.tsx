@@ -1,6 +1,6 @@
 "use client";
 
-import { LineChart, Line, ResponsiveContainer } from "recharts";
+import { LineChart, Line } from "recharts";
 
 type Props = {
     data: number[];
@@ -27,19 +27,17 @@ export function TrendSparkline({ data, color, width = 60, height = 24 }: Props) 
 
     return (
         <div style={{ width, height, minWidth: width, minHeight: height }}>
-            <ResponsiveContainer width="100%" height="100%" minWidth={width} minHeight={height}>
-                <LineChart data={chartData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
-                    <Line
-                        type="monotone"
-                        dataKey="value"
-                        stroke={lineColor}
-                        strokeWidth={1.5}
-                        dot={false}
-                        animationDuration={800}
-                        animationEasing="ease-out"
-                    />
-                </LineChart>
-            </ResponsiveContainer>
+            <LineChart width={width} height={height} data={chartData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
+                <Line
+                    type="monotone"
+                    dataKey="value"
+                    stroke={lineColor}
+                    strokeWidth={1.5}
+                    dot={false}
+                    animationDuration={800}
+                    animationEasing="ease-out"
+                />
+            </LineChart>
         </div>
     );
 }
