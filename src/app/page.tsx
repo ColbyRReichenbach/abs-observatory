@@ -16,7 +16,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const [games, moments, teams, umpires] = await Promise.all([
     getLiveGames(),
     getHomeChallengeMoments(12),
-    getTeamLeaderboardModel("season"),
+    getTeamLeaderboardModel("season", { includeDecisionMetrics: viewMode === "org" }),
     getUmpireLeaderboardModel("season"),
   ]);
 

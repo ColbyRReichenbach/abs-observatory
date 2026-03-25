@@ -919,11 +919,6 @@ export async function getHomeChallengeMoments(limit = 8): Promise<HomeChallengeM
   return withServerTiming(
     "data.getHomeChallengeMoments",
     () => withCachedValue(getCacheKey(["home-challenge-moments", limit]), 15_000, async () => {
-      const [overturnProbabilityRows, winExpectancyRows] = await Promise.all([
-        getOverturnProbabilityFallbackRows(),
-        getWinExpectancyFallbackRows(),
-      ]);
-
       const rows = await sql<{
     challengeid: string;
     gamepk: number;
@@ -987,27 +982,7 @@ export async function getHomeChallengeMoments(limit = 8): Promise<HomeChallengeM
     [limit],
   );
 
-      const moments = await Promise.all(
-        rows.map(async (r) => {
-      const calledPitch = resolveCalledPitchFromDescription(r.calleddescription);
-      const decisionValue = calledPitch
-        ? await estimateChallengeDecisionValue(
-            {
-              inning: r.inning ?? 1,
-              halfInning: r.halfinning === "Bottom" ? "Bottom" : "Top",
-              balls: r.balls_before ?? r.balls ?? 0,
-              strikes: r.strikes_before ?? r.strikes ?? 0,
-              outs: r.outs ?? 0,
-              scoreDiffBattingTeam: getScoreDiffBattingTeam(r.halfinning, r.homescore, r.awayscore),
-              runnersOnBase: countOccupiedBases(r.basesstate),
-              calledPitch,
-              challengesRemaining: 1,
-            },
-            { probabilityRows: overturnProbabilityRows, winRows: winExpectancyRows },
-          )
-        : null;
-
-      return {
+      const moments = rows.map((r) => ({
         challengeId: r.challengeid,
         gamePk: Number(r.gamepk),
         challengedAt: r.challengedat,
@@ -1026,14 +1001,10 @@ export async function getHomeChallengeMoments(limit = 8): Promise<HomeChallengeM
         homeScore: r.homescore,
         awayScore: r.awayscore,
         impactType: null,
-        realizedChallengeValue: decisionValue
-          ? r.isoverturned
-            ? decisionValue.wpDeltaIfSuccess
-            : decisionValue.wpDeltaIfFail
-          : null,
-        expectedChallengeValue: decisionValue?.expectedWpDelta ?? null,
-        overturnProbabilityConfidence: decisionValue?.overturnProbabilityConfidence ?? null,
-        decisionValueMode: decisionValue?.decisionValueMode ?? null,
+        realizedChallengeValue: null,
+        expectedChallengeValue: null,
+        overturnProbabilityConfidence: null,
+        decisionValueMode: null,
         umpireCount: (() => {
           if (r.balls_before === null || r.strikes_before === null) return null;
           if (!r.isoverturned) return r.balls_after === null || r.strikes_after === null ? null : `${r.balls_after}-${r.strikes_after}`;
@@ -1043,9 +1014,7 @@ export async function getHomeChallengeMoments(limit = 8): Promise<HomeChallengeM
         })(),
         playerName: r.playername,
         pitchNumber: r.pitchnumber,
-      };
-        }),
-      );
+      }));
 
       return buildHomeChallengeMoments(moments);
     }),
@@ -2652,18 +2621,22 @@ function mergeTeamStyleAndDecisionMetrics(
   return merged;
 }
 
-export async function getTeamLeaderboardModel(range: RangeKey = "season"): Promise<TeamLeaderboardEntry[]> {
+export async function getTeamLeaderboardModel(
+  range: RangeKey = "season",
+  options?: { includeDecisionMetrics?: boolean },
+): Promise<TeamLeaderboardEntry[]> {
+  const includeDecisionMetrics = options?.includeDecisionMetrics ?? true;
   return withServerTiming(
     "data.getTeamLeaderboardModel",
-    () => withCachedValue(getCacheKey(["team-leaderboard-model", range]), 30_000, async () => {
+    () => withCachedValue(getCacheKey(["team-leaderboard-model", range, includeDecisionMetrics ? "decision" : "style-only"]), 30_000, async () => {
       const [teams, styleMetrics, decisionMetrics] = await Promise.all([
         getTeamLeaderboard(range),
         getTeamStyleMetrics(range),
-        getTeamDecisionValueLeaderboard(range),
+        includeDecisionMetrics ? getTeamDecisionValueLeaderboard(range) : Promise.resolve(new Map()),
       ]);
       return buildTeamLeaderboardEntries(teams, mergeTeamStyleAndDecisionMetrics(styleMetrics, decisionMetrics));
     }),
-    { warnAtMs: 1_000, metadata: { range } },
+    { warnAtMs: 1_000, metadata: { range, includeDecisionMetrics } },
   );
 }
 
