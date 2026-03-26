@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 
 import { FlipCard } from "@/components/about/flip-card";
+import { BackPill } from "@/components/ui/back-pill";
 import { ABOUT_ARTICLES, getAboutIssueMeta, type AboutArticle } from "@/lib/about-articles";
 
 function ArticleTypeLabel({ articleType }: { articleType: AboutArticle["articleType"] }) {
@@ -22,13 +22,7 @@ export function AboutArticleView({ article }: { article: AboutArticle }) {
   return (
     <div className="min-h-screen bg-[#fcf9f2] px-6 pb-24 pt-32 text-[#2c2c2c]">
       <article className="mx-auto max-w-6xl">
-        <Link
-          href="/about"
-          className="inline-flex items-center gap-2 border-b border-black/20 pb-2 text-[11px] font-black uppercase tracking-[0.24em] text-[#7d6c54] transition-colors hover:text-black"
-        >
-          <ArrowLeft size={16} />
-          Back to About
-        </Link>
+        <BackPill label="About" href="/about" />
 
         <header className="mt-10 border-b-4 border-double border-[#2c2c2c] pb-8">
           <p className={`text-[11px] font-black uppercase tracking-[0.28em] ${article.accentClass}`}>

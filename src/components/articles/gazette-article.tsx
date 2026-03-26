@@ -1,15 +1,18 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
-import { ArticleDetail } from "@/lib/server/articles";
+import type { ArticleDetail, ArticleListItem } from "@/lib/server/articles";
 import { AIFeedback } from "@/components/ai-feedback";
 import { FlipCard } from "@/components/about/flip-card";
+import { ArticleRelatedRail } from "@/components/articles/article-related-rail";
 import { StandingsPulse } from "@/components/articles/standings-pulse";
 import { DynamicChart } from "@/components/articles/dynamic-chart";
+import { BackPill } from "@/components/ui/back-pill";
 import { getArticleDeskMeta, getArticleDisplayAuthor } from "@/lib/articles-desk";
 
 interface GazetteArticleProps {
     article: ArticleDetail;
+    relatedArticles?: ArticleListItem[];
 }
 
 type GazetteAuditEvidence = {
@@ -47,7 +50,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null;
 }
 
-export function GazetteArticle({ article }: GazetteArticleProps) {
+export function GazetteArticle({ article, relatedArticles = [] }: GazetteArticleProps) {
     const publishedDate = article.publishedAt ? new Date(article.publishedAt) : new Date();
     const dateStr = publishedDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
     const deskMeta = getArticleDeskMeta(article.articleType);
@@ -58,6 +61,10 @@ export function GazetteArticle({ article }: GazetteArticleProps) {
 
     return (
         <div className="min-h-screen bg-[#fcf9f2] text-[#2c2c2c] selection:bg-[#d4b483] selection:text-white pt-24 pb-32">
+            <div className="max-w-6xl mx-auto px-6 pb-6">
+                <BackPill label="Articles" href="/articles" />
+            </div>
+
             {/* Newspaper Header */}
             <header className="pt-8 pb-12 border-b-4 border-double border-[#2c2c2c] max-w-6xl mx-auto px-6 text-center">
                 <div className="flex justify-between items-center mb-6 text-[10px] font-bold uppercase tracking-[0.3em] border-b border-black/10 pb-2">
@@ -291,6 +298,10 @@ export function GazetteArticle({ article }: GazetteArticleProps) {
                     </section>
                 </div>
             </main>
+
+            <div className="max-w-6xl mx-auto px-6 pt-16">
+                <ArticleRelatedRail articles={relatedArticles} heading={`More from ${deskMeta.deskName}`} />
+            </div>
         </div>
     );
 }
