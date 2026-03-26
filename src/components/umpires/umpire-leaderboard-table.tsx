@@ -59,10 +59,10 @@ export function UmpireLeaderboardTable({
           <thead>
             <tr>
               <th className="min-w-[180px]">Rank & Name</th>
-              <th className="text-center">{viewMode === "org" ? "Challenges" : "Grade"}</th>
-              <th className="text-center">{viewMode === "org" ? "Overturned" : "Risk"}</th>
-              <th className="text-center">{viewMode === "org" ? "Report Card" : "Grade"}</th>
-              <th className="text-center">{viewMode === "org" ? "Profile" : "Descriptor"}</th>
+              <th className="text-center">{viewMode === "org" ? "Challenges" : "Challenges"}</th>
+              <th className="text-center">{viewMode === "org" ? "Overturned" : "Volatility"}</th>
+              <th className="text-center">{viewMode === "org" ? "Report Card" : "OT Rate"}</th>
+              <th className="text-center">{viewMode === "org" ? "Profile" : "Read"}</th>
               {viewMode === "org" ? <th className="text-center">Confidence</th> : null}
               <th className="text-right">Games</th>
             </tr>
@@ -90,7 +90,7 @@ export function UmpireLeaderboardTable({
                         </div>
                       </td>
                       <td className="text-center font-mono font-bold italic text-gray-400">
-                        {viewMode === "org" ? Math.round(totalChallenged / (umpires.length || 1)) : "-"}
+                        {Math.round(totalChallenged / (umpires.length || 1))}
                       </td>
                       <td className="text-center font-mono font-bold italic text-gray-400">
                         {viewMode === "org" ? Math.round(totalOverturned / (umpires.length || 1)) : "-"}
@@ -127,17 +127,21 @@ export function UmpireLeaderboardTable({
                       </Link>
                     </td>
                     <td className="text-center font-mono font-bold text-gray-500">
-                      {viewMode === "org" ? umpire.challengedCalls : umpire.grade}
+                      {umpire.challengedCalls}
                     </td>
                     <td className="text-center font-mono font-bold text-gray-500">
                       {viewMode === "org" ? umpire.overturnedCalls : umpire.riskTier}
                     </td>
                     <td className="text-center">
-                      <GradeChip grade={umpire.grade} value={umpire.overturnRate} />
+                      {viewMode === "org" ? (
+                        <GradeChip grade={umpire.grade} value={umpire.overturnRate} />
+                      ) : (
+                        <OverturnRateChip value={umpire.overturnRate} />
+                      )}
                     </td>
                     <td className="text-center">
                       <DescriptorChip
-                        label={viewMode === "org" ? `${umpire.orgDescriptor} · ${umpire.riskTier}` : umpire.fanDescriptor}
+                        label={viewMode === "org" ? `${umpire.orgDescriptor} · ${umpire.riskTier}` : `${umpire.grade} ${umpire.fanDescriptor}`}
                       />
                     </td>
                     {viewMode === "org" ? (
@@ -161,7 +165,7 @@ export function UmpireLeaderboardTable({
                   </div>
                 </td>
                 <td className="text-center font-mono font-bold italic text-gray-400">
-                  {viewMode === "org" ? Math.round(totalChallenged / (umpires.length || 1)) : "-"}
+                  {Math.round(totalChallenged / (umpires.length || 1))}
                 </td>
                 <td className="text-center font-mono font-bold italic text-gray-400">
                   {viewMode === "org" ? Math.round(totalOverturned / (umpires.length || 1)) : "-"}
@@ -214,6 +218,26 @@ function GradeChip({ grade, value }: { grade: string; value: number }) {
       className={`inline-flex rounded-xl border px-3 py-1.5 text-[10px] font-black font-mono uppercase tracking-widest shadow-sm ${isStrong ? "border-emerald-100 bg-emerald-50 text-emerald-700" : isMiddle ? "border-amber-100 bg-amber-50 text-amber-700" : "border-red-100 bg-red-50 text-red-600"}`}
     >
       {grade} · {pct.toFixed(1)}%
+    </span>
+  );
+}
+
+function OverturnRateChip({ value }: { value: number }) {
+  const pct = value * 100;
+  const isHigh = pct >= 55;
+  const isMiddle = pct >= 45;
+
+  return (
+    <span
+      className={`inline-flex rounded-xl border px-3 py-1.5 text-[10px] font-black font-mono uppercase tracking-widest shadow-sm ${
+        isHigh
+          ? "border-amber-100 bg-amber-50 text-amber-700"
+          : isMiddle
+            ? "border-gray-200 bg-gray-50 text-gray-600"
+            : "border-emerald-100 bg-emerald-50 text-emerald-700"
+      }`}
+    >
+      {pct.toFixed(1)}%
     </span>
   );
 }

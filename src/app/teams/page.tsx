@@ -147,10 +147,10 @@ async function TeamsPageBody({
           </p>
           <p className="mt-1 text-xs text-[var(--ink-3)]">
             {viewMode === "org"
-              ? `${biggestMover.orgStyleLabel} with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews in higher-pressure windows${
+              ? `${biggestMover.orgStyleLabel} with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews in late-or-close windows${
                   formatOrgValueCopy(biggestMover, useDecisionValue, useWinValue)
                 }.`
-              : `${biggestMover.style} profile with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews coming in bigger spots and a visible trend swing.`}
+              : `${biggestMover.style} profile with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews coming in late-or-close windows and a visible trend swing.`}
           </p>
         </div>
         <ProfileBadge
@@ -177,7 +177,7 @@ async function TeamsPageBody({
               <th className="min-w-[180px]">Rank & Team</th>
               <th className="text-left w-36">{copy.tableProfileHeader}</th>
               <th className="text-center">Rate / Game</th>
-              <th className="text-center">{viewMode === "org" ? "Pressure Share" : "Big-Spot Share"}</th>
+              <th className="text-center">Late/Close Share</th>
               <th className="text-center">{viewMode === "org" ? "Decision Read" : "Timing"}</th>
               <th className="text-center">Trend</th>
               {viewMode === "org" ? <th className="text-right">Late-Close EV</th> : null}

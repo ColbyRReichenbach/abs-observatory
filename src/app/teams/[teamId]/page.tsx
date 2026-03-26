@@ -159,9 +159,9 @@ export default async function TeamPage({
             />
             {viewMode === "org" && currentTeam ? (
               <StatCard
-                label="High-Pressure Share"
+                label="Late/Close Share"
                 value={`${(currentTeam.lateLeverageShare * 100).toFixed(0)}%`}
-                subLabel="Late leverage mix"
+                subLabel="Late-or-close challenge mix"
                 highlight
               />
             ) : null}
@@ -549,13 +549,13 @@ async function TeamLowerSections({
             {viewMode === "org" ? (
               <>Timing <span className="text-gray-400">Efficiency</span></>
             ) : (
-              <>Smart / Risky <span className="text-gray-400">Share</span></>
+              <>Leverage / Burn <span className="text-gray-400">Share</span></>
             )}
           </p>
         </div>
         <div className="space-y-4">
           <TimingMetric
-            label={viewMode === "org" ? "High-Pressure Share" : "Pressure Smart Share"}
+            label={viewMode === "org" ? "High-Leverage Share" : "High-Leverage Share"}
             value={`${(challengeValueSummary.highPressureShare * 100).toFixed(0)}%`}
             meter={challengeValueSummary.highPressureShare}
             color={teamPrimary}
