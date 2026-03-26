@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight, Archive } from "lucide-react";
 
@@ -15,6 +16,7 @@ type Article = {
 };
 
 export function ArticlesGrid({ articles }: { articles: Article[] }) {
+    const router = useRouter();
     const [showModal, setShowModal] = useState(() => false);
     const [showArchive, setShowArchive] = useState(false);
     const [archiveMonth, setArchiveMonth] = useState(new Date());
@@ -63,6 +65,12 @@ export function ArticlesGrid({ articles }: { articles: Article[] }) {
     const firstDayOfWeek = new Date(calendarYear, calendarMonthNum, 1).getDay();
     const monthLabel = archiveMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
+    const openLatestArticle = useCallback(() => {
+        if (!latest) return;
+        setShowModal(false);
+        router.push(`/articles/${latest.slug}`);
+    }, [latest, router]);
+
     return (
         <>
             {/* S6-1: Auto-open frosted modal */}
@@ -80,11 +88,22 @@ export function ArticlesGrid({ articles }: { articles: Article[] }) {
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.9, opacity: 0, y: 20 }}
                             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                            className="panel max-w-2xl w-full mx-auto p-10 bg-white/95 backdrop-blur-xl shadow-2xl border border-gray-100 relative"
-                            onClick={(e) => e.stopPropagation()}
+                            className="panel max-w-2xl w-full mx-auto p-10 bg-white/95 backdrop-blur-xl shadow-2xl border border-gray-100 relative cursor-pointer"
+                            onClick={openLatestArticle}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    openLatestArticle();
+                                }
+                            }}
+                            role="link"
+                            tabIndex={0}
                         >
                             <button
-                                onClick={() => setShowModal(false)}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowModal(false);
+                                }}
                                 className="absolute top-5 right-5 p-2 rounded-xl text-gray-400 hover:text-black hover:bg-gray-100 transition-all"
                             >
                                 <X size={18} />
