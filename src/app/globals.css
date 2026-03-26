@@ -140,8 +140,8 @@ body {
 /* ── Typography ── */
 .font-display {
   font-family: var(--font-display), system-ui, sans-serif;
-  letter-spacing: -0.04em;
   font-weight: 400;
+  font-kerning: normal;
 }
 
 /* ── Nav Chips ── */
