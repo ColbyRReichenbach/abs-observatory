@@ -1,0 +1,126 @@
+{
+  "auditDate": "2026-03-25",
+  "ok": true,
+  "runs": [
+    {
+      "slug": "abs-product-qa",
+      "label": "ABS product QA",
+      "script": "run-abs-product-qa.mjs",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 362,
+      "artifactPath": "docs/models/audits/artifacts/2026-03-25-abs-product-qa.json",
+      "markdownPath": "docs/models/audits/2026-03-25-abs-product-qa.md",
+      "stdoutPreview": "    {\n      \"label\": \"Challenges missing vertical location\",\n      \"value\": 5,\n      \"status\": \"warn\",\n      \"note\": \"Missing pz forces weaker geometry reasoning.\"\n    }\n  ]\n}",
+      "stderrPreview": ""
+    },
+    {
+      "slug": "current-state-audit",
+      "label": "Current-state audit",
+      "script": "run-current-state-audit.mjs",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 37460,
+      "artifactPath": "docs/models/audits/artifacts/2026-03-25-current-state-audit.json",
+      "markdownPath": "docs/models/audits/2026-03-25-current-state-audit.md",
+      "stdoutPreview": "Wrote docs/models/audits/2026-03-25-current-state-audit.md\nWrote docs/models/audits/artifacts/2026-03-25-current-state-audit.json",
+      "stderrPreview": ""
+    },
+    {
+      "slug": "re-benchmark",
+      "label": "RE benchmark",
+      "script": "run-re-benchmark.mjs",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 20646,
+      "artifactPath": "docs/models/audits/artifacts/2026-03-25-re-benchmark.json",
+      "markdownPath": "docs/models/audits/2026-03-25-re-benchmark.md",
+      "stdoutPreview": "Wrote docs/models/audits/2026-03-25-re-benchmark.md\nWrote docs/models/audits/artifacts/2026-03-25-re-benchmark.json",
+      "stderrPreview": ""
+    },
+    {
+      "slug": "mlb-we-benchmark",
+      "label": "MLB WE benchmark",
+      "script": "run-mlb-we-benchmark.mjs",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 89112,
+      "artifactPath": "docs/models/audits/artifacts/2026-03-25-mlb-we-benchmark.json",
+      "markdownPath": "docs/models/audits/2026-03-25-mlb-we-benchmark.md",
+      "stdoutPreview": "Benchmarked 300/415 games\nBenchmarked 325/415 games\nBenchmarked 350/415 games\nBenchmarked 375/415 games\nBenchmarked 400/415 games\nBenchmarked 415/415 games\nWrote docs/models/audits/2026-03-25-mlb-we-benchmark.md\nWrote docs/models/audits/artifacts/2026-03-25-mlb-we-benchmark.json",
+      "stderrPreview": ""
+    },
+    {
+      "slug": "overturn-calibration",
+      "label": "Overturn calibration",
+      "script": "run-overturn-calibration.mjs",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 734,
+      "artifactPath": "docs/models/audits/artifacts/2026-03-25-overturn-calibration.json",
+      "markdownPath": "docs/models/audits/2026-03-25-overturn-calibration.md",
+      "stdoutPreview": "Wrote docs/models/audits/2026-03-25-overturn-calibration.md\nWrote docs/models/audits/artifacts/2026-03-25-overturn-calibration.json",
+      "stderrPreview": ""
+    },
+    {
+      "slug": "rubric-audit",
+      "label": "Rubric audit",
+      "script": "run-rubric-audit.mjs",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 44136,
+      "artifactPath": "docs/models/audits/artifacts/2026-03-25-rubric-audit.json",
+      "markdownPath": "docs/models/audits/2026-03-25-rubric-audit.md",
+      "stdoutPreview": "Wrote docs/models/audits/2026-03-25-rubric-audit.md\nWrote docs/models/audits/artifacts/2026-03-25-rubric-audit.json",
+      "stderrPreview": ""
+    },
+    {
+      "slug": "leverage-audit",
+      "label": "Leverage audit",
+      "script": "run-leverage-audit.mjs",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 47632,
+      "artifactPath": "docs/models/audits/artifacts/2026-03-25-leverage-audit.json",
+      "markdownPath": "docs/models/audits/2026-03-25-leverage-audit.md",
+      "stdoutPreview": "Wrote /Users/colbyreichenbach/Desktop/mlb/abs-observatory-remote-recovery-20260324-175014/docs/models/audits/2026-03-25-leverage-audit.md\nWrote /Users/colbyreichenbach/Desktop/mlb/abs-observatory-remote-recovery-20260324-175014/docs/models/audits/artifacts/2026-03-25-leverage-audit.json",
+      "stderrPreview": ""
+    },
+    {
+      "slug": "controversy-audit",
+      "label": "Controversy audit",
+      "script": "run-controversy-audit.mjs",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 40515,
+      "artifactPath": "docs/models/audits/artifacts/2026-03-25-controversy-audit.json",
+      "markdownPath": "docs/models/audits/2026-03-25-controversy-audit.md",
+      "stdoutPreview": "Wrote /Users/colbyreichenbach/Desktop/mlb/abs-observatory-remote-recovery-20260324-175014/docs/models/audits/2026-03-25-controversy-audit.md\nWrote /Users/colbyreichenbach/Desktop/mlb/abs-observatory-remote-recovery-20260324-175014/docs/models/audits/artifacts/2026-03-25-controversy-audit.json",
+      "stderrPreview": ""
+    },
+    {
+      "slug": "decision-value-audit",
+      "label": "Decision-value audit",
+      "script": "run-decision-value-audit.mjs",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 40525,
+      "artifactPath": "docs/models/audits/artifacts/2026-03-25-decision-value-audit.json",
+      "markdownPath": "docs/models/audits/2026-03-25-decision-value-audit.md",
+      "stdoutPreview": "Wrote /Users/colbyreichenbach/Desktop/mlb/abs-observatory-remote-recovery-20260324-175014/docs/models/audits/2026-03-25-decision-value-audit.md\nWrote /Users/colbyreichenbach/Desktop/mlb/abs-observatory-remote-recovery-20260324-175014/docs/models/audits/artifacts/2026-03-25-decision-value-audit.json",
+      "stderrPreview": ""
+    },
+    {
+      "slug": "zone-edge-audit",
+      "label": "Zone-edge audit",
+      "script": "run-zone-edge-audit.mjs",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 407,
+      "artifactPath": "docs/models/audits/artifacts/2026-03-25-zone-edge-audit.json",
+      "markdownPath": "docs/models/audits/2026-03-25-zone-edge-audit.md",
+      "stdoutPreview": "Wrote /Users/colbyreichenbach/Desktop/mlb/abs-observatory-remote-recovery-20260324-175014/docs/models/audits/2026-03-25-zone-edge-audit.md\nWrote /Users/colbyreichenbach/Desktop/mlb/abs-observatory-remote-recovery-20260324-175014/docs/models/audits/artifacts/2026-03-25-zone-edge-audit.json",
+      "stderrPreview": ""
+    }
+  ]
+}

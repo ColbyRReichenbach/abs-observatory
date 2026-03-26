@@ -1,0 +1,42 @@
+{
+  "auditDate": "2026-03-25",
+  "ok": true,
+  "checks": [
+    {
+      "label": "Player profiles present",
+      "value": 1722,
+      "status": "pass",
+      "note": "Profiles power official ABS top/bottom zone resolution."
+    },
+    {
+      "label": "Official ABS profile coverage",
+      "value": "1722/1722",
+      "status": "pass",
+      "note": "Falling back to inferred top/bottom is acceptable temporarily, but should not dominate."
+    },
+    {
+      "label": "Challenge batters missing profile",
+      "value": 0,
+      "status": "pass",
+      "note": "Every challenged batter should map cleanly to a player profile."
+    },
+    {
+      "label": "Challenges with unresolved ABS zone",
+      "value": 0,
+      "status": "pass",
+      "note": "Resolved zone top/bottom must exist for every challenge visual and model path."
+    },
+    {
+      "label": "Challenges missing horizontal location",
+      "value": 5,
+      "status": "warn",
+      "note": "Missing px forces weaker geometry reasoning."
+    },
+    {
+      "label": "Challenges missing vertical location",
+      "value": 5,
+      "status": "warn",
+      "note": "Missing pz forces weaker geometry reasoning."
+    }
+  ]
+}

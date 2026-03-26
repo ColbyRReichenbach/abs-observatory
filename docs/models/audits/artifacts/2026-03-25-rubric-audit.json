@@ -1,0 +1,752 @@
+{
+  "auditDate": "2026-03-25",
+  "dataWindow": {
+    "start": "2026-02-20T05:00:00.000Z",
+    "end": "2026-03-24T04:00:00.000Z"
+  },
+  "overview": {
+    "teamsTracked": 30,
+    "umpiresTracked": 108,
+    "controversyMoments": 1913
+  },
+  "teamStyles": {
+    "byStyle": [
+      {
+        "style": "Hybrid",
+        "count": 18,
+        "share": 0.6,
+        "orgLabel": "Mixed profile"
+      },
+      {
+        "style": "Calculated",
+        "count": 6,
+        "share": 0.2,
+        "orgLabel": "Disciplined"
+      },
+      {
+        "style": "Trigger-Happy",
+        "count": 6,
+        "share": 0.2,
+        "orgLabel": "Aggressive"
+      }
+    ],
+    "byConfidence": [
+      {
+        "confidence": "high",
+        "count": 30
+      }
+    ],
+    "byOrgLabel": [
+      {
+        "orgLabel": "Mixed profile",
+        "count": 18
+      },
+      {
+        "orgLabel": "Aggressive",
+        "count": 6
+      },
+      {
+        "orgLabel": "Disciplined",
+        "count": 6
+      }
+    ],
+    "ambiguousTeams": [
+      {
+        "teamId": 110,
+        "teamName": "Baltimore Orioles",
+        "challengesTotal": 49,
+        "style": "Calculated",
+        "orgLabel": "Disciplined",
+        "confidence": "high",
+        "topGap": 0.48,
+        "scores": {
+          "Clutch": 50.43,
+          "Calculated": 55.82,
+          "Trigger-Happy": 41.77,
+          "Passive": 56.3,
+          "Hybrid": 87.44
+        }
+      },
+      {
+        "teamId": 146,
+        "teamName": "Miami Marlins",
+        "challengesTotal": 62,
+        "style": "Hybrid",
+        "orgLabel": "Mixed profile",
+        "confidence": "high",
+        "topGap": 0.54,
+        "scores": {
+          "Clutch": 52.69,
+          "Calculated": 48.37,
+          "Trigger-Happy": 53.23,
+          "Passive": 48.44,
+          "Hybrid": 92.21
+        }
+      },
+      {
+        "teamId": 135,
+        "teamName": "San Diego Padres",
+        "challengesTotal": 65,
+        "style": "Hybrid",
+        "orgLabel": "Mixed profile",
+        "confidence": "high",
+        "topGap": 0.71,
+        "scores": {
+          "Clutch": 49.02,
+          "Calculated": 48.94,
+          "Trigger-Happy": 50.53,
+          "Passive": 49.82,
+          "Hybrid": 96.53
+        }
+      },
+      {
+        "teamId": 141,
+        "teamName": "Toronto Blue Jays",
+        "challengesTotal": 64,
+        "style": "Hybrid",
+        "orgLabel": "Mixed profile",
+        "confidence": "high",
+        "topGap": 0.72,
+        "scores": {
+          "Clutch": 47.41,
+          "Calculated": 49.51,
+          "Trigger-Happy": 50.23,
+          "Passive": 48.63,
+          "Hybrid": 91.96
+        }
+      },
+      {
+        "teamId": 113,
+        "teamName": "Cincinnati Reds",
+        "challengesTotal": 62,
+        "style": "Calculated",
+        "orgLabel": "Disciplined",
+        "confidence": "high",
+        "topGap": 0.74,
+        "scores": {
+          "Clutch": 49.89,
+          "Calculated": 57.14,
+          "Trigger-Happy": 42.02,
+          "Passive": 56.4,
+          "Hybrid": 87.61
+        }
+      },
+      {
+        "teamId": 118,
+        "teamName": "Kansas City Royals",
+        "challengesTotal": 61,
+        "style": "Hybrid",
+        "orgLabel": "Mixed profile",
+        "confidence": "high",
+        "topGap": 1.34,
+        "scores": {
+          "Clutch": 48.29,
+          "Calculated": 53.97,
+          "Trigger-Happy": 44.63,
+          "Passive": 52.63,
+          "Hybrid": 87.23
+        }
+      },
+      {
+        "teamId": 117,
+        "teamName": "Houston Astros",
+        "challengesTotal": 54,
+        "style": "Hybrid",
+        "orgLabel": "Mixed profile",
+        "confidence": "high",
+        "topGap": 1.41,
+        "scores": {
+          "Clutch": 50.27,
+          "Calculated": 55.56,
+          "Trigger-Happy": 43.62,
+          "Passive": 54.14,
+          "Hybrid": 88.28
+        }
+      },
+      {
+        "teamId": 158,
+        "teamName": "Milwaukee Brewers",
+        "challengesTotal": 59,
+        "style": "Hybrid",
+        "orgLabel": "Mixed profile",
+        "confidence": "high",
+        "topGap": 1.51,
+        "scores": {
+          "Clutch": 48.95,
+          "Calculated": 54.64,
+          "Trigger-Happy": 44.17,
+          "Passive": 53.13,
+          "Hybrid": 87.86
+        }
+      },
+      {
+        "teamId": 144,
+        "teamName": "Atlanta Braves",
+        "challengesTotal": 63,
+        "style": "Hybrid",
+        "orgLabel": "Mixed profile",
+        "confidence": "high",
+        "topGap": 2.07,
+        "scores": {
+          "Clutch": 50.93,
+          "Calculated": 53,
+          "Trigger-Happy": 47.39,
+          "Passive": 50.67,
+          "Hybrid": 88.58
+        }
+      },
+      {
+        "teamId": 121,
+        "teamName": "New York Mets",
+        "challengesTotal": 47,
+        "style": "Hybrid",
+        "orgLabel": "Mixed profile",
+        "confidence": "high",
+        "topGap": 2.43,
+        "scores": {
+          "Clutch": 48.08,
+          "Calculated": 48.34,
+          "Trigger-Happy": 49.07,
+          "Passive": 51.5,
+          "Hybrid": 85.48
+        }
+      }
+    ]
+  },
+  "umpires": {
+    "byGrade": [
+      {
+        "grade": "C",
+        "count": 42,
+        "share": 0.3888888888888889
+      },
+      {
+        "grade": "D",
+        "count": 31,
+        "share": 0.28703703703703703
+      },
+      {
+        "grade": "B",
+        "count": 30,
+        "share": 0.2777777777777778
+      },
+      {
+        "grade": "A",
+        "count": 3,
+        "share": 0.027777777777777776
+      },
+      {
+        "grade": "F",
+        "count": 2,
+        "share": 0.018518518518518517
+      }
+    ],
+    "byFanDescriptor": [
+      {
+        "descriptor": "Uneasy",
+        "count": 46
+      },
+      {
+        "descriptor": "Balanced",
+        "count": 30
+      },
+      {
+        "descriptor": "Erratic",
+        "count": 27
+      },
+      {
+        "descriptor": "Reliable",
+        "count": 3
+      },
+      {
+        "descriptor": "Chaotic",
+        "count": 2
+      }
+    ],
+    "byOrgDescriptor": [
+      {
+        "descriptor": "Monitor",
+        "count": 49
+      },
+      {
+        "descriptor": "Elevated risk",
+        "count": 31
+      },
+      {
+        "descriptor": "Stable profile",
+        "count": 23
+      },
+      {
+        "descriptor": "Low-risk profile",
+        "count": 3
+      },
+      {
+        "descriptor": "High-risk profile",
+        "count": 2
+      }
+    ],
+    "byRiskTier": [
+      {
+        "tier": "Moderate",
+        "count": 87,
+        "share": 0.8055555555555556
+      },
+      {
+        "tier": "Elevated",
+        "count": 16,
+        "share": 0.14814814814814814
+      },
+      {
+        "tier": "Low",
+        "count": 5,
+        "share": 0.046296296296296294
+      }
+    ],
+    "byConfidence": [
+      {
+        "confidence": "medium",
+        "count": 61
+      },
+      {
+        "confidence": "high",
+        "count": 25
+      },
+      {
+        "confidence": "low",
+        "count": 22
+      }
+    ],
+    "topRiskProfiles": [
+      {
+        "umpireName": "Tripp Gibson",
+        "grade": "D",
+        "confidence": "medium",
+        "riskScore": 60.16,
+        "riskTier": "Elevated"
+      },
+      {
+        "umpireName": "Chad Whitson",
+        "grade": "D",
+        "confidence": "medium",
+        "riskScore": 58.4,
+        "riskTier": "Elevated"
+      },
+      {
+        "umpireName": "Dan Merzel",
+        "grade": "D",
+        "confidence": "low",
+        "riskScore": 58.14,
+        "riskTier": "Elevated"
+      },
+      {
+        "umpireName": "Dan Iassogna",
+        "grade": "C",
+        "confidence": "low",
+        "riskScore": 57.92,
+        "riskTier": "Elevated"
+      },
+      {
+        "umpireName": "Adrian Johnson",
+        "grade": "D",
+        "confidence": "low",
+        "riskScore": 56.39,
+        "riskTier": "Elevated"
+      },
+      {
+        "umpireName": "Manny Gonzalez",
+        "grade": "D",
+        "confidence": "medium",
+        "riskScore": 56.13,
+        "riskTier": "Elevated"
+      },
+      {
+        "umpireName": "Chad Fairchild",
+        "grade": "D",
+        "confidence": "medium",
+        "riskScore": 55.96,
+        "riskTier": "Elevated"
+      },
+      {
+        "umpireName": "Todd Tichenor",
+        "grade": "D",
+        "confidence": "low",
+        "riskScore": 55.61,
+        "riskTier": "Elevated"
+      },
+      {
+        "umpireName": "Chris Conroy",
+        "grade": "D",
+        "confidence": "medium",
+        "riskScore": 54.27,
+        "riskTier": "Elevated"
+      },
+      {
+        "umpireName": "James Hoye",
+        "grade": "D",
+        "confidence": "medium",
+        "riskScore": 53.84,
+        "riskTier": "Elevated"
+      }
+    ],
+    "medianScore": 48.91
+  },
+  "controversy": {
+    "byScoreBucket": [
+      {
+        "bucket": "<55",
+        "count": 1255,
+        "share": 0.6560376372190277
+      },
+      {
+        "bucket": "55-69",
+        "count": 577,
+        "share": 0.30162049137480396
+      },
+      {
+        "bucket": "70-84",
+        "count": 81,
+        "share": 0.042341871406168324
+      }
+    ],
+    "byOutcome": [
+      {
+        "outcome": "Overturned",
+        "count": 1012,
+        "avgScore": 58.15120553359687
+      },
+      {
+        "outcome": "Confirmed",
+        "count": 901,
+        "avgScore": 36.49160932297443
+      }
+    ],
+    "byImpactType": [
+      {
+        "impactType": "confirmed",
+        "count": 900,
+        "share": 0.47046523784631467
+      },
+      {
+        "impactType": "direct_count_impact",
+        "count": 829,
+        "share": 0.4333507579717721
+      },
+      {
+        "impactType": "direct_ending_impact",
+        "count": 182,
+        "share": 0.09513852587558808
+      },
+      {
+        "impactType": "downstream_inferred_impact",
+        "count": 1,
+        "share": 0.0005227391531625719
+      },
+      {
+        "impactType": "unknown",
+        "count": 1,
+        "share": 0.0005227391531625719
+      }
+    ],
+    "byDecisionMode": [
+      {
+        "mode": "win_expectancy",
+        "count": 1912,
+        "share": 0.9994772608468374
+      },
+      {
+        "mode": "heuristic",
+        "count": 1,
+        "share": 0.0005227391531625719
+      }
+    ],
+    "topMoments": [
+      {
+        "challengeId": "52fb56a5-3c19-4325-96cd-1b172f3425b1",
+        "gamePk": 831916,
+        "gameDate": "2026-03-21T04:00:00.000Z",
+        "challengeTeamName": "Cincinnati Reds",
+        "isOverturned": true,
+        "inning": 9,
+        "halfInning": "Bottom",
+        "outs": 0,
+        "basesState": "011",
+        "balls": 0,
+        "strikes": 0,
+        "homeScore": 7,
+        "awayScore": 7,
+        "impactType": "direct_count_impact",
+        "missDistance": 0.22484985310056005,
+        "expectedChallengeValue": -0.0841,
+        "realizedChallengeValue": -0.16363636363636364,
+        "decisionValueMode": "win_expectancy",
+        "controversyScore": 84.7,
+        "reasonChips": [
+          "Late Inning",
+          "Overturned",
+          "Tie Game",
+          "RISP"
+        ]
+      },
+      {
+        "challengeId": "576bf19b-093e-4c4a-a69f-e4abecc54691",
+        "gamePk": 832862,
+        "gameDate": "2026-03-07T05:00:00.000Z",
+        "challengeTeamName": "San Francisco Giants",
+        "isOverturned": true,
+        "inning": 9,
+        "halfInning": "Bottom",
+        "outs": 1,
+        "basesState": "010",
+        "balls": 2,
+        "strikes": 2,
+        "homeScore": 4,
+        "awayScore": 7,
+        "impactType": "direct_ending_impact",
+        "missDistance": 0,
+        "expectedChallengeValue": -0.0432,
+        "realizedChallengeValue": -0.07708333333333334,
+        "decisionValueMode": "win_expectancy",
+        "controversyScore": 82,
+        "reasonChips": [
+          "Late Inning",
+          "Overturned",
+          "RISP",
+          "Direct Impact"
+        ]
+      },
+      {
+        "challengeId": "ba1a8602-eba8-4176-b7f4-26f67d8dee54",
+        "gamePk": 831449,
+        "gameDate": "2026-03-21T04:00:00.000Z",
+        "challengeTeamName": "St. Louis Cardinals",
+        "isOverturned": true,
+        "inning": 7,
+        "halfInning": "Bottom",
+        "outs": 1,
+        "basesState": "100",
+        "balls": 1,
+        "strikes": 0,
+        "homeScore": 6,
+        "awayScore": 4,
+        "impactType": "direct_count_impact",
+        "missDistance": 0.5366603405495005,
+        "expectedChallengeValue": 0.0379,
+        "realizedChallengeValue": 0.07945134575569358,
+        "decisionValueMode": "win_expectancy",
+        "controversyScore": 81.53,
+        "reasonChips": [
+          "Late Inning",
+          "Overturned",
+          "Far Off Plate"
+        ]
+      },
+      {
+        "challengeId": "23ef5949-66ce-4c04-bbdf-333b0061dc22",
+        "gamePk": 831609,
+        "gameDate": "2026-03-17T04:00:00.000Z",
+        "challengeTeamName": "New York Yankees",
+        "isOverturned": true,
+        "inning": 8,
+        "halfInning": "Bottom",
+        "outs": 0,
+        "basesState": "000",
+        "balls": 2,
+        "strikes": 2,
+        "homeScore": 1,
+        "awayScore": 1,
+        "impactType": "direct_ending_impact",
+        "missDistance": 0.01830371223084315,
+        "expectedChallengeValue": -0.0239,
+        "realizedChallengeValue": -0.0434200050488378,
+        "decisionValueMode": "win_expectancy",
+        "controversyScore": 81.1,
+        "reasonChips": [
+          "Late Inning",
+          "Overturned",
+          "Tie Game",
+          "Direct Impact"
+        ]
+      },
+      {
+        "challengeId": "d45f7117-a062-4fe9-99ab-a3ba487d02a8",
+        "gamePk": 831749,
+        "gameDate": "2026-03-20T04:00:00.000Z",
+        "challengeTeamName": "San Francisco Giants",
+        "isOverturned": true,
+        "inning": 8,
+        "halfInning": "Bottom",
+        "outs": 0,
+        "basesState": "111",
+        "balls": 1,
+        "strikes": 2,
+        "homeScore": 0,
+        "awayScore": 5,
+        "impactType": "direct_ending_impact",
+        "missDistance": 0.007554452014615798,
+        "expectedChallengeValue": 0.0185,
+        "realizedChallengeValue": 0.037037037037037035,
+        "decisionValueMode": "win_expectancy",
+        "controversyScore": 81.1,
+        "reasonChips": [
+          "Late Inning",
+          "Overturned",
+          "Bases Loaded",
+          "Direct Impact"
+        ]
+      },
+      {
+        "challengeId": "31e6ff34-de43-4cc7-b44a-1d76423740fb",
+        "gamePk": 831849,
+        "gameDate": "2026-03-11T04:00:00.000Z",
+        "challengeTeamName": "Chicago Cubs",
+        "isOverturned": true,
+        "inning": 9,
+        "halfInning": "Bottom",
+        "outs": 0,
+        "basesState": "010",
+        "balls": 2,
+        "strikes": 2,
+        "homeScore": 7,
+        "awayScore": 8,
+        "impactType": "direct_count_impact",
+        "missDistance": 0.14599022905627224,
+        "expectedChallengeValue": -0.0498,
+        "realizedChallengeValue": -0.09522388059701492,
+        "decisionValueMode": "win_expectancy",
+        "controversyScore": 80.7,
+        "reasonChips": [
+          "Late Inning",
+          "Overturned",
+          "One-Run Game",
+          "RISP"
+        ]
+      },
+      {
+        "challengeId": "6fb4956a-0b7d-4853-a886-8077ff8e869a",
+        "gamePk": 831639,
+        "gameDate": "2026-03-01T05:00:00.000Z",
+        "challengeTeamName": "Detroit Tigers",
+        "isOverturned": true,
+        "inning": 9,
+        "halfInning": "Top",
+        "outs": 0,
+        "basesState": "010",
+        "balls": 0,
+        "strikes": 2,
+        "homeScore": 4,
+        "awayScore": 4,
+        "impactType": "direct_ending_impact",
+        "missDistance": 0,
+        "expectedChallengeValue": 0.0262,
+        "realizedChallengeValue": 0.0535734771136859,
+        "decisionValueMode": "win_expectancy",
+        "controversyScore": 80,
+        "reasonChips": [
+          "Late Inning",
+          "Overturned",
+          "Tie Game",
+          "RISP"
+        ]
+      },
+      {
+        "challengeId": "eaea3ed0-e8be-48c5-a9d7-68d50a853790",
+        "gamePk": 831806,
+        "gameDate": "2026-03-17T04:00:00.000Z",
+        "challengeTeamName": "Kansas City Royals",
+        "isOverturned": true,
+        "inning": 7,
+        "halfInning": "Top",
+        "outs": 1,
+        "basesState": "100",
+        "balls": 1,
+        "strikes": 2,
+        "homeScore": 3,
+        "awayScore": 3,
+        "impactType": "direct_ending_impact",
+        "missDistance": 0.03598649347626415,
+        "expectedChallengeValue": 0.013,
+        "realizedChallengeValue": 0.030159703028691035,
+        "decisionValueMode": "win_expectancy",
+        "controversyScore": 79.65,
+        "reasonChips": [
+          "Late Inning",
+          "Overturned",
+          "Tie Game",
+          "Direct Impact"
+        ]
+      },
+      {
+        "challengeId": "2bb7e84c-32ed-4c07-bbec-5cbe7e502de8",
+        "gamePk": 831777,
+        "gameDate": "2026-03-15T04:00:00.000Z",
+        "challengeTeamName": "San Diego Padres",
+        "isOverturned": true,
+        "inning": 8,
+        "halfInning": "Top",
+        "outs": 2,
+        "basesState": "010",
+        "balls": 0,
+        "strikes": 0,
+        "homeScore": 4,
+        "awayScore": 3,
+        "impactType": "direct_count_impact",
+        "missDistance": 0.0026496353075984302,
+        "expectedChallengeValue": 0.0165,
+        "realizedChallengeValue": 0.03718728870858688,
+        "decisionValueMode": "win_expectancy",
+        "controversyScore": 78.63,
+        "reasonChips": [
+          "Late Inning",
+          "Overturned",
+          "One-Run Game",
+          "RISP"
+        ]
+      },
+      {
+        "challengeId": "ed5ba611-24c1-41fc-b96a-131bf4b00424",
+        "gamePk": 831910,
+        "gameDate": "2026-03-20T04:00:00.000Z",
+        "challengeTeamName": "Chicago White Sox",
+        "isOverturned": true,
+        "inning": 8,
+        "halfInning": "Top",
+        "outs": 0,
+        "basesState": "100",
+        "balls": 2,
+        "strikes": 0,
+        "homeScore": 4,
+        "awayScore": 1,
+        "impactType": "direct_count_impact",
+        "missDistance": 0.2666696816286276,
+        "expectedChallengeValue": -0.0211,
+        "realizedChallengeValue": -0.03926479235174982,
+        "decisionValueMode": "win_expectancy",
+        "controversyScore": 78.62,
+        "reasonChips": [
+          "Late Inning",
+          "Overturned",
+          "Borderline Zone"
+        ]
+      }
+    ]
+  },
+  "summary": {
+    "teamStyleBuckets": 3,
+    "topTeamStyle": {
+      "style": "Hybrid",
+      "count": 18,
+      "share": 0.6,
+      "orgLabel": "Mixed profile"
+    },
+    "umpireGradeBuckets": 5,
+    "medianUmpireScore": 48.91,
+    "lowConfidenceUmpireShare": 0.2037037037037037,
+    "topRiskTier": {
+      "tier": "Moderate",
+      "count": 87,
+      "share": 0.8055555555555556
+    },
+    "meanOverturnedControversy": 58.15120553359687,
+    "meanConfirmedControversy": 36.49160932297443
+  }
+}

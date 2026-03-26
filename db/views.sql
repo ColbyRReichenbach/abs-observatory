@@ -630,53 +630,89 @@ FROM historical_pitch_states
 GROUP BY inning_bucket, outs, bases_state, count_key;
 
 CREATE OR REPLACE VIEW mart_run_expectancy_fallbacks AS
+WITH exact_rows AS (
+  SELECT
+    inning_bucket,
+    outs,
+    bases_state,
+    count_key,
+    COUNT(*) AS sample_size,
+    AVG(COALESCE(runs_to_inning_end, 0))::NUMERIC AS expected_runs_to_end_inning
+  FROM historical_pitch_states
+  GROUP BY inning_bucket, outs, bases_state, count_key
+),
+count_priors AS (
+  SELECT
+    outs,
+    bases_state,
+    count_key,
+    COUNT(*) AS sample_size,
+    AVG(COALESCE(runs_to_inning_end, 0))::NUMERIC AS expected_runs_to_end_inning
+  FROM historical_pitch_states
+  GROUP BY outs, bases_state, count_key
+),
+base_out_priors AS (
+  SELECT
+    outs,
+    bases_state,
+    COUNT(*) AS sample_size,
+    AVG(COALESCE(runs_to_inning_end, 0))::NUMERIC AS expected_runs_to_end_inning
+  FROM historical_pitch_states
+  GROUP BY outs, bases_state
+)
 SELECT
   'exact'::TEXT AS fallback_tier,
-  inning_bucket,
-  outs,
-  bases_state,
-  count_key,
-  COUNT(*) AS sample_size,
-  AVG(COALESCE(runs_to_inning_end, 0))::NUMERIC AS expected_runs_to_end_inning,
+  e.inning_bucket,
+  e.outs,
+  e.bases_state,
+  e.count_key,
+  e.sample_size,
   CASE
-    WHEN COUNT(*) >= 500 THEN 'high'
-    WHEN COUNT(*) >= 150 THEN 'medium'
+    WHEN e.sample_size < 25
+      THEN ((e.expected_runs_to_end_inning * e.sample_size) + (cp.expected_runs_to_end_inning * 12))
+        / NULLIF(e.sample_size + 12, 0)
+    ELSE e.expected_runs_to_end_inning
+  END AS expected_runs_to_end_inning,
+  CASE
+    WHEN e.sample_size >= 500 THEN 'high'
+    WHEN e.sample_size >= 150 THEN 'medium'
     ELSE 'low'
   END AS confidence_band
-FROM historical_pitch_states
-GROUP BY inning_bucket, outs, bases_state, count_key
+FROM exact_rows e
+JOIN count_priors cp
+  ON cp.outs = e.outs
+ AND cp.bases_state = e.bases_state
+ AND cp.count_key = e.count_key
 UNION ALL
 SELECT
   'drop_inning_bucket'::TEXT AS fallback_tier,
   NULL::TEXT AS inning_bucket,
-  outs,
-  bases_state,
-  count_key,
-  COUNT(*) AS sample_size,
-  AVG(COALESCE(runs_to_inning_end, 0))::NUMERIC AS expected_runs_to_end_inning,
+  cp.outs,
+  cp.bases_state,
+  cp.count_key,
+  cp.sample_size,
+  cp.expected_runs_to_end_inning,
   CASE
-    WHEN COUNT(*) >= 500 THEN 'high'
-    WHEN COUNT(*) >= 150 THEN 'medium'
+    WHEN cp.sample_size >= 500 THEN 'high'
+    WHEN cp.sample_size >= 150 THEN 'medium'
     ELSE 'low'
   END AS confidence_band
-FROM historical_pitch_states
-GROUP BY outs, bases_state, count_key
+FROM count_priors cp
 UNION ALL
 SELECT
   'drop_count_key'::TEXT AS fallback_tier,
   NULL::TEXT AS inning_bucket,
-  outs,
-  bases_state,
+  bp.outs,
+  bp.bases_state,
   NULL::TEXT AS count_key,
-  COUNT(*) AS sample_size,
-  AVG(COALESCE(runs_to_inning_end, 0))::NUMERIC AS expected_runs_to_end_inning,
+  bp.sample_size,
+  bp.expected_runs_to_end_inning,
   CASE
-    WHEN COUNT(*) >= 500 THEN 'high'
-    WHEN COUNT(*) >= 150 THEN 'medium'
+    WHEN bp.sample_size >= 500 THEN 'high'
+    WHEN bp.sample_size >= 150 THEN 'medium'
     ELSE 'low'
   END AS confidence_band
-FROM historical_pitch_states
-GROUP BY outs, bases_state;
+FROM base_out_priors bp;
 
 CREATE OR REPLACE VIEW mart_win_expectancy_by_count_state AS
 WITH win_states AS (
@@ -757,84 +793,142 @@ WITH win_states AS (
     AND outs IS NOT NULL
     AND bases_state IS NOT NULL
     AND score_diff_batting IS NOT NULL
+),
+exact_rows AS (
+  SELECT
+    inning,
+    inning_bucket,
+    half_inning,
+    score_diff_bucket,
+    outs,
+    bases_state,
+    count_key,
+    COUNT(*) AS sample_size,
+    AVG(CASE WHEN batting_team_won THEN 1 ELSE 0 END)::NUMERIC AS batting_team_win_probability
+  FROM win_states
+  WHERE count_key IS NOT NULL
+  GROUP BY inning, inning_bucket, half_inning, score_diff_bucket, outs, bases_state, count_key
+),
+bucket_count_rows AS (
+  SELECT
+    inning_bucket,
+    half_inning,
+    score_diff_bucket,
+    outs,
+    bases_state,
+    count_key,
+    COUNT(*) AS sample_size,
+    AVG(CASE WHEN batting_team_won THEN 1 ELSE 0 END)::NUMERIC AS batting_team_win_probability
+  FROM win_states
+  WHERE count_key IS NOT NULL
+  GROUP BY inning_bucket, half_inning, score_diff_bucket, outs, bases_state, count_key
+),
+drop_count_exact_rows AS (
+  SELECT
+    inning,
+    half_inning,
+    score_diff_bucket,
+    outs,
+    bases_state,
+    COUNT(*) AS sample_size,
+    AVG(CASE WHEN batting_team_won THEN 1 ELSE 0 END)::NUMERIC AS batting_team_win_probability
+  FROM win_states
+  GROUP BY inning, half_inning, score_diff_bucket, outs, bases_state
+),
+drop_count_bucket_rows AS (
+  SELECT
+    inning_bucket,
+    half_inning,
+    score_diff_bucket,
+    outs,
+    bases_state,
+    COUNT(*) AS sample_size,
+    AVG(CASE WHEN batting_team_won THEN 1 ELSE 0 END)::NUMERIC AS batting_team_win_probability
+  FROM win_states
+  GROUP BY inning_bucket, half_inning, score_diff_bucket, outs, bases_state
 )
 SELECT
   'exact'::TEXT AS fallback_tier,
-  inning,
+  e.inning,
   NULL::TEXT AS inning_bucket,
-  half_inning,
-  score_diff_bucket,
-  outs,
-  bases_state,
-  count_key,
-  COUNT(*) AS sample_size,
-  AVG(CASE WHEN batting_team_won THEN 1 ELSE 0 END)::NUMERIC AS batting_team_win_probability,
+  e.half_inning,
+  e.score_diff_bucket,
+  e.outs,
+  e.bases_state,
+  e.count_key,
+  e.sample_size,
   CASE
-    WHEN COUNT(*) >= 2000 THEN 'high'
-    WHEN COUNT(*) >= 500 THEN 'medium'
+    WHEN e.sample_size < 25
+      THEN ((e.batting_team_win_probability * e.sample_size) + (dce.batting_team_win_probability * 8))
+        / NULLIF(e.sample_size + 8, 0)
+    ELSE e.batting_team_win_probability
+  END AS batting_team_win_probability,
+  CASE
+    WHEN e.sample_size >= 2000 THEN 'high'
+    WHEN e.sample_size >= 500 THEN 'medium'
     ELSE 'low'
   END AS confidence_band
-FROM win_states
-WHERE count_key IS NOT NULL
-GROUP BY inning, half_inning, score_diff_bucket, outs, bases_state, count_key
+FROM exact_rows e
+JOIN drop_count_exact_rows dce
+  ON dce.inning = e.inning
+ AND dce.half_inning = e.half_inning
+ AND dce.score_diff_bucket = e.score_diff_bucket
+ AND dce.outs = e.outs
+ AND dce.bases_state = e.bases_state
 UNION ALL
 SELECT
   'drop_inning_to_bucket'::TEXT AS fallback_tier,
   NULL::INTEGER AS inning,
-  inning_bucket,
-  half_inning,
-  score_diff_bucket,
-  outs,
-  bases_state,
-  count_key,
-  COUNT(*) AS sample_size,
-  AVG(CASE WHEN batting_team_won THEN 1 ELSE 0 END)::NUMERIC AS batting_team_win_probability,
+  bc.inning_bucket,
+  bc.half_inning,
+  bc.score_diff_bucket,
+  bc.outs,
+  bc.bases_state,
+  bc.count_key,
+  bc.sample_size,
+  bc.batting_team_win_probability,
   CASE
-    WHEN COUNT(*) >= 2000 THEN 'high'
-    WHEN COUNT(*) >= 500 THEN 'medium'
+    WHEN bc.sample_size >= 2000 THEN 'high'
+    WHEN bc.sample_size >= 500 THEN 'medium'
     ELSE 'low'
   END AS confidence_band
-FROM win_states
-WHERE count_key IS NOT NULL
-GROUP BY inning_bucket, half_inning, score_diff_bucket, outs, bases_state, count_key
+FROM bucket_count_rows bc
 UNION ALL
 SELECT
   'drop_count_key_exact_inning'::TEXT AS fallback_tier,
-  inning,
+  dce.inning,
   NULL::TEXT AS inning_bucket,
-  half_inning,
-  score_diff_bucket,
-  outs,
-  bases_state,
+  dce.half_inning,
+  dce.score_diff_bucket,
+  dce.outs,
+  dce.bases_state,
   NULL::TEXT AS count_key,
-  COUNT(*) AS sample_size,
-  AVG(CASE WHEN batting_team_won THEN 1 ELSE 0 END)::NUMERIC AS batting_team_win_probability,
+  dce.sample_size,
+  dce.batting_team_win_probability,
   CASE
-    WHEN COUNT(*) >= 2000 THEN 'high'
-    WHEN COUNT(*) >= 500 THEN 'medium'
+    WHEN dce.sample_size >= 2000 THEN 'high'
+    WHEN dce.sample_size >= 500 THEN 'medium'
     ELSE 'low'
   END AS confidence_band
-FROM win_states
-GROUP BY inning, half_inning, score_diff_bucket, outs, bases_state
+FROM drop_count_exact_rows dce
 UNION ALL
 SELECT
   'drop_count_key_bucketed_inning'::TEXT AS fallback_tier,
   NULL::INTEGER AS inning,
-  inning_bucket,
-  half_inning,
-  score_diff_bucket,
-  outs,
-  bases_state,
+  dcb.inning_bucket,
+  dcb.half_inning,
+  dcb.score_diff_bucket,
+  dcb.outs,
+  dcb.bases_state,
   NULL::TEXT AS count_key,
-  COUNT(*) AS sample_size,
-  AVG(CASE WHEN batting_team_won THEN 1 ELSE 0 END)::NUMERIC AS batting_team_win_probability,
+  dcb.sample_size,
+  dcb.batting_team_win_probability,
   CASE
-    WHEN COUNT(*) >= 2000 THEN 'high'
-    WHEN COUNT(*) >= 500 THEN 'medium'
+    WHEN dcb.sample_size >= 2000 THEN 'high'
+    WHEN dcb.sample_size >= 500 THEN 'medium'
     ELSE 'low'
   END AS confidence_band
-FROM win_states
-GROUP BY inning_bucket, half_inning, score_diff_bucket, outs, bases_state;
+FROM drop_count_bucket_rows dcb;
 
 CREATE OR REPLACE VIEW mart_zone_outcome_baselines AS
 SELECT

@@ -1,0 +1,134 @@
+{
+  "auditDate": "2026-03-23",
+  "springWindow": {
+    "start": "2026-02-20",
+    "end": "2026-03-23"
+  },
+  "overall": {
+    "rows": 1731,
+    "locationCoverage": 0.997689196995956,
+    "reviewedPitchShare": 0.7521663778162911,
+    "inferredLocationShare": 0.24783362218370883
+  },
+  "byLocationSource": [
+    {
+      "key": "reviewed_pitch_px_pz",
+      "rows": 1302,
+      "share": 0.7521663778162911,
+      "overturnRate": 0.5499231950844854,
+      "meanMissDistance": 0.00990299670865465,
+      "medianMissDistance": 0,
+      "p90MissDistance": 0.02007339330986546
+    },
+    {
+      "key": "inferred_final_pitch_px_pz",
+      "rows": 425,
+      "share": 0.24552281917966493,
+      "overturnRate": 0.48,
+      "meanMissDistance": 0.011357352686126318,
+      "medianMissDistance": 0,
+      "p90MissDistance": 0.032592422409639665
+    },
+    {
+      "key": "reviewed_pitch_xy_only",
+      "rows": 3,
+      "share": 0.0017331022530329288,
+      "overturnRate": 0.3333333333333333,
+      "meanMissDistance": null,
+      "medianMissDistance": null,
+      "p90MissDistance": null
+    },
+    {
+      "key": "inferred_final_pitch_xy_only",
+      "rows": 1,
+      "share": 0.0005777007510109763,
+      "overturnRate": 0,
+      "meanMissDistance": null,
+      "medianMissDistance": null,
+      "p90MissDistance": null
+    }
+  ],
+  "byEdgeBucket": [
+    {
+      "key": "edge",
+      "rows": 1509,
+      "share": 0.8737695425593515,
+      "overturnRate": 0.5314777998674619,
+      "meanMissDistance": 0.00029752575586610466,
+      "medianMissDistance": 0,
+      "p90MissDistance": 0
+    },
+    {
+      "key": "near_edge",
+      "rows": 185,
+      "share": 0.10712217718587146,
+      "overturnRate": 0.5297297297297298,
+      "meanMissDistance": 0.06143817454221301,
+      "medianMissDistance": 0.04425913044342211,
+      "p90MissDistance": 0.13885209478136895
+    },
+    {
+      "key": "clear_miss",
+      "rows": 33,
+      "share": 0.01910828025477707,
+      "overturnRate": 0.6060606060606061,
+      "meanMissDistance": 0.17895599849577837,
+      "medianMissDistance": 0.17422282039661896,
+      "p90MissDistance": 0.19696124948750793
+    }
+  ],
+  "byDirectionAndBucket": [
+    {
+      "key": "strike_to_ball / edge",
+      "rows": 808,
+      "share": 0.4678633468442386,
+      "overturnRate": 0.5532178217821783,
+      "meanMissDistance": 0.0005457784765882136,
+      "medianMissDistance": 0,
+      "p90MissDistance": 0
+    },
+    {
+      "key": "ball_to_strike / edge",
+      "rows": 701,
+      "share": 0.40590619571511294,
+      "overturnRate": 0.5064194008559201,
+      "meanMissDistance": 0.00001137996650310324,
+      "medianMissDistance": 0,
+      "p90MissDistance": 0
+    },
+    {
+      "key": "strike_to_ball / near_edge",
+      "rows": 144,
+      "share": 0.08338158656629995,
+      "overturnRate": 0.5486111111111112,
+      "meanMissDistance": 0.07341166106372343,
+      "medianMissDistance": 0.06612352435063151,
+      "p90MissDistance": 0.13962420783146978
+    },
+    {
+      "key": "ball_to_strike / near_edge",
+      "rows": 41,
+      "share": 0.02374059061957151,
+      "overturnRate": 0.4634146341463415,
+      "meanMissDistance": 0.01938495358861528,
+      "medianMissDistance": 0.01770993625498629,
+      "p90MissDistance": 0.03320317317751842
+    },
+    {
+      "key": "strike_to_ball / clear_miss",
+      "rows": 33,
+      "share": 0.01910828025477707,
+      "overturnRate": 0.6060606060606061,
+      "meanMissDistance": 0.17895599849577837,
+      "medianMissDistance": 0.17422282039661896,
+      "p90MissDistance": 0.19696124948750793
+    }
+  ],
+  "rootCause": {
+    "missingLocationRows": 4,
+    "reviewedPitchRows": 1302,
+    "inferredRows": 429,
+    "strikeToBallMonotonic": false,
+    "ballToStrikeMonotonic": false
+  }
+}
