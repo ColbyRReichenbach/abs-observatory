@@ -116,16 +116,16 @@ const GAME_VIEW_COPY: Record<
   Record<ViewMode, { eyebrow: string; title: string; deck: string; sectionOrder: string[] }>
 > = {
   pregame: {
-  fan: {
-    eyebrow: "Tonight's ABS Story",
-    title: "Pregame Spotlight",
-    deck: "A lighter pregame read on tonight's umpire personality, challenge tendencies, and matchup tension.",
+    fan: {
+      eyebrow: "Tonight's ABS Story",
+      title: "Pregame Spotlight",
+      deck: "A lighter pregame read on tonight's umpire personality, challenge tendencies, and matchup tension.",
       sectionOrder: ["signals", "visuals", "briefing", "history"],
     },
-  org: {
-    eyebrow: "ABS Scouting Report",
-    title: "Pregame Intelligence",
-    deck: "Pregame scouting read built from tracked umpire tendencies and team challenge profiles entering tonight's matchup.",
+    org: {
+      eyebrow: "ABS Scouting Report",
+      title: "Pregame Intelligence",
+      deck: "Pregame scouting read built from tracked umpire tendencies and team challenge profiles entering tonight's matchup.",
       sectionOrder: ["visuals", "signals", "briefing", "history"],
     },
   },
