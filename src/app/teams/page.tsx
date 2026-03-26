@@ -224,11 +224,25 @@ async function TeamsPageBody({
                       </td>
                       <td className="text-center">
                         <StrategyChip
-                          label={viewMode === "org" ? getDecisionReadLabel(leagueAvgDecisionSurplus, 0.5, 0.5) : getStrategyLabel(leagueAvgLatePressureShare, leagueAvgEarlyBurnShare, viewMode)}
+                          label={
+                            viewMode === "org"
+                              ? getDecisionReadLabel(leagueAvgDecisionSurplus, 0.5, 0.5)
+                              : getTimingReadLabel(
+                                  leagueAvgLatePressureShare,
+                                  leagueAvgEarlyBurnShare,
+                                  leagueAvgLatePressureShare,
+                                  leagueAvgEarlyBurnShare,
+                                )
+                          }
                           tone={
                             viewMode === "org"
                               ? getDecisionReadTone(leagueAvgDecisionSurplus, 0.5, 0.5)
-                              : getStrategyTone(leagueAvgLatePressureShare, leagueAvgEarlyBurnShare)
+                              : getTimingReadTone(
+                                  leagueAvgLatePressureShare,
+                                  leagueAvgEarlyBurnShare,
+                                  leagueAvgLatePressureShare,
+                                  leagueAvgEarlyBurnShare,
+                                )
                           }
                         />
                       </td>
@@ -302,12 +316,22 @@ async function TeamsPageBody({
                         label={
                           viewMode === "org"
                             ? getDecisionReadLabel(t.decisionSurplus, t.capturedValueShare, t.wastedValueShare)
-                            : getStrategyLabel(t.lateLeverageShare, t.earlyLowLeverageShare, viewMode)
+                            : getTimingReadLabel(
+                                t.lateLeverageShare,
+                                t.earlyLowLeverageShare,
+                                leagueAvgLatePressureShare,
+                                leagueAvgEarlyBurnShare,
+                              )
                         }
                         tone={
                           viewMode === "org"
                             ? getDecisionReadTone(t.decisionSurplus, t.capturedValueShare, t.wastedValueShare)
-                            : getStrategyTone(t.lateLeverageShare, t.earlyLowLeverageShare)
+                            : getTimingReadTone(
+                                t.lateLeverageShare,
+                                t.earlyLowLeverageShare,
+                                leagueAvgLatePressureShare,
+                                leagueAvgEarlyBurnShare,
+                              )
                         }
                       />
                     </td>
@@ -549,21 +573,31 @@ function StrategyChip({
   );
 }
 
-function getStrategyLabel(lateShare: number, earlyBurnShare: number, viewMode: "fan" | "org") {
-  if (lateShare >= 0.45 && earlyBurnShare <= 0.2) {
-    return viewMode === "org" ? "Disciplined" : "Clutch";
-  }
-  if (earlyBurnShare >= 0.3) {
-    return viewMode === "org" ? "Early Burn" : "Loose";
-  }
-  if (lateShare >= 0.35) {
-    return viewMode === "org" ? "Pressure Smart" : "Opportunistic";
-  }
-  return viewMode === "org" ? "Mixed" : "Mixed";
+function getTimingReadLabel(
+  lateShare: number,
+  earlyBurnShare: number,
+  leagueLateShare: number,
+  leagueEarlyBurnShare: number,
+) {
+  const lateDelta = lateShare - leagueLateShare;
+  const earlyDelta = earlyBurnShare - leagueEarlyBurnShare;
+
+  if (lateDelta >= 0.08 && earlyDelta <= 0.03) return "Pressure-Hunting";
+  if (earlyDelta >= 0.08 && lateDelta <= 0.03) return "Front-Loaded";
+  if (Math.abs(lateDelta) <= 0.04 && Math.abs(earlyDelta) <= 0.04) return "Balanced";
+  return "Mixed";
 }
 
-function getStrategyTone(lateShare: number, earlyBurnShare: number) {
-  if (lateShare >= 0.45 && earlyBurnShare <= 0.2) return "emerald" as const;
-  if (earlyBurnShare >= 0.3) return "amber" as const;
+function getTimingReadTone(
+  lateShare: number,
+  earlyBurnShare: number,
+  leagueLateShare: number,
+  leagueEarlyBurnShare: number,
+) {
+  const lateDelta = lateShare - leagueLateShare;
+  const earlyDelta = earlyBurnShare - leagueEarlyBurnShare;
+
+  if (lateDelta >= 0.08 && earlyDelta <= 0.03) return "emerald" as const;
+  if (earlyDelta >= 0.08 && lateDelta <= 0.03) return "amber" as const;
   return "gray" as const;
 }
