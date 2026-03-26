@@ -12,7 +12,7 @@ const HOME_PAGE_COPY = {
     topMomentTitleFallback: "Slate settling",
   },
   org: {
-    heroDeck: "League monitoring for ABS operations, prep, and pressure decisions.",
+    heroDeck: "League monitoring for ABS operations, prep, and leverage decisions.",
     summaryLabel: "ops note",
     teamsSectionTitle: "Challenge Operators",
     umpiresSectionTitle: "Umpire Watch List",
@@ -25,7 +25,7 @@ const TEAMS_PAGE_COPY = {
   fan: {
     heroTitle: "Team Leaderboard",
     heroDeck:
-      "Aggregated ABS challenge data across all 30 MLB franchises, emphasizing team personality, pressure moments, and challenge identity.",
+      "Aggregated ABS challenge data across all 30 MLB franchises, emphasizing team personality, later-game habits, and challenge identity.",
     spotlightEyebrow: "Biggest Mover",
     spotlightLabel: "Profile",
     tableProfileHeader: "Profile",
@@ -36,7 +36,7 @@ const TEAMS_PAGE_COPY = {
   org: {
     heroTitle: "Team Leaderboard",
     heroDeck:
-      "Aggregated ABS challenge data across all 30 MLB franchises, emphasizing challenge discipline, conservation, and timing.",
+      "Aggregated ABS challenge data across all 30 MLB franchises, emphasizing challenge discipline, situational timing, and decision quality.",
     spotlightEyebrow: "Recent Signal",
     spotlightLabel: "Discipline",
     tableProfileHeader: "Profile",
@@ -49,7 +49,7 @@ const TEAMS_PAGE_COPY = {
 const TEAM_DETAIL_COPY = {
   fan: {
     heroSubtitle:
-      "Full ABS personality breakdown, from dramatic moments to challenge identity.",
+      "Full ABS personality breakdown, from turning points to challenge identity.",
     trendEyebrow: "Season Tempo",
     trendTitle: "Challenge Trajectory",
     aggressionEyebrow: "Team Personality",
@@ -81,14 +81,14 @@ const UMPIRES_PAGE_COPY = {
   fan: {
     heroTitle: "Umpire Rankings",
     heroDeck:
-      "ABS challenge rankings across the active MLB umpire pool, highlighting who feels steady, shaky, or chaotic under review.",
+      "ABS challenge rankings across the active MLB umpire pool, highlighting who looks steady, shaky, or chaotic in the review sample.",
     watchTitle: "Tonight's Spotlight",
     leaderboardPlacement: "late",
   },
   org: {
     heroTitle: "Umpire Rankings",
     heroDeck:
-      "Operational ABS challenge rankings across the active MLB umpire pool, highlighting risk, stability, and prep value.",
+      "Operational ABS challenge rankings across the active MLB umpire pool, highlighting risk, stability, and prep value in the current sample.",
     watchTitle: "Prep Assignments",
     leaderboardPlacement: "early",
   },
@@ -116,16 +116,16 @@ const GAME_VIEW_COPY: Record<
   Record<ViewMode, { eyebrow: string; title: string; deck: string; sectionOrder: string[] }>
 > = {
   pregame: {
-    fan: {
-      eyebrow: "Tonight's ABS Story",
-      title: "Pregame Spotlight",
-      deck: "A lighter pregame read on tonight's umpire personality, challenge tendencies, and matchup tension.",
+  fan: {
+    eyebrow: "Tonight's ABS Story",
+    title: "Pregame Spotlight",
+    deck: "A lighter pregame read on tonight's umpire personality, challenge tendencies, and matchup tension.",
       sectionOrder: ["signals", "visuals", "briefing", "history"],
     },
-    org: {
-      eyebrow: "ABS Scouting Report",
-      title: "Pregame Intelligence",
-      deck: "Predictive intelligence matrix based on historical umpire tendencies and team challenge aggression entering tonight's matchup.",
+  org: {
+    eyebrow: "ABS Scouting Report",
+    title: "Pregame Intelligence",
+    deck: "Pregame scouting read built from tracked umpire tendencies and team challenge profiles entering tonight's matchup.",
       sectionOrder: ["visuals", "signals", "briefing", "history"],
     },
   },
@@ -133,13 +133,13 @@ const GAME_VIEW_COPY: Record<
     fan: {
       eyebrow: "Live Feed",
       title: "Challenge Drama",
-      deck: "A live read on the current challenge pressure, count state, and biggest swings in the game.",
+      deck: "A live read on the current challenge leverage, count state, and biggest swings in the game.",
       sectionOrder: ["feed", "meter", "explorer"],
     },
     org: {
       eyebrow: "Live War Room",
       title: "Match Events",
-      deck: "Real-time challenge monitoring for leverage, resource burn, and count-state pressure.",
+      deck: "Real-time challenge monitoring for leverage, resource burn, and count-state context.",
       sectionOrder: ["meter", "feed", "burn", "explorer"],
     },
   },
@@ -152,8 +152,8 @@ const GAME_VIEW_COPY: Record<
     },
     org: {
       eyebrow: "After-Action Report",
-      title: "ABS Forensic Analysis",
-      deck: "Comprehensive postgame breakdown of critical review events, decision quality, and umpire zone consistency throughout the completed matchup.",
+      title: "ABS Game Analysis",
+      deck: "Postgame breakdown of review events, decision quality, and umpire zone consistency across the completed matchup.",
       sectionOrder: ["summary", "waterfall", "debrief", "explorer"],
     },
   },
