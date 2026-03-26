@@ -137,13 +137,13 @@ export default async function UmpirePage({
             subLabel={currentUmpire ? (viewMode === "org" ? currentUmpire.orgDescriptor : currentUmpire.fanDescriptor) : "Monitor"}
           />
           <StatCard
-              label={viewMode === "org" ? "Watch Tier" : "League Rank"}
+              label={viewMode === "org" ? "Risk Tier" : "League Rank"}
               value={viewMode === "org" ? currentUmpire?.riskTier ?? "Moderate" : displayRank ? `#${displayRank}` : "—"}
               highlight={viewMode === "org"}
               subLabel={viewMode === "org" ? `${currentUmpire?.confidence ?? "medium"} confidence` : `Overturn ${(summary.overturnRate * 100).toFixed(1)}%`}
             />
           {viewMode === "org" ? (
-            <Suspense fallback={<StatCard label="High-Pressure Exposure" value="…" subLabel="Estimated leverage" highlight />}>
+            <Suspense fallback={<StatCard label="High-Leverage Share" value="…" subLabel="ELI 65+ share" highlight />}>
               <UmpireExposureStatCard umpireId={summary.umpireId} range={range} filters={filters} />
             </Suspense>
           ) : null}
@@ -189,9 +189,9 @@ async function UmpireExposureStatCard({
 
   return (
     <StatCard
-      label="High-Pressure Exposure"
+      label="High-Leverage Share"
       value={`${(highPressureExposure * 100).toFixed(0)}%`}
-      subLabel="Estimated leverage"
+      subLabel="ELI 65+ share"
       highlight
     />
   );
@@ -562,17 +562,17 @@ function UmpireChallengeOpportunityRead({ profile }: { profile: Awaited<ReturnTy
       ? "strike-to-ball overturns"
       : profile.directionalBias.ballToStrike > profile.directionalBias.strikeToBall
         ? "ball-to-strike overturns"
-        : "balanced overturn pressure";
+        : "balanced overturn mix";
 
   return (
     <div className="mt-6 rounded-[1.5rem] border border-gray-100 bg-gray-50/60 p-5">
-      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Challenge Opportunity Read</p>
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Challenge Pattern Read</p>
       <p className="mt-2 text-sm leading-7 text-[var(--ink-2)]">
         {topCount || topZone
-          ? `The clearest challenge pressure shows up ${topCount ? `in ${topCount.countKey} counts` : "in repeated count windows"}${
+          ? `The clearest challenge traffic in this sample shows up ${topCount ? `in ${topCount.countKey} counts` : "in repeated count windows"}${
               topZone ? ` and in the ${topZone.zone} bucket` : ""
-            }, where ${dominantBias} currently lead this umpire's overturned-call profile.`
-          : "Challenge opportunity patterns will appear once more modeled count and zone sample is available."}
+            }, where ${dominantBias} currently lead this umpire's overturned-call mix.`
+          : "Challenge pattern notes will appear once more modeled count and zone sample is available."}
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         {topCount ? (
@@ -619,7 +619,7 @@ function buildZoneInsight(zoneBuckets: Array<{ zone: string; challenges: number;
     return "No recorded zone buckets are available for this umpire yet.";
   }
 
-  return `Most challenged zone: ${formatZoneLabel(busiest.zone)} with ${busiest.challenges} challenges and a ${(busiest.overturnRate * 100).toFixed(0)}% overturn rate.`;
+  return `Busiest tracked zone bucket: ${formatZoneLabel(busiest.zone)} with ${busiest.challenges} challenges and a ${(busiest.overturnRate * 100).toFixed(0)}% overturn rate.`;
 }
 
 function formatZoneLabel(zone: string) {

@@ -47,11 +47,11 @@ export function TeamChallengeValueMatrix({
       ? "Challenge timing profile will appear once the club has a larger tracked sample."
       : summary.highPressureShare >= 0.5
         ? viewMode === "org"
-          ? "This club is already spending a healthy share of reviews in genuine pressure pockets."
-          : "This team usually saves challenges for spots that actually feel big."
+          ? "This club is already allocating a larger share of reviews to later or tighter challenge states in this sample."
+          : "This team tends to hold more of its challenges for later or tighter spots."
         : viewMode === "org"
-          ? "This club still spends too many reviews outside of its highest-value windows."
-          : "This team still burns too many challenges before the biggest moments arrive.";
+          ? "This club is still using a larger share of reviews before the later or tighter states show up."
+          : "This team is using more of its challenges before the later or tighter spots arrive.";
 
   const hoveredCell = hoveredKey ? cellMap.get(hoveredKey) ?? null : null;
 
@@ -96,7 +96,7 @@ export function TeamChallengeValueMatrix({
       <div className="mb-4 grid gap-3 lg:grid-cols-[1.4fr_1fr]">
         <div className="rounded-2xl border border-gray-100 bg-gray-50/60 px-4 py-4">
           <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-            {viewMode === "org" ? "Best Realized Window" : "Best Challenge Window"}
+            {viewMode === "org" ? "Top Sample Window" : "Most Productive Window"}
           </p>
           <p className="mt-1 text-sm font-medium text-gray-700">
             {summary.bestScenarioLabel
@@ -107,7 +107,7 @@ export function TeamChallengeValueMatrix({
         </div>
         <div className="rounded-2xl border border-gray-100 bg-gray-50/60 px-4 py-4">
           <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-            {viewMode === "org" ? "Preferred Window" : "Favorite Spot"}
+            {viewMode === "org" ? "Most Used Window" : "Most Used Spot"}
           </p>
           <p className="mt-1 text-sm font-medium text-gray-700">
             {preferredCell ? `${preferredCell.rowLabel} • ${preferredCell.colLabel}` : "No clear favorite yet"}
@@ -198,7 +198,7 @@ export function TeamChallengeValueMatrix({
           ? usesWinValue
             ? "Cells show how often this club challenges in each scenario window. Color intensity follows average estimated leverage, while callouts prioritize trusted WE value."
             : "Cells show how often this club challenges in each scenario window. Color intensity follows average estimated leverage, with RE used until WE confidence improves."
-          : "Cells show where this team tends to use challenges. Darker cells indicate more pressure-packed spots."}
+          : "Cells show where this team tends to use challenges. Darker cells indicate higher estimated leverage in this sample."}
       </p>
 
       <AnimatePresence>

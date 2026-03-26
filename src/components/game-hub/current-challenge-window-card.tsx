@@ -39,8 +39,8 @@ export function CurrentChallengeWindowCard({
   const contextualSummary =
     bestSwing?.delta === null || bestSwing?.delta === undefined
       ? viewMode === "org"
-        ? "This spot has pressure, but the count-state model does not show a strong comparable swing."
-        : "This is a pressure spot, but the count history does not show a clear edge either way."
+        ? "This spot carries leverage, but the count-state model does not show a strong comparable swing."
+        : "This is a leveraged spot, but the count history does not show a clear edge either way."
       : bestSwing.delta >= 0
         ? viewMode === "org"
           ? `${bestSwing.label} would move this plate appearance to ${bestSwing.countKey ?? "a new count"} and historically improve positive outcomes by ${(bestSwing.delta * 100).toFixed(1)} points.`
@@ -54,7 +54,7 @@ export function CurrentChallengeWindowCard({
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h4 className="text-[10px] font-bold uppercase tracking-widest text-orange-500 mb-1">
-            {viewMode === "org" ? "Current Challenge Window" : "Current Pressure Spot"}
+            {viewMode === "org" ? "Current Challenge Window" : "Current Leverage Spot"}
           </h4>
           <p className="text-2xl font-display leading-none text-gray-900">
             Live <span className="text-gray-400 italic">Scenario</span>
@@ -102,7 +102,7 @@ export function CurrentChallengeWindowCard({
                   : `${(snapshot.currentPositiveOutcomeRate * 100).toFixed(1)}%`
             }
           />
-          <MetricCard label="Pressure Band" value={snapshot.leverageBucket.toUpperCase()} />
+          <MetricCard label="Leverage Band" value={snapshot.leverageBucket.toUpperCase()} />
         </div>
       </div>
 

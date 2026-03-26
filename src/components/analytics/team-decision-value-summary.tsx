@@ -28,8 +28,8 @@ export function TeamDecisionValueSummaryCard({
   const fanNarrative = !trusted
     ? "This team is building an early decision profile, but the smartest-vs-costliest challenge read is still settling in."
     : summary.capturedValueShare >= summary.wastedValueShare
-      ? "This team usually challenges in the right moments and turns similar challenge windows into positive outcomes."
-      : "This team still creates some good review moments, but it is spending too many challenges in weaker spots.";
+      ? "This team has been turning a larger share of similar challenge windows into favorable results."
+      : "This team has created some favorable challenge windows, but the lower-value share is still elevated.";
 
   return (
     <section className="mt-8">
@@ -90,8 +90,8 @@ export function TeamDecisionValueSummaryCard({
             </>
           ) : (
             <>
-              <DecisionMetric label="Smart Challenge Share" value={formatShare(summary.capturedValueShare)} accent={teamColor} />
-              <DecisionMetric label="Costly Challenge Share" value={formatShare(summary.wastedValueShare)} accent={teamColor} />
+              <DecisionMetric label="Higher-Value Share" value={formatShare(summary.capturedValueShare)} accent={teamColor} />
+              <DecisionMetric label="Lower-Value Share" value={formatShare(summary.wastedValueShare)} accent={teamColor} />
               <DecisionMetric
                 label="Best Challenge Window"
                 value={summary.bestDecisionWindowLabel ?? "Still building"}
@@ -109,7 +109,7 @@ export function TeamDecisionValueSummaryCard({
           <div className="mt-4 flex flex-wrap gap-2">
             <Chip label={`Challenge ${formatShare(summary.challengeRecommendationRate)}`} />
             <Chip label={`Hold ${formatShare(summary.holdRecommendationRate)}`} />
-            <Chip label={`High-pressure EV ${formatShare(summary.highPressureExpectedValueShare)}`} />
+            <Chip label={`High-leverage EV ${formatShare(summary.highPressureExpectedValueShare)}`} />
             {summary.bestDecisionWindowExpectedValue !== null ? (
               <Chip label={`Best window ${formatWinValue(summary.bestDecisionWindowExpectedValue)}`} />
             ) : null}

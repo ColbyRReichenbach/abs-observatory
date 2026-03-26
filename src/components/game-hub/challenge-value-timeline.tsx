@@ -55,8 +55,8 @@ export function ChallengeValueTimeline({
           }
         />
         <SummaryCard
-          eyebrow="Highest Pressure"
-          title={highestPressure ? `${highestPressure.baseStateLabel} • ${highestPressure.scoreStateLabel}` : "No pressure spot"}
+          eyebrow="Highest Leverage"
+          title={highestPressure ? `${highestPressure.baseStateLabel} • ${highestPressure.scoreStateLabel}` : "No high-leverage spot"}
           detail={highestPressure ? `${formatInning(highestPressure)} • ELI ${highestPressure.estimatedLeverageIndex}` : "No timeline yet."}
         />
         <SummaryCard

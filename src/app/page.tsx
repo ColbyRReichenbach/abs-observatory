@@ -168,7 +168,7 @@ async function HomePageBody({
                       {topMoment.calledDescription ?? "Reviewed challenge moment"}
                     </p>
                     <p className="mt-2 text-xs text-[var(--ink-3)]">
-                      {topMoment.leverageScore >= 65 ? "High pressure" : topMoment.leverageScore >= 40 ? "Medium pressure" : "Low pressure"} · {topMoment.playerName ?? "Unknown player"} · {topMoment.gameStatus}
+                      {topMoment.leverageScore >= 65 ? "High leverage" : topMoment.leverageScore >= 40 ? "Medium leverage" : "Low leverage"} · {topMoment.playerName ?? "Unknown player"} · {topMoment.gameStatus}
                     </p>
                   </Link>
                 ) : (
@@ -367,10 +367,10 @@ async function HomePageBody({
           <div className="mb-20 flex flex-col items-center text-center">
             <div className="h-12 w-px bg-blue-200 mb-8" />
             <h2 className="w-full text-5xl md:text-7xl font-display uppercase tracking-tight text-gray-900 mb-6 leading-[1.2] py-4 px-12 overflow-visible">
-              Top <span className="opacity-20 italic px-2 pr-5">Pressure</span> Calls
+              Most <span className="opacity-20 italic px-2 pr-5">Consequential</span> Calls
             </h2>
             <p className="text-gray-500 text-lg max-w-xl font-medium text-balance">
-              Review history-defining overturned calls and critical zone assessments from the last 24 hours.
+              Review the most consequential overturned calls and notable zone assessments from the last 24 hours.
             </p>
           </div>
           <ChallengeMomentCards moments={moments} />
@@ -436,7 +436,7 @@ function HomePageFallback({
           <div className="mb-20 flex flex-col items-center text-center">
             <div className="h-12 w-px bg-blue-200 mb-8" />
             <h2 className="w-full text-5xl md:text-7xl font-display uppercase tracking-tight text-gray-900 mb-6 leading-[1.2] py-4 px-12 overflow-visible">
-              Top <span className="opacity-20 italic px-2 pr-5">Pressure</span> Calls
+              Most <span className="opacity-20 italic px-2 pr-5">Consequential</span> Calls
             </h2>
             <p className="text-gray-500 text-lg max-w-xl font-medium text-balance">
               {copy.heroDeck}

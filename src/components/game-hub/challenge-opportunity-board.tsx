@@ -81,7 +81,7 @@ export function ChallengeOpportunityBoard({
 
       <div className="mb-6 grid gap-3 lg:grid-cols-3">
         <InsightCard
-          eyebrow={viewMode === "org" ? "Primary Flashpoint" : "Likeliest Swing Spot"}
+          eyebrow={viewMode === "org" ? "Most Used Shared Window" : "Most Common Shared Window"}
           title={flashpointCell ? `${flashpointCell.rowLabel} • ${flashpointCell.colLabel}` : "Window pending"}
           detail={
             flashpointCell
@@ -90,7 +90,7 @@ export function ChallengeOpportunityBoard({
           }
         />
         <InsightCard
-          eyebrow={`${board.homeAbbreviation ?? "HOME"} Lean`}
+          eyebrow={`${board.homeAbbreviation ?? "HOME"} Usage Lean`}
           title={homeWindow ? `${homeWindow.rowLabel} • ${homeWindow.colLabel}` : "No clear lean"}
           detail={
             homeWindow
@@ -100,7 +100,7 @@ export function ChallengeOpportunityBoard({
           accent={board.homePrimaryColor ?? "#3b82f6"}
         />
         <InsightCard
-          eyebrow={`${board.awayAbbreviation ?? "AWAY"} Lean`}
+          eyebrow={`${board.awayAbbreviation ?? "AWAY"} Usage Lean`}
           title={awayWindow ? `${awayWindow.rowLabel} • ${awayWindow.colLabel}` : "No clear lean"}
           detail={
             awayWindow
@@ -167,7 +167,7 @@ export function ChallengeOpportunityBoard({
                       {(cell?.homeChallenges ?? 0) + (cell?.awayChallenges ?? 0)}
                     </p>
                     <p className="mt-3 text-[9px] font-black uppercase tracking-widest text-gray-400">
-                      {viewMode === "org" ? "Avg ELI" : "Pressure"}
+                      {viewMode === "org" ? "Avg ELI" : "Leverage"}
                     </p>
                     <p className="mt-1 text-sm font-medium text-gray-700">
                       H {cell?.homeAvgEstimatedLeverage.toFixed(1) ?? "0.0"} • A {cell?.awayAvgEstimatedLeverage.toFixed(1) ?? "0.0"}
@@ -182,8 +182,8 @@ export function ChallengeOpportunityBoard({
 
       <p className="mt-5 text-[10px] font-medium uppercase tracking-[0.16em] text-gray-400">
         {viewMode === "org"
-          ? "Cells compare where each club historically spends reviews and how pressure-packed those windows usually are."
-          : "Cells compare where each club tends to challenge and which situations usually carry more game pressure."}
+          ? "Cells compare where each club historically spends reviews and how leveraged those windows usually are."
+          : "Cells compare where each club tends to challenge and which situations usually carry higher estimated leverage."}
       </p>
 
       <AnimatePresence>
@@ -212,11 +212,11 @@ export function ChallengeOpportunityBoard({
                 value: hovered.awayAvgEstimatedLeverage.toFixed(1),
               },
               {
-                label: `${board.homeAbbreviation ?? "HOME"} High Pressure`,
+                label: `${board.homeAbbreviation ?? "HOME"} High Leverage`,
                 value: `${(hovered.homeHighPressureShare * 100).toFixed(0)}%`,
               },
               {
-                label: `${board.awayAbbreviation ?? "AWAY"} High Pressure`,
+                label: `${board.awayAbbreviation ?? "AWAY"} High Leverage`,
                 value: `${(hovered.awayHighPressureShare * 100).toFixed(0)}%`,
               },
             ]}

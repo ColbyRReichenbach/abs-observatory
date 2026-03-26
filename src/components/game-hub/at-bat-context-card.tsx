@@ -116,8 +116,8 @@ export function AtBatContextCard({ challenge }: { challenge: ChallengeEvent }) {
                         </p>
                     </div>
                     <div className="rounded-lg border border-gray-200/50 bg-white/50 p-3">
-                        <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold">Pressure Band</span>
-                        <p className="mt-1 text-xs font-bold text-slate-900">{leverage.leverageBucket.toUpperCase()} pressure</p>
+                        <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold">Leverage Band</span>
+                        <p className="mt-1 text-xs font-bold text-slate-900">{leverage.leverageBucket.toUpperCase()} leverage</p>
                     </div>
                 </div>
 
