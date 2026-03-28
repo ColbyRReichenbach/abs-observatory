@@ -630,7 +630,10 @@ FROM historical_pitch_states
 GROUP BY inning_bucket, outs, bases_state, count_key;
 
 CREATE OR REPLACE VIEW mart_run_expectancy_fallbacks AS
-WITH exact_rows AS (
+WITH source_available AS (
+  SELECT EXISTS(SELECT 1 FROM historical_pitch_states LIMIT 1) AS has_history
+),
+exact_rows AS (
   SELECT
     inning_bucket,
     outs,
@@ -712,7 +715,19 @@ SELECT
     WHEN bp.sample_size >= 150 THEN 'medium'
     ELSE 'low'
   END AS confidence_band
-FROM base_out_priors bp;
+FROM base_out_priors bp
+UNION ALL
+SELECT
+  fallback_tier,
+  inning_bucket,
+  outs,
+  bases_state,
+  count_key,
+  sample_size,
+  expected_runs_to_end_inning,
+  confidence_band
+FROM serving_run_expectancy_fallbacks, source_available
+WHERE NOT source_available.has_history;
 
 CREATE OR REPLACE VIEW mart_win_expectancy_by_count_state AS
 WITH win_states AS (
@@ -765,7 +780,10 @@ FROM win_states
 GROUP BY inning, inning_bucket, half_inning, score_diff_bucket, outs, bases_state, count_key;
 
 CREATE OR REPLACE VIEW mart_win_expectancy_fallbacks AS
-WITH win_states AS (
+WITH source_available AS (
+  SELECT EXISTS(SELECT 1 FROM historical_pitch_states LIMIT 1) AS has_history
+),
+win_states AS (
   SELECT
     season,
     inning,
@@ -928,7 +946,22 @@ SELECT
     WHEN dcb.sample_size >= 500 THEN 'medium'
     ELSE 'low'
   END AS confidence_band
-FROM drop_count_bucket_rows dcb;
+FROM drop_count_bucket_rows dcb
+UNION ALL
+SELECT
+  fallback_tier,
+  inning,
+  inning_bucket,
+  half_inning,
+  score_diff_bucket,
+  outs,
+  bases_state,
+  count_key,
+  sample_size,
+  batting_team_win_probability,
+  confidence_band
+FROM serving_win_expectancy_fallbacks, source_available
+WHERE NOT source_available.has_history;
 
 CREATE OR REPLACE VIEW mart_zone_outcome_baselines AS
 SELECT
@@ -1080,13 +1113,13 @@ WITH challenge_we AS (
     c.challenge_team_id AS team_id,
     c.game_pk,
     c.inning,
-    c.half_inning,
+    INITCAP(c.half_inning) AS half_inning,
     c.outs,
     c.bases_state,
     c.home_score,
     c.away_score,
     CASE
-      WHEN c.half_inning = 'Top' THEN
+      WHEN INITCAP(c.half_inning) = 'Top' THEN
         CASE
           WHEN c.away_score IS NULL OR c.home_score IS NULL THEN NULL
           WHEN c.away_score - c.home_score <= -4 THEN 'trail4plus'
@@ -1099,7 +1132,7 @@ WITH challenge_we AS (
           WHEN c.away_score - c.home_score = 3 THEN 'lead3'
           ELSE 'lead4plus'
         END
-      WHEN c.half_inning = 'Bottom' THEN
+      WHEN INITCAP(c.half_inning) = 'Bottom' THEN
         CASE
           WHEN c.home_score IS NULL OR c.away_score IS NULL THEN NULL
           WHEN c.home_score - c.away_score <= -4 THEN 'trail4plus'
@@ -1258,7 +1291,7 @@ WITH decision_inputs AS (
     c.challenge_team_id AS team_id,
     c.game_pk,
     c.inning,
-    c.half_inning,
+    INITCAP(c.half_inning) AS half_inning,
     c.outs,
     c.bases_state,
     c.home_score,
@@ -1277,7 +1310,7 @@ WITH decision_inputs AS (
       ELSE NULL
     END AS challenge_direction,
     CASE
-      WHEN c.half_inning = 'Top' THEN
+      WHEN INITCAP(c.half_inning) = 'Top' THEN
         CASE
           WHEN c.away_score IS NULL OR c.home_score IS NULL THEN NULL
           WHEN c.away_score - c.home_score <= -4 THEN 'trail4plus'
@@ -1290,7 +1323,7 @@ WITH decision_inputs AS (
           WHEN c.away_score - c.home_score = 3 THEN 'lead3'
           ELSE 'lead4plus'
         END
-      WHEN c.half_inning = 'Bottom' THEN
+      WHEN INITCAP(c.half_inning) = 'Bottom' THEN
         CASE
           WHEN c.home_score IS NULL OR c.away_score IS NULL THEN NULL
           WHEN c.home_score - c.away_score <= -4 THEN 'trail4plus'

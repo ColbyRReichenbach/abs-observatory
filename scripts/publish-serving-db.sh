@@ -24,6 +24,13 @@ fi
 DUMP_PATH="${SERVING_DUMP_PATH:-$ROOT_DIR/.runtime/serving-db.dump}"
 DUMP_DIR="$(dirname "$DUMP_PATH")"
 mkdir -p "$DUMP_DIR"
+RUN_FALLBACK_CSV="$(mktemp)"
+WIN_FALLBACK_CSV="$(mktemp)"
+
+cleanup() {
+  rm -f "$RUN_FALLBACK_CSV" "$WIN_FALLBACK_CSV"
+}
+trap cleanup EXIT
 
 exclude_table_data=(
   "public.historical_pitch_states"
@@ -47,6 +54,10 @@ done
 
 echo "Creating serving dump at $DUMP_PATH"
 pg_dump "${dump_args[@]}"
+
+echo "Exporting serving-safe fallback lookup tables from source views"
+psql "$SOURCE_DATABASE_URL" -v ON_ERROR_STOP=1 -c "\copy (SELECT * FROM mart_run_expectancy_fallbacks) TO '$RUN_FALLBACK_CSV' CSV"
+psql "$SOURCE_DATABASE_URL" -v ON_ERROR_STOP=1 -c "\copy (SELECT * FROM mart_win_expectancy_fallbacks) TO '$WIN_FALLBACK_CSV' CSV"
 
 restore_log="$(mktemp)"
 
@@ -75,6 +86,23 @@ fi
 
 rm -f "$restore_log"
 
+echo "Applying schema and views to target database"
+psql "$TARGET_DATABASE_URL" -v ON_ERROR_STOP=1 <<SQL
+SET search_path TO public;
+DROP TABLE IF EXISTS serving_run_expectancy_fallbacks CASCADE;
+DROP TABLE IF EXISTS serving_win_expectancy_fallbacks CASCADE;
+\i $ROOT_DIR/db/schema.sql
+\i $ROOT_DIR/db/views.sql
+SQL
+
+echo "Loading serving fallback lookup rows into target database"
+psql "$TARGET_DATABASE_URL" -v ON_ERROR_STOP=1 <<SQL
+TRUNCATE TABLE serving_run_expectancy_fallbacks;
+TRUNCATE TABLE serving_win_expectancy_fallbacks;
+\copy serving_run_expectancy_fallbacks FROM '$RUN_FALLBACK_CSV' CSV
+\copy serving_win_expectancy_fallbacks FROM '$WIN_FALLBACK_CSV' CSV
+SQL
+
 echo "Verifying serving relations"
 psql "$TARGET_DATABASE_URL" -v ON_ERROR_STOP=1 -At <<'SQL'
 SELECT
@@ -92,6 +120,14 @@ FROM public.team_abs_game_summary;
 SELECT
   'umpire_abs_game_summary=' || COUNT(*)
 FROM public.umpire_abs_game_summary;
+
+SELECT
+  'serving_run_expectancy_fallbacks=' || COUNT(*)
+FROM public.serving_run_expectancy_fallbacks;
+
+SELECT
+  'serving_win_expectancy_fallbacks=' || COUNT(*)
+FROM public.serving_win_expectancy_fallbacks;
 SQL
 
 echo "Serving database publish completed."
