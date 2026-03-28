@@ -28,11 +28,11 @@ export function BaseStateDiamond({
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
-      <div className="absolute inset-[22%] rotate-45 rounded-md border border-gray-200 bg-white/90 shadow-sm" />
+      <div className="absolute inset-[24%] rotate-45 rounded-md border border-gray-200 bg-white/90 shadow-sm" />
       {[
-        { key: "first", left: "68%", top: "50%", active: isBaseOccupied(basesState, 0) },
-        { key: "second", left: "50%", top: "16%", active: isBaseOccupied(basesState, 1) },
-        { key: "third", left: "16%", top: "50%", active: isBaseOccupied(basesState, 2) },
+        { key: "first", left: "74%", top: "50%", active: isBaseOccupied(basesState, 0) },
+        { key: "second", left: "50%", top: "26%", active: isBaseOccupied(basesState, 1) },
+        { key: "third", left: "26%", top: "50%", active: isBaseOccupied(basesState, 2) },
       ].map((base) => (
         <div
           key={base.key}
@@ -49,7 +49,7 @@ export function BaseStateDiamond({
         />
       ))}
       <div
-        className="absolute left-1/2 top-[82%] -translate-x-1/2 rounded-sm border border-gray-200 bg-white shadow-sm"
+        className="absolute left-1/2 top-[85%] -translate-x-1/2 rounded-sm border border-gray-200 bg-white shadow-sm"
         style={{
           width: baseSize * 1.15,
           height: baseSize * 0.85,

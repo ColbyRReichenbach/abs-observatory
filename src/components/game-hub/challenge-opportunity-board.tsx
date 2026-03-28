@@ -3,18 +3,23 @@
 import { Fragment, useMemo, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 
+import { AIInsightBubble } from "@/components/analytics/ai-insight-bubble";
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
+import { buildGameChallengeOpportunityBoardPayload } from "@/lib/chart-insight-payload";
 import type { GameChallengeOpportunityBoard } from "@/lib/types";
 
 export function ChallengeOpportunityBoard({
   board,
   viewMode,
+  showInsight = true,
 }: {
   board: GameChallengeOpportunityBoard;
   viewMode: "fan" | "org";
+  showInsight?: boolean;
 }) {
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const chartContext = useMemo(() => buildGameChallengeOpportunityBoardPayload(board), [board]);
 
   const rowLabels = useMemo(() => Array.from(new Set(board.cells.map((cell) => cell.rowLabel))), [board.cells]);
   const colLabels = useMemo(() => Array.from(new Set(board.cells.map((cell) => cell.colLabel))), [board.cells]);
@@ -76,6 +81,16 @@ export function ChallengeOpportunityBoard({
         <div className="flex flex-wrap items-center gap-4 text-[10px] font-black uppercase tracking-widest text-gray-400">
           <LegendSwatch color={board.homePrimaryColor ?? "#3b82f6"} label={board.homeAbbreviation ?? "HOME"} />
           <LegendSwatch color={board.awayPrimaryColor ?? "#8b5cf6"} label={board.awayAbbreviation ?? "AWAY"} />
+          {showInsight ? (
+            <AIInsightBubble
+              insight="Explain which scenario windows are most likely to turn into challenge flashpoints for each club and how a staff should use this before first pitch."
+              insightId={`game-opportunity-board:${board.homeAbbreviation}:${board.awayAbbreviation}`}
+              metadata={{ surface: "game_challenge_opportunity_board", viewMode }}
+              chartContext={chartContext}
+              spotlightTitle="Challenge Opportunity Board"
+              spotlight={<ChallengeOpportunityBoard board={board} viewMode={viewMode} showInsight={false} />}
+            />
+          ) : null}
         </div>
       </div>
 

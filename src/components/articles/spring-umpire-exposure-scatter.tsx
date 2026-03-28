@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   CartesianGrid,
   Label,
@@ -25,39 +25,28 @@ export type SpringUmpireExposurePoint = {
 };
 
 type UmpireTooltipProps = TooltipContentProps<number, string> & {
-  viewBox?: {
-    height?: number;
-  };
+  mousePos: { x: number; y: number };
 };
 
-function UmpireTooltip({ active, payload, coordinate, viewBox }: UmpireTooltipProps) {
-  if (!active || !payload?.length || !coordinate) return null;
+function UmpireTooltip({ active, payload, mousePos }: UmpireTooltipProps) {
+  if (!active || !payload?.length) return null;
   const point = payload[0]?.payload as SpringUmpireExposurePoint | undefined;
   if (!point) return null;
 
-  const isBottomHalf = (coordinate.y || 0) > (viewBox?.height || 320) / 2;
-
   return (
-    <div
-      className="transition-transform duration-300 ease-out"
-      style={{
-        transform: isBottomHalf
-          ? "translateX(-50%) translateY(-100%) translateY(-24px)"
-          : "translateX(-50%) translateY(22px)",
-        pointerEvents: "none",
-      }}
-    >
-      <ChartTooltip
-        title={point.umpireName}
-        value={`${point.challengedCalls}`}
-        subValueLabel="Challenged Calls"
-        extra={[{ label: "Overturn Rate", value: `${(point.overturnRate * 100).toFixed(1)}%` }]}
-      />
-    </div>
+    <ChartTooltip
+      usePortal
+      portalProps={mousePos}
+      title={point.umpireName}
+      value={`${point.challengedCalls}`}
+      subValueLabel="Challenged Calls"
+      extra={[{ label: "Overturn Rate", value: `${(point.overturnRate * 100).toFixed(1)}%` }]}
+    />
   );
 }
 
 export function SpringUmpireExposureScatter({ data }: { data: SpringUmpireExposurePoint[] }) {
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const { avgExposure, avgRate, xAxis, yAxis } = useMemo(() => {
     if (!data.length) {
       return {
@@ -79,7 +68,7 @@ export function SpringUmpireExposureScatter({ data }: { data: SpringUmpireExposu
   if (!data.length) return null;
 
   return (
-    <div className="relative h-[360px] w-full">
+    <div className="relative h-[360px] w-full" onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}>
       <div className="pointer-events-none absolute inset-0 z-10">
         <span className="absolute left-12 top-2 text-[9px] font-black uppercase tracking-[0.14em] text-emerald-500/50">
           High Rate, Low Exposure
@@ -155,11 +144,11 @@ export function SpringUmpireExposureScatter({ data }: { data: SpringUmpireExposu
           />
           <Scatter data={data} fill="#0f766e" isAnimationActive={false} />
           <Tooltip
-            content={(props) => <UmpireTooltip {...(props as UmpireTooltipProps)} />}
+            content={(props) => <UmpireTooltip {...(props as TooltipContentProps<number, string>)} mousePos={mousePos} />}
             cursor={false}
             offset={0}
             allowEscapeViewBox={{ x: true, y: true }}
-            wrapperStyle={{ zIndex: 10001, outline: "none", pointerEvents: "none" }}
+            wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
             isAnimationActive={false}
             animationDuration={0}
           />

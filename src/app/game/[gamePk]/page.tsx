@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { GameShell } from "@/components/game-shell";
-import { getGame, getGameAbsCounters, getGameChallenges, getGameLiveStatus, getLiveChallengeWindow } from "@/lib/data";
+import { getGame, getGameAbsCounters, getGameChallenges, getGameLiveStatus, getGameScoreboardData, getLiveChallengeWindow } from "@/lib/data";
 import { PregameScoutingReport } from "@/components/game-hub/pregame-hub";
 import { LiveWarRoom } from "@/components/game-hub/live-hub";
 import { PostgameAAR } from "@/components/game-hub/postgame-hub";
@@ -24,10 +24,11 @@ export default async function GamePage({
   const challengeId = sp.challengeId;
   const gameId = Number(gamePk);
   const viewMode = await resolveViewMode(sp as Record<string, string | string[] | undefined>);
-  const [game, counters, liveStatus] = await Promise.all([
+  const [game, counters, liveStatus, scoreboard] = await Promise.all([
     getGame(gameId),
     getGameAbsCounters(gameId),
     getGameLiveStatus(gameId),
+    getGameScoreboardData(gameId),
   ]);
 
   if (!game) return notFound();
@@ -38,7 +39,7 @@ export default async function GamePage({
         <BackPill label="Schedule" useHistory />
       </div>
       <GameHubRouter status={game.statusabstract} />
-      <GameShell game={game} liveStatus={liveStatus} counters={counters} />
+      <GameShell game={game} liveStatus={liveStatus} counters={counters} scoreboard={scoreboard} />
       <Suspense fallback={<GameHubSectionFallback />}>
         <GameHubContent
           gameId={gameId}

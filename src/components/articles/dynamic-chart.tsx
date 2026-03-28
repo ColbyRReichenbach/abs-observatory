@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
     Bar,
     BarChart,
@@ -12,6 +13,7 @@ import {
     XAxis,
     YAxis,
 } from "recharts";
+import { ChartTooltip } from "@/components/ui/chart-tooltip";
 
 type ChartDatum = Record<string, string | number | null>;
 
@@ -25,6 +27,7 @@ interface DynamicChartProps {
 }
 
 export function DynamicChart({ type, data, xAxisKey, yAxisKey, title, colors = ["#001529", "#8b0000", "#d4b483"] }: DynamicChartProps) {
+    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
     if (!data || data.length === 0) return null;
 
     const numericYValues =
@@ -55,7 +58,20 @@ export function DynamicChart({ type, data, xAxisKey, yAxisKey, title, colors = [
                             allowDecimals={allowDecimalTicks}
                         />
                         <Tooltip
-                            contentStyle={{ backgroundColor: "#fffdf8", border: "1px solid rgba(0,0,0,0.1)", borderRadius: "8px", fontFamily: "serif" }}
+                            wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
+                            content={({ active, payload, label }) => {
+                                if (!active || !payload?.length) return null;
+                                const value = payload[0]?.value;
+                                return (
+                                    <ChartTooltip
+                                        usePortal
+                                        portalProps={mousePos}
+                                        title={label != null ? String(label) : title}
+                                        value={typeof value === "number" ? value.toFixed(allowDecimalTicks ? 2 : 0) : String(value ?? "")}
+                                        subValueLabel={yAxisKey}
+                                    />
+                                );
+                            }}
                         />
                         <Line
                             type="monotone"
@@ -85,8 +101,21 @@ export function DynamicChart({ type, data, xAxisKey, yAxisKey, title, colors = [
                             allowDecimals={allowDecimalTicks}
                         />
                         <Tooltip
+                            wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
                             cursor={{ fill: "rgba(0,0,0,0.02)" }}
-                            contentStyle={{ backgroundColor: "#fffdf8", border: "1px solid rgba(0,0,0,0.1)", borderRadius: "8px", fontFamily: "serif" }}
+                            content={({ active, payload, label }) => {
+                                if (!active || !payload?.length) return null;
+                                const value = payload[0]?.value;
+                                return (
+                                    <ChartTooltip
+                                        usePortal
+                                        portalProps={mousePos}
+                                        title={label != null ? String(label) : title}
+                                        value={typeof value === "number" ? value.toFixed(allowDecimalTicks ? 2 : 0) : String(value ?? "")}
+                                        subValueLabel={yAxisKey}
+                                    />
+                                );
+                            }}
                         />
                         <Bar dataKey={yAxisKey} fill={colors[0]} radius={[4, 4, 0, 0]}>
                             {data.map((_, index) => (
@@ -101,7 +130,7 @@ export function DynamicChart({ type, data, xAxisKey, yAxisKey, title, colors = [
     };
 
     return (
-        <div className="w-full h-full min-h-[300px]">
+        <div className="w-full h-full min-h-[300px]" onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}>
             {title && (
                 <h5 className="text-center text-[10px] font-black uppercase tracking-widest mb-4 opacity-40">
                     {title}

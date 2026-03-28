@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import { ModeAwareLink } from "@/components/ui/mode-aware-link";
 
 type UmpireMatchup = {
     umpireId: number;
@@ -69,9 +69,9 @@ export function UmpireMatchupMatrix({
                                 {i + 1}
                             </span>
                             <div className="flex flex-col">
-                                <Link href={`/umpires/${ump.umpireId}`} className="font-bold text-gray-900 hover:text-blue-600 transition-colors flex items-center gap-1">
+                                <ModeAwareLink href={`/umpires/${ump.umpireId}`} className="font-bold text-gray-900 hover:text-blue-600 transition-colors flex items-center gap-1">
                                     {ump.umpireName}
-                                </Link>
+                                </ModeAwareLink>
                                 <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 mt-0.5">
                                     {ump.challengesTotal} Challenges
                                 </span>

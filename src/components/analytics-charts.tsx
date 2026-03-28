@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
     Area,
     AreaChart,
+    Bar,
     CartesianGrid,
+    ComposedChart,
     Legend,
     Line,
     LineChart,
@@ -20,14 +22,14 @@ import { ClientOnly } from "@/components/ui/client-only";
 
 const PERCENT_TICKS = [0, 25, 50, 75, 100];
 
-/* ── S3-5: Dual-line Team Trajectory Chart ── */
+/* ── S3-5: Volume + overturn-rate team trend chart ── */
 export function TeamTrendChart({ data, teamColor }: { data: TeamTrendPoint[]; teamColor: string }) {
+    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
     const formattedData = useMemo(() => {
         return data
             .map((d) => ({
                 date: format(new Date(d.gameDate), "MMM d"),
-                successPct: d.challengesTotal > 0 ? (d.usedSuccessful / d.challengesTotal) * 100 : 0,
-                failPct: d.challengesTotal > 0 ? (d.usedFailed / d.challengesTotal) * 100 : 0,
+                overturnPct: d.challengesTotal > 0 ? (d.usedSuccessful / d.challengesTotal) * 100 : 0,
                 challenges: d.challengesTotal,
                 successful: d.usedSuccessful,
                 failed: d.usedFailed,
@@ -40,10 +42,10 @@ export function TeamTrendChart({ data, teamColor }: { data: TeamTrendPoint[]; te
         return <div className="text-gray-400 text-sm p-4">No data</div>;
 
     return (
-        <div className="h-[250px] w-full mt-6">
+        <div className="h-[250px] w-full mt-6" onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}>
             <ClientOnly fallback={<div className="h-full w-full rounded-[1.5rem] bg-gradient-to-br from-gray-100 via-gray-50 to-white" />}>
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={250}>
-                    <LineChart data={formattedData} margin={{ top: 15, right: 15, left: 0, bottom: 5 }}>
+                <ResponsiveContainer width="100%" height={250} minWidth={0}>
+                    <ComposedChart data={formattedData} margin={{ top: 15, right: 15, left: 0, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
                         <XAxis
                             dataKey="date"
@@ -53,25 +55,38 @@ export function TeamTrendChart({ data, teamColor }: { data: TeamTrendPoint[]; te
                             dy={10}
                         />
                         <YAxis
+                            yAxisId="volume"
                             tickLine={false}
                             axisLine={false}
                             tick={{ fontSize: 10, fill: "#9ca3af" }}
                             dx={-10}
+                            allowDecimals={false}
+                        />
+                        <YAxis
+                            yAxisId="rate"
+                            tickLine={false}
+                            axisLine={false}
+                            tick={{ fontSize: 10, fill: "#9ca3af" }}
+                            orientation="right"
                             tickFormatter={(val) => `${Math.round(val)}%`}
                             domain={[0, 100]}
                             ticks={PERCENT_TICKS}
                         />
                         <Tooltip
+                            wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
                             content={({ active, payload }) => {
                                 if (active && payload && payload.length) {
                                     const d = payload[0].payload;
                                     return (
                                         <ChartTooltip
+                                            usePortal
+                                            portalProps={mousePos}
                                             title={`${d.date} vs ${d.opponent}`}
                                             extra={[
-                                                { label: "Success Rate", value: `${d.successPct.toFixed(0)}%`, color: teamColor },
-                                                { label: "Failure Rate", value: `${d.failPct.toFixed(0)}%`, color: "#d70015" },
+                                                { label: "Overturn Rate", value: `${d.overturnPct.toFixed(0)}%`, color: teamColor },
                                                 { label: "Total Challenges", value: d.challenges },
+                                                { label: "Overturned", value: d.successful },
+                                                { label: "Confirmed", value: d.failed },
                                             ]}
                                         />
                                     );
@@ -84,26 +99,25 @@ export function TeamTrendChart({ data, teamColor }: { data: TeamTrendPoint[]; te
                             height={28}
                             wrapperStyle={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 800 }}
                         />
+                        <Bar
+                            yAxisId="volume"
+                            dataKey="challenges"
+                            name="Challenges"
+                            fill="rgba(17,24,39,0.12)"
+                            radius={[6, 6, 0, 0]}
+                            maxBarSize={18}
+                        />
                         <Line
+                            yAxisId="rate"
                             type="monotone"
-                            dataKey="successPct"
-                            name="Success %"
+                            dataKey="overturnPct"
+                            name="Overturn %"
                             stroke={teamColor}
                             strokeWidth={2.5}
                             dot={false}
                             activeDot={{ r: 4, strokeWidth: 2, fill: "white" }}
                         />
-                        <Line
-                            type="monotone"
-                            dataKey="failPct"
-                            name="Failure %"
-                            stroke="#d70015"
-                            strokeWidth={1.5}
-                            strokeDasharray="4 4"
-                            dot={false}
-                            activeDot={{ r: 3, strokeWidth: 2, fill: "white" }}
-                        />
-                    </LineChart>
+                    </ComposedChart>
                 </ResponsiveContainer>
             </ClientOnly>
         </div>
@@ -111,6 +125,7 @@ export function TeamTrendChart({ data, teamColor }: { data: TeamTrendPoint[]; te
 }
 
 export function UmpireAccuracyChart({ data }: { data: UmpireTrendPoint[] }) {
+    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
     const formattedData = useMemo(() => {
         return data
             .map((d) => ({
@@ -126,9 +141,9 @@ export function UmpireAccuracyChart({ data }: { data: UmpireTrendPoint[] }) {
         return <div className="text-gray-400 text-sm p-4">No data</div>;
 
     return (
-        <div className="h-[250px] w-full mt-6">
+        <div className="h-[250px] w-full mt-6" onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}>
             <ClientOnly fallback={<div className="h-full w-full rounded-[1.5rem] bg-gradient-to-br from-gray-100 via-gray-50 to-white" />}>
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={250}>
+                <ResponsiveContainer width="100%" height={250} minWidth={0}>
                     <AreaChart data={formattedData} margin={{ top: 15, right: 15, left: 0, bottom: 5 }}>
                         <defs>
                             <linearGradient id="colorAccuracy" x1="0" y1="0" x2="0" y2="1">
@@ -154,11 +169,14 @@ export function UmpireAccuracyChart({ data }: { data: UmpireTrendPoint[] }) {
                             ticks={PERCENT_TICKS}
                         />
                         <Tooltip
+                            wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
                             content={({ active, payload }) => {
                                 if (active && payload && payload.length) {
                                     const d = payload[0].payload;
                                     return (
                                         <ChartTooltip
+                                            usePortal
+                                            portalProps={mousePos}
                                             title={d.date}
                                             value={`${d.accuracy.toFixed(1)}%`}
                                             subValueLabel="Accuracy"

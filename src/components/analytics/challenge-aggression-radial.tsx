@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
     RadialBarChart,
     RadialBar,
@@ -18,6 +19,7 @@ export function ChallengeAggressionRadial({
     data: Array<{ category: string; count: number; rate: number }>;
     teamColor?: string;
 }) {
+    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -45,7 +47,7 @@ export function ChallengeAggressionRadial({
     }));
 
     return (
-        <div className="h-full w-full relative flex flex-col justify-center">
+        <div className="h-full w-full relative flex flex-col justify-center" onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}>
             <ResponsiveContainer width="100%" height={320}>
                 <RadialBarChart
                     cx="50%"
@@ -74,13 +76,15 @@ export function ChallengeAggressionRadial({
                         ))}
                     </RadialBar>
                     <Tooltip
-                        wrapperStyle={{ zIndex: 10001 }}
+                        wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
                         allowEscapeViewBox={{ x: true, y: true }}
                         content={({ active, payload }) => {
                             if (active && payload && payload.length) {
                                 const item = payload[0].payload;
                                 return (
                                     <ChartTooltip
+                                        usePortal
+                                        portalProps={mousePos}
                                         title={item.name}
                                         value={item.value}
                                         subValueLabel="Challenges"

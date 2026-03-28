@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, memo } from "react";
+import { useMemo, memo, useState } from "react";
 import {
     ScatterChart,
     Scatter,
@@ -13,11 +13,12 @@ import {
     Label,
 } from "recharts";
 import type { ScatterShapeProps, TooltipContentProps } from "recharts";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
 import { buildLinearAxis, formatNumberTick, formatPercentTick } from "@/components/analytics/chart-axis";
 import { resolveTeamBranding } from "@/lib/team-branding";
 import { ClientOnly } from "@/components/ui/client-only";
+import { withViewModeHref } from "@/lib/view-mode-href";
 
 type TeamScatterPoint = {
     teamId: number;
@@ -96,43 +97,30 @@ const renderActiveDot = (props: ScatterShapeProps) => <TeamLogoDot {...props} ac
 
 /* ── Custom tooltip using ChartTooltip ── */
 type ScatterTooltipContentProps = TooltipContentProps<number, string> & {
-    viewBox?: {
-        height?: number;
-    };
+    mousePos: { x: number; y: number };
 };
 
-function ScatterTooltipContent({ active, payload, coordinate, viewBox }: ScatterTooltipContentProps) {
-    if (!active || !payload?.length || !coordinate) return null;
+function ScatterTooltipContent({ active, payload, mousePos }: ScatterTooltipContentProps) {
+    if (!active || !payload?.length) return null;
     const d = payload[0]?.payload as TeamScatterChartPoint | undefined;
     if (!d) return null;
 
-    // "Knowing where the logo is": Dynamic flip logic
-    // If we're in the bottom half of the chart, show tooltip above (translated up)
-    // If we're in the top half, show tooltip below (translated down)
-    const isBottomHalf = (coordinate?.y || 0) > (viewBox?.height || 400) / 2;
-
     return (
-        <div
-            className="transition-transform duration-300 ease-out"
-            style={{
-                transform: isBottomHalf
-                    ? "translateX(-50%) translateY(-100%) translateY(-50px)"
-                    : "translateX(-50%) translateY(50px)",
-                pointerEvents: "none"
-            }}
-        >
-            <ChartTooltip
-                title={d.teamName}
-                value={`${(d.overturnRate * 100).toFixed(2)}%`}
-                subValueLabel="Overturn Rate"
-                extra={[{ label: "Rate / Game", value: d.challengeRatePerGame.toFixed(2) }]}
-            />
-        </div>
+        <ChartTooltip
+            usePortal
+            portalProps={mousePos}
+            title={d.teamName}
+            value={`${(d.overturnRate * 100).toFixed(2)}%`}
+            subValueLabel="Overturn Rate"
+            extra={[{ label: "Rate / Game", value: d.challengeRatePerGame.toFixed(2) }]}
+        />
     );
 }
 
 export function TeamScatterPlot({ data, mode = "fan" }: Props) {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
     const { xAxis, yAxis, avgChallengeRate, avgOverturnRate, xTickDigits } = useMemo(() => {
         if (data.length === 0) {
@@ -180,7 +168,7 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                 </p>
             </div>
 
-            <div className="relative h-[400px] w-full">
+            <div className="relative h-[400px] w-full" onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}>
                 {/* Quadrant labels */}
                 <div className="pointer-events-none absolute inset-0 z-10">
                     <span className="absolute top-2 right-4 text-[9px] font-black uppercase tracking-[0.14em] text-emerald-500/50">
@@ -264,16 +252,17 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                                 shape={renderDot}
                                 activeShape={renderActiveDot}
                                 onClick={(entry) => {
-                                    if (entry?.teamId) router.push(`/teams/${entry.teamId}`);
+                                    const currentMode = searchParams.get("view");
+                                    if (entry?.teamId) router.push(withViewModeHref(`/teams/${entry.teamId}`, currentMode === "fan" || currentMode === "org" ? currentMode : undefined));
                                 }}
                                 isAnimationActive={false}
                             />
                             <Tooltip
-                                content={(props) => <ScatterTooltipContent {...(props as ScatterTooltipContentProps)} />}
+                                content={(props) => <ScatterTooltipContent {...(props as TooltipContentProps<number, string>)} mousePos={mousePos} />}
                                 cursor={false}
                                 offset={0}
                                 allowEscapeViewBox={{ x: true, y: true }}
-                                wrapperStyle={{ zIndex: 10001, outline: "none", pointerEvents: "none" }}
+                                wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
                                 isAnimationActive={false}
                                 animationDuration={0}
                             />

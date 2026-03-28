@@ -58,6 +58,7 @@ export function UmpireDistributionHistogram({ data, onBucketClick }: Props) {
     }, [data]);
 
     const [activeBucket, setActiveBucket] = useState<number | null>(null);
+    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
     if (data.length === 0) return null;
 
@@ -75,7 +76,7 @@ export function UmpireDistributionHistogram({ data, onBucketClick }: Props) {
                 </p>
             </div>
 
-            <div className="h-[250px] w-full min-h-[250px]">
+            <div className="h-[250px] w-full min-h-[250px]" onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}>
                 <ClientOnly fallback={<div className="h-full w-full rounded-[1.5rem] bg-gradient-to-br from-gray-100 via-gray-50 to-white" />}>
                     <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={250}>
                         <BarChart data={buckets} margin={{ top: 25, right: 10, bottom: 40, left: 0 }}>
@@ -107,13 +108,15 @@ export function UmpireDistributionHistogram({ data, onBucketClick }: Props) {
                                 }}
                             />
                             <Tooltip
-                                wrapperStyle={{ zIndex: 10001 }}
+                                wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
                                 allowEscapeViewBox={{ x: true, y: true }}
                                 content={({ active, payload }) => {
                                     if (active && payload && payload.length) {
                                         const d = payload[0].payload as UmpireBucket;
                                         return (
                                             <ChartTooltip
+                                                usePortal
+                                                portalProps={mousePos}
                                                 title={d.rangeLabel}
                                                 value={d.count}
                                                 subValueLabel={`Umpire${d.count !== 1 ? "s" : ""}`}

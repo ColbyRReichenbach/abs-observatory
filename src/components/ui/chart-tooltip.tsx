@@ -37,19 +37,62 @@ type ChartTooltipProps = {
 
 export function ChartTooltip({ title, value, subValueLabel, extra, children, usePortal, portalProps }: ChartTooltipProps) {
     const [mounted, setMounted] = useState(false);
+    const [suppressed, setSuppressed] = useState(false);
 
     useEffect(() => {
         setMounted(true);
     }, []);
 
+    useEffect(() => {
+        if (!usePortal || !portalProps) return;
+        setSuppressed(false);
+    }, [usePortal, portalProps?.x, portalProps?.y]);
+
+    useEffect(() => {
+        if (!usePortal || !mounted) return;
+
+        const suppress = () => setSuppressed(true);
+
+        window.addEventListener("scroll", suppress, true);
+        window.addEventListener("wheel", suppress, { passive: true });
+        window.addEventListener("touchmove", suppress, { passive: true });
+
+        return () => {
+            window.removeEventListener("scroll", suppress, true);
+            window.removeEventListener("wheel", suppress);
+            window.removeEventListener("touchmove", suppress);
+        };
+    }, [mounted, usePortal]);
+
+    let portalStyle: React.CSSProperties | undefined;
+    if (usePortal && portalProps && typeof window !== "undefined") {
+        const margin = 12;
+        const gap = 16;
+        const estimatedWidth = 260;
+        const estimatedHeight = children ? 240 : extra && extra.length > 2 ? 220 : 180;
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        let left = portalProps.x - estimatedWidth / 2;
+        left = Math.max(margin, Math.min(left, viewportWidth - estimatedWidth - margin));
+
+        const aboveTop = portalProps.y - estimatedHeight - gap;
+        const belowTop = portalProps.y + gap;
+        const top = aboveTop >= margin
+            ? aboveTop
+            : Math.min(belowTop, viewportHeight - estimatedHeight - margin);
+
+        portalStyle = {
+            left,
+            top,
+            maxWidth: `min(${estimatedWidth}px, calc(100vw - ${margin * 2}px))`,
+        };
+    }
+
     const content = (
         <div
             className={`bg-white/95 backdrop-blur-xl border border-gray-100 p-4 rounded-2xl shadow-2xl min-w-[180px] ${usePortal ? 'fixed pointer-events-none z-[100000]' : ''}`}
-            style={usePortal && portalProps ? {
-                left: portalProps.x,
-                top: portalProps.y,
-                transform: 'translate(-50%, -120%)'
-            } : undefined}
+            style={portalStyle}
         >
             {title && (
                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">
@@ -85,6 +128,7 @@ export function ChartTooltip({ title, value, subValueLabel, extra, children, use
     );
 
     if (usePortal && mounted) {
+        if (suppressed) return null;
         return createPortal(content, document.body);
     }
 

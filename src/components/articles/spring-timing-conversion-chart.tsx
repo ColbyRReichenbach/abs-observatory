@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Bar,
   BarChart,
@@ -26,6 +27,7 @@ export type SpringTimingConversionPoint = {
 const BAR_COLORS = ["#0f766e", "#2563eb", "#c2410c", "#8b0000"];
 
 export function SpringTimingConversionChart({ data }: { data: SpringTimingConversionPoint[] }) {
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   if (!data.length) return null;
 
   const yAxis = buildLinearAxis(
@@ -41,7 +43,7 @@ export function SpringTimingConversionChart({ data }: { data: SpringTimingConver
   }));
 
   return (
-    <div className="h-[360px] w-full">
+    <div className="h-[360px] w-full" onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}>
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={360}>
         <BarChart data={chartData} margin={{ top: 28, right: 18, bottom: 32, left: 8 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
@@ -70,12 +72,15 @@ export function SpringTimingConversionChart({ data }: { data: SpringTimingConver
             }}
           />
           <Tooltip
+            wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
             cursor={{ fill: "rgba(0,0,0,0.02)" }}
             content={({ active, payload }) => {
               if (!active || !payload?.length) return null;
               const point = payload[0]?.payload as (typeof chartData)[number];
               return (
                 <ChartTooltip
+                  usePortal
+                  portalProps={mousePos}
                   title={point.label}
                   value={`${point.overturnPct.toFixed(1)}%`}
                   subValueLabel="Overturn Rate"

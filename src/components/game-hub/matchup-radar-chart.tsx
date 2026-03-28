@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import type { PregameIntel } from "@/lib/types";
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
@@ -19,6 +19,7 @@ export function MatchupRadarChart({
     homeColor?: string;
     awayColor?: string;
 }) {
+    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
     const formatValue = (aspect: string, value: unknown) => {
         if (typeof value !== "number") return String(value ?? "");
         if (aspect === "Success Rate %") return `${value.toFixed(1)}%`;
@@ -61,7 +62,7 @@ export function MatchupRadarChart({
     }, [intel, homeTeamName, awayTeamName]);
 
     return (
-        <div className="mt-4 h-[240px] min-w-0 w-full overflow-hidden sm:h-[250px]">
+        <div className="mt-4 h-[240px] min-w-0 w-full overflow-hidden sm:h-[250px]" onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}>
             <ClientOnly fallback={<div className="h-full w-full" />}>
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={240}>
                     <RadarChart cx="50%" cy="50%" outerRadius="58%" data={data} margin={{ top: 16, right: 12, bottom: 16, left: 12 }}>
@@ -72,10 +73,13 @@ export function MatchupRadarChart({
                         />
                         <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={false} axisLine={false} />
                         <Tooltip
+                            wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
                             content={({ active, payload, label }) => {
                                 if (active && payload && payload.length) {
                                     return (
                                         <ChartTooltip
+                                            usePortal
+                                            portalProps={mousePos}
                                             title={String(label ?? '')}
                                             extra={payload.map((entry) => ({
                                                 label: String(entry.name),

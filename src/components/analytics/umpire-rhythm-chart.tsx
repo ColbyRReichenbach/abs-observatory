@@ -1,20 +1,25 @@
 "use client";
 
+import { useState } from "react";
 import type { UmpirePerformanceDNA } from "@/lib/types";
 import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Area, AreaChart } from "recharts";
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
 import { ClientOnly } from "@/components/ui/client-only";
 
 export function UmpireRhythmChart({ data }: { data: UmpirePerformanceDNA["rhythm"] }) {
+    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
     const chartData = data.map((entry) => ({
         ...entry,
         accuracyPct: entry.accuracy * 100,
     }));
 
     return (
-        <div className="mt-6 h-[280px] min-w-0 w-full overflow-hidden sm:h-[300px]">
+        <div
+            className="mt-6 h-[280px] min-w-0 w-full overflow-hidden sm:h-[300px]"
+            onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}
+        >
             <ClientOnly fallback={<div className="h-full w-full" />}>
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={280}>
+                <ResponsiveContainer width="100%" height={280} minWidth={0}>
                     <AreaChart data={chartData} margin={{ top: 18, right: 10, bottom: 26, left: 4 }}>
                         <defs>
                             <linearGradient id="rhythmGradient" x1="0" y1="0" x2="0" y2="1">
@@ -41,7 +46,8 @@ export function UmpireRhythmChart({ data }: { data: UmpirePerformanceDNA["rhythm
                             tickFormatter={(v) => `${Math.round(v)}%`}
                         />
                         <Tooltip
-                            wrapperStyle={{ zIndex: 10001 }}
+                            cursor={{ stroke: "rgba(59,130,246,0.12)", strokeWidth: 2 }}
+                            wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
                             allowEscapeViewBox={{ x: true, y: true }}
                             content={({ active, payload }) => {
                                 if (active && payload && payload.length) {
@@ -52,6 +58,8 @@ export function UmpireRhythmChart({ data }: { data: UmpirePerformanceDNA["rhythm
                                             value={`${d.accuracyPct.toFixed(1)}%`}
                                             subValueLabel="Accuracy"
                                             extra={[{ label: "Samples", value: d.total }]}
+                                            usePortal
+                                            portalProps={mousePos}
                                         />
                                     );
                                 }
