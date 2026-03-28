@@ -1,5 +1,8 @@
 "use client";
 
+import { AIInsightBubble } from "@/components/analytics/ai-insight-bubble";
+import { buildChallengeValueTimelinePayload } from "@/lib/chart-insight-payload";
+import { formatHalfInningLabel } from "@/lib/challenge-context";
 import { formatLeverageBucketLabel } from "@/lib/estimated-leverage";
 import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
 import type { ChallengeValueTimelineEntry } from "@/lib/types";
@@ -8,11 +11,14 @@ import type { ViewMode } from "@/lib/view-mode";
 export function ChallengeValueTimeline({
   entries,
   viewMode,
+  showInsight = true,
 }: {
   entries: ChallengeValueTimelineEntry[];
   viewMode: ViewMode;
+  showInsight?: boolean;
 }) {
   if (!entries.length) return null;
+  const chartContext = buildChallengeValueTimelinePayload(entries);
 
   const biggestSwing = [...entries].sort(
     (left, right) => Math.abs(right.estimatedChallengeSwing) - Math.abs(left.estimatedChallengeSwing),
@@ -42,6 +48,16 @@ export function ChallengeValueTimeline({
             Scenario <span className="text-gray-400">Timeline</span>
           </p>
         </div>
+        {showInsight ? (
+          <AIInsightBubble
+            insight="Explain how challenge timing evolved across the game and which reviewed moments actually carried the biggest baseball consequence."
+            insightId={`challenge-value-timeline:${entries[0]?.challengeId ?? "none"}`}
+            metadata={{ surface: "challenge_value_timeline", viewMode }}
+            chartContext={chartContext}
+            spotlightTitle="Scenario Timeline"
+            spotlight={<ChallengeValueTimeline entries={entries} viewMode={viewMode} showInsight={false} />}
+          />
+        ) : null}
       </div>
 
       <div className="mb-6 grid gap-3 md:grid-cols-3">
@@ -105,7 +121,7 @@ export function ChallengeValueTimeline({
               <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                    {entry.halfInning === "Top" ? "T" : "B"}
+                    {formatHalfInningLabel(entry.halfInning, "short")}
                     {entry.inning ?? "-"} • {entry.challengeTeamName ?? "Unknown"}
                   </p>
                   <h5 className="text-sm font-bold text-gray-900">{entry.calledDescription ?? "Pitch challenge"}</h5>
@@ -249,7 +265,7 @@ function formatCountShift(entry: ChallengeValueTimelineEntry) {
 }
 
 function formatInning(entry: ChallengeValueTimelineEntry) {
-  return `${entry.halfInning === "Top" ? "T" : "B"}${entry.inning ?? "-"}`;
+  return `${formatHalfInningLabel(entry.halfInning, "short")}${entry.inning ?? "-"}`;
 }
 
 function signedValue(value: number) {

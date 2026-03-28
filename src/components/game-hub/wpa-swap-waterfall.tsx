@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 
+import { formatHalfInningLabel } from "@/lib/challenge-context";
 import { formatLeverageBucketLabel, summarizeEstimatedLeverage } from "@/lib/estimated-leverage";
 import type { ChallengeEvent } from "@/lib/types";
 
@@ -17,7 +18,7 @@ export function WPASwapWaterfall({ challenges }: { challenges: ChallengeEvent[] 
         .map((challenge) => ({
           leverage: summarizeEstimatedLeverage(challenge),
           id: challenge.challengeId,
-          inning: `${challenge.halfInning === "Top" ? "T" : "B"}${challenge.inning ?? "-"}`,
+          inning: `${formatHalfInningLabel(challenge.halfInning, "short")}${challenge.inning ?? "-"}`,
           team: challenge.challengeTeamName ?? "Unknown",
           description: challenge.calledDescription || "Pitch challenge",
           outcome: challenge.isOverturned ? "Overturned" : "Confirmed",

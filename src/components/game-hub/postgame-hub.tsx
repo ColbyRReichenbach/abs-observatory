@@ -12,15 +12,28 @@ import type { ChallengeEvent, GameHubGame } from "@/lib/types";
 import type { ViewMode } from "@/lib/view-mode";
 import { revalidatePath } from "next/cache";
 import { getGameViewCopy } from "@/lib/view-mode-contract";
+import { formatHalfInningLabel } from "@/lib/challenge-context";
+import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
 
 export async function PostgameAAR({ game, challenges, initialChallengeId = null, viewMode }: { game: GameHubGame, challenges: ChallengeEvent[], initialChallengeId?: string | null, viewMode: ViewMode }) {
     const report = await getGameReport(game.gamepk);
     const canRegenerateDebrief = await canManageGameReports();
     const copy = getGameViewCopy(viewMode, "final");
     const challengeValueTimeline = await getGameChallengeValueTimeline(game.gamepk);
+    const rawGame = game as GameHubGame & { hometeamid?: number; awayteamid?: number };
+    const homeTeamId = Number(rawGame.homeTeamId ?? rawGame.hometeamid ?? 0);
+    const awayTeamId = Number(rawGame.awayTeamId ?? rawGame.awayteamid ?? 0);
+    const homeTeamName = String((rawGame as GameHubGame & { homeTeamName?: string; hometeamname?: string }).homeTeamName ?? (rawGame as { hometeamname?: string }).hometeamname ?? "");
+    const awayTeamName = String((rawGame as GameHubGame & { awayTeamName?: string; awayteamname?: string }).awayTeamName ?? (rawGame as { awayteamname?: string }).awayteamname ?? "");
+    const matchesTeam = (challenge: ChallengeEvent, teamId: number, teamName: string, teamAbbr: string | null | undefined) => {
+        if (challenge.challengeTeamId !== null && Number(challenge.challengeTeamId) === teamId) return true;
+        const normalizedTeam = challenge.challengeTeamName?.trim().toLowerCase();
+        if (!normalizedTeam) return false;
+        return [teamName, teamAbbr ?? ""].some((candidate) => candidate.trim().toLowerCase() === normalizedTeam);
+    };
 
-    const homeChallenges = challenges.filter((c) => c.challengeTeamId === game.homeTeamId);
-    const awayChallenges = challenges.filter((c) => c.challengeTeamId === game.awayTeamId);
+    const homeChallenges = challenges.filter((c) => matchesTeam(c, homeTeamId, homeTeamName, game.homeabbreviation));
+    const awayChallenges = challenges.filter((c) => matchesTeam(c, awayTeamId, awayTeamName, game.awayabbreviation));
 
     const scorecard = (team: typeof homeChallenges) => {
         const correct = team.filter((c) => c.isOverturned).length;
@@ -33,10 +46,8 @@ export async function PostgameAAR({ game, challenges, initialChallengeId = null,
     const homeScore = scorecard(homeChallenges);
     const awayScore = scorecard(awayChallenges);
 
-    // S5-11: Umpire game grade
     const totalChallenges = challenges.length;
     const totalOverturned = challenges.filter((c) => c.isOverturned).length;
-    const umpOverturnRate = totalChallenges > 0 ? totalOverturned / totalChallenges : 0;
     const reportTimestamp = report
         ? new Intl.DateTimeFormat("en-US", {
             month: "short",
@@ -45,6 +56,21 @@ export async function PostgameAAR({ game, challenges, initialChallengeId = null,
             minute: "2-digit",
         }).format(new Date(report.generatedAt))
         : null;
+    const mostConsequentialReview = [...challenges].sort((left, right) => {
+        const leftValue =
+            left.winExpectancyDelta !== null && left.winExpectancyDelta !== undefined && hasTrustedModelConfidenceBand(left.winExpectancyConfidence)
+                ? Math.abs(left.winExpectancyDelta)
+                : left.runExpectancyDelta !== null && left.runExpectancyDelta !== undefined && hasTrustedModelConfidenceBand(left.runExpectancyConfidence)
+                    ? Math.abs(left.runExpectancyDelta)
+                    : Math.abs(left.estimatedChallengeSwing ?? 0);
+        const rightValue =
+            right.winExpectancyDelta !== null && right.winExpectancyDelta !== undefined && hasTrustedModelConfidenceBand(right.winExpectancyConfidence)
+                ? Math.abs(right.winExpectancyDelta)
+                : right.runExpectancyDelta !== null && right.runExpectancyDelta !== undefined && hasTrustedModelConfidenceBand(right.runExpectancyConfidence)
+                    ? Math.abs(right.runExpectancyDelta)
+                    : Math.abs(right.estimatedChallengeSwing ?? 0);
+        return rightValue - leftValue;
+    })[0] ?? null;
 
     async function regenerateDebriefAction() {
         "use server";
@@ -181,19 +207,31 @@ export async function PostgameAAR({ game, challenges, initialChallengeId = null,
             />
             <div className="panel p-6 shadow-2xl shadow-black/[0.02] border border-gray-50 bg-white relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-1" style={{ backgroundColor: "#0066cc" }} />
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Umpire Challenge Summary</h4>
-                <div className="flex items-center gap-4 mb-4">
-                    <span className="text-5xl font-display font-bold text-gray-900">
-                        {(umpOverturnRate * 100).toFixed(0)}%
-                    </span>
-                    <div className="flex-1">
-                        <p className="text-sm font-bold text-[var(--ink-0)]">{(umpOverturnRate * 100).toFixed(1)}% overturned</p>
-                        <p className="text-[10px] text-[var(--ink-3)]">Based on this game&apos;s recorded challenges only</p>
-                    </div>
-                </div>
-                <p className="text-[10px] text-[var(--ink-2)] font-medium leading-relaxed">
-                    {totalOverturned} of {totalChallenges} challenges overturned tonight.
-                </p>
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Most Consequential Review</h4>
+                {mostConsequentialReview ? (
+                    <>
+                        <div className="flex items-center gap-4 mb-4">
+                            <span className="text-5xl font-display font-bold text-gray-900">
+                                {mostConsequentialLabel(mostConsequentialReview, viewMode)}
+                            </span>
+                            <div className="flex-1">
+                                <p className="text-sm font-bold text-[var(--ink-0)]">
+                                    {mostConsequentialReview.challengeTeamName ?? "Unknown"} • {formatHalfInningLabel(mostConsequentialReview.halfInning, "short")} {mostConsequentialReview.inning ?? "-"}
+                                </p>
+                                <p className="text-[10px] text-[var(--ink-3)]">
+                                    {mostConsequentialReview.calledDescription || "Pitch challenge"} • {mostConsequentialReview.isOverturned ? "Overturned" : "Confirmed"}
+                                </p>
+                            </div>
+                        </div>
+                        <p className="text-[10px] text-[var(--ink-2)] font-medium leading-relaxed">
+                            {mostConsequentialDetail(mostConsequentialReview, viewMode)}
+                        </p>
+                    </>
+                ) : (
+                    <p className="text-[10px] text-[var(--ink-2)] font-medium leading-relaxed">
+                        No reviewed pitch carried a modeled consequence in the available sample.
+                    </p>
+                )}
             </div>
         </section>
     );
@@ -214,7 +252,7 @@ export async function PostgameAAR({ game, challenges, initialChallengeId = null,
                     Pitch <span className="text-gray-400">Timeline</span>
                 </p>
             </div>
-            <ChallengeExplorer challenges={challenges} initialChallengeId={initialChallengeId} />
+            <ChallengeExplorer challenges={challenges} initialChallengeId={initialChallengeId} viewMode={viewMode} />
         </section>
     );
 
@@ -298,4 +336,35 @@ function SummaryPanel({
             </p>
         </div>
     );
+}
+
+function mostConsequentialLabel(challenge: ChallengeEvent, viewMode: ViewMode) {
+    const winDelta = challenge.winExpectancyDelta;
+    if (viewMode === "org" && winDelta !== null && winDelta !== undefined && hasTrustedModelConfidenceBand(challenge.winExpectancyConfidence)) {
+        return `${winDelta >= 0 ? "+" : ""}${(winDelta * 100).toFixed(2)}%`;
+    }
+    const runDelta = challenge.runExpectancyDelta;
+    if (runDelta !== null && runDelta !== undefined && hasTrustedModelConfidenceBand(challenge.runExpectancyConfidence)) {
+        return `${runDelta >= 0 ? "+" : ""}${runDelta.toFixed(3)}`;
+    }
+    const swing = challenge.estimatedChallengeSwing ?? 0;
+    return `${swing >= 0 ? "+" : ""}${swing} ECS`;
+}
+
+function mostConsequentialDetail(challenge: ChallengeEvent, viewMode: ViewMode) {
+    const scoreState =
+        challenge.homeScore === null || challenge.homeScore === undefined || challenge.awayScore === null || challenge.awayScore === undefined
+            ? "reviewed"
+            : challenge.homeScore === challenge.awayScore
+                ? `tied ${challenge.awayScore}-${challenge.homeScore}`
+                : `score ${challenge.awayScore}-${challenge.homeScore}`;
+    const winDelta = challenge.winExpectancyDelta;
+    if (viewMode === "org" && winDelta !== null && winDelta !== undefined && hasTrustedModelConfidenceBand(challenge.winExpectancyConfidence)) {
+        return `This review moved win expectancy by ${winDelta >= 0 ? "+" : ""}${(winDelta * 100).toFixed(2)} percentage points in a ${scoreState} spot.`;
+    }
+    const runDelta = challenge.runExpectancyDelta;
+    if (runDelta !== null && runDelta !== undefined && hasTrustedModelConfidenceBand(challenge.runExpectancyConfidence)) {
+        return `This review shifted run expectancy by ${runDelta >= 0 ? "+" : ""}${runDelta.toFixed(3)} runs, making it the biggest modeled count-state swing in the game.`;
+    }
+    return challenge.impactSummary ?? "This review produced the largest recorded challenge swing in the available game sample.";
 }

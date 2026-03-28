@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { ChallengeEvent, GameHubGame, GameLiveStatus, LiveChallengeWindow } from "@/lib/types";
 import type { ViewMode } from "@/lib/view-mode";
 import { getGameViewCopy } from "@/lib/view-mode-contract";
+import { formatHalfInningLabel } from "@/lib/challenge-context";
 
 type GameAbsCounters = {
     homeRemaining: number;
@@ -23,6 +24,17 @@ export function LiveWarRoom({ game, challenges, liveStatus, counters, liveChalle
     initialChallengeId?: string | null,
     viewMode: ViewMode
 }) {
+    const rawGame = game as GameHubGame & { hometeamid?: number; awayteamid?: number };
+    const homeTeamId = Number(rawGame.homeTeamId ?? rawGame.hometeamid ?? 0);
+    const awayTeamId = Number(rawGame.awayTeamId ?? rawGame.awayteamid ?? 0);
+    const homeTeamName = String((rawGame as GameHubGame & { homeTeamName?: string; hometeamname?: string }).homeTeamName ?? (rawGame as { hometeamname?: string }).hometeamname ?? "");
+    const awayTeamName = String((rawGame as GameHubGame & { awayTeamName?: string; awayteamname?: string }).awayTeamName ?? (rawGame as { awayteamname?: string }).awayteamname ?? "");
+    const matchesTeam = (challenge: ChallengeEvent, teamId: number, teamName: string, teamAbbr: string | null | undefined) => {
+        if (challenge.challengeTeamId !== null && Number(challenge.challengeTeamId) === teamId) return true;
+        const normalizedTeam = challenge.challengeTeamName?.trim().toLowerCase();
+        if (!normalizedTeam) return false;
+        return [teamName, teamAbbr ?? ""].some((candidate) => candidate.trim().toLowerCase() === normalizedTeam);
+    };
     // S5-4: Determine context for at-bat strip
     const latestChallenge = challenges.at(-1);
     const currentInning = liveStatus?.inning ?? latestChallenge?.inning ?? 1;
@@ -116,7 +128,7 @@ export function LiveWarRoom({ game, challenges, liveStatus, counters, liveChalle
                             className="panel p-4 shadow-sm border border-gray-50 bg-white flex items-center gap-4"
                         >
                             <span className="shrink-0 flex h-8 w-14 items-center justify-center rounded-lg bg-gray-50 text-[10px] font-black text-[var(--ink-2)]">
-                                {c.halfInning === "Top" ? "T" : "B"}{c.inning}
+                                {formatHalfInningLabel(c.halfInning, "short")}{c.inning}
                             </span>
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-[var(--ink-0)] truncate">
@@ -158,13 +170,13 @@ export function LiveWarRoom({ game, challenges, liveStatus, counters, liveChalle
                     <BurnRow
                         teamName={game.homeabbreviation || "HOME"}
                         teamColor={game.homeprimarycolor || "#3b82f6"}
-                        challengesUsed={challenges.filter((c) => c.challengeTeamId === game.homeTeamId).length}
+                        challengesUsed={challenges.filter((c) => matchesTeam(c, homeTeamId, homeTeamName, game.homeabbreviation)).length}
                         currentInning={currentInning}
                     />
                     <BurnRow
                         teamName={game.awayabbreviation || "AWAY"}
                         teamColor={game.awayprimarycolor || "#8b5cf6"}
-                        challengesUsed={challenges.filter((c) => c.challengeTeamId === game.awayTeamId).length}
+                        challengesUsed={challenges.filter((c) => matchesTeam(c, awayTeamId, awayTeamName, game.awayabbreviation)).length}
                         currentInning={currentInning}
                     />
                 </div>
@@ -173,7 +185,7 @@ export function LiveWarRoom({ game, challenges, liveStatus, counters, liveChalle
     ) : null;
     const explorerSection = (
         <section>
-            <ChallengeExplorer challenges={challenges} initialChallengeId={initialChallengeId} />
+            <ChallengeExplorer challenges={challenges} initialChallengeId={initialChallengeId} viewMode={viewMode} />
         </section>
     );
 
