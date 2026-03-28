@@ -1,9 +1,8 @@
 "use client";
-
-import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { getAboutIssueMeta, getAboutMonthOptions, sortAboutArticles, type AboutArticle } from "@/lib/about-articles";
+import { ModeAwareLink } from "@/components/ui/mode-aware-link";
 
 const ARTICLE_TYPE_LABELS: Record<AboutArticle["articleType"], string> = {
   project: "Project",
@@ -61,7 +60,7 @@ export function AboutArticlesGrid({ articles }: { articles: AboutArticle[] }) {
           const issueMeta = getAboutIssueMeta(article, sortedArticles);
 
           return (
-            <Link
+            <ModeAwareLink
               key={article.slug}
               href={`/about/${article.slug}`}
               className="group block h-full"
@@ -94,7 +93,7 @@ export function AboutArticlesGrid({ articles }: { articles: AboutArticle[] }) {
                   Open Page
                 </div>
               </article>
-            </Link>
+            </ModeAwareLink>
           );
         })}
       </div>

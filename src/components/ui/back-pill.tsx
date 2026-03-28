@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
+import { withViewModeHref } from "@/lib/view-mode-href";
 
 type BackPillProps = {
     /** Label text shown after the chevron, e.g. "Teams" */
@@ -24,6 +25,10 @@ type BackPillProps = {
  */
 export function BackPill({ label, href, useHistory }: BackPillProps) {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const activeMode = searchParams.get("view") === "org" || searchParams.get("view") === "fan"
+        ? searchParams.get("view")
+        : null;
 
     const inner = (
         <>
@@ -48,7 +53,7 @@ export function BackPill({ label, href, useHistory }: BackPillProps) {
     }
 
     return (
-        <Link href={href ?? "/"} className={className}>
+        <Link href={withViewModeHref(href ?? "/", activeMode === "org" || activeMode === "fan" ? activeMode : null)} className={className}>
             {inner}
         </Link>
     );

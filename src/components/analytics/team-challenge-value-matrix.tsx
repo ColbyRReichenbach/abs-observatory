@@ -3,7 +3,9 @@
 import { Fragment, useMemo, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 
+import { AIInsightBubble } from "@/components/analytics/ai-insight-bubble";
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
+import { buildTeamChallengeValueMatrixPayload } from "@/lib/chart-insight-payload";
 import type { TeamChallengeScenarioCell, TeamChallengeValueSummary } from "@/lib/types";
 import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
 
@@ -12,14 +14,17 @@ export function TeamChallengeValueMatrix({
   summary,
   teamColor,
   viewMode,
+  showInsight = true,
 }: {
   cells: TeamChallengeScenarioCell[];
   summary: TeamChallengeValueSummary;
   teamColor: string;
   viewMode: "fan" | "org";
+  showInsight?: boolean;
 }) {
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const chartContext = useMemo(() => buildTeamChallengeValueMatrixPayload(cells, summary), [cells, summary]);
 
   const rowLabels = useMemo(() => Array.from(new Set(cells.map((cell) => cell.rowLabel))), [cells]);
   const colLabels = useMemo(() => Array.from(new Set(cells.map((cell) => cell.colLabel))), [cells]);
@@ -92,6 +97,27 @@ export function TeamChallengeValueMatrix({
           />
         </div>
       </div>
+
+      {showInsight ? (
+        <div className="mb-4 flex justify-end">
+          <AIInsightBubble
+            insight="Explain which matrix windows are genuinely worth reviews and where this team is deploying challenges into better or worse baseball situations."
+            insightId="team-challenge-value-matrix"
+            metadata={{ surface: "team_challenge_value_matrix", viewMode }}
+            chartContext={chartContext}
+            spotlightTitle="Challenge Value Matrix"
+            spotlight={
+              <TeamChallengeValueMatrix
+                cells={cells}
+                summary={summary}
+                teamColor={teamColor}
+                viewMode={viewMode}
+                showInsight={false}
+              />
+            }
+          />
+        </div>
+      ) : null}
 
       <div className="mb-4 grid gap-3 lg:grid-cols-[1.4fr_1fr]">
         <div className="rounded-2xl border border-gray-100 bg-gray-50/60 px-4 py-4">

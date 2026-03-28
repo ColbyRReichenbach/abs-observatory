@@ -23,7 +23,11 @@ import {
   type ObservedZoneAxisBucket,
 } from "@/lib/zone-model";
 import type {
+  ChallengeCountBaseline,
   ChallengeEvent,
+  ChallengeHandednessBaseline,
+  ChallengePitchLaneBaseline,
+  ChallengePitchTypeBaseline,
   GameChallengeOpportunityBoard,
   GameChallengeOpportunityCell,
   ChallengeValueTimelineEntry,
@@ -196,10 +200,233 @@ async function getCountStateBaselines(): Promise<CountStateBaseline[]> {
   });
 }
 
+async function getPitchTypeCountBaselines(): Promise<ChallengePitchTypeBaseline[]> {
+  return withCachedValue(getCacheKey(["pitch-type-count-baselines"]), 60_000, async () => {
+    const rawRows = await sql<{
+      pitch_type_description: string | null;
+      balls_before: number | null;
+      strikes_before: number | null;
+      pitch_count: number;
+      avg_start_speed: number | null;
+      avg_spin_rate: number | null;
+      challenged_pitch_count: number;
+    }>(
+      `
+      SELECT
+        pitch_type_description,
+        balls_before,
+        strikes_before,
+        pitch_count,
+        avg_start_speed,
+        avg_spin_rate,
+        challenged_pitch_count
+      FROM mart_pitch_type_count_baselines
+      WHERE pitch_type_description IS NOT NULL
+        AND balls_before IS NOT NULL
+        AND strikes_before IS NOT NULL
+      `,
+    );
+
+    return rawRows.map((row) => {
+      const pitchCount = Number(row.pitch_count ?? 0);
+      const challengedPitchCount = Number(row.challenged_pitch_count ?? 0);
+      return {
+        pitchType: row.pitch_type_description ?? "Unknown",
+        countKey: `${row.balls_before}-${row.strikes_before}`,
+        pitchCount,
+        challengedPitchCount,
+        challengeRate: pitchCount > 0 ? challengedPitchCount / pitchCount : 0,
+        avgStartSpeed: row.avg_start_speed === null ? null : Number(row.avg_start_speed),
+        avgSpinRate: row.avg_spin_rate === null ? null : Number(row.avg_spin_rate),
+      };
+    });
+  });
+}
+
 function roundMetric(value: number | null, digits = 3) {
   if (value === null || Number.isNaN(value)) return null;
   const scale = 10 ** digits;
   return Math.round(value * scale) / scale;
+}
+
+function resolveUmpireCountState(
+  ballsBefore: number | null,
+  strikesBefore: number | null,
+  ballsAfter: number | null,
+  strikesAfter: number | null,
+  isOverturned: boolean,
+) {
+  if (ballsBefore === null || strikesBefore === null) return null;
+  if (!isOverturned) return ballsAfter === null || strikesAfter === null ? null : `${ballsAfter}-${strikesAfter}`;
+  if (ballsAfter !== null && ballsAfter > ballsBefore) return `${ballsBefore}-${strikesBefore + 1}`;
+  if (strikesAfter !== null && strikesAfter > strikesBefore) return `${ballsBefore + 1}-${strikesBefore}`;
+  return ballsAfter === null || strikesAfter === null ? null : `${ballsAfter}-${strikesAfter}`;
+}
+
+function buildCountBaselineDetail(
+  countKey: string | null | undefined,
+  baselineMap: Map<string, CountStateBaseline>,
+): ChallengeCountBaseline | null {
+  if (!countKey) return null;
+  const baseline = baselineMap.get(countKey);
+  if (!baseline) return null;
+  return {
+    countKey: baseline.countKey,
+    plateAppearances: baseline.plateAppearances,
+    battingAverage: baseline.battingAverage,
+    walkRate: baseline.walkRate,
+    strikeoutRate: baseline.strikeoutRate,
+    positiveOutcomeRate: baseline.positiveOutcomeRate,
+  };
+}
+
+function buildPitchTypeBaselineMap(rows: ChallengePitchTypeBaseline[]) {
+  const map = new Map<string, ChallengePitchTypeBaseline>();
+  rows.forEach((row) => {
+    map.set(`${row.pitchType}::${row.countKey}`, row);
+  });
+  return map;
+}
+
+type HistoricalChallengeContextRow = {
+  countKey: string;
+  pitchType: string;
+  batterStand: "R" | "L";
+  pitcherThrows: "R" | "L";
+  isOverturned: boolean;
+  edgeDistance: number | null;
+  px: number | null;
+  pz: number | null;
+  strikeZoneTop: number | null;
+  strikeZoneBottom: number | null;
+};
+
+async function getHistoricalChallengeContextRows(
+  countKeys: string[],
+  pitchTypes: string[],
+): Promise<HistoricalChallengeContextRow[]> {
+  if (countKeys.length === 0 || pitchTypes.length === 0) return [];
+
+  const rows = await sql<{
+    count_key: string;
+    pitch_type: string | null;
+    batter_stand: "R" | "L";
+    pitcher_throws: "R" | "L";
+    is_overturned: boolean;
+    edge_distance: number | null;
+    px: number | null;
+    pz: number | null;
+    strike_zone_top: number | null;
+    strike_zone_bottom: number | null;
+  }>(
+    `
+    SELECT
+      held_count_key AS count_key,
+      COALESCE(pitch_name, pitch_type, 'Unknown') AS pitch_type,
+      stand AS batter_stand,
+      p_throws AS pitcher_throws,
+      is_overturned,
+      edge_distance,
+      COALESCE(px, plate_x) AS px,
+      COALESCE(pz, plate_z) AS pz,
+      strike_zone_top,
+      strike_zone_bottom
+    FROM mart_historical_abs_overturn_inputs
+    WHERE held_count_key = ANY($1::text[])
+      AND COALESCE(pitch_name, pitch_type, 'Unknown') = ANY($2::text[])
+      AND stand IN ('L', 'R')
+      AND p_throws IN ('L', 'R')
+    `,
+    [countKeys, pitchTypes],
+  );
+
+  return rows.map((row) => ({
+    countKey: row.count_key,
+    pitchType: row.pitch_type ?? "Unknown",
+    batterStand: row.batter_stand,
+    pitcherThrows: row.pitcher_throws,
+    isOverturned: row.is_overturned,
+    edgeDistance: row.edge_distance === null ? null : Number(row.edge_distance),
+    px: row.px === null ? null : Number(row.px),
+    pz: row.pz === null ? null : Number(row.pz),
+    strikeZoneTop: row.strike_zone_top === null ? null : Number(row.strike_zone_top),
+    strikeZoneBottom: row.strike_zone_bottom === null ? null : Number(row.strike_zone_bottom),
+  }));
+}
+
+function buildHistoricalHandednessBaselineMap(rows: HistoricalChallengeContextRow[]) {
+  const map = new Map<string, ChallengeHandednessBaseline>();
+  const edgeCounts = new Map<string, number>();
+
+  for (const row of rows) {
+    const key = `${row.countKey}::${row.pitcherThrows}::${row.batterStand}`;
+    const current = map.get(key) ?? {
+      countKey: row.countKey,
+      pitcherThrows: row.pitcherThrows,
+      batterStand: row.batterStand,
+      sampleSize: 0,
+      overturnRate: 0,
+      avgEdgeDistance: null,
+    };
+    current.sampleSize += 1;
+    current.overturnRate += row.isOverturned ? 1 : 0;
+    if (row.edgeDistance !== null) {
+      current.avgEdgeDistance = (current.avgEdgeDistance ?? 0) + row.edgeDistance;
+      edgeCounts.set(key, (edgeCounts.get(key) ?? 0) + 1);
+    }
+    map.set(key, current);
+  }
+
+  for (const [key, value] of map) {
+    const edgeCount = edgeCounts.get(key) ?? 0;
+    value.overturnRate = value.sampleSize > 0 ? value.overturnRate / value.sampleSize : 0;
+    value.avgEdgeDistance =
+      edgeCount > 0 && value.avgEdgeDistance !== null ? value.avgEdgeDistance / edgeCount : null;
+    map.set(key, value);
+  }
+
+  return map;
+}
+
+function buildHistoricalPitchLaneBaselineMap(rows: HistoricalChallengeContextRow[]) {
+  const map = new Map<string, ChallengePitchLaneBaseline>();
+  const edgeCounts = new Map<string, number>();
+
+  for (const row of rows) {
+    const lane = classifyNormalizedZoneLane({
+      px: row.px,
+      pz: row.pz,
+      strikeZoneTop: row.strikeZoneTop,
+      strikeZoneBottom: row.strikeZoneBottom,
+    });
+    if (!lane) continue;
+
+    const key = `${row.pitchType}::${row.countKey}::${lane}`;
+    const current = map.get(key) ?? {
+      pitchType: row.pitchType,
+      countKey: row.countKey,
+      lane,
+      sampleSize: 0,
+      overturnRate: 0,
+      avgEdgeDistance: null,
+    };
+    current.sampleSize += 1;
+    current.overturnRate += row.isOverturned ? 1 : 0;
+    if (row.edgeDistance !== null) {
+      current.avgEdgeDistance = (current.avgEdgeDistance ?? 0) + row.edgeDistance;
+      edgeCounts.set(key, (edgeCounts.get(key) ?? 0) + 1);
+    }
+    map.set(key, current);
+  }
+
+  for (const [key, value] of map) {
+    value.overturnRate = value.sampleSize > 0 ? value.overturnRate / value.sampleSize : 0;
+    const edgeCount = edgeCounts.get(key) ?? 0;
+    value.avgEdgeDistance = edgeCount > 0 && value.avgEdgeDistance !== null ? value.avgEdgeDistance / edgeCount : null;
+    map.set(key, value);
+  }
+
+  return map;
 }
 
 function countOccupiedBases(basesState: string | null | undefined) {
@@ -813,6 +1040,7 @@ export async function getLiveGames(): Promise<LiveGameCard[]> {
     const rows = await sql<{
       gamepk: number;
       gamedate: string;
+      gametype: string;
       status: string;
       detailedstate: string | null;
       hometeamid: number;
@@ -847,6 +1075,7 @@ export async function getLiveGames(): Promise<LiveGameCard[]> {
     SELECT
       g.game_pk AS gamePk,
       g.game_date AS gameDate,
+      g.game_type AS gameType,
       g.status_abstract AS status,
       g.status_detailed AS detailedState,
       g.home_team_id AS homeTeamId,
@@ -891,6 +1120,7 @@ export async function getLiveGames(): Promise<LiveGameCard[]> {
     return rows.map((r) => ({
       gamePk: r.gamepk,
       gameDate: r.gamedate,
+      gameType: r.gametype,
       status: r.status,
       detailedState: r.detailedstate,
       homeTeamId: r.hometeamid,
@@ -1029,6 +1259,7 @@ export async function getGame(gamePk: number) {
     const rows = await sql<{
       gamepk: number;
       gamedate: string;
+      gametype: string;
       statusabstract: string;
       statusdetailed: string | null;
       hometeamid: number;
@@ -1051,6 +1282,7 @@ export async function getGame(gamePk: number) {
     SELECT
       g.game_pk AS gamePk,
       g.game_date AS gameDate,
+      g.game_type AS gameType,
       g.status_abstract AS statusAbstract,
       g.status_detailed AS statusDetailed,
       g.home_team_id AS homeTeamId,
@@ -1266,7 +1498,7 @@ export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[
   return withServerTiming(
     "data.getGameChallenges",
     () => withCachedValue(getCacheKey(["game-challenges", gamePk]), 10_000, async () => {
-    const [rows, baselines, runExpectancyRows, winExpectancyRows, overturnProbabilityRows] = await Promise.all([
+    const [rows, baselines, pitchTypeBaselines, runExpectancyRows, winExpectancyRows, overturnProbabilityRows] = await Promise.all([
       sql<{
       challenge_id: string;
       game_pk: number;
@@ -1303,6 +1535,8 @@ export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[
       strikes_after: number | null;
       impact_type: string | null;
       impact_summary: string | null;
+      batter_stand: "R" | "L" | null;
+      pitcher_throws: "R" | "L" | null;
     }>(
         `
     SELECT DISTINCT ON (c.challenge_id)
@@ -1340,13 +1574,19 @@ export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[
       p.balls_after,
       p.strikes_after,
       timeline.impact_type,
-      timeline.impact_summary
+      timeline.impact_summary,
+      hist.stand AS batter_stand,
+      hist.p_throws AS pitcher_throws
     FROM abs_challenges c
     LEFT JOIN teams t ON t.team_id = c.challenge_team_id
     LEFT JOIN pitches p
       ON p.game_pk = c.game_pk
       AND p.at_bat_index = c.at_bat_index
       AND p.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
+    LEFT JOIN mart_historical_abs_overturn_inputs hist
+      ON hist.game_pk = c.game_pk
+      AND hist.at_bat_number = c.at_bat_index + 1
+      AND hist.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
     LEFT JOIN mart_game_pitch_timeline timeline
       ON timeline.challenge_id = c.challenge_id
     WHERE c.game_pk = $1
@@ -1355,13 +1595,36 @@ export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[
         [gamePk],
       ),
       getCountStateBaselines(),
+      getPitchTypeCountBaselines(),
       getRunExpectancyFallbackRows(),
       getWinExpectancyFallbackRows(),
       getOverturnProbabilityFallbackRows(),
     ]);
     const baselineMap = buildCountStateBaselineMap(baselines);
+    const pitchTypeBaselineMap = buildPitchTypeBaselineMap(pitchTypeBaselines);
+    const historicalCountKeys = Array.from(
+      new Set(
+        rows.flatMap((row) => [
+          resolveUmpireCountState(row.balls_before, row.strikes_before, row.balls_after, row.strikes_after, row.is_overturned),
+          row.balls_after === null || row.strikes_after === null ? null : `${row.balls_after}-${row.strikes_after}`,
+        ]).filter((value): value is string => Boolean(value)),
+      ),
+    );
+    const historicalPitchTypes = Array.from(
+      new Set(rows.map((row) => row.pitchtype).filter((value): value is string => Boolean(value))),
+    );
+    const historicalContextRows = await getHistoricalChallengeContextRows(historicalCountKeys, historicalPitchTypes);
+    const historicalHandednessMap = buildHistoricalHandednessBaselineMap(historicalContextRows);
+    const historicalPitchLaneMap = buildHistoricalPitchLaneBaselineMap(historicalContextRows);
 
       return Promise.all(rows.map(async (r) => {
+      const umpireCount = resolveUmpireCountState(
+        r.balls_before,
+        r.strikes_before,
+        r.balls_after,
+        r.strikes_after,
+        r.is_overturned,
+      );
       const challenge: ChallengeEvent = {
         challengeId: r.challenge_id,
         gamePk: r.game_pk,
@@ -1379,6 +1642,8 @@ export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[
         challengePlayerName: r.challenge_player_name,
         batterName: r.batter_name,
         pitcherName: r.pitcher_name,
+        batterStand: r.batter_stand,
+        pitcherThrows: r.pitcher_throws,
         calledDescription: r.called_description,
         pitchNumber: r.pitchnumber,
         pitchType: r.pitchtype,
@@ -1393,13 +1658,7 @@ export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[
           r.balls_before === null || r.strikes_before === null ? null : `${r.balls_before}-${r.strikes_before}`,
         countAfter:
           r.balls_after === null || r.strikes_after === null ? null : `${r.balls_after}-${r.strikes_after}`,
-        umpireCount: (() => {
-          if (r.balls_before === null || r.strikes_before === null) return null;
-          if (!r.is_overturned) return r.balls_after === null || r.strikes_after === null ? null : `${r.balls_after}-${r.strikes_after}`;
-          if (r.balls_after !== null && r.balls_after > r.balls_before) return `${r.balls_before}-${r.strikes_before + 1}`;
-          if (r.strikes_after !== null && r.strikes_after > r.strikes_before) return `${r.balls_before + 1}-${r.strikes_before}`;
-          return r.balls_after === null || r.strikes_after === null ? null : `${r.balls_after}-${r.strikes_after}`;
-        })(),
+        umpireCount,
         impactType: r.impact_type,
         impactSummary: r.impact_summary,
         locationSource: r.location_source,
@@ -1450,6 +1709,30 @@ export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[
         expectedChallengeValue: decisionValue?.expectedWpDelta ?? null,
         decisionRecommendation: decisionValue?.recommendation ?? null,
         decisionValueMode: decisionValue?.decisionValueMode ?? null,
+        heldCountBaseline: buildCountBaselineDetail(challenge.umpireCount ?? challenge.countBefore, baselineMap),
+        correctedCountBaseline: buildCountBaselineDetail(challenge.countAfter, baselineMap),
+        pitchTypeCountBaseline:
+          challenge.pitchType && (challenge.umpireCount ?? challenge.countBefore)
+            ? pitchTypeBaselineMap.get(`${challenge.pitchType}::${challenge.umpireCount ?? challenge.countBefore}`) ?? null
+            : null,
+        handednessBaseline:
+          challenge.batterStand && challenge.pitcherThrows && (challenge.umpireCount ?? challenge.countBefore)
+            ? historicalHandednessMap.get(
+                `${challenge.umpireCount ?? challenge.countBefore}::${challenge.pitcherThrows}::${challenge.batterStand}`,
+              ) ?? null
+            : null,
+        pitchLaneBaseline: (() => {
+          const lane = classifyNormalizedZoneLane({
+            px: challenge.px,
+            pz: challenge.pz,
+            strikeZoneTop: challenge.strikeZoneTop,
+            strikeZoneBottom: challenge.strikeZoneBottom,
+          });
+          if (!lane || !challenge.pitchType || !(challenge.umpireCount ?? challenge.countBefore)) return null;
+          return historicalPitchLaneMap.get(
+            `${challenge.pitchType}::${challenge.umpireCount ?? challenge.countBefore}::${lane}`,
+          ) ?? null;
+        })(),
       };
       }));
     }),
@@ -2867,9 +3150,10 @@ export async function getTeamTrend(
         async () => {
           const window = rangeWhere(range, "g.game_date");
           const situational = situationalWhere(filters, "c");
-          const rows = await sql<{
+  const rows = await sql<{
     gamepk: number;
     gamedate: string;
+    gametype: string;
     ishome: boolean;
     hometeamid: number;
     awayteamid: number;
@@ -2885,6 +3169,7 @@ export async function getTeamTrend(
     SELECT
       c.game_pk AS gamePk,
       g.game_date AS gameDate,
+      g.game_type AS gameType,
       (g.home_team_id = $1) AS isHome,
       g.home_team_id AS homeTeamId,
       g.away_team_id AS awayTeamId,
@@ -2903,7 +3188,17 @@ export async function getTeamTrend(
     WHERE c.challenge_team_id = $1
       AND ${window.clause}
       AND ${situational.clause}
-    GROUP BY c.game_pk, g.game_date, g.home_team_id, g.away_team_id, home.abbreviation, away.abbreviation, away.name, home.name, s.remaining
+    GROUP BY
+      c.game_pk,
+      g.game_date,
+      g.game_type,
+      g.home_team_id,
+      g.away_team_id,
+      home.abbreviation,
+      away.abbreviation,
+      away.name,
+      home.name,
+      s.remaining
     ORDER BY g.game_date DESC
     LIMIT 24
     `,
@@ -2913,6 +3208,7 @@ export async function getTeamTrend(
           return rows.map((r) => ({
     gamePk: Number(r.gamepk),
     gameDate: r.gamedate,
+    gameType: r.gametype,
     isHome: Boolean(r.ishome),
     homeTeamId: Number(r.hometeamid),
     awayTeamId: Number(r.awayteamid),
@@ -3521,9 +3817,10 @@ export async function getUmpireTrend(
         async () => {
           const window = rangeWhere(range, "g.game_date");
           const situational = situationalWhere(filters, "c");
-          const rows = await sql<{
+  const rows = await sql<{
     gamepk: number;
     gamedate: string;
+    gametype: string;
     hometeamid: number;
     awayteamid: number;
     hometeamabbr: string;
@@ -3536,6 +3833,7 @@ export async function getUmpireTrend(
     SELECT
       c.game_pk AS gamePk,
       g.game_date AS gameDate,
+      g.game_type AS gameType,
       g.home_team_id AS homeTeamId,
       g.away_team_id AS awayTeamId,
       home.abbreviation AS homeTeamAbbr,
@@ -3551,7 +3849,14 @@ export async function getUmpireTrend(
     WHERE o.official_id = $1
       AND ${window.clause}
       AND ${situational.clause}
-    GROUP BY c.game_pk, g.game_date, g.home_team_id, g.away_team_id, home.abbreviation, away.abbreviation
+    GROUP BY
+      c.game_pk,
+      g.game_date,
+      g.game_type,
+      g.home_team_id,
+      g.away_team_id,
+      home.abbreviation,
+      away.abbreviation
     ORDER BY g.game_date DESC
     LIMIT 20
     `,
@@ -3568,6 +3873,7 @@ export async function getUmpireTrend(
     return {
       gamePk: Number(r.gamepk),
       gameDate: r.gamedate,
+      gameType: r.gametype,
       homeTeamId: Number(r.hometeamid),
       awayTeamId: Number(r.awayteamid),
       homeTeamAbbr: r.hometeamabbr ?? "???",
@@ -3651,13 +3957,24 @@ export async function getUmpireChallenges(
         async () => {
           const window = rangeWhere(range, "g.game_date");
           const situational = situationalWhere(filters, "c");
-          const rows = await sql<{
+          const [rows, baselines, pitchTypeBaselines, runExpectancyRows, winExpectancyRows, overturnProbabilityRows] = await Promise.all([
+            sql<{
     challengeid: string;
     gamepk: number;
     atbatindex: number | null;
     pitchnumber: number | null;
+    location_source: string | null;
+    inference_method: string | null;
+    inference_confidence: string | null;
     inning: number | null;
     halfinning: string | null;
+    bases_state: string | null;
+    home_score: number | null;
+    away_score: number | null;
+    challenge_team_id: number | null;
+    challenge_player_name: string | null;
+    batter_name: string | null;
+    pitcher_name: string | null;
     isoverturned: boolean;
     calleddescription: string | null;
     px: number | null;
@@ -3669,16 +3986,36 @@ export async function getUmpireChallenges(
     strikes: number | null;
     outs: number | null;
     pitchtype: string | null;
+    startspeed: number | null;
+    spinrate: number | null;
     challengeteamname: string | null;
+    balls_before: number | null;
+    strikes_before: number | null;
+    balls_after: number | null;
+    strikes_after: number | null;
+    impact_type: string | null;
+    impact_summary: string | null;
+    batter_stand: "R" | "L" | null;
+    pitcher_throws: "R" | "L" | null;
   }>(
     `
-    SELECT
+    SELECT DISTINCT ON (c.challenge_id)
       c.challenge_id AS challengeId,
       c.game_pk AS gamePk,
       c.at_bat_index AS atBatIndex,
       COALESCE(c.pitch_number, c.inferred_pitch_number) AS pitchNumber,
+      c.location_source,
+      c.inference_method,
+      c.inference_confidence,
       c.inning,
       c.half_inning AS halfInning,
+      c.bases_state,
+      c.home_score,
+      c.away_score,
+      c.challenge_team_id,
+      c.challenge_player_name,
+      c.batter_name,
+      c.pitcher_name,
       c.is_overturned AS isOverturned,
       p.called_description AS calledDescription,
       COALESCE(c.px, c.inferred_px) AS px,
@@ -3690,50 +4027,178 @@ export async function getUmpireChallenges(
       c.strikes,
       c.outs,
       p.pitch_type_description AS pitchType,
-      t.name AS challengeTeamName
+      p.start_speed AS startSpeed,
+      p.spin_rate AS spinRate,
+      t.name AS challengeTeamName,
+      p.balls_before,
+      p.strikes_before,
+      p.balls_after,
+      p.strikes_after,
+      timeline.impact_type,
+      timeline.impact_summary,
+      hist.stand AS batter_stand,
+      hist.p_throws AS pitcher_throws
     FROM abs_challenges c
     JOIN games g ON g.game_pk = c.game_pk
     LEFT JOIN pitches p ON p.game_pk = c.game_pk AND p.at_bat_index = c.at_bat_index AND p.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
+    LEFT JOIN mart_historical_abs_overturn_inputs hist
+      ON hist.game_pk = c.game_pk
+      AND hist.at_bat_number = c.at_bat_index + 1
+      AND hist.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
     JOIN officials o ON o.game_pk = c.game_pk AND o.official_type = 'Home Plate'
     LEFT JOIN teams t ON t.team_id = c.challenge_team_id
+    LEFT JOIN mart_game_pitch_timeline timeline ON timeline.challenge_id = c.challenge_id
     WHERE o.official_id = $1
       AND ${window.clause}
       AND ${situational.clause}
-    ORDER BY c.challenged_at DESC
+    ORDER BY c.challenge_id, c.challenged_at ASC NULLS LAST
     `,
     [umpireId, ...window.params, ...situational.params],
+            ),
+            getCountStateBaselines(),
+            getPitchTypeCountBaselines(),
+            getRunExpectancyFallbackRows(),
+            getWinExpectancyFallbackRows(),
+            getOverturnProbabilityFallbackRows(),
+          ]);
+          const baselineMap = buildCountStateBaselineMap(baselines);
+          const pitchTypeBaselineMap = buildPitchTypeBaselineMap(pitchTypeBaselines);
+          const historicalCountKeys = Array.from(
+            new Set(
+              rows.flatMap((row) => [
+                resolveUmpireCountState(row.balls_before, row.strikes_before, row.balls_after, row.strikes_after, row.isoverturned),
+                row.balls_after === null || row.strikes_after === null ? null : `${row.balls_after}-${row.strikes_after}`,
+              ]).filter((value): value is string => Boolean(value)),
+            ),
           );
+          const historicalPitchTypes = Array.from(
+            new Set(rows.map((row) => row.pitchtype).filter((value): value is string => Boolean(value))),
+          );
+          const historicalContextRows = await getHistoricalChallengeContextRows(historicalCountKeys, historicalPitchTypes);
+          const historicalHandednessMap = buildHistoricalHandednessBaselineMap(historicalContextRows);
+          const historicalPitchLaneMap = buildHistoricalPitchLaneBaselineMap(historicalContextRows);
 
-          return rows.map((r) => ({
-    challengeId: r.challengeid,
-    gamePk: Number(r.gamepk),
-    atBatIndex: Number(r.atbatindex),
-    pitchNumber: Number(r.pitchnumber),
-    inning: Number(r.inning),
-    halfInning: r.halfinning,
-    isOverturned: Boolean(r.isoverturned),
-    calledDescription: r.calleddescription,
-    px: Number(r.px),
-    pz: Number(r.pz),
-    strikeZoneTop: Number(r.strikezonetop),
-    strikeZoneBottom: Number(r.strikezonebottom),
-    challengedAt: r.challengedat,
-    challengeTeamName: r.challengeteamname,
-    balls: r.balls,
-    strikes: r.strikes,
-    outs: r.outs,
-    pitchType: r.pitchtype,
-    // Add nulls for required but unused fields in this context
-    basesState: null,
-    homeScore: null,
-    awayScore: null,
-    challengeTeamId: null,
-    challengePlayerName: null,
-    batterName: null,
-    pitcherName: null,
-    startSpeed: null,
-            spinRate: null,
-          }));
+          return Promise.all(
+            rows.map(async (r) => {
+              const umpireCount = resolveUmpireCountState(
+                r.balls_before,
+                r.strikes_before,
+                r.balls_after,
+                r.strikes_after,
+                r.isoverturned,
+              );
+              const challenge: ChallengeEvent = {
+                challengeId: r.challengeid,
+                gamePk: Number(r.gamepk),
+                pitchNumber: r.pitchnumber === null ? null : Number(r.pitchnumber),
+                challengedAt: r.challengedat,
+                inning: r.inning === null ? null : Number(r.inning),
+                halfInning: r.halfinning,
+                balls: r.balls,
+                strikes: r.strikes,
+                outs: r.outs,
+                basesState: r.bases_state,
+                homeScore: r.home_score,
+                awayScore: r.away_score,
+                challengeTeamId: r.challenge_team_id,
+                challengeTeamName: r.challengeteamname,
+                challengePlayerName: r.challenge_player_name,
+                batterName: r.batter_name,
+                pitcherName: r.pitcher_name,
+                batterStand: r.batter_stand,
+                pitcherThrows: r.pitcher_throws,
+                calledDescription: r.calleddescription,
+                pitchType: r.pitchtype,
+                startSpeed: r.startspeed === null ? null : Number(r.startspeed),
+                spinRate: r.spinrate === null ? null : Number(r.spinrate),
+                isOverturned: Boolean(r.isoverturned),
+                px: r.px === null ? null : Number(r.px),
+                pz: r.pz === null ? null : Number(r.pz),
+                strikeZoneTop: r.strikezonetop === null ? null : Number(r.strikezonetop),
+                strikeZoneBottom: r.strikezonebottom === null ? null : Number(r.strikezonebottom),
+                countBefore:
+                  r.balls_before === null || r.strikes_before === null ? null : `${r.balls_before}-${r.strikes_before}`,
+                countAfter:
+                  r.balls_after === null || r.strikes_after === null ? null : `${r.balls_after}-${r.strikes_after}`,
+                umpireCount,
+                impactType: r.impact_type,
+                impactSummary: r.impact_summary,
+                locationSource: r.location_source,
+                inferenceMethod: r.inference_method,
+                inferenceConfidence: r.inference_confidence,
+              };
+
+              const snapshot = buildChallengeValueSnapshot(challenge, baselineMap);
+              const runExpectancy = getChallengeRunExpectancyDelta(challenge, runExpectancyRows);
+              const winExpectancy = getChallengeWinExpectancyDelta(challenge, winExpectancyRows);
+              const calledPitch = resolveCalledPitchFromDescription(r.calleddescription);
+              const decisionValue = calledPitch
+                ? await estimateChallengeDecisionValue(
+                    {
+                      inning: r.inning ?? 1,
+                      halfInning: r.halfinning === "Bottom" ? "Bottom" : "Top",
+                      balls: r.balls_before ?? r.balls ?? 0,
+                      strikes: r.strikes_before ?? r.strikes ?? 0,
+                      outs: r.outs ?? 0,
+                      scoreDiffBattingTeam: getScoreDiffBattingTeam(r.halfinning, r.home_score, r.away_score),
+                      runnersOnBase: countOccupiedBases(r.bases_state),
+                      calledPitch,
+                      challengesRemaining: 1,
+                    },
+                    { probabilityRows: overturnProbabilityRows, winRows: winExpectancyRows },
+                  )
+                : null;
+
+              return {
+                ...challenge,
+                estimatedLeverageIndex: snapshot.leverage.estimatedLeverageIndex,
+                estimatedChallengeSwing: snapshot.leverage.estimatedChallengeSwing,
+                leverageBucket: snapshot.leverage.leverageBucket,
+                positiveOutcomeDelta: roundMetric(snapshot.countStateDelta.positiveOutcomeDelta),
+                battingAverageDelta: roundMetric(snapshot.countStateDelta.battingAverageDelta),
+                walkRateDelta: roundMetric(snapshot.countStateDelta.walkRateDelta),
+                strikeoutRateDelta: roundMetric(snapshot.countStateDelta.strikeoutRateDelta),
+                preRunExpectancy: runExpectancy.preRunExpectancy,
+                postRunExpectancy: runExpectancy.postRunExpectancy,
+                runExpectancyDelta: runExpectancy.runExpectancyDelta,
+                runExpectancyConfidence: runExpectancy.runExpectancyConfidence,
+                preWinExpectancy: winExpectancy.preWinExpectancy,
+                postWinExpectancy: winExpectancy.postWinExpectancy,
+                winExpectancyDelta: winExpectancy.winExpectancyDelta,
+                winExpectancyConfidence: winExpectancy.winExpectancyConfidence,
+                estimatedOverturnProbability: decisionValue?.estimatedOverturnProbability ?? null,
+                overturnProbabilityConfidence: decisionValue?.overturnProbabilityConfidence ?? null,
+                overturnProbabilityFallbackTier: decisionValue?.overturnProbabilityFallbackTier ?? null,
+                expectedChallengeValue: decisionValue?.expectedWpDelta ?? null,
+                decisionRecommendation: decisionValue?.recommendation ?? null,
+                decisionValueMode: decisionValue?.decisionValueMode ?? null,
+                heldCountBaseline: buildCountBaselineDetail(challenge.umpireCount ?? challenge.countBefore, baselineMap),
+                correctedCountBaseline: buildCountBaselineDetail(challenge.countAfter, baselineMap),
+                pitchTypeCountBaseline:
+                  challenge.pitchType && (challenge.umpireCount ?? challenge.countBefore)
+                    ? pitchTypeBaselineMap.get(`${challenge.pitchType}::${challenge.umpireCount ?? challenge.countBefore}`) ?? null
+                    : null,
+                handednessBaseline:
+                  challenge.batterStand && challenge.pitcherThrows && (challenge.umpireCount ?? challenge.countBefore)
+                    ? historicalHandednessMap.get(
+                        `${challenge.umpireCount ?? challenge.countBefore}::${challenge.pitcherThrows}::${challenge.batterStand}`,
+                      ) ?? null
+                    : null,
+                pitchLaneBaseline: (() => {
+                  const lane = classifyNormalizedZoneLane({
+                    px: challenge.px,
+                    pz: challenge.pz,
+                    strikeZoneTop: challenge.strikeZoneTop,
+                    strikeZoneBottom: challenge.strikeZoneBottom,
+                  });
+                  if (!lane || !challenge.pitchType || !(challenge.umpireCount ?? challenge.countBefore)) return null;
+                  return historicalPitchLaneMap.get(
+                    `${challenge.pitchType}::${challenge.umpireCount ?? challenge.countBefore}::${lane}`,
+                  ) ?? null;
+                })(),
+              };
+            }),
+          );
         },
       ),
     { warnAtMs: 700, metadata: { umpireId, range } },
@@ -3813,6 +4278,7 @@ export async function getTeamSchedule(teamId: number, season = 2026): Promise<Te
         const rows = await sql<{
     gamepk: number;
     gamedate: string;
+    gametype: string;
     status: string;
     hometeamid: number;
     awayteamid: number;
@@ -3825,6 +4291,7 @@ export async function getTeamSchedule(teamId: number, season = 2026): Promise<Te
     SELECT 
       g.game_pk AS gamePk,
       g.game_date AS gameDate,
+      g.game_type AS gameType,
       g.status_abstract AS status,
       g.home_team_id AS homeTeamId,
       g.away_team_id AS awayTeamId,
@@ -3844,6 +4311,7 @@ export async function getTeamSchedule(teamId: number, season = 2026): Promise<Te
         return rows.map(r => ({
     gamePk: Number(r.gamepk),
     gameDate: r.gamedate,
+    gameType: r.gametype,
     status: r.status,
     homeTeamId: Number(r.hometeamid),
     awayTeamId: Number(r.awayteamid),
@@ -3865,6 +4333,7 @@ export async function getUmpireSchedule(umpireId: number, season = 2026): Promis
         const rows = await sql<{
     gamepk: number;
     gamedate: string;
+    gametype: string;
     status: string;
     hometeamid: number;
     awayteamid: number;
@@ -3877,6 +4346,7 @@ export async function getUmpireSchedule(umpireId: number, season = 2026): Promis
     SELECT DISTINCT
       g.game_pk AS gamePk,
       g.game_date AS gameDate,
+      g.game_type AS gameType,
       g.status_abstract AS status,
       g.home_team_id AS homeTeamId,
       g.away_team_id AS awayTeamId,
@@ -3899,6 +4369,7 @@ export async function getUmpireSchedule(umpireId: number, season = 2026): Promis
         return rows.map((row) => ({
     gamePk: Number(row.gamepk),
     gameDate: row.gamedate,
+    gameType: row.gametype,
     status: row.status,
     homeTeamId: Number(row.hometeamid),
     awayTeamId: Number(row.awayteamid),

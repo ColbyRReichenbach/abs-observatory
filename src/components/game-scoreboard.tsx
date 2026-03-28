@@ -1,10 +1,15 @@
+"use client";
+
 import type { CSSProperties } from "react";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ChallengeHashes } from "@/components/challenge-hashes";
 import { resolveTeamBranding } from "@/lib/team-branding";
 import { InningIcon } from "@/components/inning-icon";
 import { TeamIcon } from "@/components/team-icon";
+import { GameTypeBadge } from "@/components/ui/game-type-badge";
+import { withViewModeHref } from "@/lib/view-mode-href";
 
 type InningLine = {
   inning: number;
@@ -24,6 +29,7 @@ type TeamLine = {
 
 type GameScoreboardProps = {
   status: string;
+  gameType?: string | null;
   detailedState?: string | null;
   inning?: number | null;
   halfInning?: string | null;
@@ -39,6 +45,7 @@ const BASE_INNINGS = 9;
 
 export function GameScoreboard({
   status,
+  gameType,
   detailedState,
   inning,
   halfInning,
@@ -71,10 +78,13 @@ export function GameScoreboard({
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 bg-white/5 border-b border-white/5">
         <div className="flex items-center gap-4">
           <div className="flex flex-col">
-            <span className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] ${isLive ? "text-red-500" : isFinal ? "text-emerald-500" : "text-[var(--ink-3)]"}`}>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] ${isLive ? "text-red-500" : isFinal ? "text-emerald-500" : "text-[var(--ink-3)]"}`}>
               {isLive && <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />}
               {isFinal ? "Final" : "Game Live"}
-            </span>
+              </span>
+              <GameTypeBadge gameType={gameType} compact />
+            </div>
             <div className="flex items-center gap-2 mt-1">
               {isFinal ? (
                 <span className="text-xs font-bold text-[var(--ink-1)]">Status: Complete</span>
@@ -176,13 +186,20 @@ function ScoreRow({
   currentInning?: number | null;
   brand: TeamBranding;
 }) {
+  const searchParams = useSearchParams();
+  const activeMode = searchParams.get("view") === "org" || searchParams.get("view") === "fan"
+    ? searchParams.get("view")
+    : null;
   const abbreviation = team.abbreviation?.trim() || team.name;
   const accentColor = brand.tokens.teamPrimary;
 
   return (
     <tr className="bg-white/5 rounded-lg overflow-hidden transition-all hover:bg-white/[0.08]">
       <th className="px-4 py-4 text-left rounded-l-lg">
-        <Link href={`/teams/${team.id}`} className="flex items-center gap-4 group/teamlink">
+        <Link
+          href={withViewModeHref(`/teams/${team.id}`, activeMode === "org" || activeMode === "fan" ? activeMode : null)}
+          className="flex items-center gap-4 group/teamlink"
+        >
           <TeamIcon
             teamId={team.id}
             name={team.name}

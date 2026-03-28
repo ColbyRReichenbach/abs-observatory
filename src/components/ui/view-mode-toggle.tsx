@@ -4,6 +4,8 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useTransition } from "react";
 import type { ViewMode } from "@/lib/view-mode";
 
+const VIEW_MODE_EVENT = "aibs:view-mode-change";
+
 /**
  * S8: Client toggle for Fan/Org mode.
  * Updates the cookie and the URL param so the server resolves the new mode on next request.
@@ -20,13 +22,12 @@ export function ViewModeToggle({ initialMode }: { initialMode?: ViewMode }) {
         ? paramMode
         : initialMode || "fan";
 
-    const toggle = useCallback(() => {
-        const next: ViewMode = activeMode === "fan" ? "org" : "fan";
+    const setMode = useCallback((next: ViewMode) => {
+        if (next === activeMode) return;
 
-        // Update cookie
         document.cookie = `aibs_view_mode=${next};path=/;max-age=${60 * 60 * 24 * 365};SameSite=Lax`;
+        window.dispatchEvent(new CustomEvent(VIEW_MODE_EVENT, { detail: next }));
 
-        // Update URL to include ?view=
         const params = new URLSearchParams(searchParams.toString());
         params.set("view", next);
         startTransition(() => {
@@ -34,31 +35,47 @@ export function ViewModeToggle({ initialMode }: { initialMode?: ViewMode }) {
         });
     }, [activeMode, pathname, searchParams, router]);
 
+    const toggle = useCallback(() => {
+        const next: ViewMode = activeMode === "fan" ? "org" : "fan";
+        setMode(next);
+    }, [activeMode, setMode]);
+
     const mode = activeMode;
 
     return (
-        <button
-            onClick={toggle}
-            disabled={isPending}
-            className="group relative flex items-center gap-2 rounded-full border border-gray-200 bg-white px-1 py-1 text-[10px] font-black uppercase tracking-widest shadow-sm transition-all hover:shadow-md hover:border-gray-300 disabled:opacity-50"
-            title={`Switch to ${mode === "fan" ? "Org" : "Fan"} mode`}
+        <div
+            className="group relative flex items-center gap-2 rounded-full border border-gray-200 bg-white px-1 py-1 text-[10px] font-black uppercase tracking-widest shadow-sm transition-all hover:shadow-md hover:border-gray-300"
+            aria-label="View mode"
+            role="tablist"
         >
-            <span
-                className={`rounded-full px-3 py-1.5 transition-all ${mode === "fan"
+            <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "fan"}
+                onClick={() => setMode("fan")}
+                disabled={isPending}
+                className={`rounded-full px-3 py-1.5 transition-all disabled:opacity-50 ${mode === "fan"
                     ? "bg-blue-600 text-white shadow-sm"
                     : "text-gray-400 hover:text-gray-600"
                     }`}
+                title="Switch to Fan mode"
             >
                 Fan
-            </span>
-            <span
-                className={`rounded-full px-3 py-1.5 transition-all ${mode === "org"
+            </button>
+            <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "org"}
+                onClick={() => setMode("org")}
+                disabled={isPending}
+                className={`rounded-full px-3 py-1.5 transition-all disabled:opacity-50 ${mode === "org"
                     ? "bg-gray-900 text-white shadow-sm"
                     : "text-gray-400 hover:text-gray-600"
                     }`}
+                title="Switch to Org mode"
             >
                 Org
-            </span>
-        </button>
+            </button>
+        </div>
     );
 }

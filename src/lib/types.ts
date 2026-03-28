@@ -1,6 +1,7 @@
 export type LiveGameCard = {
   gamePk: number;
   gameDate: string;
+  gameType?: string | null;
   status: string;
   detailedState: string | null;
   homeTeamId: number;
@@ -40,6 +41,8 @@ export type ChallengeEvent = {
   challengePlayerName: string | null;
   batterName: string | null;
   pitcherName: string | null;
+  batterStand?: "R" | "L" | null;
+  pitcherThrows?: "R" | "L" | null;
   calledDescription: string | null;
   pitchNumber: number | null;
   pitchType: string | null;
@@ -79,6 +82,48 @@ export type ChallengeEvent = {
   expectedChallengeValue?: number | null;
   decisionRecommendation?: "challenge" | "hold" | "cannot_challenge" | null;
   decisionValueMode?: "win_expectancy" | "heuristic" | null;
+  heldCountBaseline?: ChallengeCountBaseline | null;
+  correctedCountBaseline?: ChallengeCountBaseline | null;
+  pitchTypeCountBaseline?: ChallengePitchTypeBaseline | null;
+  handednessBaseline?: ChallengeHandednessBaseline | null;
+  pitchLaneBaseline?: ChallengePitchLaneBaseline | null;
+};
+
+export type ChallengeCountBaseline = {
+  countKey: string;
+  plateAppearances: number;
+  battingAverage: number;
+  walkRate: number;
+  strikeoutRate: number;
+  positiveOutcomeRate: number;
+};
+
+export type ChallengePitchTypeBaseline = {
+  pitchType: string;
+  countKey: string;
+  pitchCount: number;
+  challengedPitchCount: number;
+  challengeRate: number;
+  avgStartSpeed: number | null;
+  avgSpinRate: number | null;
+};
+
+export type ChallengeHandednessBaseline = {
+  countKey: string;
+  pitcherThrows: "R" | "L";
+  batterStand: "R" | "L";
+  sampleSize: number;
+  overturnRate: number;
+  avgEdgeDistance: number | null;
+};
+
+export type ChallengePitchLaneBaseline = {
+  pitchType: string;
+  countKey: string;
+  lane: string;
+  sampleSize: number;
+  overturnRate: number;
+  avgEdgeDistance: number | null;
 };
 
 export type PitchTimelineEntry = {
@@ -208,6 +253,7 @@ export type TeamIdentity = {
 export type TeamTrendPoint = {
   gamePk: number;
   gameDate: string;
+  gameType?: string | null;
   isHome: boolean;
   homeTeamId: number;
   awayTeamId: number;
@@ -467,6 +513,13 @@ export type AIChatResponse = {
   generationId?: string | null;
   modelName?: string;
   answer: string;
+  structuredInsight?: {
+    headline: string;
+    sections: Array<{
+      label: string;
+      body: string;
+    }>;
+  } | null;
   toolResults: Array<{ toolName: string; payload: unknown }>;
   citations: string[];
   safetyDisposition: "allowed" | "blocked";
@@ -604,6 +657,7 @@ export type HomeChallengeMoment = {
 export interface UmpireTrendPoint {
   gamePk: number;
   gameDate: string;
+  gameType?: string | null;
   homeTeamId: number;
   awayTeamId: number;
   homeTeamAbbr: string;
@@ -637,6 +691,7 @@ export type UmpirePerformanceDNA = {
 export type TeamScheduleGame = {
   gamePk: number;
   gameDate: string;
+  gameType?: string | null;
   status: string;
   homeTeamId: number;
   awayTeamId: number;

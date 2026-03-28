@@ -1,9 +1,11 @@
 import Link from "next/link";
 
 import { formatLeverageBucketLabel, getEstimatedLeverageBucket } from "@/lib/estimated-leverage";
+import { withViewModeHref } from "@/lib/view-mode-href";
 import type { HomeChallengeMoment } from "@/lib/types";
+import type { ViewMode } from "@/lib/view-mode";
 
-export function ChallengeMomentCards({ moments }: { moments: HomeChallengeMoment[] }) {
+export function ChallengeMomentCards({ moments, viewMode }: { moments: HomeChallengeMoment[]; viewMode?: ViewMode }) {
   return (
     <section>
       <div className="mb-5 flex items-baseline justify-between">
@@ -21,7 +23,7 @@ export function ChallengeMomentCards({ moments }: { moments: HomeChallengeMoment
         {moments.slice(0, 6).map((moment) => (
           <Link
             key={moment.challengeId}
-            href={`/game/${moment.gamePk}?challengeId=${moment.challengeId}#abs-explorer`}
+            href={withViewModeHref(`/game/${moment.gamePk}?challengeId=${moment.challengeId}#abs-explorer`, viewMode)}
             className="panel panel-interactive group relative overflow-hidden p-4 transition-all duration-[var(--motion-mid)]"
           >
             {/* Leverage indicator bar */}

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import type { ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { MotionIn } from "@/components/motion-in";
@@ -10,19 +11,23 @@ import { UmpireHeadshot } from "@/components/umpire-headshot";
 import { FilterStrip } from "@/components/analytics/filter-strip";
 import { AIInsightBubble } from "@/components/analytics/ai-insight-bubble";
 import { HeatmapDeepDive } from "@/components/analytics/heatmap-deep-dive";
-import { getUmpireChallenges, getUmpireLeaderboardModel, getUmpirePerformanceDNA, getUmpirePitchTypeBreakdown, getUmpireProfile, getUmpireSeasonTrend, getUmpireSummary, getUmpireTrend } from "@/lib/data";
+import { getUmpireChallenges, getUmpireLeaderboardModel, getUmpireMatchupVulnerabilities, getUmpirePerformanceDNA, getUmpirePitchTypeBreakdown, getUmpireProfile, getUmpireSeasonTrend, getUmpireSummary, getUmpireTrend } from "@/lib/data";
 import { UmpireRhythmChart } from "@/components/analytics/umpire-rhythm-chart";
 import { ExtremeMissesSection } from "@/components/analytics/extreme-misses-section";
 import { PitchTypeBreakdownChart } from "@/components/analytics/pitch-type-breakdown-chart";
 import { SeasonOverSeasonChart } from "@/components/analytics/season-over-season-chart";
-import { AIBSVisualizerChat } from "@/components/analytics/ai-bs-visualizer-chat";
 import { parseRange } from "@/lib/range";
 import { computeEstimatedLeverageIndex } from "@/lib/estimated-leverage";
 import { resolveViewMode } from "@/lib/view-mode";
 import type { ChallengeEvent, SituationalFilters, UmpireTrendPoint } from "@/lib/types";
-import Link from "next/link";
 import { BackPill } from "@/components/ui/back-pill";
 import { getUmpireDetailViewCopy } from "@/lib/view-mode-contract";
+import { UmpireConsequenceBoard } from "@/components/analytics/umpire-consequence-board";
+import { UmpireGamesMorph } from "@/components/analytics/umpire-games-morph";
+import { UmpireConsequenceMatrix } from "@/components/analytics/umpire-consequence-matrix";
+import { UmpireHandednessBoard } from "@/components/analytics/umpire-handedness-board";
+import { UmpirePitchTraitScatter } from "@/components/analytics/umpire-pitch-trait-scatter";
+import { buildUmpireRhythmChartPayload, buildUmpireZoneMapChartPayload } from "@/lib/chart-insight-payload";
 
 function toInningRange(value?: string): SituationalFilters["inningRange"] {
   if (value === "early" || value === "middle" || value === "late" || value === "extras") return value;
@@ -85,7 +90,9 @@ export default async function UmpirePage({
   const copy = getUmpireDetailViewCopy(viewMode);
   return (
     <main className="mx-auto max-w-7xl px-6 py-12 lg:py-24 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.02),transparent)]">
-      <BackPill label="Umpires" href="/umpires" />
+      <div className="mb-6">
+        <BackPill label="Umpires" href="/umpires" />
+      </div>
       {/* Header */}
       <MotionIn>
         <header className="relative mb-20 bg-white p-12 lg:p-16 rounded-[3rem] border border-gray-100 shadow-2xl shadow-blue-900/[0.03] flex flex-col md:flex-row gap-10 items-center overflow-hidden">
@@ -164,10 +171,6 @@ export default async function UmpirePage({
           copy={copy}
         />
       </Suspense>
-
-      <MotionIn delay={0.35}>
-        <AIBSVisualizerChat context={`${summary.umpireName} Umpiring`} />
-      </MotionIn>
     </main >
   );
 }
@@ -220,193 +223,166 @@ async function UmpireAnalyticsSections({
   overturnRate: number;
   copy: ReturnType<typeof getUmpireDetailViewCopy>;
 }) {
-  const [profile, trend, challenges, dna, pitchTypes, seasonTrend] = await Promise.all([
+  const [profile, trend, challenges, dna, pitchTypes, seasonTrend, matchupVulnerabilities] = await Promise.all([
     getUmpireProfile(umpireId, range, filters),
     getUmpireTrend(umpireId, range, filters),
     getUmpireChallenges(umpireId, range, filters),
     getUmpirePerformanceDNA(umpireId, range),
     getUmpirePitchTypeBreakdown(umpireId, range, filters),
     getUmpireSeasonTrend(umpireId),
+    getUmpireMatchupVulnerabilities(umpireId, range, filters),
   ]);
 
   const shouldShowSeasonTrend = seasonTrend.filter((point) => point.gamesWorked > 0).length >= 2;
   const zoneGrid = buildNineZoneGrid(challenges);
+  const rhythmChartContext = buildUmpireRhythmChartPayload(umpireId, umpireName, dna.rhythm);
+  const zoneChartContext = buildUmpireZoneMapChartPayload(umpireId, umpireName, zoneGrid);
+  const highLeverageShare =
+    challenges.length > 0 ? challenges.filter((challenge) => computeEstimatedLeverageIndex(challenge) >= 65).length / challenges.length : 0;
+  const showHistoryEarly = copy.historyPlacement === "early";
+  const showHistoryLate = copy.historyPlacement !== "early";
 
   const historySection = (
     <MotionIn delay={0.05}>
-      <section className="mb-20">
-        <div className="mb-8 flex items-end justify-between border-b border-gray-100 pb-8">
-          <div>
-            <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
-              {copy.historyEyebrow}
-            </h4>
-            <p className="text-3xl font-display leading-none text-gray-900">
-              {copy.historyTitle.split(" ").slice(0, 1).join(" ")} <span className="text-gray-400 italic">{copy.historyTitle.split(" ").slice(1).join(" ")}</span>
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <button className="p-3 rounded-2xl bg-white border border-gray-200 text-gray-400 hover:text-black hover:border-black transition-all shadow-sm">
-              <ChevronLeft size={20} />
-            </button>
-            <button className="p-3 rounded-2xl bg-white border border-gray-200 text-gray-400 hover:text-black hover:border-black transition-all shadow-sm">
-              <ChevronRight size={20} />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex gap-6 overflow-x-auto pt-2 pb-6 px-1 scrollbar-hide">
-          {trend.map((g: UmpireTrendPoint) => (
-            <Link href={`/game/${g.gamePk}`} key={g.gamePk} className="block flex-shrink-0 w-72 p-6 rounded-[2.5rem] bg-white border border-gray-100 shadow-xl shadow-black/[0.02] transition-all hover:shadow-black/[0.05] hover:-translate-y-1 hover:border-blue-200 group">
-              <div className="flex justify-between items-start mb-6">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                  {new Date(g.gameDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                </span>
-                <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${g.accuracy >= 0.95 ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
-                  {(g.accuracy * 100).toFixed(1)}% Acc
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-3 mb-6">
-                <div className="flex flex-col items-center gap-2 flex-1 transition-transform duration-300 group-hover:translate-x-3">
-                  <TeamIcon teamId={g.awayTeamId} name={g.awayTeamAbbr} size={40} className="shadow-lg transition-all group-hover:scale-110 group-hover:shadow-[0_0_15px_rgba(37,99,235,0.2)]" />
-                  <span className="text-[10px] font-black text-gray-400 group-hover:text-blue-600 transition-colors">{g.awayTeamAbbr}</span>
-                </div>
-                <span className="text-[10px] font-black text-gray-200 italic transition-transform duration-300 group-hover:scale-95">vs</span>
-                <div className="flex flex-col items-center gap-2 flex-1 transition-transform duration-300 group-hover:-translate-x-3">
-                  <TeamIcon teamId={g.homeTeamId} name={g.homeTeamAbbr} size={40} className="shadow-lg transition-all group-hover:scale-110 group-hover:shadow-[0_0_15px_rgba(37,99,235,0.2)]" />
-                  <span className="text-[10px] font-black text-gray-400 group-hover:text-blue-600 transition-colors">{g.homeTeamAbbr}</span>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 border-t border-gray-50 pt-5">
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Overturns</p>
-                  <p className="text-2xl font-display text-gray-900">{g.overturnedCount}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Challenges</p>
-                  <p className="text-2xl font-display text-blue-600">{g.challengedCount}</p>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
+      <UmpireGamesMorph games={trend} />
     </MotionIn>
   );
 
   return (
     <>
-      {copy.historyPlacement === "early" ? historySection : null}
+      {showHistoryEarly ? historySection : null}
 
-      <MotionIn delay={0.15}>
-        <section className="mb-12">
-          <div className="panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col">
-            <div className="flex items-center justify-between gap-4 mb-4">
-              <div>
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
-                  Performance DNA
-                </h4>
-                <p className="text-3xl font-display leading-none text-gray-900">
-                  Umpire <span className="text-gray-400 italic">Rhythm</span>
-                </p>
-              </div>
-              <AIInsightBubble
-                insight={buildRhythmInsight(umpireName, dna.rhythm)}
-                insightId={`umpire-rhythm:${umpireId}`}
-                metadata={{ umpireId, surface: "umpire_rhythm" }}
-              />
+      {viewMode === "org" ? (
+        <>
+          <MotionIn delay={0.15}>
+            <UmpireConsequenceMatrix challenges={challenges} />
+          </MotionIn>
+          <MotionIn delay={0.18}>
+            <div className="grid gap-8 xl:grid-cols-[1.05fr_0.95fr]">
+              <UmpireHandednessBoard challenges={challenges} matchupVulnerabilities={matchupVulnerabilities} />
+              <UmpirePitchTraitScatter challenges={challenges} />
             </div>
-
-            <div className="w-full">
-              <UmpireRhythmChart data={dna.rhythm} />
-            </div>
-
-            {dna.rhythm.length >= 7 && (() => {
-              const earlyAvg = dna.rhythm.slice(0, 3).reduce((sum, rhythmPoint) => sum + (rhythmPoint.accuracy || 0), 0) / 3;
-              const lateAvg = dna.rhythm.slice(-3).reduce((sum, rhythmPoint) => sum + (rhythmPoint.accuracy || 0), 0) / 3;
-              const drop = earlyAvg - lateAvg;
-              if (drop > 0.05) {
-                return (
-                  <div className="mt-6 bg-amber-50 border border-amber-200 rounded-2xl px-6 py-4 text-xs font-black text-amber-700 flex items-center gap-3">
-                    <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-                    Accuracy drops {(drop * 100).toFixed(1)} percentage points from the first three innings to the last three tracked innings.
+          </MotionIn>
+          <MotionIn delay={0.19}>
+            <UmpireConsequenceBoard challenges={challenges} />
+          </MotionIn>
+        </>
+      ) : (
+        <>
+          <MotionIn delay={0.15}>
+            <section className="mb-12">
+              <div className="panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col">
+                <div className="flex items-center justify-between gap-4 mb-4">
+                  <div>
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
+                      Performance DNA
+                    </h4>
+                    <p className="text-3xl font-display leading-none text-gray-900">
+                      Umpire <span className="text-gray-400 italic">Rhythm</span>
+                    </p>
                   </div>
-                );
-              }
-              return null;
-            })()}
-          </div>
-        </section>
-      </MotionIn>
-
-      <MotionIn delay={0.18}>
-        <section className="grid gap-8 lg:grid-cols-3 mb-12">
-          <div className="panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col justify-center bg-white/50">
-            <h4 className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mb-1">
-              {viewMode === "org" ? "Operational Profile" : "Report Card"}
-            </h4>
-            <p className="text-2xl font-display leading-none text-gray-900 mb-8">
-              {viewMode === "org" ? (
-                <>Prep <span className="text-gray-400 italic">Snapshot</span></>
-              ) : (
-                <>League <span className="text-gray-400 italic">Standing</span></>
-              )}
-            </p>
-            {currentUmpire ? (
-              <div className="flex flex-col items-center">
-                <div className="mb-6 w-full flex items-end justify-between">
-                  <span className="text-8xl font-display text-gray-900 leading-none">{currentUmpire.grade}</span>
-                  <div className="flex flex-col items-end">
-                    <span className="rounded-full bg-blue-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-600 mb-2">
-                      {viewMode === "org" ? currentUmpire.riskTier : currentUmpire.fanDescriptor}
-                    </span>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic">{umpireName}</span>
-                  </div>
-                </div>
-                <div className="relative h-6 w-full overflow-hidden rounded-full bg-gray-100 mb-6 shadow-inner p-1">
-                  <div
-                    className="h-full rounded-full transition-all duration-700 ease-out shadow-lg"
-                    style={{
-                      width: `${Math.max(8, Math.round(currentUmpire.reportCardScore))}%`,
-                      backgroundColor: currentUmpire.reportCardScore >= 68 ? "#10b981" : currentUmpire.reportCardScore >= 45 ? "#3b82f6" : "#f59e0b",
-                    }}
+                  <AIInsightBubble
+                    insight={buildRhythmInsight(umpireName, dna.rhythm)}
+                    insightContent={buildRhythmInsightContent(umpireName, dna.rhythm)}
+                    insightId={`umpire-rhythm:${umpireId}`}
+                    metadata={{ umpireId, surface: "umpire_rhythm" }}
+                    chartContext={rhythmChartContext}
+                    spotlightTitle="Umpire Rhythm"
+                    spotlight={
+                      <div className="min-h-[320px] w-full">
+                        <UmpireRhythmChart data={dna.rhythm} />
+                      </div>
+                    }
                   />
                 </div>
-                <div className="w-full space-y-2">
-                  <p className="text-[11px] font-bold text-gray-700 text-center leading-tight">
-                    {viewMode === "org"
-                      ? `${currentUmpire.orgDescriptor} with ${currentUmpire.confidence} confidence`
-                      : `${currentUmpire.fanDescriptor} based on current-season challenged calls`}
-                  </p>
-                  <p className="text-[10px] font-medium text-gray-400 text-center uppercase tracking-widest bg-gray-50/50 py-2 rounded-lg border border-gray-50">
-                    Overturn Rate: <span className="text-gray-900 font-bold">{(overturnRate * 100).toFixed(1)}%</span>
-                    {displayRank ? <span className="mx-2 opacity-30">|</span> : ""}
-                    {displayRank ? <span>Rank <span className="text-gray-900 font-bold">#{displayRank}</span> of {rankedByScoreLength}</span> : ""}
+
+                <div className="w-full">
+                  <UmpireRhythmChart data={dna.rhythm} />
+                </div>
+
+                {dna.rhythm.length >= 7 && (() => {
+                  const earlyAvg = dna.rhythm.slice(0, 3).reduce((sum, rhythmPoint) => sum + (rhythmPoint.accuracy || 0), 0) / 3;
+                  const lateAvg = dna.rhythm.slice(-3).reduce((sum, rhythmPoint) => sum + (rhythmPoint.accuracy || 0), 0) / 3;
+                  const drop = earlyAvg - lateAvg;
+                  if (drop > 0.05) {
+                    return (
+                      <div className="mt-6 bg-amber-50 border border-amber-200 rounded-2xl px-6 py-4 text-xs font-black text-amber-700 flex items-center gap-3">
+                        <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                        Accuracy drops {(drop * 100).toFixed(1)} percentage points from the first three innings to the last three tracked innings.
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+            </section>
+          </MotionIn>
+
+          <MotionIn delay={0.18}>
+            <section className="grid gap-8 lg:grid-cols-3 mb-12">
+              <div className="panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col justify-center bg-white/50">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mb-1">
+                  League Standing
+                </h4>
+                <p className="text-2xl font-display leading-none text-gray-900 mb-8">
+                  League <span className="text-gray-400 italic">Standing</span>
+                </p>
+                {currentUmpire ? (
+                  <div className="flex flex-col items-center">
+                    <div className="mb-6 w-full flex items-end justify-between">
+                      <span className="text-8xl font-display text-gray-900 leading-none">{currentUmpire.grade}</span>
+                      <div className="flex flex-col items-end">
+                        <span className="rounded-full bg-blue-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-600 mb-2">
+                          {currentUmpire.fanDescriptor}
+                        </span>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic">{umpireName}</span>
+                      </div>
+                    </div>
+                    <div className="relative h-6 w-full overflow-hidden rounded-full bg-gray-100 mb-6 shadow-inner p-1">
+                      <div
+                        className="h-full rounded-full transition-all duration-700 ease-out shadow-lg"
+                        style={{
+                          width: `${Math.max(8, Math.round(currentUmpire.reportCardScore))}%`,
+                          backgroundColor: currentUmpire.reportCardScore >= 68 ? "#10b981" : currentUmpire.reportCardScore >= 45 ? "#3b82f6" : "#f59e0b",
+                        }}
+                      />
+                    </div>
+                    <div className="w-full space-y-2">
+                      <p className="text-[11px] font-bold text-gray-700 text-center leading-tight">
+                        {`${currentUmpire.fanDescriptor} based on current-season challenged calls`}
+                      </p>
+                      <p className="text-[10px] font-medium text-gray-400 text-center uppercase tracking-widest bg-gray-50/50 py-2 rounded-lg border border-gray-50">
+                        Overturn Rate: <span className="text-gray-900 font-bold">{(overturnRate * 100).toFixed(1)}%</span>
+                        {displayRank ? <span className="mx-2 opacity-30">|</span> : ""}
+                        {displayRank ? <span>Rank <span className="text-gray-900 font-bold">#{displayRank}</span> of {rankedByScoreLength}</span> : ""}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm font-medium text-gray-400 text-center italic">Report card data will stabilize once more challenged calls are logged.</p>
+                )}
+              </div>
+
+              <div className="lg:col-span-2 panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col">
+                <div>
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mb-1">
+                    Accuracy Trajectory
+                  </h4>
+                  <p className="text-3xl font-display leading-none text-gray-900">
+                    Call <span className="text-gray-400 italic">Correctness</span> Over Time
                   </p>
                 </div>
+                <div className="flex-1 w-full mt-6">
+                  <UmpireAccuracyChart data={trend} />
+                </div>
               </div>
-            ) : (
-              <p className="text-sm font-medium text-gray-400 text-center italic">Report card data will stabilize once more challenged calls are logged.</p>
-            )}
-          </div>
-
-          <div className="lg:col-span-2 panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col">
-            <div>
-              <h4 className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mb-1">
-                Accuracy Trajectory
-              </h4>
-              <p className="text-3xl font-display leading-none text-gray-900">
-                Call <span className="text-gray-400 italic">Correctness</span> Over Time
-              </p>
-            </div>
-            <div className="flex-1 w-full mt-6">
-              <UmpireAccuracyChart data={trend} />
-            </div>
-          </div>
-        </section>
-      </MotionIn>
+            </section>
+          </MotionIn>
+        </>
+      )}
 
       <MotionIn delay={0.2}>
-        <section className="grid gap-8 lg:grid-cols-2">
+        <section className={`grid gap-8 ${viewMode === "org" ? "lg:grid-cols-[1.1fr_0.9fr]" : "lg:grid-cols-2"}`}>
           <div className="panel p-8 shadow-2xl shadow-black/[0.02]">
             <div className="mb-8 pb-4 border-b border-gray-50 flex items-center justify-between">
               <div>
@@ -422,9 +398,18 @@ async function UmpireAnalyticsSections({
                 </p>
               </div>
               <AIInsightBubble
-                insight={buildZoneInsight(profile.zoneBuckets)}
+                insight={buildZoneInsight(zoneGrid)}
+                insightContent={buildZoneInsightContent(zoneGrid)}
                 insightId={`umpire-zone:${umpireId}`}
                 metadata={{ umpireId, surface: "umpire_zone" }}
+                chartContext={zoneChartContext}
+                spotlightTitle="Zone Map"
+                spotlight={
+                  <div className="space-y-6">
+                    <UmpireNineZoneGrid cells={zoneGrid} />
+                    <HeatmapDeepDive challenges={challenges} umpireName={umpireName} />
+                  </div>
+                }
               />
             </div>
             <div className="mt-8">
@@ -436,52 +421,64 @@ async function UmpireAnalyticsSections({
           <div className="panel p-8 shadow-2xl shadow-black/[0.02] flex flex-col">
             <div className="mb-8 pb-4 border-b border-gray-50">
               <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
-                Directional Bias
+                {viewMode === "org" ? "Accuracy Trajectory" : "Directional Bias"}
               </h4>
               <p className="text-2xl font-display leading-none text-gray-900">
-                Overturn <span className="text-gray-400 italic">Skew</span>
+                {viewMode === "org" ? (
+                  <>Call <span className="text-gray-400 italic">Correctness</span></>
+                ) : (
+                  <>Overturn <span className="text-gray-400 italic">Skew</span></>
+                )}
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-4 mb-12">
-              <BiasCard label="S->B Overturns" value={profile.directionalBias.strikeToBall} color="#f59e0b" total={challenges.length} />
-              <BiasCard label="B->S Overturns" value={profile.directionalBias.ballToStrike} color="#10b981" total={challenges.length} />
-              <BiasCard label="Other Overturns" value={profile.directionalBias.otherOverturns} color="#06b6d4" total={challenges.length} />
-              <BiasCard label="Confirmed" value={profile.directionalBias.confirmed} color="#ef4444" total={challenges.length} />
-            </div>
+            {viewMode === "org" ? (
+              <div className="flex-1 w-full">
+                <UmpireAccuracyChart data={trend} />
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-4 mb-12">
+                  <BiasCard label="S->B Overturns" value={profile.directionalBias.strikeToBall} color="#f59e0b" total={challenges.length} />
+                  <BiasCard label="B->S Overturns" value={profile.directionalBias.ballToStrike} color="#10b981" total={challenges.length} />
+                  <BiasCard label="Other Overturns" value={profile.directionalBias.otherOverturns} color="#06b6d4" total={challenges.length} />
+                  <BiasCard label="Confirmed" value={profile.directionalBias.confirmed} color="#ef4444" total={challenges.length} />
+                </div>
 
-            <div className="mb-6">
-              <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">
-                Situational Hotspots
-              </h4>
-              <p className="text-sm font-display leading-none text-gray-900">
-                Top <span className="text-gray-400 italic">Count Skew</span>
-              </p>
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-gray-100">
-                    <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Count</th>
-                    <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Challenges</th>
-                    <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Overturn</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {profile.countHotspots.map((hotspot) => (
-                    <tr key={hotspot.countKey} className="group/row">
-                      <td className="py-4 font-mono font-black text-gray-900 text-sm group-hover/row:text-blue-600 transition-colors">{hotspot.countKey}</td>
-                      <td className="py-4 font-mono text-xs font-bold text-gray-500">{hotspot.challenges}</td>
-                      <td className="py-4 text-right">
-                        <span className="px-3 py-1 rounded-full bg-gray-50 border border-gray-100 text-gray-900 text-[10px] font-black">
-                          {(hotspot.overturnRate * 100).toFixed(1)}%
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {viewMode === "org" ? <UmpireChallengeOpportunityRead profile={profile} /> : null}
+                <div className="mb-6">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">
+                    Situational Hotspots
+                  </h4>
+                  <p className="text-sm font-display leading-none text-gray-900">
+                    Top <span className="text-gray-400 italic">Count Skew</span>
+                  </p>
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Count</th>
+                        <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Challenges</th>
+                        <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Overturn</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {profile.countHotspots.map((hotspot) => (
+                        <tr key={hotspot.countKey} className="group/row">
+                          <td className="py-4 font-mono font-black text-gray-900 text-sm group-hover/row:text-blue-600 transition-colors">{hotspot.countKey}</td>
+                          <td className="py-4 font-mono text-xs font-bold text-gray-500">{hotspot.challenges}</td>
+                          <td className="py-4 text-right">
+                            <span className="px-3 py-1 rounded-full bg-gray-50 border border-gray-100 text-gray-900 text-[10px] font-black">
+                              {(hotspot.overturnRate * 100).toFixed(1)}%
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <UmpireChallengeOpportunityRead profile={profile} />
+              </>
+            )}
           </div>
         </section>
       </MotionIn>
@@ -492,14 +489,22 @@ async function UmpireAnalyticsSections({
         </div>
       </MotionIn>
 
-      {copy.historyPlacement === "late" ? historySection : null}
+      {showHistoryLate ? historySection : null}
 
-      <MotionIn delay={0.3}>
-        <div className={`grid gap-8 ${shouldShowSeasonTrend ? "md:grid-cols-2" : "md:grid-cols-1"} mb-8`}>
-          <PitchTypeBreakdownChart data={pitchTypes} />
-          {shouldShowSeasonTrend ? <SeasonOverSeasonChart data={seasonTrend} /> : null}
-        </div>
-      </MotionIn>
+      {viewMode === "fan" ? (
+        <MotionIn delay={0.3}>
+          <div className={`grid gap-8 ${shouldShowSeasonTrend ? "md:grid-cols-2" : "md:grid-cols-1"} mb-8`}>
+            <PitchTypeBreakdownChart data={pitchTypes} />
+            {shouldShowSeasonTrend ? <SeasonOverSeasonChart data={seasonTrend} /> : null}
+          </div>
+        </MotionIn>
+      ) : shouldShowSeasonTrend ? (
+        <MotionIn delay={0.3}>
+          <div className="mb-8">
+            <SeasonOverSeasonChart data={seasonTrend} />
+          </div>
+        </MotionIn>
+      ) : null}
     </>
   );
 }
@@ -612,29 +617,158 @@ function buildRhythmInsight(
   return `Best tracked inning: ${best.inning} (${(best.accuracy * 100).toFixed(1)}% accuracy across ${best.total} challenges). Lowest tracked inning: ${worst.inning} (${(worst.accuracy * 100).toFixed(1)}% across ${worst.total}).`;
 }
 
-function buildZoneInsight(zoneBuckets: Array<{ zone: string; challenges: number; overturnRate: number }>) {
+function buildRhythmInsightContent(
+  umpireName: string,
+  rhythm: Array<{ inning: number; total: number; overturned: number; accuracy: number }>,
+): ReactNode {
+  if (rhythm.length < 2) {
+    return (
+      <InsightSections
+        headline={`${umpireName} does not have enough inning-level review volume to read a real rhythm pattern yet.`}
+        sections={[
+          {
+            label: "What this chart shows",
+            body: "Each point tracks challenged-call accuracy by inning, using only the review sample we have logged for this umpire.",
+          },
+          {
+            label: "Baseball meaning",
+            body: "Once the sample grows, this becomes a quick way to see whether command through the zone holds late or slips as the game stretches on.",
+          },
+        ]}
+      />
+    );
+  }
+
+  const sortedByAccuracy = [...rhythm].sort((a, b) => a.accuracy - b.accuracy);
+  const best = sortedByAccuracy.at(-1);
+  const worst = sortedByAccuracy[0];
+  const early = rhythm.filter((entry) => entry.inning <= 3);
+  const late = rhythm.filter((entry) => entry.inning >= 7);
+  const avg = (entries: typeof rhythm) => entries.length ? entries.reduce((sum, entry) => sum + entry.accuracy, 0) / entries.length : null;
+  const earlyAvg = avg(early);
+  const lateAvg = avg(late);
+  const swing = earlyAvg !== null && lateAvg !== null ? (lateAvg - earlyAvg) * 100 : null;
+
+  if (!best || !worst) {
+    return null;
+  }
+
+  const directionalRead =
+    swing === null
+      ? "The sample is spread across innings, but not enough late-game buckets are filled to call a true early-vs-late trend."
+      : swing <= -5
+        ? `Late innings run ${Math.abs(swing).toFixed(1)} percentage points below the early-game sample, which suggests his challenged-call quality fades as the game moves on.`
+        : swing >= 5
+          ? `Late innings run ${swing.toFixed(1)} percentage points above the early-game sample, which suggests he settles in rather than losing the zone deeper into games.`
+          : "Early and late innings are broadly flat, so the chart reads more like isolated inning volatility than a true stamina pattern.";
+
+  return (
+    <InsightSections
+      headline={`This chart is asking a baseball question: does ${umpireName} hold challenged-call quality throughout the game, or does the zone move as innings pile up?`}
+      sections={[
+        {
+          label: "What the chart shows",
+          body: `Best tracked inning is ${best.inning} at ${(best.accuracy * 100).toFixed(1)}% accuracy across ${best.total} reviewed calls. Lowest tracked inning is ${worst.inning} at ${(worst.accuracy * 100).toFixed(1)}% across ${worst.total}.`,
+        },
+        {
+          label: "Baseball read",
+          body: directionalRead,
+        },
+        {
+          label: "How to use it",
+          body: "For clubs, this is a command-stability read. If an umpire’s challenged accuracy weakens late, that raises the value of preserving review leverage for tighter innings rather than spending it early.",
+        },
+      ]}
+    />
+  );
+}
+
+function buildZoneInsight(zoneBuckets: ZoneNineCell[]) {
   const ranked = [...zoneBuckets].sort((a, b) => b.challenges - a.challenges);
   const busiest = ranked[0];
   if (!busiest || busiest.challenges === 0) {
     return "No recorded zone buckets are available for this umpire yet.";
   }
 
-  return `Busiest tracked zone bucket: ${formatZoneLabel(busiest.zone)} with ${busiest.challenges} challenges and a ${(busiest.overturnRate * 100).toFixed(0)}% overturn rate.`;
+  return `Most challenged zone lane: ${busiest.label.toLowerCase()} with ${busiest.challenges} challenges and a ${(busiest.overturnRate * 100).toFixed(0)}% overturn rate.`;
 }
 
-function formatZoneLabel(zone: string) {
-  switch (zone) {
-    case "up":
-      return "upper edge";
-    case "down":
-      return "lower edge";
-    case "glove":
-      return "glove side";
-    case "arm":
-      return "arm side";
-    default:
-      return zone;
+function buildZoneInsightContent(zoneBuckets: ZoneNineCell[]): ReactNode {
+  const rankedByChallenges = [...zoneBuckets]
+    .filter((bucket) => bucket.challenges > 0)
+    .sort((a, b) => b.challenges - a.challenges);
+  const rankedByOverturn = [...zoneBuckets]
+    .filter((bucket) => bucket.challenges > 0)
+    .sort((a, b) => b.overturnRate - a.overturnRate || b.challenges - a.challenges);
+
+  const busiest = rankedByChallenges[0];
+  const mostVulnerable = rankedByOverturn[0];
+
+  if (!busiest) {
+    return (
+      <InsightSections
+        headline="No tracked zone buckets are available yet."
+        sections={[
+          {
+            label: "What this chart shows",
+            body: "Each cell is a nine-zone lane built from actual challenge coordinates, with challenge count and overturn rate layered together.",
+          },
+        ]}
+      />
+    );
   }
+
+  const trafficRead =
+    busiest.challenges >= 3
+      ? `${busiest.label.toLowerCase()} is where the most challenge traffic is showing up right now with ${busiest.challenges} reviewed pitches.`
+      : "Challenge traffic is still diffuse, so this map should be read directionally rather than as a stable location profile.";
+
+  const vulnerabilityRead =
+    mostVulnerable && mostVulnerable.challenges >= 2
+      ? `${mostVulnerable.label.toLowerCase()} is the hottest overturn pocket at ${(mostVulnerable.overturnRate * 100).toFixed(0)}% across ${mostVulnerable.challenges} challenges.`
+      : "No single zone lane has enough overturned sample yet to call it a durable vulnerability pocket.";
+
+  return (
+    <InsightSections
+      headline="This chart is a location-risk map. It is trying to tell you where challenge traffic actually lands and which lanes are most likely to flip once reviewed."
+      sections={[
+        {
+          label: "What the chart shows",
+          body: trafficRead,
+        },
+        {
+          label: "Baseball read",
+          body: vulnerabilityRead,
+        },
+        {
+          label: "How to use it",
+          body: "For advance work, this is not about the whole strike zone equally. It tells you where a club is most likely to gain review leverage against this umpire, especially when location, count, and pitch shape keep pulling traffic into the same lane.",
+        },
+      ]}
+    />
+  );
+}
+
+function InsightSections({
+  headline,
+  sections,
+}: {
+  headline: string;
+  sections: Array<{ label: string; body: string }>;
+}) {
+  return (
+    <div className="space-y-5">
+      <p className="text-base font-semibold leading-7 text-gray-900">{headline}</p>
+      <div className="space-y-4">
+        {sections.map((section) => (
+          <div key={section.label} className="rounded-2xl border border-gray-100 bg-gray-50/60 px-4 py-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">{section.label}</p>
+            <p className="mt-2 text-sm leading-7 text-gray-700">{section.body}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function StatCard({ label, value, highlight, subLabel }: { label: string; value: string; highlight?: boolean; subLabel?: string }) {

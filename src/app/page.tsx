@@ -7,6 +7,7 @@ import { HomeExpandableGrid } from "@/components/home-expandable-grid";
 import { TeamIcon } from "@/components/team-icon";
 import { getHomeChallengeMoments, getLiveGames, getTeamLeaderboardModel, getUmpireLeaderboardModel } from "@/lib/data";
 import { resolveViewMode } from "@/lib/view-mode";
+import { withViewModeHref } from "@/lib/view-mode-href";
 import { ProfileBadge } from "@/components/ui/profile-badge";
 import { getHomePageViewCopy } from "@/lib/view-mode-contract";
 import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
@@ -154,7 +155,7 @@ async function HomePageBody({
               <div className="px-6 py-5">
                 {topMoment ? (
                   <Link
-                    href={`/game/${topMoment.gamePk}?challengeId=${topMoment.challengeId}#abs-explorer`}
+                    href={withViewModeHref(`/game/${topMoment.gamePk}?challengeId=${topMoment.challengeId}#abs-explorer`, viewMode)}
                     className="block rounded-2xl border border-gray-100 bg-[var(--surface-infield)] p-5 transition hover:border-blue-100 hover:bg-white"
                   >
                     <div className="flex flex-wrap items-center gap-2">
@@ -185,13 +186,13 @@ async function HomePageBody({
                   <h2 className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">
                     {copy.teamsSectionTitle}
                   </h2>
-                  <Link href="/teams" className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-primary)] hover:underline">
+                  <Link href={withViewModeHref("/teams", viewMode)} className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-primary)] hover:underline">
                     See All Teams →
                   </Link>
                 </div>
                 <div className="flex flex-wrap gap-4">
                   {topTeams.map((team, idx) => (
-                    <Link key={team.teamId} href={`/teams/${team.teamId}`} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
+                    <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
                       <TeamIcon teamId={team.teamId} name={team.teamName} size={28} />
                       <div className="min-w-0">
                         <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{team.teamName}</p>
@@ -214,13 +215,13 @@ async function HomePageBody({
                   <h2 className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">
                     {copy.umpiresSectionTitle}
                   </h2>
-                  <Link href="/umpires" className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-primary)] hover:underline">
+                  <Link href={withViewModeHref("/umpires", viewMode)} className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-primary)] hover:underline">
                     See All Umpires →
                   </Link>
                 </div>
                 <div className="flex flex-wrap gap-4">
                   {spotlightUmps.map((u) => (
-                    <Link key={u.umpireId} href={`/umpires/${u.umpireId}`} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
+                    <Link key={u.umpireId} href={withViewModeHref(`/umpires/${u.umpireId}`, viewMode)} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
                       <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--accent-primary-soft)] text-[10px] font-bold text-[var(--accent-primary)]">U</div>
                       <div className="min-w-0">
                         <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{u.umpireName}</p>
@@ -295,13 +296,13 @@ async function HomePageBody({
                   <h2 className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">
                     Umpire Watch List
                   </h2>
-                  <Link href="/umpires" className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-primary)] hover:underline">
+                  <Link href={withViewModeHref("/umpires", viewMode)} className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-primary)] hover:underline">
                     See All Umpires →
                   </Link>
                 </div>
                 <div className="space-y-3">
                   {spotlightUmps.map((u) => (
-                    <Link key={u.umpireId} href={`/umpires/${u.umpireId}`} className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white/50 p-4 transition hover:border-blue-100 hover:bg-white hover:shadow-xl">
+                    <Link key={u.umpireId} href={withViewModeHref(`/umpires/${u.umpireId}`, viewMode)} className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white/50 p-4 transition hover:border-blue-100 hover:bg-white hover:shadow-xl">
                       <div>
                         <p className="text-sm font-semibold text-[var(--ink-0)]">{u.umpireName}</p>
                         <p className="mt-1 text-xs text-[var(--ink-3)]">{u.orgDescriptor} · {(u.overturnRate * 100).toFixed(1)}% OT</p>
@@ -317,14 +318,14 @@ async function HomePageBody({
                   <h2 className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">
                     Challenge Operators
                   </h2>
-                  <Link href="/teams" className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-primary)] hover:underline">
+                  <Link href={withViewModeHref("/teams", viewMode)} className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-primary)] hover:underline">
                     See All Teams →
                   </Link>
                 </div>
                 <div className="space-y-4">
                   <div className="flex flex-wrap gap-4">
                     {topTeams.map((team, idx) => (
-                      <Link key={team.teamId} href={`/teams/${team.teamId}`} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
+                      <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
                         <TeamIcon teamId={team.teamId} name={team.teamName} size={28} />
                         <div className="min-w-0">
                           <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{team.teamName}</p>
@@ -341,7 +342,7 @@ async function HomePageBody({
                       {bottomTeams.map((team, idx) => {
                         const rank = teams.length - bottomTeams.length + idx + 1;
                         return (
-                          <Link key={team.teamId} href={`/teams/${team.teamId}`} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
+                          <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
                             <TeamIcon teamId={team.teamId} name={team.teamName} size={28} />
                             <div className="min-w-0">
                               <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{team.teamName}</p>
@@ -373,13 +374,13 @@ async function HomePageBody({
               Review the most consequential overturned calls and notable zone assessments from the last 24 hours.
             </p>
           </div>
-          <ChallengeMomentCards moments={moments} />
+          <ChallengeMomentCards moments={moments} viewMode={viewMode} />
         </section>
 
         {/* S2-6: Latest Debrief Bar */}
         <div className="mt-24">
           <Link
-            href="/articles"
+            href={withViewModeHref("/articles", viewMode)}
             className="block w-full rounded-2xl bg-[var(--ink-0)] px-8 py-4 text-center transition-all hover:opacity-90"
           >
             <span className="text-[11px] font-black uppercase tracking-widest text-white">

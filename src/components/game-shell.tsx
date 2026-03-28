@@ -2,6 +2,7 @@ import { GameScoreboard } from "@/components/game-scoreboard";
 import { MatchupBackdrop } from "@/components/game-hub/matchup-backdrop";
 import { LiveStatusStrip } from "@/components/live-status-strip";
 import { MotionIn } from "@/components/motion-in";
+import type { GameScoreboardData } from "@/lib/game-scoreboard";
 import type { GameLiveStatus } from "@/lib/types";
 import type { MatchupBackdropState } from "@/lib/team-backdrops";
 
@@ -9,6 +10,7 @@ type GameShellProps = {
   game: {
     gamepk: number;
     gamedate: string;
+    gametype?: string | null;
     statusabstract: string;
     statusdetailed: string | null;
     hometeamid: number;
@@ -32,9 +34,10 @@ type GameShellProps = {
     homeRemaining: number;
     awayRemaining: number;
   } | null;
+  scoreboard: GameScoreboardData | null;
 };
 
-export function GameShell({ game, liveStatus, counters }: GameShellProps) {
+export function GameShell({ game, liveStatus, counters, scoreboard }: GameShellProps) {
   const backdropState: MatchupBackdropState =
     game.statusabstract === "Final" || game.statusabstract === "Game Over"
       ? "final"
@@ -77,28 +80,30 @@ export function GameShell({ game, liveStatus, counters }: GameShellProps) {
         <section className="mt-4">
           <GameScoreboard
             status={game.statusabstract}
+            gameType={game.gametype}
             detailedState={game.statusdetailed}
             inning={liveStatus?.inning ?? null}
             halfInning={liveStatus?.halfInning ?? null}
             balls={liveStatus?.balls ?? null}
             strikes={liveStatus?.strikes ?? null}
             outs={liveStatus?.outs ?? null}
+            innings={scoreboard?.innings ?? []}
             away={{
               id: Number(game.awayteamid),
               name: game.awayteamname,
               abbreviation: game.awayabbreviation,
-              runs: liveStatus?.awayScore ?? game.awayscore,
-              hits: null,
-              errors: null,
+              runs: scoreboard?.awayRuns ?? liveStatus?.awayScore ?? game.awayscore,
+              hits: scoreboard?.awayHits ?? null,
+              errors: scoreboard?.awayErrors ?? null,
               challengesRemaining: counters?.awayRemaining ?? liveStatus?.awayRemaining ?? 0,
             }}
             home={{
               id: Number(game.hometeamid),
               name: game.hometeamname,
               abbreviation: game.homeabbreviation,
-              runs: liveStatus?.homeScore ?? game.homescore,
-              hits: null,
-              errors: null,
+              runs: scoreboard?.homeRuns ?? liveStatus?.homeScore ?? game.homescore,
+              hits: scoreboard?.homeHits ?? null,
+              errors: scoreboard?.homeErrors ?? null,
               challengesRemaining: counters?.homeRemaining ?? liveStatus?.homeRemaining ?? 0,
             }}
           />

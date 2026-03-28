@@ -5,13 +5,15 @@ import { useState, useMemo } from "react";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, isToday, parseISO } from "date-fns";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, ExternalLink, Play, Clock, CheckCircle2 } from "lucide-react";
 import { TeamIcon } from "@/components/team-icon";
-import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { LocalTime } from "@/components/local-time";
+import { ModeAwareLink } from "@/components/ui/mode-aware-link";
+import { GameTypeBadge } from "@/components/ui/game-type-badge";
 
 type Game = {
     gamePk: number;
     gameDate: string;
+    gameType?: string | null;
     status: string;
     homeTeamId: number;
     awayTeamId: number;
@@ -28,7 +30,7 @@ export function LeagueCalendar({
     onCollapse,
 }: {
     games: Game[];
-    teamId: number;
+    teamId?: number;
     primaryColor?: string;
     onCollapse?: () => void;
 }) {
@@ -132,19 +134,35 @@ export function LeagueCalendar({
                             </div>
 
                             {game && (
-                                <Link
-                                    href={`/games/${game.gamePk}`}
+                                <ModeAwareLink
+                                    href={`/game/${game.gamePk}`}
                                     className="block p-3 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition-all hover:-translate-y-1 group/game"
                                 >
-                                    <div className="flex items-center gap-3 mb-3">
-                                        <TeamIcon
-                                            teamId={game.homeTeamId === teamId ? game.awayTeamId : game.homeTeamId}
-                                            name={game.homeTeamId === teamId ? game.awayAbbr : game.homeAbbr}
-                                            size={28}
-                                        />
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-900">
-                                            {game.homeTeamId === teamId ? "vs" : "@"} {game.homeTeamId === teamId ? game.awayAbbr : game.homeAbbr}
-                                        </span>
+                                    {teamId ? (
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <TeamIcon
+                                                teamId={game.homeTeamId === teamId ? game.awayTeamId : game.homeTeamId}
+                                                name={game.homeTeamId === teamId ? game.awayAbbr : game.homeAbbr}
+                                                size={28}
+                                            />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-900">
+                                                {game.homeTeamId === teamId ? "vs" : "@"} {game.homeTeamId === teamId ? game.awayAbbr : game.homeAbbr}
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <div className="mb-3 flex items-center gap-2">
+                                            <TeamIcon teamId={game.awayTeamId} name={game.awayAbbr} size={22} />
+                                            <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400">@</span>
+                                            <TeamIcon teamId={game.homeTeamId} name={game.homeAbbr} size={22} />
+                                        </div>
+                                    )}
+                                    {!teamId ? (
+                                        <p className="mb-2 text-[10px] font-black uppercase tracking-[0.14em] text-gray-700">
+                                            {game.awayAbbr} @ {game.homeAbbr}
+                                        </p>
+                                    ) : null}
+                                    <div className="mb-2">
+                                        <GameTypeBadge gameType={game.gameType} compact />
                                     </div>
 
                                     <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-50">
@@ -159,7 +177,7 @@ export function LeagueCalendar({
                                             </span>
                                         )}
                                     </div>
-                                </Link>
+                                </ModeAwareLink>
                             )}
 
                             {!game && isCurrentMonth && (

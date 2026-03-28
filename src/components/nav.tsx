@@ -1,10 +1,26 @@
 "use client";
-import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { Suspense } from "react";
 import { AiBSIcon } from "@/components/ui/aibs-icon";
 import { ViewModeToggle } from "@/components/ui/view-mode-toggle";
 import type { ViewMode } from "@/lib/view-mode";
+import { withViewModeHref } from "@/lib/view-mode-href";
+
+const VIEW_MODE_EVENT = "aibs:view-mode-change";
+
+function readClientMode(): ViewMode | undefined {
+  if (typeof window === "undefined") return undefined;
+
+  const params = new URLSearchParams(window.location.search);
+  const queryMode = params.get("view");
+  if (queryMode === "fan" || queryMode === "org") return queryMode;
+
+  const match = document.cookie.match(/(?:^|;\\s*)aibs_view_mode=(fan|org)(?:;|$)/);
+  const cookieMode = match?.[1];
+  return cookieMode === "fan" || cookieMode === "org" ? cookieMode : undefined;
+}
 
 const links = [
   { href: "/", label: "Live Feed", match: "/" },
@@ -16,16 +32,41 @@ const links = [
 
 export function Nav({ initialMode, canAccessAdmin = false }: { initialMode?: ViewMode; canAccessAdmin?: boolean }) {
   const pathname = usePathname();
+  const [activeMode, setActiveMode] = useState<ViewMode | undefined>(initialMode);
   const navLinks = canAccessAdmin
     ? [...links, { href: "/admin/ai", label: "Admin", match: "/admin" }]
     : links;
+
+  useEffect(() => {
+    setActiveMode(readClientMode() ?? initialMode);
+  }, [initialMode, pathname]);
+
+  useEffect(() => {
+    const syncMode = () => setActiveMode(readClientMode() ?? initialMode);
+    const handleViewModeChange = (event: Event) => {
+      const nextMode = (event as CustomEvent<ViewMode>).detail;
+      if (nextMode === "fan" || nextMode === "org") {
+        setActiveMode(nextMode);
+        return;
+      }
+      syncMode();
+    };
+
+    window.addEventListener(VIEW_MODE_EVENT, handleViewModeChange as EventListener);
+    window.addEventListener("popstate", syncMode);
+
+    return () => {
+      window.removeEventListener(VIEW_MODE_EVENT, handleViewModeChange as EventListener);
+      window.removeEventListener("popstate", syncMode);
+    };
+  }, [initialMode]);
 
   return (
     <header className="fixed top-8 left-0 right-0 z-50 px-6 pointer-events-none">
       <div className="mx-auto max-w-4xl bg-white/70 backdrop-blur-3xl border border-white/50 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.02),0_24px_48px_rgba(0,0,0,0.06)] pointer-events-auto flex items-center justify-between px-3 py-2 transition-all hover:shadow-[0_4px_12px_rgba(0,0,0,0.04),0_32px_64px_rgba(0,0,0,0.1)]">
         <div className="flex items-center gap-8">
           <Link
-            href="/"
+            href={withViewModeHref("/", activeMode)}
             className="flex items-center gap-4 px-3 py-2 text-[var(--ink-0)] transition-all hover:opacity-70"
           >
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black text-white shadow-xl shadow-black/10 -ml-1">
@@ -46,7 +87,7 @@ export function Nav({ initialMode, canAccessAdmin = false }: { initialMode?: Vie
               return (
                 <Link
                   key={link.href}
-                  href={link.href}
+                  href={withViewModeHref(link.href, activeMode)}
                   className={`relative px-4 py-2 text-[10px] uppercase tracking-[0.1em] transition-all rounded-lg ${isActive
                     ? "text-black font-black"
                     : "text-gray-400 hover:text-black font-bold"
@@ -61,7 +102,7 @@ export function Nav({ initialMode, canAccessAdmin = false }: { initialMode?: Vie
 
         <div className="flex items-center gap-4 pr-1">
           <Suspense fallback={<div className="w-20 h-8 bg-gray-100 animate-pulse rounded-full" />}>
-            <ViewModeToggle initialMode={initialMode} />
+            <ViewModeToggle initialMode={activeMode} />
           </Suspense>
         </div>
       </div>

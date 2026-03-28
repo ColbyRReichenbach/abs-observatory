@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Fragment, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { ProfileBadge } from "../ui/profile-badge";
+import { withViewModeHref } from "@/lib/view-mode-href";
 
 type UmpireLeaderboardRow = {
   umpireId: number;
@@ -11,6 +12,9 @@ type UmpireLeaderboardRow = {
   challengedCalls: number;
   overturnedCalls: number;
   overturnRate: number;
+  overturnRateVariance: number;
+  recentOverturnRate: number | null;
+  reportCardScore: number;
   grade: string;
   riskTier: string;
   orgDescriptor: string;
@@ -51,6 +55,13 @@ export function UmpireLeaderboardTable({
   const showToggle = umpires.length > DEFAULT_VISIBLE_ROWS;
   const showAverageRow = insertAt <= visibleUmpires.length;
   const columnCount = viewMode === "org" ? 7 : 6;
+  const avgVariance =
+    umpires.length > 0 ? umpires.reduce((sum, umpire) => sum + umpire.overturnRateVariance, 0) / umpires.length : 0;
+  const recentRates = umpires.filter((umpire) => umpire.recentOverturnRate !== null);
+  const avgRecentOverturnRate =
+    recentRates.length > 0
+      ? recentRates.reduce((sum, umpire) => sum + (umpire.recentOverturnRate ?? 0), 0) / recentRates.length
+      : null;
 
   return (
     <div className="panel overflow-hidden border-gray-100 bg-white shadow-2xl shadow-black/[0.03]">
@@ -60,9 +71,9 @@ export function UmpireLeaderboardTable({
             <tr>
               <th className="min-w-[180px]">Rank & Name</th>
               <th className="text-center">{viewMode === "org" ? "Challenges" : "Challenges"}</th>
-              <th className="text-center">{viewMode === "org" ? "Overturned" : "Volatility"}</th>
+              <th className="text-center">{viewMode === "org" ? "Volatility" : "Volatility"}</th>
               <th className="text-center">{viewMode === "org" ? "Report Card" : "OT Rate"}</th>
-              <th className="text-center">{viewMode === "org" ? "Profile" : "Read"}</th>
+              <th className="text-center">{viewMode === "org" ? "Exposure Read" : "Read"}</th>
               {viewMode === "org" ? <th className="text-center">Confidence</th> : null}
               <th className="text-right">Games</th>
             </tr>
@@ -93,15 +104,23 @@ export function UmpireLeaderboardTable({
                         {Math.round(totalChallenged / (umpires.length || 1))}
                       </td>
                       <td className="text-center font-mono font-bold italic text-gray-400">
-                        {viewMode === "org" ? Math.round(totalOverturned / (umpires.length || 1)) : "-"}
+                        {viewMode === "org" ? avgVariance.toFixed(2) : "—"}
                       </td>
                       <td className="text-center">
-                        <span className="inline-flex rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-[10px] font-black font-mono uppercase tracking-widest text-gray-500 shadow-sm italic">
-                          {(leagueAvgRate * 100).toFixed(1)}%
-                        </span>
+                        {viewMode === "org" ? (
+                          <GradeChip grade="AVG" value={leagueAvgRate} />
+                        ) : (
+                          <span className="inline-flex rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-[10px] font-black font-mono uppercase tracking-widest text-gray-500 shadow-sm italic">
+                            {(leagueAvgRate * 100).toFixed(1)}%
+                          </span>
+                        )}
                       </td>
                       <td className="text-center">
-                        <span className="text-[10px] text-[var(--ink-3)]">—</span>
+                        {viewMode === "org" ? (
+                          <DescriptorChip label={buildExposureReadLabel(avgRecentOverturnRate, leagueAvgRate, avgVariance)} />
+                        ) : (
+                          <span className="text-[10px] text-[var(--ink-3)]">—</span>
+                        )}
                       </td>
                       {viewMode === "org" ? (
                         <td className="text-center">
@@ -117,7 +136,7 @@ export function UmpireLeaderboardTable({
                     className={`group/row transition-colors hover:bg-gray-50/50 ${viewMode === "fan" && umpire.confidence === "low" ? "opacity-70" : ""}`}
                   >
                     <td>
-                      <Link href={`/umpires/${umpire.umpireId}?range=${range}`} className="flex items-center gap-5 py-1">
+                      <Link href={withViewModeHref(`/umpires/${umpire.umpireId}?range=${range}`, viewMode)} className="flex items-center gap-5 py-1">
                         <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-50 text-[10px] font-black text-gray-400 transition-all transform group-hover/row:scale-110 group-hover/row:bg-black group-hover/row:text-white">
                           {(idx + 1).toString().padStart(2, "0")}
                         </span>
@@ -130,7 +149,7 @@ export function UmpireLeaderboardTable({
                       {umpire.challengedCalls}
                     </td>
                     <td className="text-center font-mono font-bold text-gray-500">
-                      {viewMode === "org" ? umpire.overturnedCalls : umpire.riskTier}
+                      {viewMode === "org" ? umpire.overturnRateVariance.toFixed(2) : umpire.riskTier}
                     </td>
                     <td className="text-center">
                       {viewMode === "org" ? (
@@ -141,7 +160,11 @@ export function UmpireLeaderboardTable({
                     </td>
                     <td className="text-center">
                       <DescriptorChip
-                        label={viewMode === "org" ? `${umpire.orgDescriptor} · ${umpire.riskTier}` : `${umpire.grade} ${umpire.fanDescriptor}`}
+                        label={
+                          viewMode === "org"
+                            ? buildExposureReadLabel(umpire.recentOverturnRate, umpire.overturnRate, umpire.overturnRateVariance, umpire.riskTier)
+                            : umpire.fanDescriptor
+                        }
                       />
                     </td>
                     {viewMode === "org" ? (
@@ -168,15 +191,23 @@ export function UmpireLeaderboardTable({
                   {Math.round(totalChallenged / (umpires.length || 1))}
                 </td>
                 <td className="text-center font-mono font-bold italic text-gray-400">
-                  {viewMode === "org" ? Math.round(totalOverturned / (umpires.length || 1)) : "-"}
+                  {viewMode === "org" ? avgVariance.toFixed(2) : "—"}
                 </td>
                 <td className="text-center">
-                  <span className="inline-flex rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-[10px] font-black font-mono uppercase tracking-widest text-gray-500 shadow-sm italic">
-                    {(leagueAvgRate * 100).toFixed(1)}%
-                  </span>
+                  {viewMode === "org" ? (
+                    <GradeChip grade="AVG" value={leagueAvgRate} />
+                  ) : (
+                    <span className="inline-flex rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-[10px] font-black font-mono uppercase tracking-widest text-gray-500 shadow-sm italic">
+                      {(leagueAvgRate * 100).toFixed(1)}%
+                    </span>
+                  )}
                 </td>
                 <td className="text-center">
-                  <span className="text-[10px] text-[var(--ink-3)]">—</span>
+                  {viewMode === "org" ? (
+                    <DescriptorChip label={buildExposureReadLabel(avgRecentOverturnRate, leagueAvgRate, avgVariance)} />
+                  ) : (
+                    <span className="text-[10px] text-[var(--ink-3)]">—</span>
+                  )}
                 </td>
                 {viewMode === "org" ? (
                   <td className="text-center">
@@ -209,6 +240,13 @@ export function UmpireLeaderboardTable({
 }
 
 function GradeChip({ grade, value }: { grade: string; value: number }) {
+  if (grade === "AVG") {
+    return (
+      <span className="inline-flex rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-[10px] font-black font-mono uppercase tracking-widest text-gray-500 shadow-sm italic">
+        {(value * 100).toFixed(1)}%
+      </span>
+    );
+  }
   const pct = value * 100;
   const isStrong = grade === "A" || grade === "B";
   const isMiddle = grade === "C";
@@ -251,6 +289,21 @@ function DescriptorChip({ label }: { label: string }) {
       />
     </div>
   );
+}
+
+function buildExposureReadLabel(
+  recentOverturnRate: number | null,
+  baselineOverturnRate: number,
+  variance: number,
+  riskTier?: string,
+) {
+  const drift = recentOverturnRate === null ? 0 : recentOverturnRate - baselineOverturnRate;
+  if ((riskTier === "High" || variance >= 0.2) && drift >= 0.05) return "Escalating Exposure";
+  if (riskTier === "High" || variance >= 0.2) return "High-Impact Watch";
+  if (drift >= 0.05) return "Recent Drift Up";
+  if (drift <= -0.05) return "Recent Drift Down";
+  if (riskTier === "Low" || variance <= 0.08) return "Stable Environment";
+  return "Moderate Exposure";
 }
 
 function ConfidenceIndicator({ label }: { label: "low" | "medium" | "high" }) {

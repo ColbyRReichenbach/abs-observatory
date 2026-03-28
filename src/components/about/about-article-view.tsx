@@ -1,7 +1,6 @@
-import Link from "next/link";
-
 import { FlipCard } from "@/components/about/flip-card";
 import { BackPill } from "@/components/ui/back-pill";
+import { ModeAwareLink } from "@/components/ui/mode-aware-link";
 import { ABOUT_ARTICLES, getAboutIssueMeta, type AboutArticle } from "@/lib/about-articles";
 
 function ArticleTypeLabel({ articleType }: { articleType: AboutArticle["articleType"] }) {
@@ -180,12 +179,12 @@ export function AboutArticleView({ article }: { article: AboutArticle }) {
                     <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#7d6c54]">
                       {relatedArticle.publishedLabel}
                     </p>
-                    <Link
+                    <ModeAwareLink
                       href={`/about/${relatedArticle.slug}`}
                       className="mt-2 block text-xl font-display uppercase tracking-tight leading-tight transition-colors hover:text-[#8b0000]"
                     >
                       {relatedArticle.title}
-                    </Link>
+                    </ModeAwareLink>
                     <p className="mt-2 text-sm leading-6 text-[#5a554d]">{relatedArticle.dek}</p>
                   </div>
                 ))}

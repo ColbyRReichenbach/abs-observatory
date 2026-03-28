@@ -1,7 +1,6 @@
-import Link from "next/link";
-
 import { getArticleDeskMeta } from "@/lib/articles-desk";
 import type { ArticleListItem } from "@/lib/server/articles";
+import { ModeAwareLink } from "@/components/ui/mode-aware-link";
 
 type ArticleRelatedRailProps = {
   articles: ArticleListItem[];
@@ -25,12 +24,12 @@ export function ArticleRelatedRail({
           <p className="text-[11px] font-black uppercase tracking-[0.28em] text-[#7d6c54]">Continue Reading</p>
           <h2 className="mt-2 text-2xl font-display uppercase tracking-tight md:text-3xl">{heading}</h2>
         </div>
-        <Link
+        <ModeAwareLink
           href={browseHref}
           className="text-[11px] font-black uppercase tracking-[0.24em] text-[#7d6c54] transition-colors hover:text-black"
         >
           See all articles →
-        </Link>
+        </ModeAwareLink>
       </div>
 
       <div className="mt-6 grid gap-5 md:grid-cols-3">
@@ -47,12 +46,12 @@ export function ArticleRelatedRail({
                 <span>{article.publishedAt ? new Date(article.publishedAt).toLocaleDateString() : "Draft"}</span>
               </div>
 
-              <Link
+              <ModeAwareLink
                 href={`/articles/${article.slug}`}
                 className="mt-4 block text-2xl font-display uppercase tracking-tight leading-tight transition-colors hover:text-[#8b0000]"
               >
                 {article.title}
-              </Link>
+              </ModeAwareLink>
 
               {article.dek ? <p className="mt-3 text-sm leading-6 text-[#5a554d]">{article.dek}</p> : null}
             </article>

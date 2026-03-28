@@ -1,9 +1,10 @@
 import Image from "next/image";
-import Link from "next/link";
 
 import { ChallengeHashes } from "@/components/challenge-hashes";
 import { TeamIcon } from "@/components/team-icon";
 import { LocalTime } from "@/components/local-time";
+import { GameTypeBadge } from "@/components/ui/game-type-badge";
+import { ModeAwareLink } from "@/components/ui/mode-aware-link";
 import { useMemo } from "react";
 import { resolveTeamBranding } from "@/lib/team-branding";
 
@@ -15,15 +16,18 @@ export function GameCard({ game }: { game: LiveGameCard }) {
 
   return (
 
-    <Link
+    <ModeAwareLink
       href={`/game/${game.gamePk}`}
       className="group panel panel-interactive relative flex flex-col overflow-hidden p-0 border-gray-100 bg-white"
     >
       {/* Top bar with status */}
       <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-gray-50/50">
-        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
-          MLB • {game.gamePk}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
+            MLB • {game.gamePk}
+          </span>
+          <GameTypeBadge gameType={game.gameType} compact />
+        </div>
         <StatusChip status={game.status} />
       </div>
 
@@ -76,7 +80,7 @@ export function GameCard({ game }: { game: LiveGameCard }) {
           <span className="text-[11px] font-bold text-blue-600 uppercase tracking-tighter">{game.detailedState ?? "Scheduled"}</span>
         )}
       </div>
-    </Link>
+    </ModeAwareLink>
   );
 }
 
@@ -137,5 +141,3 @@ function TeamRow({
     </div>
   );
 }
-
-

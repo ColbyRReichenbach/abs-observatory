@@ -6,6 +6,7 @@ import { TeamIcon } from "@/components/team-icon";
 import { getTeamLeaderboardModel, getTeamTrendSparklines } from "@/lib/data";
 import { parseRange } from "@/lib/range";
 import { resolveViewMode } from "@/lib/view-mode";
+import { withViewModeHref } from "@/lib/view-mode-href";
 import { TeamScatterPlot } from "@/components/analytics/team-scatter-plot";
 import { TrendSparkline } from "@/components/analytics/trend-sparkline";
 import { ProfileBadge } from "@/components/ui/profile-badge";
@@ -98,6 +99,7 @@ async function TeamsPageBody({
     teamsWithDecisionValue.length > 0
       ? teamsWithDecisionValue.reduce((sum, team) => sum + (team.decisionSurplus ?? 0), 0) / teamsWithDecisionValue.length
       : null;
+  const showDecisionValueColumns = viewMode === "org" && teamsWithDecisionValue.length > 0;
   const useWinValue = viewMode === "org" && leagueAvgWinExpectancyDelta !== null;
   const useDecisionValue = viewMode === "org" && leagueAvgDecisionSurplus !== null;
 
@@ -149,7 +151,7 @@ async function TeamsPageBody({
             {viewMode === "org"
               ? `${biggestMover.orgStyleLabel} with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews in late-or-close windows${
                   formatOrgValueCopy(biggestMover, useDecisionValue, useWinValue)
-                }.`
+                }. The deployment mix is separating from league average.`
               : `${biggestMover.style} profile with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews coming in late-or-close windows and a visible trend swing.`}
           </p>
         </div>
@@ -177,11 +179,11 @@ async function TeamsPageBody({
               <th className="min-w-[180px]">Rank & Team</th>
               <th className="text-left w-36">{copy.tableProfileHeader}</th>
               <th className="text-center">Rate / Game</th>
-              <th className="text-center">Late/Close Share</th>
-              <th className="text-center">{viewMode === "org" ? "Decision Read" : "Timing"}</th>
+              <th className="text-center">Late/Close</th>
+              <th className="text-center">{viewMode === "org" ? "Deployment" : "Timing"}</th>
               <th className="text-center">Trend</th>
-              {viewMode === "org" ? <th className="text-right">Late-Close EV</th> : null}
-              {viewMode === "org" ? <th className="text-right">Decision Surplus</th> : null}
+              {showDecisionValueColumns ? <th className="text-right">Late-Close EV Share</th> : null}
+              {showDecisionValueColumns ? <th className="text-right">Decision Surplus</th> : null}
               <th className="text-right">{viewMode === "org" ? (leagueAvgWinExpectancyDelta !== null ? "Avg WE Δ" : "Avg RE Δ") : "Avg Rem"}</th>
               <th className="text-right">{copy.tableVolumeHeader}</th>
             </tr>
@@ -189,7 +191,7 @@ async function TeamsPageBody({
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={viewMode === "org" ? 10 : 8} className="!py-32 text-center text-gray-400 font-semibold">
+                <td colSpan={viewMode === "org" ? 8 + (showDecisionValueColumns ? 2 : 0) : 8} className="!py-32 text-center text-gray-400 font-semibold">
                   No data points match the selected criteria.
                 </td>
               </tr>
@@ -249,12 +251,12 @@ async function TeamsPageBody({
                       <td className="text-center">
                         <span className="text-[10px] text-[var(--ink-3)]">—</span>
                       </td>
-                      {viewMode === "org" ? (
+                      {showDecisionValueColumns ? (
                         <td className="text-right font-mono text-gray-400 italic font-medium pr-8">
                           {`${Math.round(teams.length > 0 ? teams.reduce((sum, team) => sum + team.lateCloseExpectedValueShare, 0) / teams.length * 100 : 0)}%`}
                         </td>
                       ) : null}
-                      {viewMode === "org" ? (
+                      {showDecisionValueColumns ? (
                         <td className="text-right font-mono text-gray-400 italic font-medium pr-8">
                           {leagueAvgDecisionSurplus === null
                             ? "N/A"
@@ -286,7 +288,7 @@ async function TeamsPageBody({
                   <tr key={t.teamId} className="group/row transition-colors hover:bg-gray-50/50">
                     <td>
                       <Link
-                        href={`/teams/${t.teamId}?range=${range}`}
+                        href={withViewModeHref(`/teams/${t.teamId}?range=${range}`, viewMode)}
                         className="flex items-center gap-5 py-1"
                       >
                         <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-50 text-[10px] font-black text-gray-400 group-hover/row:bg-black group-hover/row:text-white transition-all transform group-hover/row:scale-110">
@@ -340,14 +342,14 @@ async function TeamsPageBody({
                         <TrendSparkline data={trendlineMap.get(t.teamId) ?? []} />
                       </div>
                     </td>
-                    {viewMode === "org" ? (
+                    {showDecisionValueColumns ? (
                       <td className="text-right font-mono text-gray-400 font-medium pr-8">
                         {hasTrustedModelConfidenceBand(t.decisionValueConfidence)
                           ? `${Math.round(t.lateCloseExpectedValueShare * 100)}%`
                           : "N/A"}
                       </td>
                     ) : null}
-                    {viewMode === "org" ? (
+                    {showDecisionValueColumns ? (
                       <td className="text-right font-mono text-gray-400 font-medium pr-8">
                         {t.decisionSurplus === null || !hasTrustedModelConfidenceBand(t.decisionValueConfidence)
                           ? "N/A"
@@ -514,10 +516,10 @@ function getDecisionReadLabel(
   capturedValueShare: number,
   wastedValueShare: number,
 ) {
-  if (decisionSurplus !== null && decisionSurplus >= 0.001) return "Captures Value";
-  if (decisionSurplus !== null && decisionSurplus <= -0.001) return "Over-Burns";
-  if (capturedValueShare > wastedValueShare) return "Captures Value";
-  if (wastedValueShare > capturedValueShare) return "Over-Burns";
+  if (decisionSurplus !== null && decisionSurplus >= 0.001) return "Value Capture";
+  if (decisionSurplus !== null && decisionSurplus <= -0.001) return "Leak Risk";
+  if (capturedValueShare > wastedValueShare) return "Value Capture";
+  if (wastedValueShare > capturedValueShare) return "Leak Risk";
   return "Neutral";
 }
 
@@ -527,8 +529,8 @@ function getDecisionReadTone(
   wastedValueShare: number,
 ): "emerald" | "amber" | "gray" {
   const label = getDecisionReadLabel(decisionSurplus, capturedValueShare, wastedValueShare);
-  if (label === "Captures Value") return "emerald";
-  if (label === "Over-Burns") return "amber";
+  if (label === "Value Capture") return "emerald";
+  if (label === "Leak Risk") return "amber";
   return "gray";
 }
 

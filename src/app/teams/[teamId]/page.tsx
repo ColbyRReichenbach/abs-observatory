@@ -12,6 +12,7 @@ import {
   getTeamIdentity,
   getTeamInningEfficiency,
   getTeamLeaderboardModel,
+  getTeamPitchingBailouts,
   getTeamSchedule,
   getTeamSummary,
   getTeamTrend,
@@ -29,14 +30,16 @@ import { parseRange } from "@/lib/range";
 import { resolveViewMode } from "@/lib/view-mode";
 import type { RangeKey, SituationalFilters, TeamLeaderboardEntry, TeamScheduleGame } from "@/lib/types";
 import { TeamMotifBackdrop } from "@/components/team-motif-backdrop";
-import { AIBSVisualizerChat } from "@/components/analytics/ai-bs-visualizer-chat";
 import { BackPill } from "@/components/ui/back-pill";
 import { getTeamDetailViewCopy } from "@/lib/view-mode-contract";
 import { TeamChallengeValueMatrix } from "@/components/analytics/team-challenge-value-matrix";
 import { TeamDecisionValueSummaryCard } from "@/components/analytics/team-decision-value-summary";
 import { TeamDecisionWindowBoard } from "@/components/analytics/team-decision-window-board";
 import { TeamDecisionBreakdownBoard } from "@/components/analytics/team-decision-breakdown-board";
+import { TeamOrgCommandCenter } from "@/components/analytics/team-org-command-center";
 import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
+import { TeamDecisionValueScatter } from "@/components/analytics/team-decision-value-scatter";
+import { TeamInventoryDeploymentChart } from "@/components/analytics/team-inventory-deployment-chart";
 
 function toInningRange(value?: string): SituationalFilters["inningRange"] {
   if (value === "early" || value === "middle" || value === "late" || value === "extras") return value;
@@ -98,6 +101,7 @@ export default async function TeamPage({
   const teamPrimary = identity?.primaryColor ?? "#007aff";
   const teamSecondary = identity?.secondaryColor ?? "#0040dd";
   const copy = getTeamDetailViewCopy(viewMode);
+  const showLateSchedule = copy.schedulePlacement !== "early";
 
   return (
     <>
@@ -112,7 +116,9 @@ export default async function TeamPage({
           } as CSSProperties
         }
       >
-        <BackPill label="Teams" href="/teams" />
+        <div className="relative z-20 mb-6">
+          <BackPill label="Teams" href="/teams" />
+        </div>
         <MotionIn>
           <TeamMotifHero
             teamId={summary.teamId}
@@ -168,7 +174,7 @@ export default async function TeamPage({
           </div>
         </MotionIn>
 
-        <Suspense fallback={<TeamPrimaryAnalyticsFallback scheduleLate={copy.schedulePlacement === "late"} />}>
+        <Suspense fallback={<TeamPrimaryAnalyticsFallback scheduleLate={showLateSchedule} />}>
           <TeamPrimaryAnalyticsSections
             teamId={summary.teamId}
             range={range}
@@ -192,25 +198,38 @@ export default async function TeamPage({
           />
         </Suspense>
 
-        <Suspense fallback={<SectionPanelFallback title="Challenge Value Matrix" heightClass="min-h-[360px]" className="mt-8" />}>
-          <TeamChallengeValueSection
-            teamId={summary.teamId}
-            range={range}
-            filters={filters}
-            teamPrimary={teamPrimary}
-            viewMode={viewMode}
-          />
-        </Suspense>
+        {viewMode === "org" ? (
+          <Suspense fallback={<SectionPanelFallback title="Decision Operations" heightClass="min-h-[520px]" className="mt-8" />}>
+            <TeamOrgCommandCenterSection
+              teamId={summary.teamId}
+              range={range}
+              filters={filters}
+              teamPrimary={teamPrimary}
+            />
+          </Suspense>
+        ) : (
+          <>
+            <Suspense fallback={<SectionPanelFallback title="Challenge Value Matrix" heightClass="min-h-[360px]" className="mt-8" />}>
+              <TeamChallengeValueSection
+                teamId={summary.teamId}
+                range={range}
+                filters={filters}
+                teamPrimary={teamPrimary}
+                viewMode={viewMode}
+              />
+            </Suspense>
 
-        <Suspense fallback={<TeamDecisionSectionsFallback viewMode={viewMode} />}>
-          <TeamDecisionSections
-            teamId={summary.teamId}
-            range={range}
-            filters={filters}
-            teamPrimary={teamPrimary}
-            viewMode={viewMode}
-          />
-        </Suspense>
+            <Suspense fallback={<TeamDecisionSectionsFallback viewMode={viewMode} />}>
+              <TeamDecisionSections
+                teamId={summary.teamId}
+                range={range}
+                filters={filters}
+                teamPrimary={teamPrimary}
+                viewMode={viewMode}
+              />
+            </Suspense>
+          </>
+        )}
 
         <Suspense fallback={<TeamLowerSectionsFallback />}>
           <TeamLowerSections
@@ -224,10 +243,6 @@ export default async function TeamPage({
             copy={copy}
           />
         </Suspense>
-
-        <MotionIn delay={0.4}>
-          <AIBSVisualizerChat context={`${summary.teamName} Strategy`} teamColor={teamPrimary} />
-        </MotionIn>
       </main>
     </>
   );
@@ -277,6 +292,7 @@ async function TeamPrimaryAnalyticsSections({
     hittersEyeAll,
     hittersEyeOffense,
     hittersEyeDefense,
+    decisionValueReport,
   ] = await Promise.all([
     getTeamTrend(teamId, range, filters),
     getTeamAggression(teamId, range, filters),
@@ -284,61 +300,74 @@ async function TeamPrimaryAnalyticsSections({
     getTeamHitterEyeHeatmap(teamId, range, { ...filters, side: undefined }),
     getTeamHitterEyeHeatmap(teamId, range, { ...filters, side: "offense" }),
     getTeamHitterEyeHeatmap(teamId, range, { ...filters, side: "defense" }),
+    viewMode === "org" ? getTeamDecisionValueReport(teamId, range, filters) : Promise.resolve(null),
   ]);
+  const showLateSchedule = schedulePlacement !== "early";
 
   return (
     <>
-      <MotionIn delay={0.2}>
-        <section className="mt-8 grid gap-6 lg:grid-cols-3">
-          <div className="panel p-6 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col justify-between">
-            <div>
-              <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
-                {copy.trendEyebrow}
-              </h4>
-              <p className="text-2xl font-display leading-none text-gray-900">
-                {copy.trendTitle.split(" ").slice(0, 1).join(" ")} <span className="text-gray-400">{copy.trendTitle.split(" ").slice(1).join(" ")}</span>
-              </p>
+      {viewMode === "org" && decisionValueReport ? (
+        <>
+          <MotionIn delay={0.2}>
+            <TeamDecisionValueScatter report={decisionValueReport} />
+          </MotionIn>
+          <MotionIn delay={0.22}>
+            <TeamInventoryDeploymentChart report={decisionValueReport} />
+          </MotionIn>
+        </>
+      ) : (
+        <MotionIn delay={0.2}>
+          <section className="mt-8 grid gap-6 lg:grid-cols-3">
+            <div className="panel p-6 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col justify-between">
+              <div>
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
+                  {copy.trendEyebrow}
+                </h4>
+                <p className="text-2xl font-display leading-none text-gray-900">
+                  {copy.trendTitle.split(" ").slice(0, 1).join(" ")} <span className="text-gray-400">{copy.trendTitle.split(" ").slice(1).join(" ")}</span>
+                </p>
+              </div>
+              <div className="flex-1 min-h-[300px] w-full mt-4">
+                <TeamTrendChart data={trend} teamColor={teamPrimary} />
+              </div>
             </div>
-            <div className="flex-1 min-h-[300px] w-full mt-4">
-              <TeamTrendChart data={trend} teamColor={teamPrimary} />
-            </div>
-          </div>
 
-          <div className="panel p-6 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col">
-            <div>
-              <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
-                {copy.aggressionEyebrow}
-              </h4>
-              <p className="text-2xl font-display leading-none text-gray-900">
-                {copy.aggressionTitle.split(" ").slice(0, -1).join(" ")} <span className="text-gray-400">{copy.aggressionTitle.split(" ").slice(-1).join(" ")}</span>
-              </p>
+            <div className="panel p-6 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col">
+              <div>
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
+                  {copy.aggressionEyebrow}
+                </h4>
+                <p className="text-2xl font-display leading-none text-gray-900">
+                  {copy.aggressionTitle.split(" ").slice(0, -1).join(" ")} <span className="text-gray-400">{copy.aggressionTitle.split(" ").slice(-1).join(" ")}</span>
+                </p>
+              </div>
+              <div className="flex-1 min-h-[300px] w-full mt-4">
+                <ChallengeAggressionRadial data={aggression} teamColor={teamPrimary} />
+              </div>
             </div>
-            <div className="flex-1 min-h-[300px] w-full mt-4">
-              <ChallengeAggressionRadial data={aggression} teamColor={teamPrimary} />
-            </div>
-          </div>
 
-          <div className="panel p-6 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col items-center">
-            <div className="w-full">
-              <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
-                {copy.heatmapEyebrow}
-              </h4>
-              <p className="text-2xl font-display leading-none text-gray-900">
-                {copy.heatmapTitle.split(" ").slice(0, -2).join(" ")} <span className="text-gray-400">{copy.heatmapTitle.split(" ").slice(-2).join(" ")}</span>
-              </p>
+            <div className="panel p-6 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col items-center">
+              <div className="w-full">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
+                  {copy.heatmapEyebrow}
+                </h4>
+                <p className="text-2xl font-display leading-none text-gray-900">
+                  {copy.heatmapTitle.split(" ").slice(0, -2).join(" ")} <span className="text-gray-400">{copy.heatmapTitle.split(" ").slice(-2).join(" ")}</span>
+                </p>
+              </div>
+              <div className="flex-1 w-full mt-6 mb-2">
+                <HittersEyeHeatmap
+                  data={{ all: hittersEyeAll, offense: hittersEyeOffense, defense: hittersEyeDefense }}
+                  teamColor={teamPrimary}
+                  viewMode={viewMode}
+                />
+              </div>
             </div>
-            <div className="flex-1 w-full mt-6 mb-2">
-              <HittersEyeHeatmap
-                data={{ all: hittersEyeAll, offense: hittersEyeOffense, defense: hittersEyeDefense }}
-                teamColor={teamPrimary}
-                viewMode={viewMode}
-              />
-            </div>
-          </div>
-        </section>
-      </MotionIn>
+          </section>
+        </MotionIn>
+      )}
 
-      {schedulePlacement === "late" && schedule ? (
+      {showLateSchedule && schedule ? (
         <MotionIn delay={0.05}>
           <section className="mt-8">
             <TeamScheduleMorph schedule={schedule as TeamScheduleGame[]} teamId={teamId} primaryColor={teamPrimary} />
@@ -434,9 +463,11 @@ async function TeamDecisionSections({
         <TeamDecisionValueSummaryCard summary={decisionValueReport.summary} teamColor={teamPrimary} viewMode={viewMode} />
       </MotionIn>
 
-      <MotionIn delay={0.295}>
-        <TeamDecisionWindowBoard report={decisionValueReport} teamColor={teamPrimary} viewMode={viewMode} />
-      </MotionIn>
+      {viewMode === "fan" ? (
+        <MotionIn delay={0.295}>
+          <TeamDecisionWindowBoard report={decisionValueReport} teamColor={teamPrimary} viewMode={viewMode} />
+        </MotionIn>
+      ) : null}
 
       {viewMode === "org" ? (
         <MotionIn delay={0.297}>
@@ -444,6 +475,35 @@ async function TeamDecisionSections({
         </MotionIn>
       ) : null}
     </>
+  );
+}
+
+async function TeamOrgCommandCenterSection({
+  teamId,
+  range,
+  filters,
+  teamPrimary,
+}: {
+  teamId: number;
+  range: RangeKey;
+  filters: SituationalFilters;
+  teamPrimary: string;
+}) {
+  const [decisionValueReport, challengeValueSummary, bailouts] = await Promise.all([
+    getTeamDecisionValueReport(teamId, range, filters),
+    getTeamChallengeValueSummary(teamId, range, filters),
+    getTeamPitchingBailouts(teamId, range, filters),
+  ]);
+
+  return (
+    <MotionIn delay={0.29}>
+      <TeamOrgCommandCenter
+        report={decisionValueReport}
+        challengeSummary={challengeValueSummary}
+        bailouts={bailouts}
+        teamColor={teamPrimary}
+      />
+    </MotionIn>
   );
 }
 
@@ -503,7 +563,7 @@ function TeamDecisionSectionsFallback({ viewMode }: { viewMode: "fan" | "org" })
   return (
     <>
       <SectionPanelFallback title="Decision Summary" heightClass="min-h-[200px]" className="mt-8" />
-      <SectionPanelFallback title="Decision Window Board" heightClass="min-h-[280px]" className="mt-8" />
+      {viewMode === "fan" ? <SectionPanelFallback title="Decision Window Board" heightClass="min-h-[280px]" className="mt-8" /> : null}
       {viewMode === "org" ? <SectionPanelFallback title="Decision Breakdown" heightClass="min-h-[280px]" className="mt-8" /> : null}
     </>
   );
@@ -681,11 +741,18 @@ async function TeamLowerSections({
 
   return (
     <MotionIn delay={0.3}>
-      <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_1fr_1fr]">
-        {copy.lowerSectionOrder.map((section) => (
-          <div key={section}>{lowerSections[section]}</div>
-        ))}
-      </section>
+      {viewMode === "org" ? (
+        <section className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <div>{lowerSections.umpires}</div>
+          <div>{lowerSections.style}</div>
+        </section>
+      ) : (
+        <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_1fr_1fr]">
+          {copy.lowerSectionOrder.map((section) => (
+            <div key={section}>{lowerSections[section]}</div>
+          ))}
+        </section>
+      )}
     </MotionIn>
   );
 }

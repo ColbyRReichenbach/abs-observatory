@@ -72,7 +72,7 @@ const TEAM_DETAIL_COPY = {
     heatmapTitle: "Team Challenge Map",
     efficiencyTitle: "Situational Decision Matrix",
     efficiencyAccent: "Efficiency Heatmap",
-    schedulePlacement: "late",
+    schedulePlacement: "early",
     lowerSectionOrder: ["umpires", "style", "splits"],
   },
 } as const;
@@ -107,7 +107,7 @@ const UMPIRE_DETAIL_COPY = {
       "Operational ABS profile, centered on grade stability, directional bias, and pregame prep value.",
     historyEyebrow: "Historical Assignments",
     historyTitle: "Recent Gameday Feed",
-    historyPlacement: "late",
+    historyPlacement: "early",
   },
 } as const;
 
