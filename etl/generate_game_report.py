@@ -3,21 +3,45 @@ import argparse
 import os
 from typing import Dict, List, Optional
 
-import psycopg2
-from dotenv import load_dotenv
-from openai import OpenAI
-from psycopg2.extras import Json, RealDictCursor
+try:
+    import psycopg2
+    from psycopg2.extras import Json, RealDictCursor
+except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
+    psycopg2 = None
+
+    def Json(value):  # type: ignore[no-untyped-def]
+        return value
+
+    RealDictCursor = None
+
+try:
+    from dotenv import load_dotenv
+except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
+    def load_dotenv(*_args, **_kwargs):  # type: ignore[no-untyped-def]
+        return False
+
+try:
+    from openai import OpenAI
+except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
+    OpenAI = None
 
 load_dotenv()
 
 
+def require_psycopg2() -> None:
+    if psycopg2 is None or RealDictCursor is None:
+        raise RuntimeError("psycopg2 is required to generate and store game reports")
+
+
 def fetch_one_dict(cur, query: str, params: tuple) -> Optional[Dict]:
+    require_psycopg2()
     with cur.connection.cursor(cursor_factory=RealDictCursor) as dict_cur:
         dict_cur.execute(query, params)
         return dict_cur.fetchone()
 
 
 def fetch_all_dicts(cur, query: str, params: tuple) -> List[Dict]:
+    require_psycopg2()
     with cur.connection.cursor(cursor_factory=RealDictCursor) as dict_cur:
         dict_cur.execute(query, params)
         return list(dict_cur.fetchall())
@@ -121,7 +145,7 @@ def load_challenge_evidence(cur, game_pk: int) -> List[Dict]:
 
 def build_narrative(summary_prompt: str, model_name: str) -> str:
     api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
+    if not api_key or OpenAI is None:
         return ""
 
     try:
