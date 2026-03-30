@@ -1404,29 +1404,68 @@ export async function getGameScoreboardData(gamePk: number): Promise<GameScorebo
         }
       | undefined;
 
-    const linescore = payload?.liveData?.linescore;
+    const snapshotLinescore = payload?.liveData?.linescore;
+    const linescore = snapshotLinescore ?? (await fetchMlbStatsApiLinescore(gamePk));
     if (!linescore) return null;
 
-    const innings = Array.isArray(linescore.innings)
-      ? linescore.innings
-          .map((entry, index) => ({
-            inning: Number(entry?.num ?? index + 1),
-            awayRuns: entry?.away?.runs ?? null,
-            homeRuns: entry?.home?.runs ?? null,
-          }))
-          .filter((entry) => Number.isFinite(entry.inning))
-      : [];
-
-    return {
-      innings,
-      awayRuns: linescore.teams?.away?.runs ?? null,
-      homeRuns: linescore.teams?.home?.runs ?? null,
-      awayHits: linescore.teams?.away?.hits ?? null,
-      homeHits: linescore.teams?.home?.hits ?? null,
-      awayErrors: linescore.teams?.away?.errors ?? null,
-      homeErrors: linescore.teams?.home?.errors ?? null,
-    };
+    return mapLinescoreToScoreboardData(linescore);
   });
+}
+
+type MlbStatsApiLinescore = {
+  innings?: Array<{
+    num?: number | null;
+    home?: { runs?: number | null } | null;
+    away?: { runs?: number | null } | null;
+  }> | null;
+  teams?: {
+    home?: { runs?: number | null; hits?: number | null; errors?: number | null } | null;
+    away?: { runs?: number | null; hits?: number | null; errors?: number | null } | null;
+  } | null;
+};
+
+function mapLinescoreToScoreboardData(linescore: MlbStatsApiLinescore): GameScoreboardData {
+  const innings = Array.isArray(linescore.innings)
+    ? linescore.innings
+        .map((entry, index) => ({
+          inning: Number(entry?.num ?? index + 1),
+          awayRuns: entry?.away?.runs ?? null,
+          homeRuns: entry?.home?.runs ?? null,
+        }))
+        .filter((entry) => Number.isFinite(entry.inning))
+    : [];
+
+  return {
+    innings,
+    awayRuns: linescore.teams?.away?.runs ?? null,
+    homeRuns: linescore.teams?.home?.runs ?? null,
+    awayHits: linescore.teams?.away?.hits ?? null,
+    homeHits: linescore.teams?.home?.hits ?? null,
+    awayErrors: linescore.teams?.away?.errors ?? null,
+    homeErrors: linescore.teams?.home?.errors ?? null,
+  };
+}
+
+async function fetchMlbStatsApiLinescore(gamePk: number): Promise<MlbStatsApiLinescore | null> {
+  try {
+    const response = await fetch(`https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live`, {
+      next: { revalidate: 15 },
+      headers: {
+        Accept: "application/json",
+      },
+    });
+    if (!response.ok) return null;
+
+    const payload = (await response.json()) as {
+      liveData?: {
+        linescore?: MlbStatsApiLinescore | null;
+      } | null;
+    };
+
+    return payload.liveData?.linescore ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function getGameAbsCounters(gamePk: number): Promise<{
