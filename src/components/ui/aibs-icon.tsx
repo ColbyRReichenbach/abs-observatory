@@ -3,6 +3,9 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 
+const WINDUP_ARM_PATH = "M 7 13 L 2 13 L 2 8";
+const FOLLOW_THROUGH_ARM_PATH = "M 7 13 L 2 15 L 6 19";
+
 interface AiBSIconProps {
     size?: number;
     className?: string;
@@ -52,15 +55,7 @@ export function AiBSIcon({
                         <path d="M9 13v4c0 1.1.9 2 2 2h2c1.1 0 2-.9 2-2v-4" />
 
                         {/* Windup Arm -> Throwing Follow-through */}
-                        <motion.path
-                            d="M 7 13 L 2 13 L 2 8"  // Windup Position (L arm raised)
-                            animate={{
-                                d: isHovered
-                                    ? "M 7 13 L 2 15 L 6 19" // Follow-through position
-                                    : "M 7 13 L 2 13 L 2 8"  // Windup position
-                            }}
-                            transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                        />
+                        <path d={isHovered ? FOLLOW_THROUGH_ARM_PATH : WINDUP_ARM_PATH} />
 
                         {/* Baseball */}
                         <motion.circle

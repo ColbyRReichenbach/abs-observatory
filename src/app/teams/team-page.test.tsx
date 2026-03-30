@@ -56,14 +56,14 @@ vi.mock("@/lib/data", () => ({
       challengesTotal: 10,
       avgRemaining: 0.8,
       overturnRate: 0.7,
-      style: "Clutch",
-      orgStyleLabel: "Opportunistic",
+      style: "High-Impact",
+      orgStyleLabel: "Timely",
       styleConfidence: "high",
       styleScores: {
-        Clutch: 78,
-        Calculated: 62,
-        "Trigger-Happy": 44,
-        Passive: 25,
+        "High-Impact": 78,
+        Selective: 62,
+        Overactive: 44,
+        "Low-Usage": 25,
       },
       challengeRatePerGame: 1,
       lateLeverageShare: 0.42,
@@ -128,7 +128,7 @@ describe("team detail page", () => {
 
     expect(html).toContain("Boston Red Sox");
     expect(html).toContain("Challenge");
-    expect(html).toContain("ABS personality breakdown");
+    expect(html).toContain("ABS challenge profile");
     expect(html).toContain("Trend Overview");
     expect(html).toContain("Challenge Value Matrix");
     expect(html).toContain("Timing Efficiency");

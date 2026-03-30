@@ -1,0 +1,262 @@
+{
+  "auditDate": "2026-03-25",
+  "springWindow": {
+    "start": "2026-02-20",
+    "end": "2026-03-25"
+  },
+  "overall": {
+    "rows": 1802,
+    "meanExpected": 0.0015561043285238624,
+    "meanRealized": 0.0006673695893451715,
+    "meanSignedGap": -0.0008887347391786889,
+    "meanAbsGap": 0.011326026637069914,
+    "positiveSignAgreement": 0.6614872364039955,
+    "challengeRecommendationShare": 0.5355160932297447
+  },
+  "byRecommendation": [
+    {
+      "key": "hold",
+      "rows": 837,
+      "avgExpected": -0.009761529271206687,
+      "avgRealized": -0.010986738351254487,
+      "avgSignedGap": -0.0012252090800477869,
+      "positiveRealizedShare": 0.1959378733572282
+    },
+    {
+      "key": "challenge",
+      "rows": 965,
+      "avgExpected": 0.011372538860103615,
+      "avgRealized": 0.010775647668393772,
+      "avgSignedGap": -0.0005968911917098447,
+      "positiveRealizedShare": 0.49222797927461137
+    }
+  ],
+  "byDecisionMode": [
+    {
+      "key": "win_expectancy",
+      "rows": 1148,
+      "avgExpected": 0.0009939895470383287,
+      "avgRealized": 0.000004965156794424606,
+      "avgSignedGap": -0.0009890243902439002,
+      "positiveRealizedShare": 0.28310104529616725
+    },
+    {
+      "key": "heuristic",
+      "rows": 654,
+      "avgExpected": 0.0025428134556574906,
+      "avgRealized": 0.0018301223241590208,
+      "avgSignedGap": -0.0007126911314984716,
+      "positiveRealizedShare": 0.4801223241590214
+    }
+  ],
+  "byFallbackTier": [
+    {
+      "key": "exact",
+      "rows": 1767,
+      "avgExpected": 0.0013243350311262024,
+      "avgRealized": 0.00042065647990945077,
+      "avgSignedGap": -0.0009036785512167496,
+      "positiveRealizedShare": 0.35200905489530276
+    },
+    {
+      "key": "direction_only",
+      "rows": 35,
+      "avgExpected": 0.013257142857142856,
+      "avgRealized": 0.013122857142857143,
+      "avgSignedGap": -0.0001342857142857137,
+      "positiveRealizedShare": 0.4857142857142857
+    }
+  ],
+  "topOverestimates": [
+    {
+      "challengeId": "ebe01a7b-c7e6-4e4c-80aa-a8f6545bb028",
+      "gamePk": 831622,
+      "decisionValueMode": "win_expectancy",
+      "overturnProbabilityFallbackTier": "direction_only",
+      "expectedWpDelta": 0.2975,
+      "realizedWpDelta": -0.0049,
+      "recommendation": "challenge"
+    },
+    {
+      "challengeId": "f19519f8-d088-4e5d-acbd-7acd091e165c",
+      "gamePk": 831884,
+      "decisionValueMode": "win_expectancy",
+      "overturnProbabilityFallbackTier": "exact",
+      "expectedWpDelta": 0.1179,
+      "realizedWpDelta": -0.0038,
+      "recommendation": "challenge"
+    },
+    {
+      "challengeId": "90df25aa-3a1a-44a7-b3c3-40126a9acb8f",
+      "gamePk": 831492,
+      "decisionValueMode": "win_expectancy",
+      "overturnProbabilityFallbackTier": "exact",
+      "expectedWpDelta": 0.0985,
+      "realizedWpDelta": -0.0025,
+      "recommendation": "challenge"
+    },
+    {
+      "challengeId": "1aa80209-c1c8-457a-b2dc-8ed8f4ed09b1",
+      "gamePk": 831651,
+      "decisionValueMode": "win_expectancy",
+      "overturnProbabilityFallbackTier": "exact",
+      "expectedWpDelta": 0.0936,
+      "realizedWpDelta": -0.0007,
+      "recommendation": "challenge"
+    },
+    {
+      "challengeId": "7739185d-46d6-4617-a6dd-1190486b15dd",
+      "gamePk": 831813,
+      "decisionValueMode": "win_expectancy",
+      "overturnProbabilityFallbackTier": "exact",
+      "expectedWpDelta": 0.0873,
+      "realizedWpDelta": -0.0045,
+      "recommendation": "challenge"
+    },
+    {
+      "challengeId": "33983da3-a915-4ddd-a116-3e5d9950f54d",
+      "gamePk": 831575,
+      "decisionValueMode": "win_expectancy",
+      "overturnProbabilityFallbackTier": "exact",
+      "expectedWpDelta": -0.0912,
+      "realizedWpDelta": -0.1822,
+      "recommendation": "hold"
+    },
+    {
+      "challengeId": "89df2d8a-8b67-4674-bf6a-41296951c9ab",
+      "gamePk": 831817,
+      "decisionValueMode": "win_expectancy",
+      "overturnProbabilityFallbackTier": "exact",
+      "expectedWpDelta": -0.0886,
+      "realizedWpDelta": -0.1771,
+      "recommendation": "hold"
+    },
+    {
+      "challengeId": "eb7119a4-0cae-4c95-966f-f676ec3f0fec",
+      "gamePk": 831918,
+      "decisionValueMode": "win_expectancy",
+      "overturnProbabilityFallbackTier": "exact",
+      "expectedWpDelta": 0.0848,
+      "realizedWpDelta": -0.0006,
+      "recommendation": "challenge"
+    },
+    {
+      "challengeId": "72d5c2a8-e5e0-4930-bdbe-533b22b401d6",
+      "gamePk": 831917,
+      "decisionValueMode": "win_expectancy",
+      "overturnProbabilityFallbackTier": "exact",
+      "expectedWpDelta": 0.0837,
+      "realizedWpDelta": -0.0008,
+      "recommendation": "challenge"
+    },
+    {
+      "challengeId": "c1de03a1-3413-443d-88dc-be8b2b6a0a39",
+      "gamePk": 831470,
+      "decisionValueMode": "win_expectancy",
+      "overturnProbabilityFallbackTier": "exact",
+      "expectedWpDelta": 0.0809,
+      "realizedWpDelta": -0.0024,
+      "recommendation": "challenge"
+    }
+  ],
+  "topUnderestimates": [
+    {
+      "challengeId": "511e0bd4-6eca-4e34-b8d3-e5e06a873ba0",
+      "gamePk": 832037,
+      "decisionValueMode": "win_expectancy",
+      "overturnProbabilityFallbackTier": "exact",
+      "expectedWpDelta": -0.1056,
+      "realizedWpDelta": -0.0011,
+      "recommendation": "hold"
+    },
+    {
+      "challengeId": "e0423e03-c1e1-4a73-bc25-8065fca5a754",
+      "gamePk": 831601,
+      "decisionValueMode": "win_expectancy",
+      "overturnProbabilityFallbackTier": "direction_only",
+      "expectedWpDelta": 0.1045,
+      "realizedWpDelta": 0.1997,
+      "recommendation": "challenge"
+    },
+    {
+      "challengeId": "06a2d823-ec12-4f20-a786-e4f273d6315c",
+      "gamePk": 831776,
+      "decisionValueMode": "win_expectancy",
+      "overturnProbabilityFallbackTier": "exact",
+      "expectedWpDelta": 0.1055,
+      "realizedWpDelta": 0.1997,
+      "recommendation": "challenge"
+    },
+    {
+      "challengeId": "316ece9f-fe94-4331-ade9-70d8e2fea2b3",
+      "gamePk": 831606,
+      "decisionValueMode": "win_expectancy",
+      "overturnProbabilityFallbackTier": "exact",
+      "expectedWpDelta": -0.0975,
+      "realizedWpDelta": -0.004,
+      "recommendation": "hold"
+    },
+    {
+      "challengeId": "b06612f6-d52b-4000-a347-2fbc4703045f",
+      "gamePk": 831636,
+      "decisionValueMode": "win_expectancy",
+      "overturnProbabilityFallbackTier": "exact",
+      "expectedWpDelta": -0.0953,
+      "realizedWpDelta": -0.0033,
+      "recommendation": "hold"
+    },
+    {
+      "challengeId": "3f412ec1-2b81-4ce3-a051-d2e5b975cd7e",
+      "gamePk": 831495,
+      "decisionValueMode": "win_expectancy",
+      "overturnProbabilityFallbackTier": "direction_only",
+      "expectedWpDelta": -0.0922,
+      "realizedWpDelta": -0.001,
+      "recommendation": "hold"
+    },
+    {
+      "challengeId": "6c56a7cf-aea3-4b2e-9a88-53ef9c045b73",
+      "gamePk": 831773,
+      "decisionValueMode": "win_expectancy",
+      "overturnProbabilityFallbackTier": "exact",
+      "expectedWpDelta": 0.0863,
+      "realizedWpDelta": 0.1621,
+      "recommendation": "challenge"
+    },
+    {
+      "challengeId": "6c9af9fb-6aa3-4031-b6b3-916059209fcd",
+      "gamePk": 831942,
+      "decisionValueMode": "win_expectancy",
+      "overturnProbabilityFallbackTier": "exact",
+      "expectedWpDelta": -0.0738,
+      "realizedWpDelta": -0.0017,
+      "recommendation": "hold"
+    },
+    {
+      "challengeId": "b2a75922-7fe0-4232-ae61-2d15b54ce137",
+      "gamePk": 831824,
+      "decisionValueMode": "win_expectancy",
+      "overturnProbabilityFallbackTier": "direction_only",
+      "expectedWpDelta": 0.0757,
+      "realizedWpDelta": 0.1453,
+      "recommendation": "challenge"
+    },
+    {
+      "challengeId": "62be1b7d-dc40-4cbd-96ce-e32afd87faa0",
+      "gamePk": 832042,
+      "decisionValueMode": "win_expectancy",
+      "overturnProbabilityFallbackTier": "exact",
+      "expectedWpDelta": 0.0777,
+      "realizedWpDelta": 0.1457,
+      "recommendation": "challenge"
+    }
+  ],
+  "rootCause": {
+    "weBackedRows": 1148,
+    "heuristicRows": 654,
+    "positiveExpectedNegativeRealized": 594,
+    "negativeExpectedPositiveRealized": 16,
+    "recommendedRealizedMean": 0.010775647668393772,
+    "holdRealizedMean": -0.010986738351254487
+  }
+}

@@ -272,6 +272,7 @@ export async function createComment(
     threadId?: string;
     articleId?: string;
     challengeId?: string;
+    parentCommentId?: string;
     body: string;
     structuredReaction?: string | null;
   },
@@ -306,6 +307,17 @@ export async function createComment(
   }
 
   await ensureThreadWritable(threadId);
+  let parentCommentId: string | null = null;
+  if (input.parentCommentId) {
+    const parent = await getCommentRecord(input.parentCommentId);
+    if (!parent) {
+      throw new Error("Parent comment not found");
+    }
+    if (parent.threadid !== threadId) {
+      throw new Error("Parent comment does not belong to this thread");
+    }
+    parentCommentId = parent.commentid;
+  }
   await enforceCommentRateLimit(viewer, threadId);
 
   const normalizedBody = normalizeCommentBody(bodyValidation.body);
@@ -318,17 +330,19 @@ export async function createComment(
       `
       INSERT INTO community.comments (
         thread_id,
+        parent_comment_id,
         user_id,
         body,
         structured_reaction,
         moderation_status,
         toxicity_score
       )
-      VALUES ($1, $2, $3, $4, $5, $6)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING comment_id AS commentId, created_at AS createdAt
       `,
       [
         threadId,
+        parentCommentId,
         viewer.userId,
         normalizedBody,
         input.structuredReaction ?? null,
@@ -361,7 +375,7 @@ export async function createComment(
     commentId: created.commentid,
     threadId,
     userId: viewer.userId,
-    parentCommentId: null,
+    parentCommentId,
     username: viewer.username,
     displayName: viewer.displayName,
     body: normalizedBody,
@@ -522,4 +536,86 @@ export async function moderateCommentAction(
     throw new Error("Comment not found");
   }
   return comment;
+}
+
+async function requireVerifiedViewer(request: Request) {
+  const viewer = await getViewerProfile(request);
+  if (!viewer) {
+    throw new Error("Authentication required");
+  }
+  if (!viewer.isVerified) {
+    throw new Error("Verified identity required");
+  }
+  assertValidCsrf(request);
+  return viewer;
+}
+
+async function requireAvailableComment(commentId: string) {
+  const existing = await getCommentRecord(commentId);
+  if (!existing) {
+    throw new Error("Comment not found");
+  }
+  if (existing.deletedat || existing.moderationstatus !== "published") {
+    throw new Error("Comment is not available");
+  }
+  return existing;
+}
+
+export async function likeComment(request: Request, commentId: string): Promise<void> {
+  const viewer = await requireVerifiedViewer(request);
+  const likeWindow = await consumeRateLimit({
+    bucket: "comments:likes",
+    subject: viewer.userId,
+    limit: 30,
+    windowMs: 60_000,
+  });
+
+  if (!likeWindow.allowed) {
+    throw new Error("Comment like rate limit exceeded");
+  }
+
+  await requireAvailableComment(commentId);
+  await sql(
+    `
+    INSERT INTO community.comment_likes (comment_id, user_id)
+    VALUES ($1, $2)
+    ON CONFLICT DO NOTHING
+    `,
+    [commentId, viewer.userId],
+  );
+}
+
+export async function unlikeComment(request: Request, commentId: string): Promise<void> {
+  const viewer = await requireVerifiedViewer(request);
+  await requireAvailableComment(commentId);
+  await sql(
+    `
+    DELETE FROM community.comment_likes
+    WHERE comment_id = $1 AND user_id = $2
+    `,
+    [commentId, viewer.userId],
+  );
+}
+
+export async function reportComment(
+  request: Request,
+  params: {
+    commentId: string;
+    reason: string;
+    details?: string | null;
+  },
+): Promise<void> {
+  const viewer = await requireVerifiedViewer(request);
+  const existing = await getCommentRecord(params.commentId);
+  if (!existing) {
+    throw new Error("Comment not found");
+  }
+
+  await sql(
+    `
+    INSERT INTO community.comment_reports (comment_id, reported_by_user_id, reason, details)
+    VALUES ($1, $2, $3, $4)
+    `,
+    [params.commentId, viewer.userId, params.reason, params.details ?? null],
+  );
 }

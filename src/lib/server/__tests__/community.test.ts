@@ -5,6 +5,7 @@ const sqlOneMock = vi.fn();
 const withTransactionMock = vi.fn();
 const getViewerProfileMock = vi.fn();
 const writeAuditLogMock = vi.fn();
+const consumeRateLimitMock = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   sql: sqlMock,
@@ -20,6 +21,10 @@ vi.mock("@/lib/server/audit", () => ({
   writeAuditLog: writeAuditLogMock,
 }));
 
+vi.mock("@/lib/server/scale", () => ({
+  consumeRateLimit: consumeRateLimitMock,
+}));
+
 describe("community service", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -29,6 +34,8 @@ describe("community service", () => {
     withTransactionMock.mockReset();
     getViewerProfileMock.mockReset();
     writeAuditLogMock.mockReset();
+    consumeRateLimitMock.mockReset();
+    consumeRateLimitMock.mockResolvedValue({ allowed: true, remaining: 10, resetAt: Date.now() + 60_000 });
   });
 
   it("creates comments with moderation metadata for flagged phrases", async () => {
@@ -63,6 +70,48 @@ describe("community service", () => {
     expect(result.moderationStatus).toBe("pending_review");
     expect(result.toxicityScore).toBeGreaterThan(0.08);
     expect(writeAuditLogMock).toHaveBeenCalledOnce();
+  });
+
+  it("creates replies under an existing thread comment", async () => {
+    const { createComment } = await import("@/lib/server/community");
+
+    getViewerProfileMock.mockResolvedValue({
+      userId: "user-1",
+      username: "dodger_blue",
+      displayName: "Dodger Blue",
+      postingEnabled: true,
+      isVerified: true,
+      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    });
+    sqlOneMock
+      .mockResolvedValueOnce({ status: "open" })
+      .mockResolvedValueOnce({
+        commentid: "comment-1",
+        threadid: "thread-1",
+        userid: "user-2",
+        moderationstatus: "published",
+        deletedat: null,
+        createdat: "2026-03-06T00:00:00.000Z",
+      })
+      .mockResolvedValueOnce({ recentcount: "0" })
+      .mockResolvedValueOnce({ recentcount: "0" });
+    withTransactionMock.mockImplementation(async (callback) =>
+      callback(async (statement: string, values?: unknown[]) => {
+        if (statement.includes("INSERT INTO community.comments")) {
+          expect(values?.[1]).toBe("comment-1");
+          return [{ commentid: "reply-1", createdat: "2026-03-06T01:00:00.000Z" }];
+        }
+        return [];
+      }),
+    );
+
+    const result = await createComment(new Request("http://localhost", { headers: { "x-dev-user-id": "user-1" } }), {
+      threadId: "thread-1",
+      parentCommentId: "comment-1",
+      body: "Reply ball.",
+    });
+
+    expect(result.parentCommentId).toBe("comment-1");
   });
 
   it("renders deleted comments as placeholders without dropping the reply record", async () => {
@@ -238,5 +287,141 @@ describe("community service", () => {
         action: "hide",
       }),
     ).rejects.toThrow("Forbidden");
+  });
+
+  it("allows verified viewers to like available comments and blocks unavailable ones", async () => {
+    const { likeComment } = await import("@/lib/server/community");
+
+    getViewerProfileMock.mockResolvedValue({
+      userId: "user-1",
+      username: "dodger_blue",
+      displayName: "Dodger Blue",
+      postingEnabled: true,
+      isVerified: true,
+      roles: ["user"],
+    });
+    sqlOneMock.mockResolvedValueOnce({
+      commentid: "comment-1",
+      threadid: "thread-1",
+      userid: "user-2",
+      moderationstatus: "published",
+      deletedat: null,
+    });
+
+    await likeComment(new Request("http://localhost", { headers: { "x-dev-user-id": "user-1" } }), "comment-1");
+
+    expect(consumeRateLimitMock).toHaveBeenCalledWith(
+      expect.objectContaining({ bucket: "comments:likes", subject: "user-1", limit: 30 }),
+    );
+    expect(sqlMock).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO community.comment_likes"), [
+      "comment-1",
+      "user-1",
+    ]);
+
+    sqlMock.mockClear();
+    sqlOneMock.mockReset();
+    sqlOneMock.mockResolvedValueOnce({
+      commentid: "comment-1",
+      threadid: "thread-1",
+      userid: "user-2",
+      moderationstatus: "hidden",
+      deletedat: null,
+    });
+
+    await expect(
+      likeComment(new Request("http://localhost", { headers: { "x-dev-user-id": "user-1" } }), "comment-1"),
+    ).rejects.toThrow("Comment is not available");
+  });
+
+  it("blocks comment likes when the rate limit window is exceeded", async () => {
+    const { likeComment } = await import("@/lib/server/community");
+
+    getViewerProfileMock.mockResolvedValue({
+      userId: "user-1",
+      username: "dodger_blue",
+      displayName: "Dodger Blue",
+      postingEnabled: true,
+      isVerified: true,
+      roles: ["user"],
+    });
+    consumeRateLimitMock.mockResolvedValueOnce({ allowed: false, remaining: 0, resetAt: Date.now() + 60_000 });
+    sqlOneMock.mockResolvedValueOnce({
+      commentid: "comment-1",
+      threadid: "thread-1",
+      userid: "user-2",
+      moderationstatus: "published",
+      deletedat: null,
+    });
+
+    await expect(
+      likeComment(new Request("http://localhost", { headers: { "x-dev-user-id": "user-1" } }), "comment-1"),
+    ).rejects.toThrow("Comment like rate limit exceeded");
+  });
+
+  it("removes likes and records comment reports for verified viewers", async () => {
+    const { unlikeComment, reportComment } = await import("@/lib/server/community");
+
+    getViewerProfileMock.mockResolvedValue({
+      userId: "user-1",
+      username: "dodger_blue",
+      displayName: "Dodger Blue",
+      postingEnabled: true,
+      isVerified: true,
+      roles: ["user"],
+    });
+    sqlOneMock.mockResolvedValueOnce({
+      commentid: "comment-1",
+      threadid: "thread-1",
+      userid: "user-2",
+      moderationstatus: "published",
+      deletedat: null,
+    });
+
+    await unlikeComment(new Request("http://localhost", { headers: { "x-dev-user-id": "user-1" } }), "comment-1");
+    expect(sqlMock).toHaveBeenCalledWith(expect.stringContaining("DELETE FROM community.comment_likes"), [
+      "comment-1",
+      "user-1",
+    ]);
+
+    sqlOneMock.mockResolvedValueOnce({
+      commentid: "comment-1",
+      threadid: "thread-1",
+      userid: "user-2",
+      moderationstatus: "published",
+      deletedat: null,
+    });
+
+    await reportComment(new Request("http://localhost", { headers: { "x-dev-user-id": "user-1" } }), {
+      commentId: "comment-1",
+      reason: "Abusive language",
+      details: "Escalate review",
+    });
+    expect(sqlMock).toHaveBeenLastCalledWith(expect.stringContaining("INSERT INTO community.comment_reports"), [
+      "comment-1",
+      "user-1",
+      "Abusive language",
+      "Escalate review",
+    ]);
+  });
+
+  it("rejects reports for missing comments", async () => {
+    const { reportComment } = await import("@/lib/server/community");
+
+    getViewerProfileMock.mockResolvedValue({
+      userId: "user-1",
+      username: "dodger_blue",
+      displayName: "Dodger Blue",
+      postingEnabled: true,
+      isVerified: true,
+      roles: ["user"],
+    });
+    sqlOneMock.mockResolvedValueOnce(null);
+
+    await expect(
+      reportComment(new Request("http://localhost", { headers: { "x-dev-user-id": "user-1" } }), {
+        commentId: "missing-comment",
+        reason: "Spam",
+      }),
+    ).rejects.toThrow("Comment not found");
   });
 });

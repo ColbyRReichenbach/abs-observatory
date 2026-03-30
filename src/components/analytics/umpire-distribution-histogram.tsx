@@ -13,6 +13,7 @@ import {
     Cell,
 } from "recharts";
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
+import { ClientOnly } from "@/components/ui/client-only";
 
 type UmpireBucket = {
     rangeLabel: string;
@@ -57,6 +58,7 @@ export function UmpireDistributionHistogram({ data, onBucketClick }: Props) {
     }, [data]);
 
     const [activeBucket, setActiveBucket] = useState<number | null>(null);
+    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
     if (data.length === 0) return null;
 
@@ -74,84 +76,88 @@ export function UmpireDistributionHistogram({ data, onBucketClick }: Props) {
                 </p>
             </div>
 
-            <div className="h-[250px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={buckets} margin={{ top: 25, right: 10, bottom: 40, left: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
-                        <XAxis
-                            dataKey="rangeLabel"
-                            tickLine={false}
-                            axisLine={false}
-                            tick={{ fontSize: 9, fill: "#86868b", fontWeight: 700, dy: 10, dx: -5 }}
-                            interval={0}
-                            angle={-45}
-                            textAnchor="end"
-                            height={60}
-                        />
-                        <YAxis
-                            tickLine={false}
-                            axisLine={false}
-                            tick={{ fontSize: 10, fill: "#86868b" }}
-                            allowDecimals={false}
-                        />
-                        <ReferenceLine
-                            x={buckets[avgBucketIdx]?.rangeLabel}
-                            stroke="rgba(0,0,0,0.5)"
-                            strokeDasharray="4 4"
-                            label={{
-                                value: `Umpire Avg ${(avgRate * 100).toFixed(1)}%`,
-                                position: "top",
-                                style: { fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em" },
-                            }}
-                        />
-                        <Tooltip
-                            wrapperStyle={{ zIndex: 10001 }}
-                            allowEscapeViewBox={{ x: true, y: true }}
-                            content={({ active, payload }) => {
-                                if (active && payload && payload.length) {
-                                    const d = payload[0].payload as UmpireBucket;
-                                    return (
-                                        <ChartTooltip
-                                            title={d.rangeLabel}
-                                            value={d.count}
-                                            subValueLabel={`Umpire${d.count !== 1 ? "s" : ""}`}
-                                            extra={[{
-                                                label: "Featured",
-                                                value: d.umpireNames.slice(0, 3).join(", ") + (d.umpireNames.length > 3 ? "…" : ""),
-                                                mono: false
-                                            }]}
-                                        />
-                                    );
-                                }
-                                return null;
-                            }}
-                            cursor={{ fill: "rgba(0,0,0,0.02)" }}
-                        />
-                        <Bar
-                            dataKey="count"
-                            radius={[4, 4, 0, 0]}
-                            maxBarSize={40}
-                            animationDuration={800}
-                            animationEasing="ease-out"
-                            onClick={(entry) => {
-                                const bucket = entry as unknown as UmpireBucket;
-                                if (onBucketClick) {
-                                    onBucketClick(bucket.rangeMin, bucket.rangeMax);
-                                }
-                            }}
-                            style={{ cursor: onBucketClick ? "pointer" : "default" }}
-                        >
-                            {buckets.map((b, i) => (
-                                <Cell
-                                    key={i}
-                                    fill={i === activeBucket ? "#0066cc" : "#0066cc80"}
-                                    onMouseEnter={() => setActiveBucket(i)}
-                                    onMouseLeave={() => setActiveBucket(null)}
-                                />
-                            ))}
-                        </Bar>
-                    </BarChart>
-                </ResponsiveContainer>
+            <div className="h-[250px] w-full min-h-[250px]" onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}>
+                <ClientOnly fallback={<div className="h-full w-full rounded-[1.5rem] bg-gradient-to-br from-gray-100 via-gray-50 to-white" />}>
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={250}>
+                        <BarChart data={buckets} margin={{ top: 25, right: 10, bottom: 40, left: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+                            <XAxis
+                                dataKey="rangeLabel"
+                                tickLine={false}
+                                axisLine={false}
+                                tick={{ fontSize: 9, fill: "#86868b", fontWeight: 700, dy: 10, dx: -5 }}
+                                interval={0}
+                                angle={-45}
+                                textAnchor="end"
+                                height={60}
+                            />
+                            <YAxis
+                                tickLine={false}
+                                axisLine={false}
+                                tick={{ fontSize: 10, fill: "#86868b" }}
+                                allowDecimals={false}
+                            />
+                            <ReferenceLine
+                                x={buckets[avgBucketIdx]?.rangeLabel}
+                                stroke="rgba(0,0,0,0.5)"
+                                strokeDasharray="4 4"
+                                label={{
+                                    value: `Umpire Avg ${(avgRate * 100).toFixed(1)}%`,
+                                    position: "top",
+                                    style: { fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em" },
+                                }}
+                            />
+                            <Tooltip
+                                wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
+                                allowEscapeViewBox={{ x: true, y: true }}
+                                content={({ active, payload }) => {
+                                    if (active && payload && payload.length) {
+                                        const d = payload[0].payload as UmpireBucket;
+                                        return (
+                                            <ChartTooltip
+                                                usePortal
+                                                portalProps={mousePos}
+                                                title={d.rangeLabel}
+                                                value={d.count}
+                                                subValueLabel={`Umpire${d.count !== 1 ? "s" : ""}`}
+                                                extra={[{
+                                                    label: "Featured",
+                                                    value: d.umpireNames.slice(0, 3).join(", ") + (d.umpireNames.length > 3 ? "…" : ""),
+                                                    mono: false
+                                                }]}
+                                            />
+                                        );
+                                    }
+                                    return null;
+                                }}
+                                cursor={{ fill: "rgba(0,0,0,0.02)" }}
+                            />
+                            <Bar
+                                dataKey="count"
+                                radius={[4, 4, 0, 0]}
+                                maxBarSize={40}
+                                animationDuration={800}
+                                animationEasing="ease-out"
+                                onClick={(entry) => {
+                                    const bucket = entry as unknown as UmpireBucket;
+                                    if (onBucketClick) {
+                                        onBucketClick(bucket.rangeMin, bucket.rangeMax);
+                                    }
+                                }}
+                                style={{ cursor: onBucketClick ? "pointer" : "default" }}
+                            >
+                                {buckets.map((b, i) => (
+                                    <Cell
+                                        key={i}
+                                        fill={i === activeBucket ? "#0066cc" : "#0066cc80"}
+                                        onMouseEnter={() => setActiveBucket(i)}
+                                        onMouseLeave={() => setActiveBucket(null)}
+                                    />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                </ClientOnly>
             </div>
         </div>
     );

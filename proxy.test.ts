@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it } from "vitest";
 
-describe("middleware security headers", () => {
+describe("proxy security headers", () => {
   const originalPublishable = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   const originalSecret = process.env.CLERK_SECRET_KEY;
 
@@ -10,12 +10,12 @@ describe("middleware security headers", () => {
     process.env.CLERK_SECRET_KEY = originalSecret;
   });
 
-  it("adds baseline security headers on fallback middleware", async () => {
+  it("adds baseline security headers on fallback proxy", async () => {
     delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
     delete process.env.CLERK_SECRET_KEY;
 
-    const { default: middleware } = await import("./middleware");
-    const response = middleware(new NextRequest("http://localhost/teams"));
+    const { proxy } = await import("./proxy");
+    const response = proxy(new NextRequest("http://localhost/teams"));
 
     expect(response.headers.get("x-frame-options")).toBe("DENY");
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");

@@ -36,8 +36,8 @@ describe("page model builders", () => {
       ]),
     );
 
-    expect(entries[0].style === "Clutch" || entries[0].style === "Calculated").toBe(true);
-    expect(entries[0].styleScores.Clutch).toBeGreaterThan(entries[0].styleScores.Passive);
+    expect(entries[0].style === "High-Impact" || entries[0].style === "Selective").toBe(true);
+    expect(entries[0].styleScores["High-Impact"]).toBeGreaterThan(entries[0].styleScores["Low-Usage"]);
     expect(entries[1].style).not.toBe(entries[0].style);
     expect(entries[0].avgRunExpectancyDelta).toBe(0.12);
     expect(entries[0].avgWinExpectancyDelta).toBe(0.018);

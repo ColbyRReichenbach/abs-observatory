@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
 import { buildLinearAxis, formatNumberTick } from "@/components/analytics/chart-axis";
@@ -25,6 +26,7 @@ export function ChallengeDistributionTimeline({
     homeColor?: string;
     awayColor?: string;
 }) {
+    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
     const data = Array.from({ length: 9 }, (_, index) => ({
         inning: `Inning ${index + 1}`,
         [homeTeamName]: homeData[index] ?? 0,
@@ -49,8 +51,8 @@ export function ChallengeDistributionTimeline({
                 {description}
             </p>
 
-            <div className="h-[300px] w-full mt-4">
-                <ResponsiveContainer width="100%" height="100%">
+            <div className="h-[300px] w-full mt-4" onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={320}>
                     <AreaChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
                         <defs>
                             <linearGradient id="colorHome" x1="0" y1="0" x2="0" y2="1">
@@ -79,10 +81,13 @@ export function ChallengeDistributionTimeline({
                             tickFormatter={(value) => formatNumberTick(value, yStep < 1 ? 1 : 0)}
                         />
                         <Tooltip
+                            wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
                             content={({ active, payload, label }) => {
                                 if (!active || !payload?.length) return null;
                                 return (
                                     <ChartTooltip
+                                        usePortal
+                                        portalProps={mousePos}
                                         title={String(label ?? "")}
                                         extra={payload.map((item) => ({
                                             label: String(item.name ?? ""),

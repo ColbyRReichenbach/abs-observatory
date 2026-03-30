@@ -1,11 +1,15 @@
 "use client";
 
 import { AlertCircle, Target, ChevronRight } from "lucide-react";
-import Link from "next/link";
 import type { UmpirePerformanceDNA } from "@/lib/types";
+import { ModeAwareLink } from "@/components/ui/mode-aware-link";
 
 export function ExtremeMissesSection({ extremes }: { extremes: UmpirePerformanceDNA["extremes"] }) {
-    if (!extremes || extremes.length === 0) return null;
+    const overturnedExtremes = (extremes ?? [])
+        .filter((miss) => miss.isOverturned)
+        .sort((left, right) => right.missDistance - left.missDistance);
+
+    if (overturnedExtremes.length === 0) return null;
 
     return (
         <section className="mt-12">
@@ -20,7 +24,7 @@ export function ExtremeMissesSection({ extremes }: { extremes: UmpirePerformance
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {extremes.slice(0, 6).map((miss, idx) => (
+                {overturnedExtremes.slice(0, 6).map((miss, idx) => (
                     <div
                         key={miss.challengeId}
                         className="panel p-6 bg-white border border-gray-100 shadow-xl shadow-black/[0.02] relative overflow-hidden group hover:scale-[1.02] transition-all"
@@ -33,11 +37,7 @@ export function ExtremeMissesSection({ extremes }: { extremes: UmpirePerformance
                                 <span className="h-8 w-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center font-black text-xs">#{idx + 1}</span>
                                 <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Extreme Miss</span>
                             </div>
-                            {miss.isOverturned ? (
-                                <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[9px] font-black uppercase tracking-widest">Overturned</span>
-                            ) : (
-                                <span className="px-3 py-1 rounded-full bg-red-50 text-red-600 text-[9px] font-black uppercase tracking-widest">Confirmed</span>
-                            )}
+                            <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[9px] font-black uppercase tracking-widest">Overturned</span>
                         </div>
 
                         <div className="mb-6">
@@ -45,13 +45,13 @@ export function ExtremeMissesSection({ extremes }: { extremes: UmpirePerformance
                             <p className="text-[10px] text-gray-400 font-medium">Inning {miss.inning} • {miss.missDistance.toFixed(2)}&quot; from Zone</p>
                         </div>
 
-                        <Link
-                            href={`/games/${miss.gamePk}`}
+                        <ModeAwareLink
+                            href={`/game/${miss.gamePk}`}
                             className="flex items-center justify-between w-full py-3 px-5 rounded-xl bg-gray-50 text-gray-900 text-[10px] font-black uppercase tracking-widest hover:bg-gray-900 hover:text-white transition-all"
                         >
                             View Breakdown
                             <ChevronRight size={12} />
-                        </Link>
+                        </ModeAwareLink>
                     </div>
                 ))}
             </div>

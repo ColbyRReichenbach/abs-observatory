@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getGamePregameIntel } from "@/lib/pregame-intel";
 
 /**
- * D-5: Dedicated API route for pregame umpire × team history.
+ * D-5: Dedicated API route for pregame umpire x team history.
  * Returns the full pregame intel object which includes teamHistoryVsUmpire.
  */
 export async function GET(
@@ -23,8 +23,16 @@ export async function GET(
     return NextResponse.json({
         umpireId: intel.umpireId,
         umpireName: intel.umpireName,
-        homeTeam: intel.teamHistoryVsUmpire.home,
-        awayTeam: intel.teamHistoryVsUmpire.away,
-        leagueAverage: intel.teamHistoryVsUmpire.leagueAverage,
+        homeTeam: {
+            teamId: intel.homeTeamId,
+            ...intel.teamHistoryVsUmpire.home,
+        },
+        awayTeam: {
+            teamId: intel.awayTeamId,
+            ...intel.teamHistoryVsUmpire.away,
+        },
+        leagueAverage: {
+            overturnRate: intel.teamHistoryVsUmpire.leagueAverage,
+        },
     });
 }

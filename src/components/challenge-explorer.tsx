@@ -7,18 +7,21 @@ import { StrikeZonePlot } from "@/components/strike-zone-plot";
 import { replayIntervalMs, stepReplayIndex, type ReplaySpeed } from "@/lib/replay";
 import { applyExplorerFilters, resolveSelection } from "@/lib/strike-zone-explorer-state";
 import type { ChallengeEvent } from "@/lib/types";
+import type { ViewMode } from "@/lib/view-mode";
 import type { ZoneMode } from "@/lib/zone-mapping";
+import { formatHalfInningLabel } from "@/lib/challenge-context";
 
 import { InningIcon } from "@/components/inning-icon";
-import { AIStatInsight } from "@/components/ai-stat-insight";
 import { AtBatContextCard } from "@/components/game-hub/at-bat-context-card";
 
 export function ChallengeExplorer({
   challenges,
-  initialChallengeId = null
+  initialChallengeId = null,
+  viewMode,
 }: {
   challenges: ChallengeEvent[],
-  initialChallengeId?: string | null
+  initialChallengeId?: string | null,
+  viewMode: ViewMode,
 }) {
   const [pitchType, setPitchType] = useState<string>("all");
   const [batter, setBatter] = useState<string>("all");
@@ -79,30 +82,6 @@ export function ChallengeExplorer({
   const selected = filtered.find((c) => c.challengeId === resolvedSelectionId) ?? null;
   const selectedIndex = filtered.findIndex((challenge) => challenge.challengeId === selected?.challengeId);
   const focusedChallengeId = hoveredChallengeId ?? selected?.challengeId ?? null;
-
-  const aiInsight = useMemo(() => {
-    if (!selected) return null;
-    return {
-      title: `${selected.batterName ?? "Batter"} vs ${selected.pitcherName ?? "Pitcher"}`,
-      verdict: selected.isOverturned ? "Call Overturned" : "Call Confirmed",
-      impactDescription: selected.impactSummary ?? "No additional impact summary is available for this challenge.",
-      countBefore: selected.countBefore ?? null,
-      countAfter: selected.countAfter ?? null,
-      umpireCount: selected.umpireCount ?? null,
-      impactType: selected.impactType ?? null,
-    };
-  }, [selected]);
-  const selectedConsequence = useMemo(() => {
-    if (!selected) return null;
-    if (selected.umpireCount && selected.countAfter && selected.umpireCount !== selected.countAfter) {
-      return `Count shifted ${selected.umpireCount} -> ${selected.countAfter}`;
-    }
-    return selected.umpireCount ?? selected.countAfter ?? null;
-  }, [selected]);
-  const selectedOutcomeRead = useMemo(() => {
-    if (!selected || selected.positiveOutcomeDelta === null || selected.positiveOutcomeDelta === undefined) return null;
-    return `${selected.positiveOutcomeDelta >= 0 ? "+" : "-"}${(Math.abs(selected.positiveOutcomeDelta) * 100).toFixed(1)} pts positive outcome rate`;
-  }, [selected]);
 
   useEffect(() => {
     if (!replayEnabled || filtered.length <= 1 || selectedIndex < 0) return;
@@ -229,15 +208,17 @@ export function ChallengeExplorer({
 
         {/* Detail panel */}
         <div className="flex flex-col bg-slate-50/50">
-          {/* Selected pitch detail */}
           <div className="border-b border-gray-100 p-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-end justify-between gap-4">
               <div className="flex flex-col">
                 <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
                   Forensic Insights
                 </h4>
                 <p className="text-xl font-display leading-none text-gray-900">
-                  Decision <span className="text-gray-400">Analysis</span>
+                  Challenge <span className="text-gray-400">Brief</span>
+                </p>
+                <p className="mt-2 max-w-md text-[11px] font-medium leading-relaxed text-[var(--ink-2)]">
+                  Focus this rail on the call, the game-state consequence, and the decision read. Deeper model and historical context stay tucked into org view only.
                 </p>
               </div>
               {selected && (selected.px === null || selected.pz === null) && (
@@ -254,66 +235,13 @@ export function ChallengeExplorer({
                 transition={reduceMotion ? undefined : { duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                 className="mt-6 space-y-4"
               >
-                <DetailRow label="Matchup" value={`${selected.batterName ?? "?"} vs ${selected.pitcherName ?? "?"}`} highlight />
-                <DetailRow label="Pitch" value={`#${selected.pitchNumber ?? "-"} • ${selected.pitchType ?? "Unknown"}`} />
-                <div className="grid grid-cols-2 gap-4">
-                  <DetailRow label="Velocity" value={selected.startSpeed ? `${selected.startSpeed.toFixed(1)} MPH` : "N/A"} compact />
-                  <DetailRow label="Spin Rate" value={selected.spinRate ? `${Math.round(selected.spinRate)} RPM` : "N/A"} compact />
-                </div>
-                <div className="flex items-center gap-4 border-b border-white/5 pb-3">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--ink-3)]">Inning</span>
-                    <div className="flex items-center gap-2">
-                      <InningIcon inning={selected.inning} half={selected.halfInning} />
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1 ml-auto text-right">
-                    <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--ink-3)]">Count</span>
-                    <span className="text-sm font-bold text-[var(--ink-1)]">
-                      {selected.umpireCount && selected.countAfter && selected.umpireCount !== selected.countAfter
-                        ? `${selected.umpireCount} → ${selected.countAfter}`
-                        : (selected.umpireCount || selected.countAfter || `${selected.balls}-${selected.strikes}`)}
-                      {" "} • {selected.outs} Out
-                    </span>
-                  </div>
-                </div>
-
-                <div className="pt-4 mt-4 border-t border-white/5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--ink-3)]">Official Verdict</span>
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-lg ${selected.isOverturned
-                      ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 shadow-emerald-500/10"
-                      : "bg-red-500/10 text-red-500 border-red-500/20 shadow-red-500/10"
-                      }`}>
-                      {selected.isOverturned ? "Call Overturned" : "Call Confirmed"}
-                    </span>
-                  </div>
-                </div>
-
-                {(selectedConsequence || selectedOutcomeRead) && (
-                  <div className="rounded-xl border border-gray-200 bg-white/70 px-4 py-3">
-                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--ink-3)]">
-                      Count-State Consequence
-                    </p>
-                    {selectedConsequence ? (
-                      <p className="mt-2 text-sm font-bold text-[var(--ink-1)]">{selectedConsequence}</p>
-                    ) : null}
-                    {selectedOutcomeRead ? (
-                      <p className="mt-1 text-[11px] font-medium text-[var(--ink-2)]">{selectedOutcomeRead}</p>
-                    ) : null}
-                  </div>
-                )}
-
-                {aiInsight && (
-                  <AIStatInsight {...aiInsight} insightId={selected.challengeId} />
-                )}
+                <AtBatContextCard challenge={selected} viewMode={viewMode} />
               </motion.div>
             ) : (
               <p className="mt-3 text-sm text-[var(--ink-3)]">No challenge matches current filters.</p>
             )}
           </div>
 
-          {/* Timeline list */}
           <div className="flex-1 overflow-auto p-4 custom-scrollbar" style={{ maxHeight: "360px" }}>
             <div className="space-y-2">
               {filtered.map((c) => (
@@ -330,7 +258,12 @@ export function ChallengeExplorer({
                       }`}
                   >
                     <div className="flex items-center justify-between">
-                      <InningIcon inning={c.inning} half={c.halfInning} className="scale-75 origin-left" />
+                      <div className="flex items-center gap-2">
+                        <InningIcon inning={c.inning} half={c.halfInning} className="scale-75 origin-left" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">
+                          {formatHalfInningLabel(c.halfInning, "short")} {c.inning ?? "-"}
+                        </span>
+                      </div>
                       <span className={`text-[8px] font-black uppercase tracking-widest ${c.isOverturned ? "text-emerald-500" : "text-red-500"}`}>
                         {c.isOverturned ? "OVR" : "CNF"}
                       </span>
@@ -339,15 +272,9 @@ export function ChallengeExplorer({
                       {c.batterName ?? "Batter"} vs {c.pitcherName ?? "Pitcher"}
                     </div>
                     <div className="mt-1 text-[10px] text-[var(--ink-3)] font-medium">
-                      {c.pitchType ?? "Pitch"} • {c.umpireCount || `${c.balls ?? 0}-${c.strikes ?? 0}`}
+                      {c.pitchType ?? "Pitch"} • {c.umpireCount || `${c.balls ?? 0}-${c.strikes ?? 0}`} • {c.outs ?? 0} out{(c.outs ?? 0) === 1 ? "" : "s"}
                     </div>
                   </motion.button>
-
-                  <AnimatePresence>
-                    {selectedChallengeId === c.challengeId && (
-                      <AtBatContextCard challenge={c} />
-                    )}
-                  </AnimatePresence>
                 </div>
               ))}
             </div>
@@ -355,27 +282,6 @@ export function ChallengeExplorer({
         </div>
       </div>
     </section>
-  );
-}
-
-function DetailRow({
-  label,
-  value,
-  highlight,
-  compact
-}: {
-  label: string;
-  value: string;
-  highlight?: boolean;
-  compact?: boolean;
-}) {
-  return (
-    <div className={`flex flex-col gap-1 ${compact ? "" : "border-b border-white/5 pb-3 last:border-0 last:pb-0"}`}>
-      <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--ink-3)]">{label}</span>
-      <span className={`text-sm font-bold ${highlight ? "text-[var(--ink-0)] text-base" : "text-[var(--ink-1)]"}`}>
-        {value}
-      </span>
-    </div>
   );
 }
 

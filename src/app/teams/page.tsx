@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { RangeSelector } from "@/components/range-selector";
 import { TeamIcon } from "@/components/team-icon";
 import { getTeamLeaderboardModel, getTeamTrendSparklines } from "@/lib/data";
 import { parseRange } from "@/lib/range";
 import { resolveViewMode } from "@/lib/view-mode";
+import { withViewModeHref } from "@/lib/view-mode-href";
 import { TeamScatterPlot } from "@/components/analytics/team-scatter-plot";
 import { TrendSparkline } from "@/components/analytics/trend-sparkline";
 import { ProfileBadge } from "@/components/ui/profile-badge";
@@ -17,8 +19,45 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   const range = parseRange(sp.range);
   const viewMode = await resolveViewMode(sp);
+  const copy = getTeamsPageViewCopy(viewMode);
+
+  return (
+    <main className="mx-auto max-w-7xl px-6 pt-32 lg:pt-48 pb-40">
+      <div className="flex flex-col items-center text-center mb-20">
+        <h1 className="w-full text-6xl md:text-8xl font-display uppercase tracking-[-0.04em] text-gray-900 leading-[1.2] mb-8 py-4 px-12 overflow-visible">
+          Team <br />
+          <span className="opacity-20 italic px-2 pr-5">{copy.heroTitle.replace("Team ", "")}</span>
+        </h1>
+        <p className="max-w-xl text-[var(--ink-2)] font-medium text-lg leading-tight tracking-tight text-balance">
+          {copy.heroDeck}
+        </p>
+      </div>
+
+      <div className="mt-12 mb-8 flex items-center justify-center gap-4">
+        <RangeSelector basePath="/teams" range={range} searchParams={sp} />
+      </div>
+
+      <Suspense fallback={<TeamsPageFallback copy={copy} />}>
+        <TeamsPageBody range={range} viewMode={viewMode} copy={copy} />
+      </Suspense>
+    </main>
+  );
+}
+
+async function TeamsPageBody({
+  range,
+  viewMode,
+  copy,
+}: {
+  range: ReturnType<typeof parseRange>;
+  viewMode: "fan" | "org";
+  copy: ReturnType<typeof getTeamsPageViewCopy>;
+}) {
   const [teams, trendlines] = await Promise.all([
-    getTeamLeaderboardModel(range),
+    getTeamLeaderboardModel(range, {
+      includeDecisionMetrics: viewMode === "org",
+      includeValueMetrics: viewMode === "org",
+    }),
     getTeamTrendSparklines(range),
   ]);
   const trendlineMap = new Map(trendlines.map((entry) => [entry.teamId, entry.values]));
@@ -37,6 +76,8 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
   const totalSuccessful = teams.reduce((s, t) => s + t.usedSuccessful, 0);
   const leagueAvgRate = totalChallenges > 0 ? totalSuccessful / totalChallenges : 0;
   const leagueAvgRemaining = teams.length > 0 ? teams.reduce((s, t) => s + t.avgRemaining, 0) / teams.length : 0;
+  const leagueAvgChallengeRatePerGame =
+    teams.length > 0 ? teams.reduce((sum, team) => sum + team.challengeRatePerGame, 0) / teams.length : 0;
   const leagueAvgLatePressureShare =
     teams.length > 0 ? teams.reduce((sum, team) => sum + team.lateLeverageShare, 0) / teams.length : 0;
   const leagueAvgEarlyBurnShare =
@@ -60,6 +101,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
     teamsWithDecisionValue.length > 0
       ? teamsWithDecisionValue.reduce((sum, team) => sum + (team.decisionSurplus ?? 0), 0) / teamsWithDecisionValue.length
       : null;
+  const showDecisionValueColumns = viewMode === "org" && teamsWithDecisionValue.length > 0;
   const useWinValue = viewMode === "org" && leagueAvgWinExpectancyDelta !== null;
   const useDecisionValue = viewMode === "org" && leagueAvgDecisionSurplus !== null;
 
@@ -97,7 +139,6 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
     challengeRatePerGame: t.challengeRatePerGame,
     overturnRate: t.overturnRate,
   }));
-  const copy = getTeamsPageViewCopy(viewMode);
   const spotlightSection = biggestMover ? (
     <div className="mb-8 panel border-gray-100 bg-white p-5 shadow-2xl shadow-black/[0.03]">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -110,10 +151,10 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
           </p>
           <p className="mt-1 text-xs text-[var(--ink-3)]">
             {viewMode === "org"
-              ? `${biggestMover.orgStyleLabel} with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews in higher-pressure windows${
+              ? `${biggestMover.orgStyleLabel} with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews in late-or-close windows${
                   formatOrgValueCopy(biggestMover, useDecisionValue, useWinValue)
-                }.`
-              : `${biggestMover.style} profile with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews coming in bigger spots and a visible trend swing.`}
+                }. The deployment mix is separating from league average.`
+              : `${biggestMover.style} profile with ${(biggestMover.lateLeverageShare * 100).toFixed(0)}% of reviews coming in late-or-close windows and a visible trend swing.`}
           </p>
         </div>
         <ProfileBadge
@@ -140,11 +181,11 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
               <th className="min-w-[180px]">Rank & Team</th>
               <th className="text-left w-36">{copy.tableProfileHeader}</th>
               <th className="text-center">Rate / Game</th>
-              <th className="text-center">{viewMode === "org" ? "Pressure Share" : "Big-Spot Share"}</th>
-              <th className="text-center">{viewMode === "org" ? "Decision Read" : "Timing"}</th>
+              <th className="text-center">Late/Close</th>
+              <th className="text-center">{viewMode === "org" ? "Deployment" : "Timing"}</th>
               <th className="text-center">Trend</th>
-              {viewMode === "org" ? <th className="text-right">Late-Close EV</th> : null}
-              {viewMode === "org" ? <th className="text-right">Decision Surplus</th> : null}
+              {showDecisionValueColumns ? <th className="text-right">Late-Close EV Share</th> : null}
+              {showDecisionValueColumns ? <th className="text-right">Review Surplus</th> : null}
               <th className="text-right">{viewMode === "org" ? (leagueAvgWinExpectancyDelta !== null ? "Avg WE Δ" : "Avg RE Δ") : "Avg Rem"}</th>
               <th className="text-right">{copy.tableVolumeHeader}</th>
             </tr>
@@ -152,7 +193,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={viewMode === "org" ? 10 : 8} className="!py-32 text-center text-gray-400 font-semibold">
+                <td colSpan={viewMode === "org" ? 8 + (showDecisionValueColumns ? 2 : 0) : 8} className="!py-32 text-center text-gray-400 font-semibold">
                   No data points match the selected criteria.
                 </td>
               </tr>
@@ -180,30 +221,44 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
                         <span className="text-[10px] text-[var(--ink-3)]">—</span>
                       </td>
                       <td className="text-center font-mono text-gray-400 italic font-bold">
-                        {(teams.length > 0 ? totalChallenges / Math.max(1, teams.reduce((sum, team) => sum + team.gamesTracked, 0) / teams.length) : 0).toFixed(2)}
+                        {leagueAvgChallengeRatePerGame.toFixed(2)}
                       </td>
                       <td className="text-center font-mono text-gray-400 italic font-bold">
                         {`${Math.round(leagueAvgLatePressureShare * 100)}%`}
                       </td>
                       <td className="text-center">
                         <StrategyChip
-                          label={viewMode === "org" ? getDecisionReadLabel(leagueAvgDecisionSurplus, 0.5, 0.5) : getStrategyLabel(leagueAvgLatePressureShare, leagueAvgEarlyBurnShare, viewMode)}
+                          label={
+                            viewMode === "org"
+                              ? getDecisionReadLabel(leagueAvgDecisionSurplus, 0.5, 0.5)
+                              : getTimingReadLabel(
+                                  leagueAvgLatePressureShare,
+                                  leagueAvgEarlyBurnShare,
+                                  leagueAvgLatePressureShare,
+                                  leagueAvgEarlyBurnShare,
+                                )
+                          }
                           tone={
                             viewMode === "org"
                               ? getDecisionReadTone(leagueAvgDecisionSurplus, 0.5, 0.5)
-                              : getStrategyTone(leagueAvgLatePressureShare, leagueAvgEarlyBurnShare)
+                              : getTimingReadTone(
+                                  leagueAvgLatePressureShare,
+                                  leagueAvgEarlyBurnShare,
+                                  leagueAvgLatePressureShare,
+                                  leagueAvgEarlyBurnShare,
+                                )
                           }
                         />
                       </td>
                       <td className="text-center">
                         <span className="text-[10px] text-[var(--ink-3)]">—</span>
                       </td>
-                      {viewMode === "org" ? (
+                      {showDecisionValueColumns ? (
                         <td className="text-right font-mono text-gray-400 italic font-medium pr-8">
                           {`${Math.round(teams.length > 0 ? teams.reduce((sum, team) => sum + team.lateCloseExpectedValueShare, 0) / teams.length * 100 : 0)}%`}
                         </td>
                       ) : null}
-                      {viewMode === "org" ? (
+                      {showDecisionValueColumns ? (
                         <td className="text-right font-mono text-gray-400 italic font-medium pr-8">
                           {leagueAvgDecisionSurplus === null
                             ? "N/A"
@@ -235,13 +290,19 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
                   <tr key={t.teamId} className="group/row transition-colors hover:bg-gray-50/50">
                     <td>
                       <Link
-                        href={`/teams/${t.teamId}?range=${range}`}
+                        href={withViewModeHref(`/teams/${t.teamId}?range=${range}`, viewMode)}
                         className="flex items-center gap-5 py-1"
                       >
                         <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-50 text-[10px] font-black text-gray-400 group-hover/row:bg-black group-hover/row:text-white transition-all transform group-hover/row:scale-110">
                           {(idx + 1).toString().padStart(2, '0')}
                         </span>
-                        <TeamIcon teamId={t.teamId} name={t.teamName} size={32} className="shadow-sm border-white/5 group-hover/row:scale-110" />
+                        <TeamIcon
+                          teamId={t.teamId}
+                          name={t.teamName}
+                          size={32}
+                          variant="flat"
+                          className="group-hover/row:scale-110"
+                        />
                         <span className="font-black text-gray-900 tracking-tight group-hover/row:text-blue-600 transition-colors">
                           {t.teamName}
                         </span>
@@ -265,12 +326,22 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
                         label={
                           viewMode === "org"
                             ? getDecisionReadLabel(t.decisionSurplus, t.capturedValueShare, t.wastedValueShare)
-                            : getStrategyLabel(t.lateLeverageShare, t.earlyLowLeverageShare, viewMode)
+                            : getTimingReadLabel(
+                                t.lateLeverageShare,
+                                t.earlyLowLeverageShare,
+                                leagueAvgLatePressureShare,
+                                leagueAvgEarlyBurnShare,
+                              )
                         }
                         tone={
                           viewMode === "org"
                             ? getDecisionReadTone(t.decisionSurplus, t.capturedValueShare, t.wastedValueShare)
-                            : getStrategyTone(t.lateLeverageShare, t.earlyLowLeverageShare)
+                            : getTimingReadTone(
+                                t.lateLeverageShare,
+                                t.earlyLowLeverageShare,
+                                leagueAvgLatePressureShare,
+                                leagueAvgEarlyBurnShare,
+                              )
                         }
                       />
                     </td>
@@ -279,14 +350,14 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
                         <TrendSparkline data={trendlineMap.get(t.teamId) ?? []} />
                       </div>
                     </td>
-                    {viewMode === "org" ? (
+                    {showDecisionValueColumns ? (
                       <td className="text-right font-mono text-gray-400 font-medium pr-8">
                         {hasTrustedModelConfidenceBand(t.decisionValueConfidence)
                           ? `${Math.round(t.lateCloseExpectedValueShare * 100)}%`
                           : "N/A"}
                       </td>
                     ) : null}
-                    {viewMode === "org" ? (
+                    {showDecisionValueColumns ? (
                       <td className="text-right font-mono text-gray-400 font-medium pr-8">
                         {t.decisionSurplus === null || !hasTrustedModelConfidenceBand(t.decisionValueConfidence)
                           ? "N/A"
@@ -314,27 +385,31 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
   );
 
   return (
-    <main className="mx-auto max-w-7xl px-6 pt-32 lg:pt-48 pb-40">
-      <div className="flex flex-col items-center text-center mb-20">
-        <h1 className="w-full text-6xl md:text-8xl font-display uppercase tracking-[-0.04em] text-gray-900 leading-[1.2] mb-8 py-4 px-12 overflow-visible">
-          Team <br />
-          <span className="opacity-20 italic px-2 pr-5">{copy.heroTitle.replace("Team ", "")}</span>
-        </h1>
-        <p className="max-w-xl text-[var(--ink-2)] font-medium text-lg leading-tight tracking-tight text-balance">
-          {copy.heroDeck}
-        </p>
-      </div>
-
-      <div className="mt-12 mb-8 flex items-center justify-center gap-4">
-        <RangeSelector basePath="/teams" range={range} searchParams={sp} />
-      </div>
-
+    <>
       {copy.sectionOrder.map((section) => (
         <div key={section}>
           {section === "spotlight" ? spotlightSection : section === "scatter" ? scatterSection : tableSection}
         </div>
       ))}
-    </main>
+    </>
+  );
+}
+
+function TeamsPageFallback({ copy }: { copy: ReturnType<typeof getTeamsPageViewCopy> }) {
+  return (
+    <>
+      {copy.sectionOrder.map((section) => (
+        <div key={section}>
+          {section === "spotlight" ? (
+            <div className="mb-8 panel border-gray-100 bg-white p-5 shadow-2xl shadow-black/[0.03] min-h-[140px]" />
+          ) : section === "scatter" ? (
+            <div className="mt-12 panel border-gray-100 bg-white shadow-2xl shadow-black/[0.03] min-h-[420px]" />
+          ) : (
+            <div className="panel overflow-hidden border-gray-100 bg-white shadow-2xl shadow-black/[0.03] min-h-[720px]" />
+          )}
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -449,10 +524,10 @@ function getDecisionReadLabel(
   capturedValueShare: number,
   wastedValueShare: number,
 ) {
-  if (decisionSurplus !== null && decisionSurplus >= 0.001) return "Captures Value";
-  if (decisionSurplus !== null && decisionSurplus <= -0.001) return "Over-Burns";
-  if (capturedValueShare > wastedValueShare) return "Captures Value";
-  if (wastedValueShare > capturedValueShare) return "Over-Burns";
+  if (decisionSurplus !== null && decisionSurplus >= 0.001) return "High-Value Usage";
+  if (decisionSurplus !== null && decisionSurplus <= -0.001) return "Low-Value Usage Risk";
+  if (capturedValueShare > wastedValueShare) return "High-Value Usage";
+  if (wastedValueShare > capturedValueShare) return "Low-Value Usage Risk";
   return "Neutral";
 }
 
@@ -462,8 +537,8 @@ function getDecisionReadTone(
   wastedValueShare: number,
 ): "emerald" | "amber" | "gray" {
   const label = getDecisionReadLabel(decisionSurplus, capturedValueShare, wastedValueShare);
-  if (label === "Captures Value") return "emerald";
-  if (label === "Over-Burns") return "amber";
+  if (label === "High-Value Usage") return "emerald";
+  if (label === "Low-Value Usage Risk") return "amber";
   return "gray";
 }
 
@@ -508,21 +583,31 @@ function StrategyChip({
   );
 }
 
-function getStrategyLabel(lateShare: number, earlyBurnShare: number, viewMode: "fan" | "org") {
-  if (lateShare >= 0.45 && earlyBurnShare <= 0.2) {
-    return viewMode === "org" ? "Disciplined" : "Clutch";
-  }
-  if (earlyBurnShare >= 0.3) {
-    return viewMode === "org" ? "Early Burn" : "Loose";
-  }
-  if (lateShare >= 0.35) {
-    return viewMode === "org" ? "Pressure Smart" : "Opportunistic";
-  }
-  return viewMode === "org" ? "Mixed" : "Mixed";
+function getTimingReadLabel(
+  lateShare: number,
+  earlyBurnShare: number,
+  leagueLateShare: number,
+  leagueEarlyBurnShare: number,
+) {
+  const lateDelta = lateShare - leagueLateShare;
+  const earlyDelta = earlyBurnShare - leagueEarlyBurnShare;
+
+  if (lateDelta >= 0.08 && earlyDelta <= 0.03) return "Pressure-Hunting";
+  if (earlyDelta >= 0.08 && lateDelta <= 0.03) return "Front-Loaded";
+  if (Math.abs(lateDelta) <= 0.04 && Math.abs(earlyDelta) <= 0.04) return "Balanced";
+  return "Mixed";
 }
 
-function getStrategyTone(lateShare: number, earlyBurnShare: number) {
-  if (lateShare >= 0.45 && earlyBurnShare <= 0.2) return "emerald" as const;
-  if (earlyBurnShare >= 0.3) return "amber" as const;
+function getTimingReadTone(
+  lateShare: number,
+  earlyBurnShare: number,
+  leagueLateShare: number,
+  leagueEarlyBurnShare: number,
+) {
+  const lateDelta = lateShare - leagueLateShare;
+  const earlyDelta = earlyBurnShare - leagueEarlyBurnShare;
+
+  if (lateDelta >= 0.08 && earlyDelta <= 0.03) return "emerald" as const;
+  if (earlyDelta >= 0.08 && lateDelta <= 0.03) return "amber" as const;
   return "gray" as const;
 }

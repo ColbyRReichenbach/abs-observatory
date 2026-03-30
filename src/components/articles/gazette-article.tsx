@@ -1,14 +1,18 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
-import { ArticleDetail } from "@/lib/server/articles";
+import type { ArticleDetail, ArticleListItem } from "@/lib/server/articles";
 import { AIFeedback } from "@/components/ai-feedback";
 import { FlipCard } from "@/components/about/flip-card";
+import { ArticleRelatedRail } from "@/components/articles/article-related-rail";
 import { StandingsPulse } from "@/components/articles/standings-pulse";
 import { DynamicChart } from "@/components/articles/dynamic-chart";
+import { BackPill } from "@/components/ui/back-pill";
+import { getArticleDeskMeta, getArticleDisplayAuthor } from "@/lib/articles-desk";
 
 interface GazetteArticleProps {
     article: ArticleDetail;
+    relatedArticles?: ArticleListItem[];
 }
 
 type GazetteAuditEvidence = {
@@ -46,15 +50,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null;
 }
 
-export function GazetteArticle({ article }: GazetteArticleProps) {
+export function GazetteArticle({ article, relatedArticles = [] }: GazetteArticleProps) {
     const publishedDate = article.publishedAt ? new Date(article.publishedAt) : new Date();
     const dateStr = publishedDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    const deskMeta = getArticleDeskMeta(article.articleType);
+    const displayAuthor = getArticleDisplayAuthor(article.articleType, article.authorName);
 
     // Sort sections by order
     const sortedSections = [...article.sections].sort((a, b) => a.sectionOrder - b.sectionOrder);
 
     return (
         <div className="min-h-screen bg-[#fcf9f2] text-[#2c2c2c] selection:bg-[#d4b483] selection:text-white pt-24 pb-32">
+            <div className="max-w-6xl mx-auto px-6 pb-6">
+                <BackPill label="Articles" href="/articles" />
+            </div>
+
             {/* Newspaper Header */}
             <header className="pt-8 pb-12 border-b-4 border-double border-[#2c2c2c] max-w-6xl mx-auto px-6 text-center">
                 <div className="flex justify-between items-center mb-6 text-[10px] font-bold uppercase tracking-[0.3em] border-b border-black/10 pb-2">
@@ -215,14 +225,29 @@ export function GazetteArticle({ article }: GazetteArticleProps) {
                     </div>
 
                     <div className="p-8 border-4 border-double border-black/20 text-center rounded-lg">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[#2d5a27] mb-4 block">Official Summary</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[#2d5a27] mb-4 block">Daily AI Recap</span>
                         <div className="text-4xl font-display leading-[0.85] mb-4 uppercase">
                             {article.title.replace("ABS Daily Recap: ", "")}
                         </div>
-                        <p className="text-[10px] font-bold uppercase tracking-tighter mb-6">
-                            AI-Generated • Deep Analysis <br /> of league-wide telemetry.
+                        <p className="text-[10px] font-bold uppercase tracking-tighter mb-2">
+                            {deskMeta.deskName}
+                        </p>
+                        <p className="text-[10px] font-bold uppercase tracking-tighter mb-3">
+                            Editorial AI Voice • Same-Day ABS Desk <br /> Built from challenge, standings, and controversy evidence.
+                        </p>
+                        <p className="text-[10px] leading-relaxed text-black/70 mb-6">
+                            Filed by <span className="font-semibold">{displayAuthor ?? "the desk"}</span> from a locked recap template and
+                            auto-published when validation and audit gates clear.
                         </p>
                         <div className="h-px bg-black/10 w-12 mx-auto" />
+                    </div>
+
+                    <div className="border border-black/15 bg-white/80 p-6 rounded-2xl">
+                        <h3 className="text-xs font-black uppercase tracking-widest border-b border-black/10 pb-2 mb-3">Daily Desk Method</h3>
+                        <p className="text-[11px] leading-relaxed text-black/75">
+                            This recap is generated from the day&apos;s ABS summaries, controversy rankings, standings movement, and season-long
+                            team and umpire leaderboards. The voice is editorial; the section structure and evidence gates are fixed.
+                        </p>
                     </div>
 
                     <section className="border border-black/15 bg-white/70 p-6 rounded-2xl">
@@ -273,6 +298,10 @@ export function GazetteArticle({ article }: GazetteArticleProps) {
                     </section>
                 </div>
             </main>
+
+            <div className="max-w-6xl mx-auto px-6 pt-16">
+                <ArticleRelatedRail articles={relatedArticles} heading={`More from ${deskMeta.deskName}`} />
+            </div>
         </div>
     );
 }

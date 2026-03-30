@@ -1,10 +1,15 @@
+"use client";
+
 import type { CSSProperties } from "react";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ChallengeHashes } from "@/components/challenge-hashes";
 import { resolveTeamBranding } from "@/lib/team-branding";
 import { InningIcon } from "@/components/inning-icon";
 import { TeamIcon } from "@/components/team-icon";
+import { GameTypeBadge } from "@/components/ui/game-type-badge";
+import { withViewModeHref } from "@/lib/view-mode-href";
 
 type InningLine = {
   inning: number;
@@ -24,6 +29,7 @@ type TeamLine = {
 
 type GameScoreboardProps = {
   status: string;
+  gameType?: string | null;
   detailedState?: string | null;
   inning?: number | null;
   halfInning?: string | null;
@@ -39,6 +45,7 @@ const BASE_INNINGS = 9;
 
 export function GameScoreboard({
   status,
+  gameType,
   detailedState,
   inning,
   halfInning,
@@ -52,6 +59,7 @@ export function GameScoreboard({
   const inningCells = normalizeInnings(innings);
   const isFinal = status.toLowerCase() === "final";
   const isLive = status.toLowerCase() === "live" || status.toLowerCase() === "in progress";
+  const statusLabel = isFinal ? "Final" : isLive ? "Game Live" : "Preview";
   const homeBrand = resolveTeamBranding({ teamId: home.id, abbreviation: home.abbreviation ?? null });
   const awayBrand = resolveTeamBranding({ teamId: away.id, abbreviation: away.abbreviation ?? null });
 
@@ -71,45 +79,54 @@ export function GameScoreboard({
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 bg-white/5 border-b border-white/5">
         <div className="flex items-center gap-4">
           <div className="flex flex-col">
-            <span className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] ${isLive ? "text-red-500" : isFinal ? "text-emerald-500" : "text-[var(--ink-3)]"}`}>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] ${isLive ? "text-red-500" : isFinal ? "text-emerald-500" : "text-[var(--ink-3)]"}`}>
               {isLive && <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />}
-              {isFinal ? "Final" : "Game Live"}
-            </span>
+              {statusLabel}
+              </span>
+              <GameTypeBadge gameType={gameType} compact />
+            </div>
             <div className="flex items-center gap-2 mt-1">
               {isFinal ? (
                 <span className="text-xs font-bold text-[var(--ink-1)]">Status: Complete</span>
-              ) : (
+              ) : isLive ? (
                 <div className="flex items-center gap-2">
                   <InningIcon inning={inning ?? null} half={halfInning ?? null} className="scale-90 origin-left" />
                   <span className="text-xs font-bold text-[var(--ink-1)] uppercase tracking-tight">{detailedState}</span>
                 </div>
+              ) : (
+                <span className="text-xs font-bold text-[var(--ink-1)] uppercase tracking-tight">
+                  {detailedState ?? "Pregame"}
+                </span>
               )}
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
-          <div className="flex flex-col items-end">
-            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--ink-3)] mb-1">Count</span>
-            <span className="font-mono text-lg font-black text-[var(--ink-0)] leading-none">
-              {balls ?? "0"}-{strikes ?? "0"}
-            </span>
-          </div>
-          <div className="flex flex-col items-end">
-            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--ink-3)] mb-2">Outs</span>
-            <div className="flex gap-1.5">
-              {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  className={`h-2.5 w-2.5 rounded-full border-2 transition-all duration-[var(--motion-mid)] ${i < (outs ?? 0)
-                    ? "border-amber-500 bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]"
-                    : "border-white/10 bg-transparent"
-                    }`}
-                />
-              ))}
+        {isLive ? (
+          <div className="flex items-center gap-6">
+            <div className="flex flex-col items-end">
+              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--ink-3)] mb-1">Count</span>
+              <span className="font-mono text-lg font-black text-[var(--ink-0)] leading-none">
+                {balls ?? "—"}-{strikes ?? "—"}
+              </span>
+            </div>
+            <div className="flex flex-col items-end">
+              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--ink-3)] mb-2">Outs</span>
+              <div className="flex gap-1.5">
+                {[0, 1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className={`h-2.5 w-2.5 rounded-full border-2 transition-all duration-[var(--motion-mid)] ${i < (outs ?? 0)
+                      ? "border-amber-500 bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]"
+                      : "border-white/10 bg-transparent"
+                      }`}
+                  />
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        ) : null}
       </div>
 
       {/* Line score table */}
@@ -176,13 +193,21 @@ function ScoreRow({
   currentInning?: number | null;
   brand: TeamBranding;
 }) {
+  const searchParams = useSearchParams();
+  const requestedMode = searchParams?.get("view");
+  const activeMode = requestedMode === "org" || requestedMode === "fan"
+    ? requestedMode
+    : null;
   const abbreviation = team.abbreviation?.trim() || team.name;
   const accentColor = brand.tokens.teamPrimary;
 
   return (
     <tr className="bg-white/5 rounded-lg overflow-hidden transition-all hover:bg-white/[0.08]">
       <th className="px-4 py-4 text-left rounded-l-lg">
-        <Link href={`/teams/${team.id}`} className="flex items-center gap-4 group/teamlink">
+        <Link
+          href={withViewModeHref(`/teams/${team.id}`, activeMode === "org" || activeMode === "fan" ? activeMode : null)}
+          className="flex items-center gap-4 group/teamlink"
+        >
           <TeamIcon
             teamId={team.id}
             name={team.name}
@@ -206,18 +231,18 @@ function ScoreRow({
               : "text-[var(--ink-2)]"
               }`}
           >
-            {runValue ?? "0"}
+            {runValue ?? "—"}
           </td>
         );
       })}
       <td className="px-1 py-4 text-center font-display text-2xl text-[var(--ink-0)] font-black">
-        {team.runs ?? "0"}
+        {team.runs ?? "—"}
       </td>
       <td className="px-1 py-4 text-center font-mono text-xs text-[var(--ink-3)]">
-        {team.hits ?? "0"}
+        {team.hits ?? "—"}
       </td>
       <td className="px-1 py-4 text-center font-mono text-xs text-[var(--ink-3)]">
-        {team.errors ?? "0"}
+        {team.errors ?? "—"}
       </td>
       <td className="px-4 py-4 text-center rounded-r-lg">
         <ChallengeHashes remaining={team.challengesRemaining} activeColor={accentColor} />

@@ -10,10 +10,26 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 
-import psycopg2
-import requests
-from dotenv import load_dotenv
-from psycopg2.extras import Json, execute_batch
+try:
+    import requests
+except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
+    requests = None
+try:
+    from dotenv import load_dotenv
+except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
+    def load_dotenv(*_args: Any, **_kwargs: Any) -> bool:
+        return False
+try:
+    import psycopg2
+    from psycopg2.extras import Json, execute_batch
+except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
+    psycopg2 = None
+
+    def Json(value: Any) -> Any:
+        return value
+
+    def execute_batch(*_args: Any, **_kwargs: Any) -> None:
+        raise RuntimeError("psycopg2 is required for ETL database writes")
 
 load_dotenv()
 
@@ -21,6 +37,16 @@ STATSAPI_BASE = "https://statsapi.mlb.com/api/v1"
 SAVANT_GAMEFEED_BASE = "https://baseballsavant.mlb.com/gf"
 REQUEST_TIMEOUT = 30
 USER_AGENT = "AiBS/1.0 (+https://github.com/ColbyRReichenbach)"
+
+
+def require_psycopg2() -> None:
+    if psycopg2 is None:
+        raise RuntimeError("psycopg2 is required to run ETL database operations")
+
+
+def require_requests() -> None:
+    if requests is None:
+        raise RuntimeError("requests is required to fetch Savant and Stats API payloads")
 
 
 @dataclass(frozen=True)
@@ -63,6 +89,7 @@ def request_json(
     retries: int = 5,
     base_backoff_seconds: float = 2.0,
 ) -> Dict[str, Any]:
+    require_requests()
     for attempt in range(retries):
         try:
             response = session.get(url, params=params, timeout=REQUEST_TIMEOUT)

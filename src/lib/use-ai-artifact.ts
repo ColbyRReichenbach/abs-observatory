@@ -34,6 +34,7 @@ async function ensureCsrfToken() {
 }
 
 type ArtifactParams = {
+  enabled?: boolean;
   surfaceKey: "chart_insight";
   surfaceDetail?: string | null;
   targetType: "chart_insight" | "challenge_summary";
@@ -54,6 +55,7 @@ export function useAiArtifactGeneration(params: ArtifactParams) {
 
     async function register() {
       const parsed = JSON.parse(requestBody) as ArtifactParams;
+      if (parsed.enabled === false) return;
       if (!parsed.targetId) return;
 
       const csrfToken = await ensureCsrfToken();

@@ -1,0 +1,143 @@
+{
+  "auditDate": "2026-03-25",
+  "springWindow": {
+    "start": "2026-02-20",
+    "end": "2026-03-25"
+  },
+  "overall": {
+    "rows": 1803,
+    "locationCoverage": 0.9972268441486412,
+    "reviewedPitchShare": 0.7498613422074321,
+    "inferredLocationShare": 0.25013865779256794
+  },
+  "byLocationSource": [
+    {
+      "key": "reviewed_pitch_px_pz",
+      "rows": 1352,
+      "share": 0.7498613422074321,
+      "overturnRate": 0.5510355029585798,
+      "meanMissDistance": 0.009771275252322792,
+      "medianMissDistance": 0,
+      "p90MissDistance": 0.020394320706337954
+    },
+    {
+      "key": "inferred_final_pitch_px_pz",
+      "rows": 446,
+      "share": 0.2473655019412091,
+      "overturnRate": 0.4730941704035874,
+      "meanMissDistance": 0.01181119602985903,
+      "medianMissDistance": 0,
+      "p90MissDistance": 0.0352323101046903
+    },
+    {
+      "key": "reviewed_pitch_xy_only",
+      "rows": 3,
+      "share": 0.0016638935108153079,
+      "overturnRate": 0.3333333333333333,
+      "meanMissDistance": null,
+      "medianMissDistance": null,
+      "p90MissDistance": null
+    },
+    {
+      "key": "inferred_final_pitch_xy_only",
+      "rows": 1,
+      "share": 0.0005546311702717693,
+      "overturnRate": 0,
+      "meanMissDistance": null,
+      "medianMissDistance": null,
+      "p90MissDistance": null
+    },
+    {
+      "key": "unresolved",
+      "rows": 1,
+      "share": 0.0005546311702717693,
+      "overturnRate": 0,
+      "meanMissDistance": null,
+      "medianMissDistance": null,
+      "p90MissDistance": null
+    }
+  ],
+  "byEdgeBucket": [
+    {
+      "key": "edge",
+      "rows": 1567,
+      "share": 0.871523915461624,
+      "overturnRate": 0.5303126994256541,
+      "meanMissDistance": 0.00028694864295250805,
+      "medianMissDistance": 0,
+      "p90MissDistance": 0
+    },
+    {
+      "key": "near_edge",
+      "rows": 196,
+      "share": 0.10901001112347053,
+      "overturnRate": 0.5306122448979592,
+      "meanMissDistance": 0.06015419919482131,
+      "medianMissDistance": 0.040214776391637175,
+      "p90MissDistance": 0.13885209478136895
+    },
+    {
+      "key": "clear_miss",
+      "rows": 35,
+      "share": 0.01946607341490545,
+      "overturnRate": 0.6,
+      "meanMissDistance": 0.1782481715647425,
+      "medianMissDistance": 0.17395478958890864,
+      "p90MissDistance": 0.19696124948750793
+    }
+  ],
+  "byDirectionAndBucket": [
+    {
+      "key": "strike_to_ball / edge",
+      "rows": 834,
+      "share": 0.4638487208008899,
+      "overturnRate": 0.5539568345323741,
+      "meanMissDistance": 0.0005287637998600438,
+      "medianMissDistance": 0,
+      "p90MissDistance": 0
+    },
+    {
+      "key": "ball_to_strike / edge",
+      "rows": 733,
+      "share": 0.40767519466073415,
+      "overturnRate": 0.5034106412005457,
+      "meanMissDistance": 0.000011813798667535598,
+      "medianMissDistance": 0,
+      "p90MissDistance": 0
+    },
+    {
+      "key": "strike_to_ball / near_edge",
+      "rows": 152,
+      "share": 0.08453837597330367,
+      "overturnRate": 0.5526315789473685,
+      "meanMissDistance": 0.07185772736013579,
+      "medianMissDistance": 0.06226117030214029,
+      "p90MissDistance": 0.13962420783146978
+    },
+    {
+      "key": "ball_to_strike / near_edge",
+      "rows": 44,
+      "share": 0.024471635150166853,
+      "overturnRate": 0.45454545454545453,
+      "meanMissDistance": 0.019723829169189307,
+      "medianMissDistance": 0.017885999488596427,
+      "p90MissDistance": 0.04009067687469181
+    },
+    {
+      "key": "strike_to_ball / clear_miss",
+      "rows": 35,
+      "share": 0.01946607341490545,
+      "overturnRate": 0.6,
+      "meanMissDistance": 0.1782481715647425,
+      "medianMissDistance": 0.17395478958890864,
+      "p90MissDistance": 0.19696124948750793
+    }
+  ],
+  "rootCause": {
+    "missingLocationRows": 5,
+    "reviewedPitchRows": 1352,
+    "inferredRows": 451,
+    "strikeToBallMonotonic": false,
+    "ballToStrikeMonotonic": false
+  }
+}

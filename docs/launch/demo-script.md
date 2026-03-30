@@ -1,29 +1,76 @@
 # ABS Observatory Demo Script (3-5 min)
 
-## Setup
-- Open `/` and confirm live/recent cards render.
-- Keep one game tab open for `/game/{gamePk}`.
-- Keep one tab open to `/teams` or `/umpires`.
+Opening Day scope for this script:
+- public core product
+- visualizer AI only
+- no public Copilot walkthrough
+- no Query Lab walkthrough
 
-## Flow
-1. Home:
-- Show broadcast strip rotation and mini-scoreboard cards.
-- Call out challenge hash indicators and status chips.
+## Tabs to prep
+- `/`
+- `/teams/138?range=season`
+- `/umpires/690896?range=season`
+- `/game/831945`
+- `/about/about-aibs`
 
-2. Game page:
-- Show live status strip (count/inning/outs/challenges).
-- Demonstrate strike-zone explorer filters and replay controls.
-- Ask Copilot a contextual question from FAB.
+Optional:
+- `/articles`
 
-3. Team/Umpire page:
-- Show range selector URL persistence.
-- Team: KPI + trend + home/away splits.
-- Umpire: zone personality + directional bias + count hotspots.
+## Walkthrough order
+1. Home
+- Open `/`.
+- Frame AiBS as a baseball product built around ABS challenge intelligence, not a generic stats dashboard.
+- Show the live/recent strip, team personalities, umpire spotlighting, and pressure-call framing.
+- Keep this tight. The goal is product framing, not deep analysis.
 
-4. Explainability:
-- In Copilot output, show `answer`, `confidence`, `sources`, `SQL`, `context window`.
+2. Team page
+- Open `/teams/138?range=season`.
+- Show that the team page answers one question clearly: how does this club actually use ABS?
+- Highlight:
+  - hero and team identity
+  - KPI row
+  - trend chart
+  - aggression profile
+  - heatmap / inning efficiency / challenge value sections
+- Use the visualizer at the bottom.
 
-## Close
-- Mention ingestion architecture and historical persistence.
-- Mention V2 roadmap (WPA/RE challenge recommendation engine).
+Suggested prompt:
+- `What does this team's challenge profile say about pressure situations?`
 
+3. Umpire page
+- Open `/umpires/690896?range=season`.
+- Position it as the officiating side of the product.
+- Highlight:
+  - report-card framing
+  - trend and season profile sections
+  - breakdown boards
+  - public visualizer surface
+
+Suggested prompt:
+- `What should a team notice about this umpire's challenge tendencies?`
+
+4. Game page
+- Open `/game/831945`.
+- Show that the game route is the event-level view:
+  - game shell
+  - challenge feed / explorer
+  - leverage and challenge context
+- If the game is final, frame it as postgame review.
+- If live, frame it as a live challenge command center.
+
+5. About
+- Open `/about/about-aibs`.
+- Use this as the credibility close:
+  - product intent
+  - method / model rigor
+  - transparency
+
+## What not to show
+- Copilot FAB
+- Query Lab
+- admin routes
+- internal audit tooling
+- daily editorial automation internals
+
+## Closing line
+- AiBS is a public-facing ABS product that combines live baseball context, audited model layers, and lightweight AI explainability without forcing users into a generic chat workflow.

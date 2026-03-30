@@ -16,8 +16,8 @@ const CONFIDENCE_COLORS = {
 const STARTERS: Record<ViewMode, string[]> = {
   fan: [
     "What was the biggest ABS controversy this week?",
-    "Which umpire has been the most chaotic lately?",
-    "Which teams feel the most trigger-happy this spring?",
+    "Which umpire has shown the most review volatility lately?",
+    "Which teams have been the most overactive with challenges this spring?",
     "Show me the biggest late-inning overturned calls.",
   ],
   org: [

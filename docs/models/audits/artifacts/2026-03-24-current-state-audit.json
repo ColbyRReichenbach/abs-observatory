@@ -1,0 +1,295 @@
+{
+  "auditDate": "2026-03-24",
+  "dataWindow": {
+    "start": "2026-02-20T05:00:00.000Z",
+    "end": "2026-03-22T04:00:00.000Z"
+  },
+  "overview": {
+    "games": "431",
+    "first_game_date": "2026-02-20T05:00:00.000Z",
+    "last_game_date": "2026-03-22T04:00:00.000Z",
+    "challenges": "1839",
+    "pitches": "126753",
+    "historical_pitch_states": "4566992"
+  },
+  "martCoverage": {
+    "runExpectancy": [
+      {
+        "fallback_tier": "drop_count_key",
+        "confidence_band": "high",
+        "rows": "24",
+        "total_sample": "4566992"
+      },
+      {
+        "fallback_tier": "drop_inning_bucket",
+        "confidence_band": "high",
+        "rows": "278",
+        "total_sample": "4564074"
+      },
+      {
+        "fallback_tier": "drop_inning_bucket",
+        "confidence_band": "medium",
+        "rows": "10",
+        "total_sample": "2918"
+      },
+      {
+        "fallback_tier": "exact",
+        "confidence_band": "high",
+        "rows": "826",
+        "total_sample": "4482561"
+      },
+      {
+        "fallback_tier": "exact",
+        "confidence_band": "low",
+        "rows": "78",
+        "total_sample": "6938"
+      },
+      {
+        "fallback_tier": "exact",
+        "confidence_band": "medium",
+        "rows": "248",
+        "total_sample": "77493"
+      }
+    ],
+    "winExpectancy": [
+      {
+        "fallback_tier": "drop_count_key_bucketed_inning",
+        "confidence_band": "high",
+        "rows": "479",
+        "total_sample": "3794784"
+      },
+      {
+        "fallback_tier": "drop_count_key_bucketed_inning",
+        "confidence_band": "low",
+        "rows": "536",
+        "total_sample": "138733"
+      },
+      {
+        "fallback_tier": "drop_count_key_bucketed_inning",
+        "confidence_band": "medium",
+        "rows": "617",
+        "total_sample": "633475"
+      },
+      {
+        "fallback_tier": "drop_count_key_exact_inning",
+        "confidence_band": "high",
+        "rows": "576",
+        "total_sample": "3073136"
+      },
+      {
+        "fallback_tier": "drop_count_key_exact_inning",
+        "confidence_band": "low",
+        "rows": "3113",
+        "total_sample": "494734"
+      },
+      {
+        "fallback_tier": "drop_count_key_exact_inning",
+        "confidence_band": "medium",
+        "rows": "999",
+        "total_sample": "999122"
+      },
+      {
+        "fallback_tier": "drop_inning_to_bucket",
+        "confidence_band": "high",
+        "rows": "331",
+        "total_sample": "1294080"
+      },
+      {
+        "fallback_tier": "drop_inning_to_bucket",
+        "confidence_band": "low",
+        "rows": "17397",
+        "total_sample": "1582988"
+      },
+      {
+        "fallback_tier": "drop_inning_to_bucket",
+        "confidence_band": "medium",
+        "rows": "1760",
+        "total_sample": "1689924"
+      },
+      {
+        "fallback_tier": "exact",
+        "confidence_band": "high",
+        "rows": "143",
+        "total_sample": "482706"
+      },
+      {
+        "fallback_tier": "exact",
+        "confidence_band": "low",
+        "rows": "48836",
+        "total_sample": "2583314"
+      },
+      {
+        "fallback_tier": "exact",
+        "confidence_band": "medium",
+        "rows": "1778",
+        "total_sample": "1500972"
+      }
+    ],
+    "overturnProbability": [
+      {
+        "fallback_tier": "direction_only",
+        "confidence_band": "high",
+        "rows": "2",
+        "total_sample": "1168"
+      },
+      {
+        "fallback_tier": "exact",
+        "confidence_band": "high",
+        "rows": "3",
+        "total_sample": "1164"
+      },
+      {
+        "fallback_tier": "exact",
+        "confidence_band": "low",
+        "rows": "2",
+        "total_sample": "4"
+      },
+      {
+        "fallback_tier": "global",
+        "confidence_band": "high",
+        "rows": "1",
+        "total_sample": "1168"
+      }
+    ]
+  },
+  "actualUsage": {
+    "runExpectancy": [
+      {
+        "pre_tier": "exact",
+        "post_tier": "exact",
+        "challenges": 1269,
+        "pct": 0.6900489396411092
+      },
+      {
+        "pre_tier": "drop_count_key",
+        "post_tier": "drop_count_key",
+        "challenges": 314,
+        "pct": 0.17074497009244155
+      },
+      {
+        "pre_tier": "exact",
+        "post_tier": "drop_count_key",
+        "challenges": 153,
+        "pct": 0.08319738988580751
+      },
+      {
+        "pre_tier": "drop_count_key",
+        "post_tier": "exact",
+        "challenges": 103,
+        "pct": 0.05600870038064165
+      }
+    ],
+    "winExpectancy": [
+      {
+        "pre_tier": "exact",
+        "post_tier": "exact",
+        "challenges": 1268,
+        "pct": 0.689505165851006
+      },
+      {
+        "pre_tier": "drop_count_key_exact_inning",
+        "post_tier": "drop_count_key_exact_inning",
+        "challenges": 314,
+        "pct": 0.17074497009244155
+      },
+      {
+        "pre_tier": "exact",
+        "post_tier": "drop_count_key_exact_inning",
+        "challenges": 153,
+        "pct": 0.08319738988580751
+      },
+      {
+        "pre_tier": "drop_count_key_exact_inning",
+        "post_tier": "exact",
+        "challenges": 102,
+        "pct": 0.05546492659053834
+      },
+      {
+        "pre_tier": "drop_inning_to_bucket",
+        "post_tier": "drop_inning_to_bucket",
+        "challenges": 1,
+        "pct": 0.000543773790103317
+      },
+      {
+        "pre_tier": "unresolved",
+        "post_tier": "unresolved",
+        "challenges": 1,
+        "pct": 0.000543773790103317
+      }
+    ],
+    "overturnProbability": [
+      {
+        "fallback_tier": "exact",
+        "confidence_band": "high",
+        "challenges": 1760,
+        "avg_predicted_overturn": "0.5127",
+        "realized_overturn_rate": "0.5313"
+      },
+      {
+        "fallback_tier": "direction_only",
+        "confidence_band": "high",
+        "challenges": 79,
+        "avg_predicted_overturn": "0.5108",
+        "realized_overturn_rate": "0.5063"
+      }
+    ]
+  },
+  "overturnCalibration": [
+    {
+      "predicted_bucket": "40-49%",
+      "challenges": 785,
+      "avg_predicted_overturn": "0.4941",
+      "realized_overturn_rate": "0.4968"
+    },
+    {
+      "predicted_bucket": "50-59%",
+      "challenges": 1054,
+      "avg_predicted_overturn": "0.5264",
+      "realized_overturn_rate": "0.5550"
+    }
+  ],
+  "decisionValue": {
+    "byMode": [
+      {
+        "mode": "win_expectancy",
+        "challenges": 1838,
+        "pct": 0.9994562262098967,
+        "avgExpectedWpDelta": -0.001132208922742109,
+        "avgRealizedWpDelta": -0.001261504589364303,
+        "challengeRecommendationRate": 0.21817192600652885,
+        "positiveRealizedRate": 0.24374319912948858
+      },
+      {
+        "mode": "heuristic",
+        "challenges": 1,
+        "pct": 0.000543773790103317,
+        "avgExpectedWpDelta": 0.0069,
+        "avgRealizedWpDelta": 0.0191,
+        "challengeRecommendationRate": 1,
+        "positiveRealizedRate": 1
+      }
+    ],
+    "overallExpectedWpDelta": -0.001127841218053288,
+    "overallRealizedWpDelta": -0.0012504325368415381,
+    "signAgreement": 0.9385535617183252
+  },
+  "rubricDistributions": {
+    "teamStyles": {
+      "Calculated": 6,
+      "Hybrid": 19,
+      "Trigger-Happy": 5
+    },
+    "umpireGrades": {
+      "A": 2,
+      "B": 31,
+      "C": 42,
+      "D": 31,
+      "F": 2
+    },
+    "orgRiskTiers": {
+      "Elevated": 16,
+      "Low": 5,
+      "Moderate": 87
+    }
+  }
+}

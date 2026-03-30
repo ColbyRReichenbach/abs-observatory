@@ -1,0 +1,197 @@
+{
+  "generatedAt": "2026-03-26T00:42:30.600Z",
+  "overall": {
+    "challenges": 1913,
+    "avgPredictedOverturn": 0.5156810562198086,
+    "realizedOverturnRate": 0.5290120230005227,
+    "meanAbsBucketGap": 0.012929183194951482,
+    "meanSignedBucketGap": 0.011485871635800088,
+    "brierScore": 0.24862810277272512
+  },
+  "byPredictedBucket": [
+    {
+      "predictedBucket": "40-49%",
+      "challenges": 820,
+      "avgPredictedOverturn": 0.49534575058354163,
+      "realizedOverturnRate": 0.49390243902439024,
+      "absGap": 0.0014433115591513945
+    },
+    {
+      "predictedBucket": "50-59%",
+      "challenges": 1093,
+      "avgPredictedOverturn": 0.5309371867063024,
+      "realizedOverturnRate": 0.555352241537054,
+      "absGap": 0.02441505483075157
+    }
+  ],
+  "byFallbackTier": [
+    {
+      "key": "exact|high",
+      "challenges": 1663,
+      "avgPredictedOverturn": 0.5178668744705327,
+      "realizedOverturnRate": 0.5279615153337343,
+      "brierScore": 0.24858313283216268,
+      "fallbackTier": "exact",
+      "confidenceBand": "high"
+    },
+    {
+      "key": "exact|medium",
+      "challenges": 208,
+      "avgPredictedOverturn": 0.4956093438888282,
+      "realizedOverturnRate": 0.5336538461538461,
+      "brierScore": 0.24948792906699543,
+      "fallbackTier": "exact",
+      "confidenceBand": "medium"
+    },
+    {
+      "key": "direction_only|high",
+      "challenges": 40,
+      "avgPredictedOverturn": 0.5292348796518925,
+      "realizedOverturnRate": 0.55,
+      "brierScore": 0.24594744435781699,
+      "fallbackTier": "direction_only",
+      "confidenceBand": "high"
+    },
+    {
+      "key": "global|high",
+      "challenges": 2,
+      "avgPredictedOverturn": 0.514554794520548,
+      "realizedOverturnRate": 0.5,
+      "brierScore": 0.25021184204353536,
+      "fallbackTier": "global",
+      "confidenceBand": "high"
+    }
+  ],
+  "byDirection": [
+    {
+      "key": "strike_to_ball",
+      "challenges": 1091,
+      "avgPredictedOverturn": 0.5309672185893194,
+      "realizedOverturnRate": 0.5554537121906508,
+      "brierScore": 0.24767941337976385,
+      "challengeDirection": "strike_to_ball"
+    },
+    {
+      "key": "ball_to_strike",
+      "challenges": 820,
+      "avgPredictedOverturn": 0.49534575058354163,
+      "realizedOverturnRate": 0.49390243902439024,
+      "brierScore": 0.2498864596619582,
+      "challengeDirection": "ball_to_strike"
+    },
+    {
+      "key": "unknown",
+      "challenges": 2,
+      "avgPredictedOverturn": 0.514554794520548,
+      "realizedOverturnRate": 0.5,
+      "brierScore": 0.25021184204353536,
+      "challengeDirection": "unknown"
+    }
+  ],
+  "byEdgeBucket": [
+    {
+      "key": "edge",
+      "challenges": 1663,
+      "avgPredictedOverturn": 0.5178668744705327,
+      "realizedOverturnRate": 0.5279615153337343,
+      "brierScore": 0.24858313283216268,
+      "edgeBucket": "edge"
+    },
+    {
+      "key": "near_edge",
+      "challenges": 208,
+      "avgPredictedOverturn": 0.4956093438888282,
+      "realizedOverturnRate": 0.5336538461538461,
+      "brierScore": 0.24948792906699543,
+      "edgeBucket": "near_edge"
+    },
+    {
+      "key": "clear_miss",
+      "challenges": 36,
+      "avgPredictedOverturn": 0.5310982590501755,
+      "realizedOverturnRate": 0.5833333333333334,
+      "brierScore": 0.24578405854092247,
+      "edgeBucket": "clear_miss"
+    },
+    {
+      "key": "unknown",
+      "challenges": 6,
+      "avgPredictedOverturn": 0.5131612415517466,
+      "realizedOverturnRate": 0.3333333333333333,
+      "brierScore": 0.24834922515442356,
+      "edgeBucket": "unknown"
+    }
+  ],
+  "topGapGroups": [
+    {
+      "key": "exact|medium|strike_to_ball|near_edge",
+      "challenges": 164,
+      "avgPredictedOverturn": 0.5017132751188226,
+      "realizedOverturnRate": 0.5548780487804879,
+      "brierScore": 0.24981489292054274,
+      "fallbackTier": "exact",
+      "confidenceBand": "medium",
+      "challengeDirection": "strike_to_ball",
+      "edgeBucket": "near_edge",
+      "absGap": 0.05316477366166528
+    },
+    {
+      "key": "direction_only|high|strike_to_ball|clear_miss",
+      "challenges": 36,
+      "avgPredictedOverturn": 0.5310982590501755,
+      "realizedOverturnRate": 0.5833333333333334,
+      "brierScore": 0.24578405854092247,
+      "fallbackTier": "direction_only",
+      "confidenceBand": "high",
+      "challengeDirection": "strike_to_ball",
+      "edgeBucket": "clear_miss",
+      "absGap": 0.05223507428315788
+    },
+    {
+      "key": "exact|medium|ball_to_strike|near_edge",
+      "challenges": 44,
+      "avgPredictedOverturn": 0.47285832748612583,
+      "realizedOverturnRate": 0.45454545454545453,
+      "brierScore": 0.2482692456128617,
+      "fallbackTier": "exact",
+      "confidenceBand": "medium",
+      "challengeDirection": "ball_to_strike",
+      "edgeBucket": "near_edge",
+      "absGap": 0.0183128729406713
+    },
+    {
+      "key": "exact|high|strike_to_ball|edge",
+      "challenges": 889,
+      "avgPredictedOverturn": 0.5363582952953302,
+      "realizedOverturnRate": 0.5545556805399325,
+      "brierScore": 0.24735482255056024,
+      "fallbackTier": "exact",
+      "confidenceBand": "high",
+      "challengeDirection": "strike_to_ball",
+      "edgeBucket": "edge",
+      "absGap": 0.01819738524460235
+    },
+    {
+      "key": "exact|high|ball_to_strike|edge",
+      "challenges": 774,
+      "avgPredictedOverturn": 0.4966280203190507,
+      "realizedOverturnRate": 0.4974160206718346,
+      "brierScore": 0.24999394399539032,
+      "fallbackTier": "exact",
+      "confidenceBand": "high",
+      "challengeDirection": "ball_to_strike",
+      "edgeBucket": "edge",
+      "absGap": 0.0007880003527839241
+    }
+  ],
+  "rootCause": {
+    "exactChallenges": 1871,
+    "directionOnlyChallenges": 40,
+    "globalChallenges": 2,
+    "lowConfidenceChallenges": 0,
+    "meanExactVsDirectionOnlyGap": 0.006725409413442935,
+    "exactBrierScore": 0.2486837194793281,
+    "directionOnlyBrierScore": 0.24594744435781699,
+    "globalBrierScore": 0.25021184204353536
+  }
+}

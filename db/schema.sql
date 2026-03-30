@@ -793,6 +793,16 @@ CREATE TABLE IF NOT EXISTS ai.feedback (
 );
 
 ALTER TABLE IF EXISTS ai.feedback
+  ADD COLUMN IF NOT EXISTS generation_id UUID REFERENCES ai.generation_events(generation_id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS conversation_id UUID REFERENCES ai.conversations(conversation_id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS message_id UUID REFERENCES ai.messages(message_id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS article_id UUID,
+  ADD COLUMN IF NOT EXISTS game_pk BIGINT REFERENCES games(game_pk) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS comment TEXT,
+  ADD COLUMN IF NOT EXISTS classification_status TEXT NOT NULL DEFAULT 'pending',
+  ADD COLUMN IF NOT EXISTS classification_bucket TEXT,
+  ADD COLUMN IF NOT EXISTS classification_confidence NUMERIC,
+  ADD COLUMN IF NOT EXISTS classification_notes TEXT,
   ADD COLUMN IF NOT EXISTS review_status TEXT NOT NULL DEFAULT 'new',
   ADD COLUMN IF NOT EXISTS review_notes TEXT,
   ADD COLUMN IF NOT EXISTS review_priority TEXT NOT NULL DEFAULT 'normal',
@@ -802,7 +812,8 @@ ALTER TABLE IF EXISTS ai.feedback
   ADD COLUMN IF NOT EXISTS resolution_notes TEXT,
   ADD COLUMN IF NOT EXISTS reviewed_by_user_id UUID REFERENCES product.users(user_id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS override_bucket TEXT;
+  ADD COLUMN IF NOT EXISTS override_bucket TEXT,
+  ADD COLUMN IF NOT EXISTS metadata JSONB;
 
 CREATE TABLE IF NOT EXISTS ops.audit_log (
   audit_log_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1159,6 +1170,58 @@ CREATE INDEX IF NOT EXISTS idx_raw_savant_abs_events_game_atbat ON raw.savant_ab
 CREATE INDEX IF NOT EXISTS idx_historical_pitch_states_season ON historical_pitch_states (season, game_date);
 CREATE INDEX IF NOT EXISTS idx_historical_pitch_states_re_state ON historical_pitch_states (inning_bucket, outs, bases_state, count_key);
 CREATE INDEX IF NOT EXISTS idx_historical_pitch_states_we_state ON historical_pitch_states (inning, half_inning, score_diff_batting, outs, bases_state, count_key);
+
+CREATE TABLE IF NOT EXISTS serving_run_expectancy_fallbacks (
+  fallback_tier TEXT NOT NULL,
+  inning_bucket TEXT,
+  outs INTEGER,
+  bases_state TEXT,
+  count_key TEXT,
+  sample_size INTEGER NOT NULL,
+  expected_runs_to_end_inning NUMERIC,
+  confidence_band TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_serving_run_expectancy_fallbacks_lookup
+  ON serving_run_expectancy_fallbacks (fallback_tier, inning_bucket, outs, bases_state, count_key);
+
+CREATE TABLE IF NOT EXISTS serving_win_expectancy_fallbacks (
+  fallback_tier TEXT NOT NULL,
+  inning INTEGER,
+  inning_bucket TEXT,
+  half_inning TEXT,
+  score_diff_bucket TEXT,
+  outs INTEGER,
+  bases_state TEXT,
+  count_key TEXT,
+  sample_size INTEGER NOT NULL,
+  batting_team_win_probability NUMERIC,
+  confidence_band TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_serving_win_expectancy_fallbacks_lookup
+  ON serving_win_expectancy_fallbacks (
+    fallback_tier,
+    inning,
+    inning_bucket,
+    half_inning,
+    score_diff_bucket,
+    outs,
+    bases_state,
+    count_key
+  );
+
+CREATE TABLE IF NOT EXISTS serving_count_state_outcome_baselines (
+  count_key TEXT PRIMARY KEY,
+  sample_size INTEGER NOT NULL,
+  batting_average NUMERIC,
+  walk_rate NUMERIC,
+  strikeout_rate NUMERIC,
+  positive_outcome_rate NUMERIC
+);
+
+CREATE INDEX IF NOT EXISTS idx_serving_count_state_outcome_baselines_lookup
+  ON serving_count_state_outcome_baselines (count_key);
 
 DROP TRIGGER IF EXISTS trg_product_users_touch ON product.users;
 CREATE TRIGGER trg_product_users_touch BEFORE UPDATE ON product.users FOR EACH ROW EXECUTE FUNCTION touch_updated_at();

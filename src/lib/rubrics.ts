@@ -145,13 +145,13 @@ function mapFanDescriptor(grade: UmpireGrade): UmpireFanDescriptor {
     case "A":
       return "Reliable";
     case "B":
-      return "Balanced";
+      return "Steady";
     case "C":
-      return "Uneasy";
+      return "Watchful";
     case "D":
-      return "Erratic";
+      return "Volatile";
     case "F":
-      return "Chaotic";
+      return "High-Risk";
   }
 }
 
@@ -172,14 +172,14 @@ function mapOrgDescriptor(grade: UmpireGrade): UmpireOrgDescriptor {
 
 function mapOrgStyleLabel(style: TeamStyle): TeamStyleOrgLabel {
   switch (style) {
-    case "Clutch":
-      return "Opportunistic";
-    case "Calculated":
-      return "Disciplined";
-    case "Trigger-Happy":
-      return "Aggressive";
-    case "Passive":
-      return "Conservative";
+    case "High-Impact":
+      return "Timely";
+    case "Selective":
+      return "Selective";
+    case "Overactive":
+      return "High-Usage";
+    case "Low-Usage":
+      return "Low-Usage";
   }
 }
 
@@ -348,15 +348,16 @@ export function computeTeamChallengeStyle(input: TeamStyleInput): TeamStyleResul
   const efficiencyScore = scoreFromRelativeDelta(input.overturnRate, input.leagueOverturnRate, true, 30);
 
   const scores: Record<TeamStyle, number> = {
-    Clutch: 0.3 * lateLeverageScore + 0.25 * efficiencyScore + 0.2 * aggressionScore + 0.25 * conservationScore,
-    Calculated:
+    "High-Impact":
+      0.3 * lateLeverageScore + 0.25 * efficiencyScore + 0.2 * aggressionScore + 0.25 * conservationScore,
+    Selective:
       0.3 * disciplineScore + 0.3 * conservationScore + 0.25 * efficiencyScore + 0.15 * lateLeverageScore,
-    "Trigger-Happy":
+    Overactive:
       0.35 * aggressionScore +
       0.3 * (100 - disciplineScore) +
       0.2 * (100 - conservationScore) +
       0.15 * (100 - efficiencyScore),
-    Passive:
+    "Low-Usage":
       0.35 * (100 - aggressionScore) +
       0.3 * conservationScore +
       0.2 * (100 - lateLeverageScore) +
@@ -369,10 +370,10 @@ export function computeTeamChallengeStyle(input: TeamStyleInput): TeamStyleResul
 
   let winner = ranked[0].style;
   if (ranked.length > 1 && ranked[0].score - ranked[1].score <= 4) {
-    if (lateLeverageScore >= 60 && aggressionScore >= 50) winner = "Clutch";
-    else if (aggressionScore >= 60 && conservationScore <= 45) winner = "Trigger-Happy";
-    else if (disciplineScore >= 55 && conservationScore >= 55) winner = "Calculated";
-    else winner = "Passive";
+    if (lateLeverageScore >= 60 && aggressionScore >= 50) winner = "High-Impact";
+    else if (aggressionScore >= 60 && conservationScore <= 45) winner = "Overactive";
+    else if (disciplineScore >= 55 && conservationScore >= 55) winner = "Selective";
+    else winner = "Low-Usage";
   }
 
   return {

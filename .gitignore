@@ -28,6 +28,7 @@ coverage-final.json
 
 # next.js and app builds
 /.next/
+/.next-sample*/
 /out/
 /build
 /dist
@@ -35,9 +36,11 @@ coverage-final.json
 # runtime and temp artifacts
 /.runtime
 /.runlogs
+/.tools/
 /tmp
 /temp
 *.tmp
+*.tgz
 *.log
 *.log.*
 npm-debug.log*
@@ -78,6 +81,7 @@ env/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.preview
 .env.*.bak
 .env.*.backup
 .envrc

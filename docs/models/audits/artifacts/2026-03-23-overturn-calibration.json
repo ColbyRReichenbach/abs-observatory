@@ -1,0 +1,171 @@
+{
+  "generatedAt": "2026-03-24T03:24:36.612Z",
+  "overall": {
+    "challenges": 1839,
+    "avgPredictedOverturn": 0.5126124058813123,
+    "realizedOverturnRate": 0.5301794453507341,
+    "meanAbsBucketGap": 0.015677521708283376,
+    "meanSignedBucketGap": 0.015677521708283376,
+    "brierScore": 0.24890907641640192
+  },
+  "byPredictedBucket": [
+    {
+      "predictedBucket": "40-49%",
+      "challenges": 785,
+      "avgPredictedOverturn": 0.4940553231416304,
+      "realizedOverturnRate": 0.4968152866242038,
+      "absGap": 0.002759963482573402
+    },
+    {
+      "predictedBucket": "50-59%",
+      "challenges": 1054,
+      "avgPredictedOverturn": 0.5264333830641091,
+      "realizedOverturnRate": 0.5550284629981025,
+      "absGap": 0.02859507993399335
+    }
+  ],
+  "byFallbackTier": [
+    {
+      "key": "exact|high",
+      "challenges": 1760,
+      "avgPredictedOverturn": 0.5126931580870985,
+      "realizedOverturnRate": 0.53125,
+      "brierScore": 0.2489629406024082,
+      "fallbackTier": "exact",
+      "confidenceBand": "high"
+    },
+    {
+      "key": "direction_only|high",
+      "challenges": 79,
+      "avgPredictedOverturn": 0.5108133693979814,
+      "realizedOverturnRate": 0.5063291139240507,
+      "brierScore": 0.2477090641711935,
+      "fallbackTier": "direction_only",
+      "confidenceBand": "high"
+    }
+  ],
+  "byDirection": [
+    {
+      "key": "strike_to_ball",
+      "challenges": 1054,
+      "avgPredictedOverturn": 0.5264333830641091,
+      "realizedOverturnRate": 0.5550284629981025,
+      "brierScore": 0.24809952051216438,
+      "challengeDirection": "strike_to_ball"
+    },
+    {
+      "key": "ball_to_strike",
+      "challenges": 785,
+      "avgPredictedOverturn": 0.4940553231416304,
+      "realizedOverturnRate": 0.4968152866242038,
+      "brierScore": 0.24999604701904451,
+      "challengeDirection": "ball_to_strike"
+    }
+  ],
+  "byEdgeBucket": [
+    {
+      "key": "edge",
+      "challenges": 1605,
+      "avgPredictedOverturn": 0.5077528255948554,
+      "realizedOverturnRate": 0.5295950155763239,
+      "brierScore": 0.2490658070711776,
+      "edgeBucket": "edge"
+    },
+    {
+      "key": "near_edge",
+      "challenges": 196,
+      "avgPredictedOverturn": 0.549202707489893,
+      "realizedOverturnRate": 0.5306122448979592,
+      "brierScore": 0.24825105923287452,
+      "edgeBucket": "near_edge"
+    },
+    {
+      "key": "clear_miss",
+      "challenges": 34,
+      "avgPredictedOverturn": 0.5310982590501755,
+      "realizedOverturnRate": 0.5882352941176471,
+      "brierScore": 0.24547917364827374,
+      "edgeBucket": "clear_miss"
+    },
+    {
+      "key": "unknown",
+      "challenges": 4,
+      "avgPredictedOverturn": 0.5124644650673459,
+      "realizedOverturnRate": 0.25,
+      "brierScore": 0.24741791670986768,
+      "edgeBucket": "unknown"
+    }
+  ],
+  "topGapGroups": [
+    {
+      "key": "direction_only|high|strike_to_ball|clear_miss",
+      "challenges": 34,
+      "avgPredictedOverturn": 0.5310982590501755,
+      "realizedOverturnRate": 0.5882352941176471,
+      "brierScore": 0.24547917364827374,
+      "fallbackTier": "direction_only",
+      "confidenceBand": "high",
+      "challengeDirection": "strike_to_ball",
+      "edgeBucket": "clear_miss",
+      "absGap": 0.05713703506747159
+    },
+    {
+      "key": "exact|high|strike_to_ball|edge",
+      "challenges": 863,
+      "avgPredictedOverturn": 0.5195186271960778,
+      "realizedOverturnRate": 0.5550405561993047,
+      "brierScore": 0.24823234461338228,
+      "fallbackTier": "exact",
+      "confidenceBand": "high",
+      "challengeDirection": "strike_to_ball",
+      "edgeBucket": "edge",
+      "absGap": 0.035521929003226926
+    },
+    {
+      "key": "direction_only|high|ball_to_strike|near_edge",
+      "challenges": 41,
+      "avgPredictedOverturn": 0.4938306710845165,
+      "realizedOverturnRate": 0.4634146341463415,
+      "brierScore": 0.24958664630837818,
+      "fallbackTier": "direction_only",
+      "confidenceBand": "high",
+      "challengeDirection": "ball_to_strike",
+      "edgeBucket": "near_edge",
+      "absGap": 0.030416036938175017
+    },
+    {
+      "key": "exact|high|strike_to_ball|near_edge",
+      "challenges": 155,
+      "avgPredictedOverturn": 0.5638495042164775,
+      "realizedOverturnRate": 0.5483870967741935,
+      "brierScore": 0.24789777490967627,
+      "fallbackTier": "exact",
+      "confidenceBand": "high",
+      "challengeDirection": "strike_to_ball",
+      "edgeBucket": "near_edge",
+      "absGap": 0.015462407442283999
+    },
+    {
+      "key": "exact|high|ball_to_strike|edge",
+      "challenges": 742,
+      "avgPredictedOverturn": 0.49406834206138195,
+      "realizedOverturnRate": 0.5,
+      "brierScore": 0.25003518456590157,
+      "fallbackTier": "exact",
+      "confidenceBand": "high",
+      "challengeDirection": "ball_to_strike",
+      "edgeBucket": "edge",
+      "absGap": 0.005931657938618051
+    }
+  ],
+  "rootCause": {
+    "exactChallenges": 1760,
+    "directionOnlyChallenges": 79,
+    "globalChallenges": 0,
+    "lowConfidenceChallenges": 0,
+    "meanExactVsDirectionOnlyGap": 0.008662509747554252,
+    "exactBrierScore": 0.2489629406024082,
+    "directionOnlyBrierScore": 0.2477090641711935,
+    "globalBrierScore": 0
+  }
+}

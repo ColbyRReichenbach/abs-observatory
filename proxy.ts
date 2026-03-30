@@ -27,11 +27,8 @@ function withSecurityHeaders(response: NextResponse) {
   return response;
 }
 
-const fallbackMiddleware = () => withSecurityHeaders(NextResponse.next());
-
-export default hasClerkCredentials
-  ? clerkMiddleware(() => withSecurityHeaders(NextResponse.next()))
-  : fallbackMiddleware;
+const fallbackProxy = () => withSecurityHeaders(NextResponse.next());
+const authProxy = clerkMiddleware(() => withSecurityHeaders(NextResponse.next()));
 
 export const config = {
   matcher: [
@@ -39,3 +36,7 @@ export const config = {
     "/(api|trpc)(.*)",
   ],
 };
+
+export function proxy(...args: Parameters<typeof authProxy>) {
+  return hasClerkCredentials ? authProxy(...args) : fallbackProxy();
+}

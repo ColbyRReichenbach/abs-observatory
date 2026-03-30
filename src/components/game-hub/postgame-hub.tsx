@@ -2,11 +2,13 @@ import { AIFeedback } from "@/components/ai-feedback";
 import { MotionIn } from "@/components/motion-in";
 import { ChallengeExplorer } from "@/components/challenge-explorer";
 import { ChallengeValueTimeline } from "@/components/game-hub/challenge-value-timeline";
+import { GameTeamComparisonChart } from "@/components/game-hub/game-team-comparison-chart";
+import { UmpireInGameCard } from "@/components/game-hub/umpire-in-game-card";
 import { RegenerateDebriefButton } from "@/components/game-hub/regenerate-debrief-button";
 import { getGameReport } from "@/lib/game-reports";
 import { normalizeNarrativeMarkdown, REPORT_SECTION_LABELS } from "@/lib/game-report-markdown";
 import { assertCanManageGameReports, canManageGameReports, regenerateGameReport } from "@/lib/server/game-reports";
-import { getGameChallengeValueTimeline } from "@/lib/data";
+import { getGameChallengeValueTimeline, getGameTeamChallengeComparison, getGameUmpireInGameSummary } from "@/lib/data";
 import ReactMarkdown from "react-markdown";
 import type { ChallengeEvent, GameHubGame } from "@/lib/types";
 import type { ViewMode } from "@/lib/view-mode";
@@ -14,29 +16,15 @@ import { revalidatePath } from "next/cache";
 import { getGameViewCopy } from "@/lib/view-mode-contract";
 
 export async function PostgameAAR({ game, challenges, initialChallengeId = null, viewMode }: { game: GameHubGame, challenges: ChallengeEvent[], initialChallengeId?: string | null, viewMode: ViewMode }) {
-    const report = await getGameReport(game.gamepk);
+    const [report, challengeValueTimeline, teamComparison, umpireSummary] = await Promise.all([
+        getGameReport(game.gamepk),
+        getGameChallengeValueTimeline(game.gamepk),
+        getGameTeamChallengeComparison(game.gamepk),
+        getGameUmpireInGameSummary(game.gamepk),
+    ]);
     const canRegenerateDebrief = await canManageGameReports();
     const copy = getGameViewCopy(viewMode, "final");
-    const challengeValueTimeline = await getGameChallengeValueTimeline(game.gamepk);
 
-    const homeChallenges = challenges.filter((c) => c.challengeTeamId === game.hometeamid);
-    const awayChallenges = challenges.filter((c) => c.challengeTeamId === game.awayteamid);
-
-    const scorecard = (team: typeof homeChallenges) => {
-        const correct = team.filter((c) => c.isOverturned).length;
-        const wrong = team.filter((c) => !c.isOverturned).length;
-        const total = correct + wrong;
-        const ratio = total > 0 ? correct / total : 0;
-        return { correct, wrong, total, overturnRate: ratio };
-    };
-
-    const homeScore = scorecard(homeChallenges);
-    const awayScore = scorecard(awayChallenges);
-
-    // S5-11: Umpire game grade
-    const totalChallenges = challenges.length;
-    const totalOverturned = challenges.filter((c) => c.isOverturned).length;
-    const umpOverturnRate = totalChallenges > 0 ? totalOverturned / totalChallenges : 0;
     const reportTimestamp = report
         ? new Intl.DateTimeFormat("en-US", {
             month: "short",
@@ -45,7 +33,6 @@ export async function PostgameAAR({ game, challenges, initialChallengeId = null,
             minute: "2-digit",
         }).format(new Date(report.generatedAt))
         : null;
-
     async function regenerateDebriefAction() {
         "use server";
 
@@ -86,23 +73,9 @@ export async function PostgameAAR({ game, challenges, initialChallengeId = null,
                     <h3 className="font-display text-4xl uppercase tracking-tighter text-gray-900 mb-4 leading-tight">
                         Game <span className="text-blue-600/40 italic">Debrief</span>
                     </h3>
-
-                    <div className="flex flex-wrap items-center justify-center gap-4 mt-6">
-                        <div className="px-4 py-2 rounded-2xl bg-gray-50 border border-gray-100 flex flex-col items-center min-w-[100px]">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Total Logic</span>
-                            <span className="text-xl font-display font-black text-gray-900">{totalChallenges} Plays</span>
-                        </div>
-                        <div className="px-4 py-2 rounded-2xl bg-blue-50/50 border border-blue-100/50 flex flex-col items-center min-w-[100px]">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">Reverse</span>
-                            <span className="text-xl font-display font-black text-blue-600">{totalOverturned} Calls</span>
-                        </div>
-                        {challenges.some(c => c.impactType?.toLowerCase().includes("high")) && (
-                            <div className="px-4 py-2 rounded-2xl bg-emerald-50/50 border border-emerald-100/50 flex flex-col items-center min-w-[100px]">
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Pivotal Swap</span>
-                                <span className="text-xl font-display font-black text-emerald-600">High Impact</span>
-                            </div>
-                        )}
-                    </div>
+                    <p className="mx-auto mt-4 max-w-2xl text-sm font-medium leading-relaxed text-gray-500">
+                        Narrative readout of how the review battle unfolded after the charts have established which club actually captured the value.
+                    </p>
                 </div>
 
                 <div className="prose prose-slate max-w-none min-w-0 overflow-hidden break-words [overflow-wrap:anywhere]
@@ -161,46 +134,18 @@ export async function PostgameAAR({ game, challenges, initialChallengeId = null,
         </section>
     ) : null;
 
-    const summarySection = (
-        <section className="grid gap-6 md:grid-cols-3 mb-8">
-            <SummaryPanel
-                teamName={game.homeabbreviation || "HOME"}
-                teamColor={game.homeprimarycolor || "#3b82f6"}
-                correct={homeScore.correct}
-                wrong={homeScore.wrong}
-                total={homeScore.total}
-                overturnRate={homeScore.overturnRate}
-            />
-            <SummaryPanel
-                teamName={game.awayabbreviation || "AWAY"}
-                teamColor={game.awayprimarycolor || "#8b5cf6"}
-                correct={awayScore.correct}
-                wrong={awayScore.wrong}
-                total={awayScore.total}
-                overturnRate={awayScore.overturnRate}
-            />
-            <div className="panel p-6 shadow-2xl shadow-black/[0.02] border border-gray-50 bg-white relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1" style={{ backgroundColor: "#0066cc" }} />
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Umpire Challenge Summary</h4>
-                <div className="flex items-center gap-4 mb-4">
-                    <span className="text-5xl font-display font-bold text-gray-900">
-                        {(umpOverturnRate * 100).toFixed(0)}%
-                    </span>
-                    <div className="flex-1">
-                        <p className="text-sm font-bold text-[var(--ink-0)]">{(umpOverturnRate * 100).toFixed(1)}% overturned</p>
-                        <p className="text-[10px] text-[var(--ink-3)]">Based on this game&apos;s recorded challenges only</p>
-                    </div>
-                </div>
-                <p className="text-[10px] text-[var(--ink-2)] font-medium leading-relaxed">
-                    {totalOverturned} of {totalChallenges} challenges overturned tonight.
-                </p>
-            </div>
+    const recapSection = (
+        <section className="mb-8 space-y-6">
+            {teamComparison ? (
+                <GameTeamComparisonChart comparison={teamComparison} state="final" viewMode={viewMode} />
+            ) : null}
+            <UmpireInGameCard summary={umpireSummary} viewMode={viewMode} />
         </section>
     );
 
     const waterfallSection = (
         <section className="mb-8 panel p-6 shadow-2xl shadow-black/[0.02] border border-gray-50 bg-white">
-            <ChallengeValueTimeline entries={challengeValueTimeline} viewMode={viewMode} />
+            <ChallengeValueTimeline entries={challengeValueTimeline} viewMode={viewMode} showSummaryCards={false} />
         </section>
     );
 
@@ -214,7 +159,7 @@ export async function PostgameAAR({ game, challenges, initialChallengeId = null,
                     Pitch <span className="text-gray-400">Timeline</span>
                 </p>
             </div>
-            <ChallengeExplorer challenges={challenges} initialChallengeId={initialChallengeId} />
+            <ChallengeExplorer challenges={challenges} initialChallengeId={initialChallengeId} viewMode={viewMode} />
         </section>
     );
 
@@ -250,52 +195,11 @@ export async function PostgameAAR({ game, challenges, initialChallengeId = null,
                 </header>
                 {copy.sectionOrder.map((section) => {
                     if (section === "debrief") return <div key={section}>{debriefSection}</div>;
-                    if (section === "summary") return <div key={section}>{summarySection}</div>;
+                    if (section === "summary") return <div key={section}>{recapSection}</div>;
                     if (section === "waterfall") return <div key={section}>{waterfallSection}</div>;
                     return <div key={section}>{explorerSection}</div>;
                 })}
             </MotionIn>
-        </div>
-    );
-}
-
-function SummaryPanel({
-    teamName,
-    teamColor,
-    correct,
-    wrong,
-    total,
-    overturnRate,
-}: {
-    teamName: string;
-    teamColor: string;
-    correct: number;
-    wrong: number;
-    total: number;
-    overturnRate: number;
-}) {
-    return (
-        <div className="panel p-6 shadow-2xl shadow-black/[0.02] border border-gray-50 bg-white relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-1" style={{ backgroundColor: teamColor }} />
-            <div className="flex items-center justify-between mb-4">
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
-                    {teamName} Challenge Summary
-                </h4>
-                <span className="text-4xl font-display font-bold text-gray-900">
-                    {(overturnRate * 100).toFixed(0)}%
-                </span>
-            </div>
-            <div className="flex gap-3 mb-4">
-                <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-black border border-emerald-100">
-                    {correct} Correct
-                </span>
-                <span className="px-2.5 py-1 rounded-full bg-red-50 text-red-600 text-[10px] font-black border border-red-100">
-                    {wrong} Wrong
-                </span>
-            </div>
-            <p className="text-[10px] text-[var(--ink-2)] font-medium leading-relaxed">
-                {correct} of {total} challenges overturned for {teamName} in this game.
-            </p>
         </div>
     );
 }

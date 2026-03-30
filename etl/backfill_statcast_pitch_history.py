@@ -12,10 +12,26 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
 
-import psycopg2
-import requests
-from dotenv import load_dotenv
-from psycopg2.extras import Json, execute_batch
+try:
+    import requests
+except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
+    requests = None
+try:
+    from dotenv import load_dotenv
+except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
+    def load_dotenv(*_args: Any, **_kwargs: Any) -> bool:
+        return False
+try:
+    import psycopg2
+    from psycopg2.extras import Json, execute_batch
+except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
+    psycopg2 = None
+
+    def Json(value: Any) -> Any:
+        return value
+
+    def execute_batch(*_args: Any, **_kwargs: Any) -> None:
+        raise RuntimeError("psycopg2 is required for ETL database writes")
 
 try:
     from pybaseball import cache as pybaseball_cache
@@ -31,6 +47,16 @@ REGULAR_SEASON_GAME_TYPE = "R"
 DEFAULT_DELAY_SECONDS = 1.5
 DEFAULT_MAX_RETRIES = 5
 DEFAULT_BACKOFF_SECONDS = 2.0
+
+
+def require_psycopg2() -> None:
+    if psycopg2 is None:
+        raise RuntimeError("psycopg2 is required to run ETL database operations")
+
+
+def require_requests() -> None:
+    if requests is None:
+        raise RuntimeError("requests is required to fetch schedule games")
 
 
 @dataclass(frozen=True)
@@ -149,6 +175,7 @@ def normalize_json_value(value: Any) -> Any:
 
 
 def fetch_schedule_games(start_date: date, end_date: date) -> Dict[int, StatcastGameRecord]:
+    require_requests()
     payload = requests.get(  # pragma: no cover - thin wrapper retained for backward compatibility in tests
         f"{API_BASE}/schedule",
         params={

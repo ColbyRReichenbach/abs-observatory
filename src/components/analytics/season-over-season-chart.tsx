@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import type { UmpireSeasonTrendPoint } from "@/lib/types";
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
@@ -10,6 +11,7 @@ import { buildLinearAxis, formatPercentTick } from "@/components/analytics/chart
  * Shows overturn rate per season with dot markers and games-worked annotation.
  */
 export function SeasonOverSeasonChart({ data }: { data: UmpireSeasonTrendPoint[] }) {
+    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
     if (data.length < 2) {
         return (
             <div className="panel bg-white p-8 text-center text-gray-400 text-sm font-medium">
@@ -47,6 +49,7 @@ export function SeasonOverSeasonChart({ data }: { data: UmpireSeasonTrendPoint[]
                 </p>
             </div>
 
+            <div onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}>
             <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={chartData} margin={{ left: 10, right: 30, top: 20, bottom: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
@@ -66,7 +69,7 @@ export function SeasonOverSeasonChart({ data }: { data: UmpireSeasonTrendPoint[]
                         width={45}
                     />
                     <Tooltip
-                        wrapperStyle={{ zIndex: 10001 }}
+                        wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
                         allowEscapeViewBox={{ x: true, y: true }}
                         cursor={{ stroke: "#d1d5db", strokeDasharray: "4 4" }}
                         content={({ active, payload }) => {
@@ -74,6 +77,8 @@ export function SeasonOverSeasonChart({ data }: { data: UmpireSeasonTrendPoint[]
                             const d = payload[0].payload as (typeof chartData)[number];
                             return (
                                 <ChartTooltip
+                                    usePortal
+                                    portalProps={mousePos}
                                     title={`${d.season} Season`}
                                     value={`${d.overturnRate.toFixed(2)}%`}
                                     subValueLabel="Overturn Rate"
@@ -102,6 +107,7 @@ export function SeasonOverSeasonChart({ data }: { data: UmpireSeasonTrendPoint[]
                     />
                 </LineChart>
             </ResponsiveContainer>
+            </div>
 
             {/* Season summary chips */}
             <div className="mt-4 flex flex-wrap gap-2">

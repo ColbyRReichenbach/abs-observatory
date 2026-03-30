@@ -3,17 +3,19 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calendar as CalendarIcon, ChevronRight, Play, CheckCircle2, Clock } from "lucide-react";
-import Link from "next/link";
 import { isToday, isBefore, isAfter, startOfDay } from "date-fns";
 
 import { TeamIcon } from "@/components/team-icon";
 import { LeagueCalendar } from "@/components/analytics/league-calendar";
 import { ExpandableAiBSButton } from "@/components/ui/aibs-icon";
+import { GameTypeBadge } from "@/components/ui/game-type-badge";
 import { LocalTime } from "@/components/local-time";
+import { ModeAwareLink } from "@/components/ui/mode-aware-link";
 
 export type ScheduleGame = {
     gamePk: number;
     gameDate: string;
+    gameType?: string | null;
     status: string;
     homeTeamId: number;
     awayTeamId: number;
@@ -136,7 +138,7 @@ function GameCard({ game, teamId }: { game: ScheduleGame, teamId: number }) {
     const date = new Date(game.gameDate);
 
     return (
-        <Link
+        <ModeAwareLink
             href={`/game/${game.gamePk}`}
             className={`block relative p-5 rounded-2xl border transition-all hover:shadow-xl hover:-translate-y-1 group bg-white
                 ${isLive ? 'border-red-200 shadow-[0_0_30px_rgba(239,68,68,0.1)] ring-1 ring-red-500/20' : 'border-gray-100 shadow-sm'}
@@ -147,9 +149,12 @@ function GameCard({ game, teamId }: { game: ScheduleGame, teamId: number }) {
             )}
 
             <div className="flex justify-between items-start mb-6">
-                <span suppressHydrationWarning className={`text-[10px] font-bold uppercase tracking-widest whitespace-nowrap ${isLive ? 'text-red-600' : 'text-gray-400'}`}>
-                    {date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                </span>
+                <div className="flex flex-col items-start gap-2">
+                    <span suppressHydrationWarning className={`text-[10px] font-bold uppercase tracking-widest whitespace-nowrap ${isLive ? 'text-red-600' : 'text-gray-400'}`}>
+                        {date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    </span>
+                    <GameTypeBadge gameType={game.gameType} compact />
+                </div>
 
                 {isLive ? (
                     <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-50 text-red-600 text-[8px] font-black uppercase tracking-widest">
@@ -196,6 +201,6 @@ function GameCard({ game, teamId }: { game: ScheduleGame, teamId: number }) {
                     <ChevronRight size={14} className="text-gray-300 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
                 </div>
             )}
-        </Link>
+        </ModeAwareLink>
     );
 }

@@ -129,6 +129,12 @@ More detail: [security.md](./docs/reference/security.md)
 
 ## Local Setup
 
+Use the pinned runtime before install/build work:
+
+```bash
+nvm use
+```
+
 1. Create a Postgres database.
 2. Configure env vars in `.env` or `.env.local`.
 
@@ -144,11 +150,13 @@ Optional but recommended:
 - `CLERK_SECRET_KEY`
 - `CLERK_WEBHOOK_SIGNING_SECRET`
 - `INTERNAL_WORKER_TOKEN`
+- `CRON_SECRET`
 - `OWNER_CLERK_USER_ID`
 
 Apply schema and verify:
 
 ```bash
+npm run verify:repo
 npm run db:schema
 npm run db:smoke
 ```
@@ -157,6 +165,25 @@ Start the app:
 
 ```bash
 npm run dev
+```
+
+## Scheduled Editorial Automation
+
+The daily AI recap is wired for a Vercel cron trigger at `/api/cron/editorial-daily`.
+
+Current production behavior:
+
+- authenticates with `CRON_SECRET`
+- derives the prior `America/New_York` calendar day by default
+- runs `qa:abs`
+- runs `model:audit:all`
+- runs `model:audit:evaluate-alerts`
+- generates the daily ABS recap only after those checks complete
+
+For manual reruns:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" "http://localhost:3000/api/cron/editorial-daily?sourceDate=2026-03-23"
 ```
 
 ## Data Load
@@ -173,6 +200,14 @@ Load a window:
 python3 etl/ingest_mlb_abs.py --start-date 2026-03-01 --end-date 2026-03-08 --game-type S,R
 ```
 
+Backfill all currently available 2026 spring training ABS data from the official spring-training opening day, February 20, 2026, through today:
+
+```bash
+npm run etl:spring-training
+```
+
+That backfill skips per-game report generation so the data load can complete quickly.
+
 Other useful ETL commands:
 
 ```bash
@@ -182,11 +217,14 @@ python3 etl/sync_standings_snapshots.py
 python3 etl/generate_game_report.py --game-pk 831638 --force
 ```
 
+Polling commands now skip games already stored with a final status, while still re-polling live `gamePk`s safely. Repeated polling of the same live game updates the existing game rows instead of creating duplicate games.
+
 ## Validation
 
 Core validation commands:
 
 ```bash
+npm run verify:repo
 npm run build
 npm run test
 npm run test:e2e
@@ -201,17 +239,26 @@ Release smoke:
 npm run smoke:release
 ```
 
+`npm run verify:repo` is the preflight guard for release work. It fails on:
+
+- stale git lock files
+- zero-byte tracked source/config files
+- missing or blank critical `next` runtime files in `node_modules`
+- wrong Node major relative to `.nvmrc`
+
 ## Documentation Map
 
 - Docs index: [docs/README.md](./docs/README.md)
 - Product truth: [product-source-of-truth.md](./docs/product/product-source-of-truth.md)
 - Stack decisions: [stack-selection.md](./docs/architecture/stack-selection.md)
+- Launch stack decision matrix: [docs/launch/hosting-decision-matrix.md](./docs/launch/hosting-decision-matrix.md)
 - Technical implementation: [technical.md](./docs/reference/technical.md)
 - Security controls: [security.md](./docs/reference/security.md)
 - Documentation and product gaps: [gap-list.md](./docs/reference/gap-list.md)
 - The Absolute Observer backend: [gazette-backend-spec.md](./docs/editorial/gazette-backend-spec.md)
 - AI backend: [ai-backend-plan.md](./docs/architecture/ai-backend-plan.md)
 - Launch and provider setup: [docs/launch/provider-setup-checklist.md](./docs/launch/provider-setup-checklist.md)
+- Vercel + Neon runbook: [docs/launch/vercel-neon-runbook.md](./docs/launch/vercel-neon-runbook.md)
 - Private alpha checklist: [docs/launch/private-alpha-checklist.md](./docs/launch/private-alpha-checklist.md)
 - Alpha success scorecard: [docs/launch/alpha-success-scorecard.md](./docs/launch/alpha-success-scorecard.md)
 

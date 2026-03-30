@@ -1,6 +1,7 @@
 "use client";
 
 import { BaseStateDiamond } from "@/components/game-hub/base-state-diamond";
+import { formatCountStateLabel, formatHalfInningLabel } from "@/lib/challenge-context";
 import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
 import type { LiveChallengeWindow } from "@/lib/types";
 
@@ -27,34 +28,34 @@ export function CurrentChallengeWindowCard({
       ? null
       : strikeGain === null || (ballGain !== null && ballGain >= strikeGain)
         ? {
-            label: viewMode === "org" ? "Ball overturn path" : "Flip strike to ball",
+            label: viewMode === "org" ? "Called strike overturned" : "Strike flips to ball",
             countKey: snapshot.nextBallCountKey,
             delta: ballGain,
           }
         : {
-            label: viewMode === "org" ? "Strike confirmation path" : "Flip ball to strike",
+            label: viewMode === "org" ? "Called ball overturned" : "Ball flips to strike",
             countKey: snapshot.nextStrikeCountKey,
             delta: strikeGain,
           };
   const contextualSummary =
     bestSwing?.delta === null || bestSwing?.delta === undefined
       ? viewMode === "org"
-        ? "This spot has pressure, but the count-state model does not show a strong comparable swing."
-        : "This is a pressure spot, but the count history does not show a clear edge either way."
+        ? "This spot carries leverage, but the count-state model does not show a strong comparable swing."
+        : "This is a leveraged spot, but the count history does not show a clear edge either way."
       : bestSwing.delta >= 0
         ? viewMode === "org"
-          ? `${bestSwing.label} would move this plate appearance to ${bestSwing.countKey ?? "a new count"} and historically improve positive outcomes by ${(bestSwing.delta * 100).toFixed(1)} points.`
-          : `${bestSwing.label} would push the at-bat to ${bestSwing.countKey ?? "a new count"} and usually gives hitters ${(bestSwing.delta * 100).toFixed(1)} more points of favorable outcome rate.`
+          ? `${bestSwing.label} would move this plate appearance to ${formatCountStateLabel(bestSwing.countKey)} and historically improve positive outcomes by ${(bestSwing.delta * 100).toFixed(1)} percentage points.`
+          : `${bestSwing.label} would push the at-bat to ${formatCountStateLabel(bestSwing.countKey)} and usually improves the offense's success rate by ${(bestSwing.delta * 100).toFixed(1)} percentage points.`
         : viewMode === "org"
-          ? `${bestSwing.label} leads to ${bestSwing.countKey ?? "a new count"}, but comparable plate appearances have performed ${(Math.abs(bestSwing.delta) * 100).toFixed(1)} points worse from there.`
-          : `${bestSwing.label} leads to ${bestSwing.countKey ?? "a new count"}, but hitters usually do ${(Math.abs(bestSwing.delta) * 100).toFixed(1)} points worse from there.`;
+          ? `${bestSwing.label} leads to ${formatCountStateLabel(bestSwing.countKey)}, but comparable plate appearances have performed ${(Math.abs(bestSwing.delta) * 100).toFixed(1)} percentage points worse from there.`
+          : `${bestSwing.label} leads to ${formatCountStateLabel(bestSwing.countKey)}, but the offense usually performs ${(Math.abs(bestSwing.delta) * 100).toFixed(1)} percentage points worse from there.`;
 
   return (
     <div className="panel p-6 shadow-xl border border-gray-100 bg-white overflow-hidden">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h4 className="text-[10px] font-bold uppercase tracking-widest text-orange-500 mb-1">
-            {viewMode === "org" ? "Current Challenge Window" : "Current Pressure Spot"}
+            {viewMode === "org" ? "Current Challenge Window" : "Current Leverage Spot"}
           </h4>
           <p className="text-2xl font-display leading-none text-gray-900">
             Live <span className="text-gray-400 italic">Scenario</span>
@@ -80,7 +81,7 @@ export function CurrentChallengeWindowCard({
             <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Game State</p>
             <p className="mt-1 text-sm font-bold text-gray-900">{snapshot.baseStateLabel}</p>
             <p className="mt-1 text-[11px] font-medium text-gray-600">
-              {snapshot.halfInning === "Top" ? "Top" : snapshot.halfInning === "Bottom" ? "Bot" : "?"}{" "}
+              {formatHalfInningLabel(snapshot.halfInning, "short")}{" "}
               {snapshot.inning ?? "-"} • {snapshot.scoreStateLabel} • {snapshot.outs ?? 0} out
               {(snapshot.outs ?? 0) === 1 ? "" : "s"}
             </p>
@@ -102,20 +103,20 @@ export function CurrentChallengeWindowCard({
                   : `${(snapshot.currentPositiveOutcomeRate * 100).toFixed(1)}%`
             }
           />
-          <MetricCard label="Pressure Band" value={snapshot.leverageBucket.toUpperCase()} />
+          <MetricCard label="Leverage Band" value={snapshot.leverageBucket.toUpperCase()} />
         </div>
       </div>
 
       {bestSwing ? (
         <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50/60 px-4 py-4">
           <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">
-            {viewMode === "org" ? "Best Count Swing" : "Most Favorable Path"}
+            {viewMode === "org" ? "Largest Count Swing" : "Most Meaningful Path"}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-sm font-medium text-gray-700">
             <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-gray-500">
               {bestSwing.label}
             </span>
-            <span>{bestSwing.countKey ?? "No follow-on count"}</span>
+            <span>{formatCountStateLabel(bestSwing.countKey)}</span>
             {bestSwing.delta !== null ? (
               <span
                 className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${
@@ -123,7 +124,7 @@ export function CurrentChallengeWindowCard({
                 }`}
               >
                 {bestSwing.delta >= 0 ? "+" : "-"}
-                {(Math.abs(bestSwing.delta) * 100).toFixed(1)} pts
+                {(Math.abs(bestSwing.delta) * 100).toFixed(1)} pp
               </span>
             ) : null}
           </div>
@@ -227,9 +228,9 @@ function ProjectionCard({
   return (
     <div className={`rounded-2xl border px-4 py-4 ${toneClasses}`}>
       <p className="text-[9px] font-black uppercase tracking-widest opacity-80">{label}</p>
-      <p className="mt-2 text-sm font-bold">{countKey ?? "Terminal swing / N/A"}</p>
+      <p className="mt-2 text-sm font-bold">{formatCountStateLabel(countKey)}</p>
       <p className="mt-1 text-[11px] font-medium">
-        {delta === null ? "No comparable count-state delta" : `${delta >= 0 ? "+" : ""}${(delta * 100).toFixed(1)} pts positive outcome rate`}
+        {delta === null ? "No comparable count-state delta" : `${delta >= 0 ? "+" : ""}${(delta * 100).toFixed(1)} percentage points of offensive success rate`}
       </p>
       {overturnProbability !== null ? (
         <p className="mt-1 text-[11px] font-medium">

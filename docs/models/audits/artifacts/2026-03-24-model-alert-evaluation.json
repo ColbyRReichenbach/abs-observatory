@@ -1,0 +1,44 @@
+{
+  "auditDate": "2026-03-24",
+  "ok": false,
+  "triggeredBy": "manual",
+  "alerts": [
+    {
+      "alertKey": "abs_missing_geometry",
+      "metricKey": "missing_challenge_geometry_fields",
+      "severity": "low",
+      "comparison": ">=",
+      "observedValue": 8,
+      "thresholdValue": 1,
+      "summary": "8 challenge geometry fields are missing across px/pz.",
+      "recommendedAction": "Monitor source quality; if this grows, inspect ingest or source gaps before reading edge-bucket behavior.",
+      "details": {
+        "missingHorizontal": 4,
+        "missingVertical": 4
+      },
+      "consecutiveBreachCount": 1
+    },
+    {
+      "alertKey": "re_signed_bias",
+      "metricKey": "re_mean_signed_diff",
+      "severity": "medium",
+      "comparison": "abs>=",
+      "observedValue": 0.313993270771771,
+      "thresholdValue": 0.3,
+      "summary": "Run expectancy is showing meaningful directional optimism/pessimism against realized spring runs.",
+      "recommendedAction": "Recheck high-pressure no-out runner states before retuning the broader RE ladder.",
+      "details": {
+        "overall": {
+          "rows": 119012,
+          "meanAbsDiff": 0.6048791568153246,
+          "medianAbsDiff": 0.47694963247415684,
+          "p90AbsDiff": 1.2463343108504399,
+          "meanSignedDiff": 0.313993270771771,
+          "rmse": 0.9066778052398443,
+          "maxAbsDiff": 11.683109118086696
+        }
+      },
+      "consecutiveBreachCount": 1
+    }
+  ]
+}

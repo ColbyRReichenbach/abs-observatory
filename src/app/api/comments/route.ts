@@ -8,6 +8,7 @@ const COMMENT_CREATE_SCHEMA = z.object({
   threadId: z.string().uuid().optional(),
   articleId: z.string().uuid().optional(),
   challengeId: z.string().uuid().optional(),
+  parentCommentId: z.string().uuid().optional(),
   body: z.string().min(1).max(2000),
   structuredReaction: z.string().max(64).optional().nullable(),
 });

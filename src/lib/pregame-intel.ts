@@ -34,11 +34,12 @@ type HistoryRow = {
 };
 
 function toInningSeries(rows: TimingRow[], teamId: number): number[] {
+  const teamRows = rows.filter((row) => row.challenge_team_id === teamId);
+  const totalChallenges = teamRows.reduce((sum, row) => sum + Number(row.challenges), 0);
   const values = new Array(9).fill(0);
-  for (const row of rows) {
-    if (row.challenge_team_id !== teamId) continue;
+  for (const row of teamRows) {
     if (row.inning >= 1 && row.inning <= 9) {
-      values[row.inning - 1] = Number(row.challenges);
+      values[row.inning - 1] = totalChallenges > 0 ? Number(row.challenges) / totalChallenges : 0;
     }
   }
   return values;
@@ -56,6 +57,7 @@ export async function getGamePregameIntel(gamePk: number): Promise<PregameIntel 
     team_stats AS (
       SELECT
         c.challenge_team_id,
+        COUNT(DISTINCT c.game_pk) AS games_with_challenges,
         SUM(
           CASE
             WHEN c.half_inning = 'Top' AND g.away_team_id = c.challenge_team_id THEN 1
@@ -81,11 +83,11 @@ export async function getGamePregameIntel(gamePk: number): Promise<PregameIntel 
       gc.umpire_name,
       gc.home_team_id,
       gc.away_team_id,
-      COALESCE(away.offensive_challenges, 0) AS away_offense,
-      COALESCE(away.defensive_challenges, 0) AS away_defense,
+      COALESCE(away.offensive_challenges::NUMERIC / NULLIF(away.games_with_challenges, 0), 0) AS away_offense,
+      COALESCE(away.defensive_challenges::NUMERIC / NULLIF(away.games_with_challenges, 0), 0) AS away_defense,
       COALESCE(away.success_rate, 0) AS away_success,
-      COALESCE(home.offensive_challenges, 0) AS home_offense,
-      COALESCE(home.defensive_challenges, 0) AS home_defense,
+      COALESCE(home.offensive_challenges::NUMERIC / NULLIF(home.games_with_challenges, 0), 0) AS home_offense,
+      COALESCE(home.defensive_challenges::NUMERIC / NULLIF(home.games_with_challenges, 0), 0) AS home_defense,
       COALESCE(home.success_rate, 0) AS home_success
     FROM game_context gc
     LEFT JOIN team_stats away ON away.challenge_team_id = gc.away_team_id
@@ -167,11 +169,24 @@ export async function getGamePregameIntel(gamePk: number): Promise<PregameIntel 
         FROM abs_challenges
         WHERE inning BETWEEN 1 AND 9
         GROUP BY challenge_team_id, inning
+      ),
+      team_totals AS (
+        SELECT
+          challenge_team_id,
+          SUM(challenge_count) AS total_challenges
+        FROM team_inning_counts
+        GROUP BY challenge_team_id
       )
       SELECT
-        inning,
-        AVG(challenge_count)::NUMERIC AS avg_challenges
-      FROM team_inning_counts
+        tic.inning,
+        AVG(
+          CASE
+            WHEN tt.total_challenges > 0 THEN tic.challenge_count::NUMERIC / tt.total_challenges
+            ELSE 0
+          END
+        )::NUMERIC AS avg_challenges
+      FROM team_inning_counts tic
+      JOIN team_totals tt ON tt.challenge_team_id = tic.challenge_team_id
       GROUP BY inning
       ORDER BY inning ASC
       `,

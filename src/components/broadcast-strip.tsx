@@ -2,9 +2,11 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { InningIcon } from "@/components/inning-icon";
-import { LocalTime } from "@/components/local-time";
+import { formatHalfInningLabel } from "@/lib/challenge-context";
+import { withViewModeHref } from "@/lib/view-mode-href";
 
 import type { HomeChallengeMoment, LiveGameCard } from "@/lib/types";
 
@@ -13,11 +15,15 @@ type BroadcastStripProps = {
 };
 
 export function BroadcastStrip({ moments }: BroadcastStripProps) {
+  const searchParams = useSearchParams();
+  const activeMode = searchParams.get("view") === "org" || searchParams.get("view") === "fan"
+    ? searchParams.get("view")
+    : null;
   const items = useMemo(() => {
     return moments.map((moment) => ({
       key: `m-${moment.challengeId}`,
-      href: `/game/${moment.gamePk}?challengeId=${moment.challengeId}#abs-explorer`,
-      label: `${moment.playerName || "Player"} — (${moment.umpireCount || `${moment.balls ?? 0}-${moment.strikes ?? 0}`}) count in ${moment.halfInning === "Top" ? "Top" : "Bottom"} ${moment.inning || "?"}`,
+      href: withViewModeHref(`/game/${moment.gamePk}?challengeId=${moment.challengeId}#abs-explorer`, activeMode === "org" || activeMode === "fan" ? activeMode : null),
+      label: `${moment.playerName || "Player"} — (${moment.umpireCount || `${moment.balls ?? 0}-${moment.strikes ?? 0}`}) count in ${formatHalfInningLabel(moment.halfInning, "long")} ${moment.inning || "?"}`,
       subLabel: moment.gameLabel,
       score: `${moment.isOverturned ? "Overturned" : "Confirmed"}`,
       tag: moment.gameStatus,
@@ -26,7 +32,7 @@ export function BroadcastStrip({ moments }: BroadcastStripProps) {
       half: moment.halfInning,
       type: "Challenge",
     }));
-  }, [moments]);
+  }, [activeMode, moments]);
 
   // Double items for seamless loop
   const marqueeItems = [...items, ...items];
@@ -92,5 +98,3 @@ export function BroadcastStrip({ moments }: BroadcastStripProps) {
     </section>
   );
 }
-
-

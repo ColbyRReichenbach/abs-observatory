@@ -1,0 +1,315 @@
+{
+  "auditDate": "2026-03-25",
+  "dataWindow": {
+    "start": "2026-02-20T05:00:00.000Z",
+    "end": "2026-03-24T04:00:00.000Z"
+  },
+  "overview": {
+    "games": "451",
+    "first_game_date": "2026-02-20T05:00:00.000Z",
+    "last_game_date": "2026-03-24T04:00:00.000Z",
+    "challenges": "1913",
+    "pitches": "133678",
+    "historical_pitch_states": "4566992"
+  },
+  "martCoverage": {
+    "runExpectancy": [
+      {
+        "fallback_tier": "drop_count_key",
+        "confidence_band": "high",
+        "rows": "24",
+        "total_sample": "4566992"
+      },
+      {
+        "fallback_tier": "drop_inning_bucket",
+        "confidence_band": "high",
+        "rows": "278",
+        "total_sample": "4564074"
+      },
+      {
+        "fallback_tier": "drop_inning_bucket",
+        "confidence_band": "medium",
+        "rows": "10",
+        "total_sample": "2918"
+      },
+      {
+        "fallback_tier": "exact",
+        "confidence_band": "high",
+        "rows": "826",
+        "total_sample": "4482561"
+      },
+      {
+        "fallback_tier": "exact",
+        "confidence_band": "low",
+        "rows": "78",
+        "total_sample": "6938"
+      },
+      {
+        "fallback_tier": "exact",
+        "confidence_band": "medium",
+        "rows": "248",
+        "total_sample": "77493"
+      }
+    ],
+    "winExpectancy": [
+      {
+        "fallback_tier": "drop_count_key_bucketed_inning",
+        "confidence_band": "high",
+        "rows": "479",
+        "total_sample": "3794784"
+      },
+      {
+        "fallback_tier": "drop_count_key_bucketed_inning",
+        "confidence_band": "low",
+        "rows": "536",
+        "total_sample": "138733"
+      },
+      {
+        "fallback_tier": "drop_count_key_bucketed_inning",
+        "confidence_band": "medium",
+        "rows": "617",
+        "total_sample": "633475"
+      },
+      {
+        "fallback_tier": "drop_count_key_exact_inning",
+        "confidence_band": "high",
+        "rows": "576",
+        "total_sample": "3073136"
+      },
+      {
+        "fallback_tier": "drop_count_key_exact_inning",
+        "confidence_band": "low",
+        "rows": "3113",
+        "total_sample": "494734"
+      },
+      {
+        "fallback_tier": "drop_count_key_exact_inning",
+        "confidence_band": "medium",
+        "rows": "999",
+        "total_sample": "999122"
+      },
+      {
+        "fallback_tier": "drop_inning_to_bucket",
+        "confidence_band": "high",
+        "rows": "331",
+        "total_sample": "1294080"
+      },
+      {
+        "fallback_tier": "drop_inning_to_bucket",
+        "confidence_band": "low",
+        "rows": "17397",
+        "total_sample": "1582988"
+      },
+      {
+        "fallback_tier": "drop_inning_to_bucket",
+        "confidence_band": "medium",
+        "rows": "1760",
+        "total_sample": "1689924"
+      },
+      {
+        "fallback_tier": "exact",
+        "confidence_band": "high",
+        "rows": "143",
+        "total_sample": "482706"
+      },
+      {
+        "fallback_tier": "exact",
+        "confidence_band": "low",
+        "rows": "48836",
+        "total_sample": "2583314"
+      },
+      {
+        "fallback_tier": "exact",
+        "confidence_band": "medium",
+        "rows": "1778",
+        "total_sample": "1500972"
+      }
+    ],
+    "overturnProbability": [
+      {
+        "fallback_tier": "direction_only",
+        "confidence_band": "high",
+        "rows": "2",
+        "total_sample": "1168"
+      },
+      {
+        "fallback_tier": "exact",
+        "confidence_band": "high",
+        "rows": "2",
+        "total_sample": "1060"
+      },
+      {
+        "fallback_tier": "exact",
+        "confidence_band": "low",
+        "rows": "2",
+        "total_sample": "4"
+      },
+      {
+        "fallback_tier": "exact",
+        "confidence_band": "medium",
+        "rows": "2",
+        "total_sample": "104"
+      },
+      {
+        "fallback_tier": "global",
+        "confidence_band": "high",
+        "rows": "1",
+        "total_sample": "1168"
+      }
+    ]
+  },
+  "actualUsage": {
+    "runExpectancy": [
+      {
+        "pre_tier": "exact",
+        "post_tier": "exact",
+        "challenges": 1316,
+        "pct": 0.6879247255619446
+      },
+      {
+        "pre_tier": "drop_count_key",
+        "post_tier": "drop_count_key",
+        "challenges": 333,
+        "pct": 0.17407213800313642
+      },
+      {
+        "pre_tier": "exact",
+        "post_tier": "drop_count_key",
+        "challenges": 155,
+        "pct": 0.08102456874019864
+      },
+      {
+        "pre_tier": "drop_count_key",
+        "post_tier": "exact",
+        "challenges": 109,
+        "pct": 0.05697856769472034
+      }
+    ],
+    "winExpectancy": [
+      {
+        "pre_tier": "exact",
+        "post_tier": "exact",
+        "challenges": 1315,
+        "pct": 0.687401986408782
+      },
+      {
+        "pre_tier": "drop_count_key_exact_inning",
+        "post_tier": "drop_count_key_exact_inning",
+        "challenges": 333,
+        "pct": 0.17407213800313642
+      },
+      {
+        "pre_tier": "exact",
+        "post_tier": "drop_count_key_exact_inning",
+        "challenges": 155,
+        "pct": 0.08102456874019864
+      },
+      {
+        "pre_tier": "drop_count_key_exact_inning",
+        "post_tier": "exact",
+        "challenges": 108,
+        "pct": 0.056455828541557763
+      },
+      {
+        "pre_tier": "drop_inning_to_bucket",
+        "post_tier": "drop_inning_to_bucket",
+        "challenges": 1,
+        "pct": 0.0005227391531625719
+      },
+      {
+        "pre_tier": "unresolved",
+        "post_tier": "unresolved",
+        "challenges": 1,
+        "pct": 0.0005227391531625719
+      }
+    ],
+    "overturnProbability": [
+      {
+        "fallback_tier": "exact",
+        "confidence_band": "high",
+        "challenges": 1663,
+        "avg_predicted_overturn": "0.5179",
+        "realized_overturn_rate": "0.5280"
+      },
+      {
+        "fallback_tier": "exact",
+        "confidence_band": "medium",
+        "challenges": 208,
+        "avg_predicted_overturn": "0.4956",
+        "realized_overturn_rate": "0.5337"
+      },
+      {
+        "fallback_tier": "direction_only",
+        "confidence_band": "high",
+        "challenges": 40,
+        "avg_predicted_overturn": "0.5292",
+        "realized_overturn_rate": "0.5500"
+      },
+      {
+        "fallback_tier": "global",
+        "confidence_band": "high",
+        "challenges": 2,
+        "avg_predicted_overturn": "0.5146",
+        "realized_overturn_rate": "0.5000"
+      }
+    ]
+  },
+  "overturnCalibration": [
+    {
+      "predicted_bucket": "40-49%",
+      "challenges": 820,
+      "avg_predicted_overturn": "0.4953",
+      "realized_overturn_rate": "0.4939"
+    },
+    {
+      "predicted_bucket": "50-59%",
+      "challenges": 1093,
+      "avg_predicted_overturn": "0.5309",
+      "realized_overturn_rate": "0.5554"
+    }
+  ],
+  "decisionValue": {
+    "byMode": [
+      {
+        "mode": "win_expectancy",
+        "challenges": 1912,
+        "pct": 0.9994772608468374,
+        "avgExpectedWpDelta": -0.0011576359832635979,
+        "avgRealizedWpDelta": -0.0013139432310728088,
+        "challengeRecommendationRate": 0.21914225941422594,
+        "positiveRealizedRate": 0.2442468619246862
+      },
+      {
+        "mode": "heuristic",
+        "challenges": 1,
+        "pct": 0.0005227391531625719,
+        "avgExpectedWpDelta": 0.007,
+        "avgRealizedWpDelta": 0.0191,
+        "challengeRecommendationRate": 1,
+        "positiveRealizedRate": 1
+      }
+    ],
+    "overallExpectedWpDelta": -0.0011533716675378983,
+    "overallRealizedWpDelta": -0.001303272063675489,
+    "signAgreement": 0.9404077365394669
+  },
+  "rubricDistributions": {
+    "teamStyles": {
+      "Calculated": 6,
+      "Hybrid": 18,
+      "Trigger-Happy": 6
+    },
+    "umpireGrades": {
+      "A": 3,
+      "B": 30,
+      "C": 42,
+      "D": 31,
+      "F": 2
+    },
+    "orgRiskTiers": {
+      "Elevated": 16,
+      "Low": 5,
+      "Moderate": 87
+    }
+  }
+}

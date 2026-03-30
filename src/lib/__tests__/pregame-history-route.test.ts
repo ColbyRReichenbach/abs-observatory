@@ -28,7 +28,7 @@ describe("D-5: pregame-history API route", () => {
         expect(body.umpireId).toBe(100);
         expect(body.homeTeam.games).toBe(5);
         expect(body.awayTeam.overturnRate).toBe(0.5);
-        expect(body.leagueAverage).toBe(0.35);
+        expect(body.leagueAverage.overturnRate).toBe(0.35);
     });
 
     it("returns 404 for unknown game", async () => {

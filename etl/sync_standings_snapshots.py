@@ -6,17 +6,44 @@ import os
 from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
 
-import psycopg2
-import requests
-from dotenv import load_dotenv
-from psycopg2.extras import Json, execute_batch
+try:
+    import requests
+except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
+    requests = None
+try:
+    from dotenv import load_dotenv
+except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
+    def load_dotenv(*_args: Any, **_kwargs: Any) -> bool:
+        return False
+try:
+    import psycopg2
+    from psycopg2.extras import Json, execute_batch
+except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
+    psycopg2 = None
+
+    def Json(value: Any) -> Any:
+        return value
+
+    def execute_batch(*_args: Any, **_kwargs: Any) -> None:
+        raise RuntimeError("psycopg2 is required for ETL database writes")
 
 load_dotenv()
 
 API_BASE = "https://statsapi.mlb.com/api/v1"
 
 
+def require_psycopg2() -> None:
+    if psycopg2 is None:
+        raise RuntimeError("psycopg2 is required to run ETL database operations")
+
+
+def require_requests() -> None:
+    if requests is None:
+        raise RuntimeError("requests is required to fetch standings snapshots")
+
+
 def fetch_standings_snapshot(snapshot_date: str, season: Optional[int] = None) -> Dict[str, Any]:
+    require_requests()
     params = {
         "leagueId": "103,104",
         "standingsTypes": "regularSeason",
@@ -102,6 +129,7 @@ def store_source_snapshot(cur, snapshot_date: str, payload: Dict[str, Any]) -> N
 
 
 def run(database_url: str, snapshot_date: str, season: Optional[int] = None) -> int:
+    require_psycopg2()
     payload = fetch_standings_snapshot(snapshot_date, season)
     rows = extract_standings_rows(snapshot_date, payload)
     conn = psycopg2.connect(database_url)

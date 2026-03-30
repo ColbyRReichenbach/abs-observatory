@@ -35,9 +35,9 @@ describe("GameScoreboard", () => {
     );
 
     expect(html).toContain("Scheduled");
-    expect(html).toContain("Count");
-    expect(html).toContain("0-0");
-    expect(html).toContain("Outs");
+    expect(html).toContain("Preview");
+    expect(html).not.toContain("Count");
+    expect(html).not.toContain("Outs");
     expect(html).toContain("NYY");
     expect(html).toContain("BOS");
     expect(html).toContain("R");

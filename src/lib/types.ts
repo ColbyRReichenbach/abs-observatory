@@ -1,6 +1,7 @@
 export type LiveGameCard = {
   gamePk: number;
   gameDate: string;
+  gameType?: string | null;
   status: string;
   detailedState: string | null;
   homeTeamId: number;
@@ -40,6 +41,8 @@ export type ChallengeEvent = {
   challengePlayerName: string | null;
   batterName: string | null;
   pitcherName: string | null;
+  batterStand?: "R" | "L" | null;
+  pitcherThrows?: "R" | "L" | null;
   calledDescription: string | null;
   pitchNumber: number | null;
   pitchType: string | null;
@@ -79,9 +82,52 @@ export type ChallengeEvent = {
   expectedChallengeValue?: number | null;
   decisionRecommendation?: "challenge" | "hold" | "cannot_challenge" | null;
   decisionValueMode?: "win_expectancy" | "heuristic" | null;
+  heldCountBaseline?: ChallengeCountBaseline | null;
+  correctedCountBaseline?: ChallengeCountBaseline | null;
+  pitchTypeCountBaseline?: ChallengePitchTypeBaseline | null;
+  handednessBaseline?: ChallengeHandednessBaseline | null;
+  pitchLaneBaseline?: ChallengePitchLaneBaseline | null;
+};
+
+export type ChallengeCountBaseline = {
+  countKey: string;
+  plateAppearances: number;
+  battingAverage: number;
+  walkRate: number;
+  strikeoutRate: number;
+  positiveOutcomeRate: number;
+};
+
+export type ChallengePitchTypeBaseline = {
+  pitchType: string;
+  countKey: string;
+  pitchCount: number;
+  challengedPitchCount: number;
+  challengeRate: number;
+  avgStartSpeed: number | null;
+  avgSpinRate: number | null;
+};
+
+export type ChallengeHandednessBaseline = {
+  countKey: string;
+  pitcherThrows: "R" | "L";
+  batterStand: "R" | "L";
+  sampleSize: number;
+  overturnRate: number;
+  avgEdgeDistance: number | null;
+};
+
+export type ChallengePitchLaneBaseline = {
+  pitchType: string;
+  countKey: string;
+  lane: string;
+  sampleSize: number;
+  overturnRate: number;
+  avgEdgeDistance: number | null;
 };
 
 export type PitchTimelineEntry = {
+  eventId: string;
   gamePk: number;
   atBatIndex: number;
   pitchNumber: number;
@@ -107,12 +153,19 @@ export type PitchTimelineEntry = {
   countBefore: string | null;
   countAfter: string | null;
   umpireCount: string | null;
+  countBeforeLabel: string;
+  countAfterLabel: string;
+  umpireCountLabel: string;
+  countTransitionLabel: string;
+  terminalOutcome: "Walk" | "Strikeout" | null;
   outsBefore: number | null;
   outsAfter: number | null;
   basesStateBefore: string | null;
   basesStateAfter: string | null;
   isInPlay: boolean;
   endedPlateAppearance: boolean;
+  isChallenge: boolean;
+  description: string;
   challengeId: string | null;
   challengePlayerName: string | null;
   challengeTeamId: number | null;
@@ -135,7 +188,7 @@ export type UmpireSummary = {
 };
 
 export type UmpireZoneBucket = {
-  zone: "up" | "down" | "glove" | "arm";
+  zone: "up" | "down" | "glove" | "arm" | "heart" | "edge" | "chase";
   challenges: number;
   overturnRate: number;
 };
@@ -155,6 +208,28 @@ export type UmpireProfile = {
   };
   zoneBuckets: UmpireZoneBucket[];
   countHotspots: UmpireCountHotspot[];
+  handednessSplits?: UmpireHandednessSplit[];
+};
+
+export type UmpireHandednessSplit = {
+  pitcherThrows: "R" | "L";
+  batterStand: "R" | "L";
+  challengedCount: number;
+  overturnedCount: number;
+  overturnRate: number;
+};
+
+export type UmpireMatchupVulnerability = {
+  pitcherThrows: "R" | "L";
+  batterStand: "R" | "L";
+  challengedCount: number;
+  overturnedCount: number;
+  overturnRate: number;
+  topPitchTypeCode: string | null;
+  topPitchTypeName: string | null;
+  topPitchTypeOverturnRate: number | null;
+  topZone: string | null;
+  topZoneOverturnRate: number | null;
 };
 
 export type TeamSummary = {
@@ -186,6 +261,7 @@ export type TeamIdentity = {
 export type TeamTrendPoint = {
   gamePk: number;
   gameDate: string;
+  gameType?: string | null;
   isHome: boolean;
   homeTeamId: number;
   awayTeamId: number;
@@ -429,6 +505,91 @@ export type LiveChallengeWindow = {
   winExpectancyConfidence: ConfidenceBand | null;
 };
 
+export type GameChallengeImpactMoment = {
+  challengeId: string;
+  challengeTeamName: string | null;
+  inning: number | null;
+  halfInning: string | null;
+  calledDescription: string | null;
+  isOverturned: boolean;
+  countBefore: string | null;
+  umpireCount: string | null;
+  countAfter: string | null;
+  estimatedLeverageIndex: number;
+  estimatedChallengeSwing: number;
+  runExpectancyDelta: number | null;
+  runExpectancyConfidence: ConfidenceBand | null;
+  winExpectancyDelta: number | null;
+  winExpectancyConfidence: ConfidenceBand | null;
+  expectedChallengeValue: number | null;
+  decisionRecommendation: "challenge" | "hold" | "cannot_challenge" | null;
+  impactSummary: string | null;
+};
+
+export type GameChallengeImpactSummary = {
+  totalChallenges: number;
+  overturnedChallenges: number;
+  confirmedChallenges: number;
+  biggestSwing: GameChallengeImpactMoment | null;
+  highestLeverage: GameChallengeImpactMoment | null;
+  biggestRunValue: GameChallengeImpactMoment | null;
+  biggestWinValue: GameChallengeImpactMoment | null;
+};
+
+export type GameUmpireInGameSplit = {
+  pitcherThrows: "R" | "L";
+  batterStand: "R" | "L";
+  sampleSize: number;
+  overturnRate: number;
+  averageLeverage: number | null;
+  averageWinDelta: number | null;
+  averageRunDelta: number | null;
+};
+
+export type GameUmpireInGamePitchProfile = {
+  pitchType: string;
+  sampleSize: number;
+  overturnRate: number;
+  averageLeverage: number | null;
+};
+
+export type GameUmpireInGameLaneProfile = {
+  lane: string;
+  sampleSize: number;
+  overturnRate: number;
+  averageLeverage: number | null;
+};
+
+export type GameUmpireInGameSummary = {
+  totalChallenges: number;
+  overturnedChallenges: number;
+  mostTargetedSplit: GameUmpireInGameSplit | null;
+  highestRiskSplit: GameUmpireInGameSplit | null;
+  topPitchType: GameUmpireInGamePitchProfile | null;
+  topLane: GameUmpireInGameLaneProfile | null;
+  splits: GameUmpireInGameSplit[];
+};
+
+export type GameTeamChallengeComparisonSide = {
+  teamId: number | null;
+  abbreviation: string | null;
+  primaryColor: string | null;
+  totalChallenges: number;
+  overturnRate: number | null;
+  averageLeverage: number | null;
+  lateCloseShare: number | null;
+  totalWinValue: number | null;
+  totalRunValue: number | null;
+  totalEstimatedSwing: number;
+  expectedValueSum: number | null;
+};
+
+export type GameTeamChallengeComparison = {
+  home: GameTeamChallengeComparisonSide;
+  away: GameTeamChallengeComparisonSide;
+  valueMode: "win" | "run" | "estimated";
+};
+
 export type AIQueryResponse = {
   answer: string;
   sql: string;
@@ -445,6 +606,13 @@ export type AIChatResponse = {
   generationId?: string | null;
   modelName?: string;
   answer: string;
+  structuredInsight?: {
+    headline: string;
+    sections: Array<{
+      label: string;
+      body: string;
+    }>;
+  } | null;
   toolResults: Array<{ toolName: string; payload: unknown }>;
   citations: string[];
   safetyDisposition: "allowed" | "blocked";
@@ -513,6 +681,10 @@ export type GameReport = {
 export type GameHubGame = {
   gamepk: number;
   statusabstract: string;
+  homeTeamId?: number;
+  awayTeamId?: number;
+  hometeamid?: number;
+  awayteamid?: number;
   homescore: number | null;
   awayscore: number | null;
   homeabbreviation: string | null;
@@ -578,6 +750,7 @@ export type HomeChallengeMoment = {
 export interface UmpireTrendPoint {
   gamePk: number;
   gameDate: string;
+  gameType?: string | null;
   homeTeamId: number;
   awayTeamId: number;
   homeTeamAbbr: string;
@@ -611,6 +784,7 @@ export type UmpirePerformanceDNA = {
 export type TeamScheduleGame = {
   gamePk: number;
   gameDate: string;
+  gameType?: string | null;
   status: string;
   homeTeamId: number;
   awayTeamId: number;
@@ -642,7 +816,7 @@ export type ConfidenceBand = "low" | "medium" | "high";
 
 export type UmpireGrade = "A" | "B" | "C" | "D" | "F";
 
-export type UmpireFanDescriptor = "Reliable" | "Balanced" | "Uneasy" | "Erratic" | "Chaotic";
+export type UmpireFanDescriptor = "Reliable" | "Steady" | "Watchful" | "Volatile" | "High-Risk";
 
 export type UmpireOrgDescriptor =
   | "Low-risk profile"
@@ -651,13 +825,13 @@ export type UmpireOrgDescriptor =
   | "Elevated risk"
   | "High-risk profile";
 
-export type TeamStyle = "Clutch" | "Calculated" | "Trigger-Happy" | "Passive";
+export type TeamStyle = "High-Impact" | "Selective" | "Overactive" | "Low-Usage";
 
 export type TeamStyleOrgLabel =
-  | "Opportunistic"
-  | "Disciplined"
-  | "Aggressive"
-  | "Conservative";
+  | "Timely"
+  | "Selective"
+  | "High-Usage"
+  | "Low-Usage";
 
 export type ControversyReasonChip =
   | "Late Inning"

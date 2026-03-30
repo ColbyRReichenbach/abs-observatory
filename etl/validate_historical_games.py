@@ -7,12 +7,34 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Dict
 
-import psycopg2
-import requests
-from dotenv import load_dotenv
+try:
+    import psycopg2
+except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
+    psycopg2 = None
+
+try:
+    import requests
+except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
+    requests = None
+
+try:
+    from dotenv import load_dotenv
+except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
+    def load_dotenv(*_args, **_kwargs):  # type: ignore[no-untyped-def]
+        return False
 
 
 API_BASE = "https://statsapi.mlb.com/api/v1"
+
+
+def require_psycopg2() -> None:
+    if psycopg2 is None:
+        raise RuntimeError("psycopg2 is required to validate historical games")
+
+
+def require_requests() -> None:
+    if requests is None:
+        raise RuntimeError("requests is required to fetch MLB schedule data")
 
 
 @dataclass
@@ -25,6 +47,7 @@ class ValidationSummary:
 
 
 def fetch_schedule_index(start_date: date, end_date: date) -> Dict[int, dict]:
+    require_requests()
     response = requests.get(
         f"{API_BASE}/schedule",
         params={
@@ -84,6 +107,7 @@ def main() -> None:
         raise SystemExit("DATABASE_URL is required.")
 
     schedule_index = fetch_schedule_index(start_date, end_date)
+    require_psycopg2()
     conn = psycopg2.connect(connection_string)
     try:
         with conn.cursor() as cur:

@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import {
   CartesianGrid,
   Label,
@@ -60,39 +60,26 @@ const RiskDot = memo((props: { cx?: number; cy?: number; payload?: UmpireRiskPoi
 RiskDot.displayName = "RiskDot";
 
 type UmpireRiskTooltipProps = TooltipContentProps<number, string> & {
-  viewBox?: {
-    height?: number;
-  };
+  mousePos: { x: number; y: number };
 };
 
-function UmpireRiskTooltip({ active, payload, coordinate, viewBox }: UmpireRiskTooltipProps) {
-  if (!active || !payload?.length || !coordinate) return null;
+function UmpireRiskTooltip({ active, payload, mousePos }: UmpireRiskTooltipProps) {
+  if (!active || !payload?.length) return null;
   const point = payload[0]?.payload as UmpireRiskPoint | undefined;
   if (!point) return null;
 
-  // Flip logic based on Y coordinate
-  const isBottomHalf = (coordinate?.y || 0) > (viewBox?.height || 300) / 2;
-
   return (
-    <div
-      className="transition-transform duration-300 ease-out"
-      style={{
-        transform: isBottomHalf
-          ? "translateX(-50%) translateY(-100%) translateY(-20px)"
-          : "translateX(-50%) translateY(20px)",
-        pointerEvents: "none"
-      }}
-    >
-      <ChartTooltip
-        title={point.umpireName}
-        value={`${(point.overturnRate * 100).toFixed(2)}%`}
-        subValueLabel="Overturn Rate"
-        extra={[
-          { label: "Variance", value: point.overturnRateVariance.toFixed(2) },
-          { label: "Risk Tier", value: point.riskTier, mono: false, color: riskColor(point.riskTier) },
-        ]}
-      />
-    </div>
+    <ChartTooltip
+      usePortal
+      portalProps={mousePos}
+      title={point.umpireName}
+      value={`${(point.overturnRate * 100).toFixed(2)}%`}
+      subValueLabel="Overturn Rate"
+      extra={[
+        { label: "Variance", value: point.overturnRateVariance.toFixed(2) },
+        { label: "Risk Tier", value: point.riskTier, mono: false, color: riskColor(point.riskTier) },
+      ]}
+    />
   );
 }
 
@@ -128,6 +115,7 @@ function VarianceAxisLabel({
 }
 
 export function UmpireRiskScatter({ data }: { data: UmpireRiskPoint[] }) {
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const { avgRate, avgVariance, xAxis, yAxis, yTickDigits } = useMemo(() => {
     if (data.length === 0) {
       return {
@@ -158,30 +146,30 @@ export function UmpireRiskScatter({ data }: { data: UmpireRiskPoint[] }) {
     <div className="panel h-full flex flex-col overflow-visible border-gray-100 bg-white shadow-2xl shadow-black/[0.03] p-6">
       <div className="mb-6">
         <h4 className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mb-1">
-          Prep Value
+          Review Risk
         </h4>
         <p className="text-2xl font-display leading-none text-gray-900">
-          Umpire <span className="text-gray-400 italic">Risk Map</span>
+          Umpire <span className="text-gray-400 italic">Review Map</span>
         </p>
       </div>
 
-      <div className="relative flex-1 min-h-[300px] w-full">
+      <div className="relative h-[300px] w-full" onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}>
         <div className="pointer-events-none absolute inset-0 z-10">
           <span className="absolute top-2 left-12 text-[9px] font-black uppercase tracking-[0.14em] text-emerald-500/50">
-            Volatile Accurate
+            Low Overturn / Volatile
           </span>
           <span className="absolute top-2 right-4 text-[9px] font-black uppercase tracking-[0.14em] text-red-500/50">
-            Reliably Problematic
+            High Overturn / Volatile
           </span>
           <span className="absolute bottom-6 left-12 text-[9px] font-black uppercase tracking-[0.14em] text-blue-500/50">
-            Reliable Accurate
+            Low Overturn / Steady
           </span>
           <span className="absolute bottom-6 right-4 text-[9px] font-black uppercase tracking-[0.14em] text-amber-500/50">
-            Volatile Problematic
+            High Overturn / Steady
           </span>
         </div>
 
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height={300} minWidth={0}>
           <ScatterChart margin={{ top: 28, right: 30, bottom: 50, left: 72 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
             <XAxis
@@ -239,11 +227,11 @@ export function UmpireRiskScatter({ data }: { data: UmpireRiskPoint[] }) {
             />
             <Scatter data={data} shape={<RiskDot />} isAnimationActive={false} />
             <Tooltip
-              content={(props) => <UmpireRiskTooltip {...(props as UmpireRiskTooltipProps)} />}
+              content={(props) => <UmpireRiskTooltip {...(props as TooltipContentProps<number, string>)} mousePos={mousePos} />}
               cursor={false}
               offset={0}
               allowEscapeViewBox={{ x: true, y: true }}
-              wrapperStyle={{ zIndex: 10001, outline: "none", pointerEvents: "none" }}
+              wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
               isAnimationActive={false}
               animationDuration={0}
             />

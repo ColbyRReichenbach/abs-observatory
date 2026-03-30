@@ -10,10 +10,86 @@ export type ScenarioTag =
   | "Full Count";
 
 export function parseCountKey(countKey?: string | null) {
-  if (!countKey) return null;
+  if (!countKey || typeof countKey !== "string") return null;
   const [balls, strikes] = countKey.split("-").map((value) => Number(value));
   if (!Number.isFinite(balls) || !Number.isFinite(strikes)) return null;
   return { balls, strikes };
+}
+
+export function formatCountStateLabel(countKey?: string | null) {
+  const parsed = parseCountKey(countKey);
+  if (!parsed) return countKey ?? "Unavailable";
+  if (parsed.balls >= 4) return "Walk";
+  if (parsed.strikes >= 3) return "Strikeout";
+  return `${parsed.balls}-${parsed.strikes}`;
+}
+
+export function formatCountTransitionLabel(before?: string | null, after?: string | null) {
+  const from = formatCountStateLabel(before);
+  const to = formatCountStateLabel(after);
+  if (!before && !after) return "Unavailable";
+  if (!after) return from;
+  if (!before) return to;
+  return from === to ? to : `${from} → ${to}`;
+}
+
+export function getChallengeCountState(before?: string | null, umpireCount?: string | null, after?: string | null) {
+  const initial = umpireCount ?? before ?? null;
+  const final = after ?? null;
+  const beforeLabel = formatCountStateLabel(initial);
+  const afterLabel = formatCountStateLabel(final);
+  const transitionLabel = formatCountTransitionLabel(initial, final);
+  const parsedFinal = parseCountKey(final);
+  const terminalOutcome =
+    parsedFinal?.balls !== undefined && parsedFinal.balls >= 4
+      ? "Walk"
+      : parsedFinal?.strikes !== undefined && parsedFinal.strikes >= 3
+        ? "Strikeout"
+        : null;
+  const countAdvantageLabel = (() => {
+    const parsed = parseCountKey(final ?? initial);
+    if (!parsed) return "Unknown";
+    if (parsed.balls >= 4) return "Walk";
+    if (parsed.strikes >= 3) return "Strikeout";
+    if (parsed.balls > parsed.strikes) return "Hitter ahead";
+    if (parsed.strikes > parsed.balls) return "Pitcher ahead";
+    return "Even count";
+  })();
+
+  return {
+    initial,
+    final,
+    beforeLabel,
+    afterLabel,
+    transitionLabel,
+    terminalOutcome,
+    countAdvantageLabel,
+  };
+}
+
+export function normalizeHalfInning(halfInning?: string | null) {
+  if (!halfInning) return null;
+  const normalized = halfInning.trim().toLowerCase();
+  if (normalized === "top" || normalized === "t" || normalized.startsWith("top ")) return "Top";
+  if (
+    normalized === "bottom" ||
+    normalized === "bot" ||
+    normalized === "b" ||
+    normalized.startsWith("bottom ") ||
+    normalized.startsWith("bot ")
+  ) {
+    return "Bottom";
+  }
+  return null;
+}
+
+export function formatHalfInningLabel(halfInning?: string | null, style: "short" | "long" = "long") {
+  const normalized = normalizeHalfInning(halfInning);
+  if (!normalized) return style === "short" ? "Inning" : "Inning";
+  if (style === "short") {
+    return normalized === "Top" ? "Top" : "Bot";
+  }
+  return normalized;
 }
 
 export function countRunnersOnBase(basesState?: string | null) {

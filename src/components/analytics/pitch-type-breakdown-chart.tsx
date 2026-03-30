@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import type { UmpirePitchTypeBreakdown } from "@/lib/types";
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
@@ -27,6 +28,7 @@ function getColor(code: string): string {
  * D-8: Horizontal bar chart showing overturn rate per pitch type.
  */
 export function PitchTypeBreakdownChart({ data }: { data: UmpirePitchTypeBreakdown[] }) {
+    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
     if (data.length === 0) {
         return (
             <div className="panel bg-white p-8 text-center text-gray-400 text-sm font-medium">
@@ -61,7 +63,8 @@ export function PitchTypeBreakdownChart({ data }: { data: UmpirePitchTypeBreakdo
                 </p>
             </div>
 
-            <ResponsiveContainer width="100%" height={Math.max(180, chartData.length * 44)}>
+            <div onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}>
+                <ResponsiveContainer width="100%" height={Math.max(180, chartData.length * 44)}>
                 <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 40, top: 4, bottom: 4 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
                     <XAxis
@@ -82,7 +85,7 @@ export function PitchTypeBreakdownChart({ data }: { data: UmpirePitchTypeBreakdo
                         tickLine={false}
                     />
                     <Tooltip
-                        wrapperStyle={{ zIndex: 10001 }}
+                        wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
                         allowEscapeViewBox={{ x: true, y: true }}
                         cursor={{ fill: "rgba(59,130,246,0.04)" }}
                         content={({ active, payload }) => {
@@ -90,6 +93,8 @@ export function PitchTypeBreakdownChart({ data }: { data: UmpirePitchTypeBreakdo
                             const d = payload[0].payload as (typeof chartData)[number];
                             return (
                                 <ChartTooltip
+                                    usePortal
+                                    portalProps={mousePos}
                                     title={`${d.name} (${d.code})`}
                                     value={`${d.overturnRate.toFixed(2)}%`}
                                     subValueLabel="Overturn Rate"
@@ -107,7 +112,8 @@ export function PitchTypeBreakdownChart({ data }: { data: UmpirePitchTypeBreakdo
                         ))}
                     </Bar>
                 </BarChart>
-            </ResponsiveContainer>
+                </ResponsiveContainer>
+            </div>
 
             {/* Legend chips */}
             <div className="mt-4 flex flex-wrap gap-2">
