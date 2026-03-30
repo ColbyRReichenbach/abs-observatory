@@ -8,6 +8,7 @@ import { WeeklyArticleSection } from "@/components/articles/weekly-article-secti
 import { AIFeedback } from "@/components/ai-feedback";
 import { getArticleDeskMeta, getArticleDisplayAuthor } from "@/lib/articles-desk";
 import { BackPill } from "@/components/ui/back-pill";
+import { EditorialProse } from "@/components/editorial/editorial-copy";
 
 export default async function ArticleDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -39,21 +40,21 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
         </div>
 
         <article className="rounded-[2.5rem] border border-black/10 bg-white/80 p-8 shadow-[0_20px_50px_rgba(0,0,0,0.04)] md:p-12">
-          <header className="border-b border-black/10 pb-8">
+          <header className="mx-auto max-w-[70ch] border-b border-black/10 pb-8">
             <p className="text-[11px] font-black uppercase tracking-[0.28em] text-[#7d6c54]">
               {deskMeta.deskName} •{" "}
               {article.publishedAt ? new Date(article.publishedAt).toLocaleDateString() : "Draft"}
             </p>
             <h1 className="mt-4 text-4xl font-display uppercase tracking-tight md:text-6xl">{article.title}</h1>
-            {article.dek ? <p className="mt-4 max-w-3xl text-base text-[#5a554d]">{article.dek}</p> : null}
+            {article.dek ? <p className="mt-4 text-base text-[#5a554d]">{article.dek}</p> : null}
             <p className="mt-6 text-sm font-serif italic text-[#5a554d]">
               By <span className="font-bold uppercase not-italic tracking-[0.14em] text-[#2c2c2c]">{displayAuthor}</span>
             </p>
           </header>
 
-          <div className="prose mt-8 max-w-none prose-headings:font-display prose-headings:uppercase prose-headings:tracking-tight prose-p:text-[#3d3d3d]">
+          <EditorialProse className="mx-auto mt-8 max-w-[70ch]">
             <ReactMarkdown>{article.bodyMd}</ReactMarkdown>
-          </div>
+          </EditorialProse>
 
           {article.sections.length > 0 ? (
             <section className="mt-12 space-y-8 border-t border-black/10 pt-8">
