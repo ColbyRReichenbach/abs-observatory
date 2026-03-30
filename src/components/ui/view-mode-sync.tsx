@@ -3,13 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-import type { ViewMode } from "@/lib/view-mode";
-
-function readCookieMode(): ViewMode | null {
-  if (typeof document === "undefined") return null;
-  const match = document.cookie.match(/(?:^|;\s*)aibs_view_mode=(fan|org)(?:;|$)/);
-  return match?.[1] === "fan" || match?.[1] === "org" ? match[1] : null;
-}
+import { readCookieViewMode, writeCookieViewMode } from "@/lib/view-mode-client";
 
 export function ViewModeSync() {
   const router = useRouter();
@@ -18,9 +12,14 @@ export function ViewModeSync() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const current = params.get("view");
-    if (current === "fan" || current === "org") return;
+    if (current === "fan" || current === "org") {
+      if (readCookieViewMode() !== current) {
+        writeCookieViewMode(current);
+      }
+      return;
+    }
 
-    const cookieMode = readCookieMode();
+    const cookieMode = readCookieViewMode();
     if (!cookieMode) return;
 
     params.set("view", cookieMode);

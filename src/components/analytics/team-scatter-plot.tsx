@@ -186,6 +186,11 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                         <ScatterChart
                             margin={{ top: 40, right: 100, bottom: 60, left: 80 }}
                             style={{ overflow: 'visible' }}
+                            onMouseMove={(state: any) => {
+                                const nextTeamId = state?.activePayload?.[0]?.payload?.teamId ?? null;
+                                setHoveredTeamId(nextTeamId);
+                            }}
+                            onMouseLeave={() => setHoveredTeamId(null)}
                         >
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
                             <XAxis
@@ -252,10 +257,6 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                                             {...props}
                                             payload={payload}
                                             active={payload?.teamId === hoveredTeamId}
-                                            onMouseEnter={() => {
-                                                if (payload?.teamId != null) setHoveredTeamId(payload.teamId);
-                                            }}
-                                            onMouseLeave={() => setHoveredTeamId(null)}
                                             onClick={() => {
                                                 const currentMode = searchParams.get("view");
                                                 if (payload?.teamId) {

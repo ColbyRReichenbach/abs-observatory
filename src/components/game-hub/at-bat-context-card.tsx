@@ -60,18 +60,28 @@ export function AtBatContextCard({
   const expectedChallengeValue = challenge.expectedChallengeValue ?? null;
   const estimatedOverturnProbability = challenge.estimatedOverturnProbability ?? null;
   const chartContext = buildChallengeDecisionChartPayload(challenge);
+  const stabilizedCountLabel = formatCountStateLabel(countState.initial ?? countState.final ?? countSnapshot);
 
-  const countConsequence =
-    countState.initial && countState.final && countState.initial !== countState.final
+  const countConsequence = challenge.isOverturned
+    ? countState.initial && countState.final && countState.initial !== countState.final
       ? `Count changed from ${countState.beforeLabel} to ${countState.afterLabel}.`
-      : `Review held the count at ${formatCountStateLabel(countState.initial ?? countState.final ?? countSnapshot)}.`;
-  const deltaNarrative = usesTrustedWinValue
-    ? `Comparable game states move win expectancy by ${formatWinDelta(challenge.winExpectancyDelta ?? 0)} from this review state.`
-    : challenge.runExpectancyDelta !== null && challenge.runExpectancyDelta !== undefined
-      ? `Comparable game states move run expectancy by ${formatRunDelta(challenge.runExpectancyDelta)} from this review state.`
-      : challenge.positiveOutcomeDelta === null || challenge.positiveOutcomeDelta === undefined
-        ? "No stable league comparison is available for this count change."
-        : `Comparable plate appearances shift offensive success rate by ${formatSignedPoints(challenge.positiveOutcomeDelta)}.`;
+      : `Review moved the plate appearance to ${stabilizedCountLabel}.`
+    : `Review confirmed the call and kept the plate appearance at ${stabilizedCountLabel}.`;
+  const deltaNarrative = challenge.isOverturned
+    ? usesTrustedWinValue
+      ? `Comparable game states move win expectancy by ${formatWinDelta(challenge.winExpectancyDelta ?? 0)} from the corrected review state.`
+      : challenge.runExpectancyDelta !== null && challenge.runExpectancyDelta !== undefined
+        ? `Comparable game states move run expectancy by ${formatRunDelta(challenge.runExpectancyDelta)} from the corrected review state.`
+        : challenge.positiveOutcomeDelta === null || challenge.positiveOutcomeDelta === undefined
+          ? "No stable league comparison is available for this corrected count change."
+          : `Comparable plate appearances shift offensive success rate by ${formatSignedPoints(challenge.positiveOutcomeDelta)} after the count correction.`
+    : usesTrustedWinValue
+      ? `The review did not create a new state; ${stabilizedCountLabel} situations typically carry ${formatWinDelta(challenge.winExpectancyDelta ?? 0)} of win expectancy from this baseline.`
+      : challenge.runExpectancyDelta !== null && challenge.runExpectancyDelta !== undefined
+        ? `The review preserved the original state; ${stabilizedCountLabel} situations typically carry ${formatRunDelta(challenge.runExpectancyDelta)} of run expectancy from this baseline.`
+        : challenge.positiveOutcomeDelta === null || challenge.positiveOutcomeDelta === undefined
+          ? "No stable league comparison is available for the upheld count state."
+          : `Comparable plate appearances from ${stabilizedCountLabel} shift offensive success rate by ${formatSignedPoints(challenge.positiveOutcomeDelta)}.`;
   const decisionNarrative =
     estimatedOverturnProbability === null || expectedChallengeValue === null
       ? "Model recommendation is unavailable for this review."

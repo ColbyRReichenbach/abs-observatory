@@ -92,9 +92,7 @@ export default async function TeamPage({
   const [summary, identity, leaderboard] = await Promise.all([
     getTeamSummary(Number(teamId), range, filters),
     getTeamIdentity(Number(teamId)),
-    viewMode === "org"
-      ? getTeamLeaderboardModel(range, { includeDecisionMetrics: true })
-      : Promise.resolve([]),
+    getTeamLeaderboardModel(range, { includeDecisionMetrics: viewMode === "org" }),
   ]);
   if (!summary) return notFound();
   const currentTeam = leaderboard.find((entry) => entry.teamId === summary.teamId) ?? null;

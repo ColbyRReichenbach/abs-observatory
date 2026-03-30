@@ -6,6 +6,7 @@ import { AnimatePresence } from "framer-motion";
 import { AIInsightBubble } from "@/components/analytics/ai-insight-bubble";
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
 import { buildGameChallengeOpportunityBoardPayload } from "@/lib/chart-insight-payload";
+import { resolveMatchupAccentColors } from "@/lib/team-branding";
 import type { GameChallengeOpportunityBoard } from "@/lib/types";
 
 export function ChallengeOpportunityBoard({
@@ -20,6 +21,16 @@ export function ChallengeOpportunityBoard({
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const chartContext = useMemo(() => buildGameChallengeOpportunityBoardPayload(board), [board]);
+  const { homeColor, awayColor } = useMemo(
+    () =>
+      resolveMatchupAccentColors({
+        homeTeamId: board.homeTeamId,
+        awayTeamId: board.awayTeamId,
+        homePrimaryColor: board.homePrimaryColor,
+        awayPrimaryColor: board.awayPrimaryColor,
+      }),
+    [board.awayPrimaryColor, board.awayTeamId, board.homePrimaryColor, board.homeTeamId],
+  );
 
   const rowLabels = useMemo(() => Array.from(new Set(board.cells.map((cell) => cell.rowLabel))), [board.cells]);
   const colLabels = useMemo(() => Array.from(new Set(board.cells.map((cell) => cell.colLabel))), [board.cells]);
@@ -79,8 +90,8 @@ export function ChallengeOpportunityBoard({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-4 text-[10px] font-black uppercase tracking-widest text-gray-400">
-          <LegendSwatch color={board.homePrimaryColor ?? "#3b82f6"} label={board.homeAbbreviation ?? "HOME"} />
-          <LegendSwatch color={board.awayPrimaryColor ?? "#8b5cf6"} label={board.awayAbbreviation ?? "AWAY"} />
+          <LegendSwatch color={homeColor} label={board.homeAbbreviation ?? "HOME"} />
+          <LegendSwatch color={awayColor} label={board.awayAbbreviation ?? "AWAY"} />
           {showInsight ? (
             <AIInsightBubble
               insight="Explain which scenario windows are most likely to turn into challenge flashpoints for each club and how a staff should use this before first pitch."
@@ -112,7 +123,7 @@ export function ChallengeOpportunityBoard({
               ? `${homeWindow.homeChallenges} tracked reviews, avg ELI ${homeWindow.homeAvgEstimatedLeverage.toFixed(1)}`
               : "No tracked reviews in this matchup sample."
           }
-          accent={board.homePrimaryColor ?? "#3b82f6"}
+          accent={homeColor}
         />
         <InsightCard
           eyebrow={`${board.awayAbbreviation ?? "AWAY"} Usage Lean`}
@@ -122,7 +133,7 @@ export function ChallengeOpportunityBoard({
               ? `${awayWindow.awayChallenges} tracked reviews, avg ELI ${awayWindow.awayAvgEstimatedLeverage.toFixed(1)}`
               : "No tracked reviews in this matchup sample."
           }
-          accent={board.awayPrimaryColor ?? "#8b5cf6"}
+          accent={awayColor}
         />
       </div>
 
@@ -165,12 +176,12 @@ export function ChallengeOpportunityBoard({
                     <div className="flex items-center justify-between gap-3">
                       <MiniTeamValue
                         label={board.homeAbbreviation ?? "HOME"}
-                        color={board.homePrimaryColor ?? "#3b82f6"}
+                        color={homeColor}
                         count={cell?.homeChallenges ?? 0}
                       />
                       <MiniTeamValue
                         label={board.awayAbbreviation ?? "AWAY"}
-                        color={board.awayPrimaryColor ?? "#8b5cf6"}
+                        color={awayColor}
                         count={cell?.awayChallenges ?? 0}
                         align="right"
                       />
@@ -211,12 +222,12 @@ export function ChallengeOpportunityBoard({
               {
                 label: `${board.homeAbbreviation ?? "HOME"} Uses`,
                 value: hovered.homeChallenges,
-                color: board.homePrimaryColor ?? "#3b82f6",
+                color: homeColor,
               },
               {
                 label: `${board.awayAbbreviation ?? "AWAY"} Uses`,
                 value: hovered.awayChallenges,
-                color: board.awayPrimaryColor ?? "#8b5cf6",
+                color: awayColor,
               },
               {
                 label: `${board.homeAbbreviation ?? "HOME"} Avg ELI`,

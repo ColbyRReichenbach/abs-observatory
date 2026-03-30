@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
+import { resolveClientViewMode } from "@/lib/view-mode-client";
 import { withViewModeHref } from "@/lib/view-mode-href";
 
 type BackPillProps = {
@@ -25,10 +26,7 @@ type BackPillProps = {
  */
 export function BackPill({ label, href, useHistory }: BackPillProps) {
     const searchParams = useSearchParams();
-    const requestedMode = searchParams?.get("view");
-    const activeMode = requestedMode === "org" || requestedMode === "fan"
-        ? requestedMode
-        : null;
+    const activeMode = resolveClientViewMode(searchParams);
 
     const inner = (
         <>
@@ -61,7 +59,7 @@ export function BackPill({ label, href, useHistory }: BackPillProps) {
     }
 
     return (
-        <Link href={withViewModeHref(href ?? "/", activeMode === "org" || activeMode === "fan" ? activeMode : null)} className={className}>
+        <Link href={withViewModeHref(href ?? "/", activeMode)} className={className}>
             {inner}
         </Link>
     );

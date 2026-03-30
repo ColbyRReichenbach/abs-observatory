@@ -3,6 +3,7 @@
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useTransition } from "react";
 import type { ViewMode } from "@/lib/view-mode";
+import { resolveClientViewMode, writeCookieViewMode } from "@/lib/view-mode-client";
 
 const VIEW_MODE_EVENT = "aibs:view-mode-change";
 
@@ -17,15 +18,12 @@ export function ViewModeToggle({ initialMode }: { initialMode?: ViewMode }) {
     const [isPending, startTransition] = useTransition();
 
     // Deduce active mode: URL param > initialMode > cookie > "fan"
-    const paramMode = searchParams.get("view");
-    const activeMode: ViewMode = (paramMode === "fan" || paramMode === "org")
-        ? paramMode
-        : initialMode || "fan";
+    const activeMode: ViewMode = resolveClientViewMode(searchParams) ?? initialMode ?? "fan";
 
     const setMode = useCallback((next: ViewMode) => {
         if (next === activeMode) return;
 
-        document.cookie = `aibs_view_mode=${next};path=/;max-age=${60 * 60 * 24 * 365};SameSite=Lax`;
+        writeCookieViewMode(next);
         window.dispatchEvent(new CustomEvent(VIEW_MODE_EVENT, { detail: next }));
 
         const params = new URLSearchParams(searchParams.toString());

@@ -81,9 +81,9 @@ export function UmpireHandednessBoard({
                   </span>
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                  <MiniStat label="Abs WE / WPA" value={formatPercent(cell.avgAbsWin)} muted={!trusted} />
+                  <MiniStat label="Abs WE" value={formatPercent(cell.avgAbsWin)} muted={!trusted} />
                   <MiniStat label="Abs RE" value={formatRun(cell.avgAbsRun)} muted={!trusted} />
-                  <MiniStat label="Expected WE" value={formatPercent(cell.avgExpected)} muted={!trusted} />
+                  <MiniStat label="Exp. WE" value={formatPercent(cell.avgExpected)} muted={!trusted} />
                 </div>
               </button>
             );

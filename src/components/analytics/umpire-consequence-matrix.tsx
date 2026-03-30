@@ -179,7 +179,7 @@ function buildMatrix(challenges: ChallengeEvent[]) {
   for (const challenge of challenges) {
     const pitchFamily = normalizePitchFamily(challenge.pitchType);
     if (!rowSet.has(pitchFamily)) continue;
-    const countBucket = classifyCountBucket(challenge.countBefore);
+    const countBucket = classifyCountBucket(challenge.countBefore, challenge.umpireCount, challenge.countAfter);
     const key = keyFor(pitchFamily, countBucket);
     const existing = grouped.get(key) ?? [];
     existing.push(challenge);
@@ -234,10 +234,15 @@ function buildMatrix(challenges: ChallengeEvent[]) {
   return { rows, cells, defaultPitchFamily, selectedFallback };
 }
 
-function classifyCountBucket(countBefore: string | null | undefined) {
-  if (!countBefore) return "Even";
-  if (countBefore === "3-2") return "Full Count";
-  const [ballsRaw, strikesRaw] = countBefore.split("-");
+function classifyCountBucket(
+  countBefore: string | null | undefined,
+  umpireCount?: string | null,
+  countAfter?: string | null,
+) {
+  const countKey = countBefore ?? umpireCount ?? countAfter;
+  if (!countKey) return "Even";
+  if (countKey === "3-2") return "Full Count";
+  const [ballsRaw, strikesRaw] = countKey.split("-");
   const balls = Number(ballsRaw);
   const strikes = Number(strikesRaw);
   if (!Number.isFinite(balls) || !Number.isFinite(strikes)) return "Even";
