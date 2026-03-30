@@ -2206,7 +2206,9 @@ export async function getGameChallengeOpportunityBoard(gamePk: number): Promise<
       homeAbbreviation: game.homeabbreviation,
       awayAbbreviation: game.awayabbreviation,
       homePrimaryColor: game.homeprimarycolor,
+      homeSecondaryColor: game.homesecondarycolor,
       awayPrimaryColor: game.awayprimarycolor,
+      awaySecondaryColor: game.awaysecondarycolor,
       cells,
     };
   });
