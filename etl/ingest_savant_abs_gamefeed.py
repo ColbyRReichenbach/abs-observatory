@@ -10,10 +10,19 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 
-import psycopg2
 import requests
 from dotenv import load_dotenv
-from psycopg2.extras import Json, execute_batch
+try:
+    import psycopg2
+    from psycopg2.extras import Json, execute_batch
+except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
+    psycopg2 = None
+
+    def Json(value: Any) -> Any:
+        return value
+
+    def execute_batch(*_args: Any, **_kwargs: Any) -> None:
+        raise RuntimeError("psycopg2 is required for ETL database writes")
 
 load_dotenv()
 
@@ -21,6 +30,11 @@ STATSAPI_BASE = "https://statsapi.mlb.com/api/v1"
 SAVANT_GAMEFEED_BASE = "https://baseballsavant.mlb.com/gf"
 REQUEST_TIMEOUT = 30
 USER_AGENT = "AiBS/1.0 (+https://github.com/ColbyRReichenbach)"
+
+
+def require_psycopg2() -> None:
+    if psycopg2 is None:
+        raise RuntimeError("psycopg2 is required to run ETL database operations")
 
 
 @dataclass(frozen=True)

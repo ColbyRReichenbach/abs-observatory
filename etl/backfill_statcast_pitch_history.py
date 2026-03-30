@@ -12,10 +12,19 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
 
-import psycopg2
 import requests
 from dotenv import load_dotenv
-from psycopg2.extras import Json, execute_batch
+try:
+    import psycopg2
+    from psycopg2.extras import Json, execute_batch
+except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
+    psycopg2 = None
+
+    def Json(value: Any) -> Any:
+        return value
+
+    def execute_batch(*_args: Any, **_kwargs: Any) -> None:
+        raise RuntimeError("psycopg2 is required for ETL database writes")
 
 try:
     from pybaseball import cache as pybaseball_cache
@@ -31,6 +40,11 @@ REGULAR_SEASON_GAME_TYPE = "R"
 DEFAULT_DELAY_SECONDS = 1.5
 DEFAULT_MAX_RETRIES = 5
 DEFAULT_BACKOFF_SECONDS = 2.0
+
+
+def require_psycopg2() -> None:
+    if psycopg2 is None:
+        raise RuntimeError("psycopg2 is required to run ETL database operations")
 
 
 @dataclass(frozen=True)

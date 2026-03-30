@@ -6,10 +6,19 @@ import os
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-import psycopg2
 import requests
 from dotenv import load_dotenv
-from psycopg2.extras import Json, execute_batch
+try:
+    import psycopg2
+    from psycopg2.extras import Json, execute_batch
+except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
+    psycopg2 = None
+
+    def Json(value: Any) -> Any:
+        return value
+
+    def execute_batch(*_args: Any, **_kwargs: Any) -> None:
+        raise RuntimeError("psycopg2 is required for ETL database writes")
 
 from generate_game_report import generate_and_store_report
 
@@ -18,6 +27,11 @@ load_dotenv()
 API_BASE = "https://statsapi.mlb.com/api/v1"
 API_BASE_V11 = "https://statsapi.mlb.com/api/v1.1"
 FINAL_PITCH_CALLED_TAKES = {"BALL", "CALLED STRIKE", "BALL IN DIRT"}
+
+
+def require_psycopg2() -> None:
+    if psycopg2 is None:
+        raise RuntimeError("psycopg2 is required to run ETL database operations")
 
 
 def _height_to_inches(height_text: Optional[str]) -> Optional[float]:
