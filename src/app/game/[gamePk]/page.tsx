@@ -2,7 +2,17 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { GameShell } from "@/components/game-shell";
-import { getGame, getGameAbsCounters, getGameChallenges, getGameLiveStatus, getGameScoreboardData, getLiveChallengeWindow } from "@/lib/data";
+import {
+  getGame,
+  getGameAbsCounters,
+  getGameChallengeValueTimeline,
+  getGameChallenges,
+  getGameLiveStatus,
+  getGameScoreboardData,
+  getGameTeamChallengeComparison,
+  getGameUmpireInGameSummary,
+  getLiveChallengeWindow,
+} from "@/lib/data";
 import { PregameScoutingReport } from "@/components/game-hub/pregame-hub";
 import { LiveWarRoom } from "@/components/game-hub/live-hub";
 import { PostgameAAR } from "@/components/game-hub/postgame-hub";
@@ -85,6 +95,11 @@ async function GameHubContent({
   }
 
   const liveChallengeWindow = await getLiveChallengeWindow(gameId);
+  const [challengeValueTimeline, teamComparison, umpireSummary] = await Promise.all([
+    getGameChallengeValueTimeline(gameId),
+    getGameTeamChallengeComparison(gameId),
+    getGameUmpireInGameSummary(gameId),
+  ]);
 
   return (
     <LiveWarRoom
@@ -93,6 +108,9 @@ async function GameHubContent({
       liveStatus={liveStatus}
       counters={counters}
       liveChallengeWindow={liveChallengeWindow}
+      challengeValueTimeline={challengeValueTimeline}
+      teamComparison={teamComparison}
+      umpireSummary={umpireSummary}
       initialChallengeId={initialChallengeId}
       viewMode={viewMode}
     />

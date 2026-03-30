@@ -110,11 +110,13 @@ export function GameShell({ game, liveStatus, counters, scoreboard }: GameShellP
         </section>
       </MotionIn>
 
-      <MotionIn delay={0.08}>
-        <section className="mt-4">
-          <LiveStatusStrip gamePk={Number(game.gamepk)} initial={liveStatus} />
-        </section>
-      </MotionIn>
+      {backdropState === "live" ? (
+        <MotionIn delay={0.08}>
+          <section className="mt-4">
+            <LiveStatusStrip gamePk={Number(game.gamepk)} initial={liveStatus} />
+          </section>
+        </MotionIn>
+      ) : null}
     </>
   );
 }

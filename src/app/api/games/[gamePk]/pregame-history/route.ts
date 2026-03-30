@@ -23,8 +23,16 @@ export async function GET(
     return NextResponse.json({
         umpireId: intel.umpireId,
         umpireName: intel.umpireName,
-        homeTeam: intel.teamHistoryVsUmpire.home,
-        awayTeam: intel.teamHistoryVsUmpire.away,
-        leagueAverage: intel.teamHistoryVsUmpire.leagueAverage,
+        homeTeam: {
+            teamId: intel.homeTeamId,
+            ...intel.teamHistoryVsUmpire.home,
+        },
+        awayTeam: {
+            teamId: intel.awayTeamId,
+            ...intel.teamHistoryVsUmpire.away,
+        },
+        leagueAverage: {
+            overturnRate: intel.teamHistoryVsUmpire.leagueAverage,
+        },
     });
 }

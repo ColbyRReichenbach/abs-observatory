@@ -2,7 +2,7 @@
 
 import { AIInsightBubble } from "@/components/analytics/ai-insight-bubble";
 import { buildChallengeValueTimelinePayload } from "@/lib/chart-insight-payload";
-import { formatHalfInningLabel } from "@/lib/challenge-context";
+import { formatHalfInningLabel, getChallengeCountState } from "@/lib/challenge-context";
 import { formatLeverageBucketLabel } from "@/lib/estimated-leverage";
 import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
 import type { ChallengeValueTimelineEntry } from "@/lib/types";
@@ -12,10 +12,12 @@ export function ChallengeValueTimeline({
   entries,
   viewMode,
   showInsight = true,
+  showSummaryCards = true,
 }: {
   entries: ChallengeValueTimelineEntry[];
   viewMode: ViewMode;
   showInsight?: boolean;
+  showSummaryCards?: boolean;
 }) {
   if (!entries.length) return null;
   const chartContext = buildChallengeValueTimelinePayload(entries);
@@ -60,51 +62,54 @@ export function ChallengeValueTimeline({
         ) : null}
       </div>
 
-      <div className="mb-6 grid gap-3 md:grid-cols-3">
-        <SummaryCard
-          eyebrow="Biggest Swing"
-          title={biggestSwing ? `${biggestSwing.challengeTeamName ?? "Team"} ${biggestSwing.isOverturned ? "won" : "lost"} the top spot` : "No swing data"}
-          detail={
-            biggestSwing
-              ? `${formatInning(biggestSwing)} • ${signedValue(biggestSwing.estimatedChallengeSwing)} ECS`
-              : "Timeline will populate once challenges are tracked."
-          }
-        />
-        <SummaryCard
-          eyebrow="Highest Leverage"
-          title={highestPressure ? `${highestPressure.baseStateLabel} • ${highestPressure.scoreStateLabel}` : "No high-leverage spot"}
-          detail={highestPressure ? `${formatInning(highestPressure)} • ELI ${highestPressure.estimatedLeverageIndex}` : "No timeline yet."}
-        />
-        <SummaryCard
-          eyebrow={usesWinValue ? "Win Value" : "Run Value"}
-          title={
-            valueHeadline
-              ? `${valueHeadline.challengeTeamName ?? "Team"} ${
-                  usesWinValue
-                    ? valueHeadline.winExpectancyDelta !== null && valueHeadline.winExpectancyDelta >= 0
-                      ? "captured"
-                      : "lost"
-                    : valueHeadline.runExpectancyDelta !== null && valueHeadline.runExpectancyDelta >= 0
-                      ? "captured"
-                      : "lost"
-                } the top ${usesWinValue ? "win-value" : "run-value"} spot`
-              : `${overturnedCount} overturned • ${entries.length - overturnedCount} confirmed`
-          }
-          detail={
-            valueHeadline &&
-            ((usesWinValue && valueHeadline.winExpectancyDelta !== null) || (!usesWinValue && valueHeadline.runExpectancyDelta !== null))
-              ? `${formatInning(valueHeadline)} • ${
-                  usesWinValue
-                    ? signedWinValue(valueHeadline.winExpectancyDelta ?? 0)
-                    : signedRunValue(valueHeadline.runExpectancyDelta ?? 0)
-                } ${usesWinValue ? "WE" : "RE"}`
-              : `${entries.length} reviewed moments in this game narrative`
-          }
-        />
-      </div>
+      {showSummaryCards ? (
+        <div className="mb-6 grid gap-3 md:grid-cols-3">
+          <SummaryCard
+            eyebrow="Biggest Swing"
+            title={biggestSwing ? `${biggestSwing.challengeTeamName ?? "Team"} ${biggestSwing.isOverturned ? "won" : "lost"} the top spot` : "No swing data"}
+            detail={
+              biggestSwing
+                ? `${formatInning(biggestSwing)} • ${signedValue(biggestSwing.estimatedChallengeSwing)} ECS`
+                : "Timeline will populate once challenges are tracked."
+            }
+          />
+          <SummaryCard
+            eyebrow="Highest Leverage"
+            title={highestPressure ? `${highestPressure.baseStateLabel} • ${highestPressure.scoreStateLabel}` : "No high-leverage spot"}
+            detail={highestPressure ? `${formatInning(highestPressure)} • ELI ${highestPressure.estimatedLeverageIndex}` : "No timeline yet."}
+          />
+          <SummaryCard
+            eyebrow={usesWinValue ? "Win Value" : "Run Value"}
+            title={
+              valueHeadline
+                ? `${valueHeadline.challengeTeamName ?? "Team"} ${
+                    usesWinValue
+                      ? valueHeadline.winExpectancyDelta !== null && valueHeadline.winExpectancyDelta >= 0
+                        ? "captured"
+                        : "lost"
+                      : valueHeadline.runExpectancyDelta !== null && valueHeadline.runExpectancyDelta >= 0
+                        ? "captured"
+                        : "lost"
+                  } the top ${usesWinValue ? "win-value" : "run-value"} spot`
+                : `${overturnedCount} overturned • ${entries.length - overturnedCount} confirmed`
+            }
+            detail={
+              valueHeadline &&
+              ((usesWinValue && valueHeadline.winExpectancyDelta !== null) || (!usesWinValue && valueHeadline.runExpectancyDelta !== null))
+                ? `${formatInning(valueHeadline)} • ${
+                    usesWinValue
+                      ? signedWinValue(valueHeadline.winExpectancyDelta ?? 0)
+                      : signedRunValue(valueHeadline.runExpectancyDelta ?? 0)
+                  } ${usesWinValue ? "WE" : "RE"}`
+                : `${entries.length} reviewed moments in this game narrative`
+            }
+          />
+        </div>
+      ) : null}
 
-      <div className="grid gap-4">
+      <div className="grid max-h-[24rem] gap-4 overflow-y-auto pr-2">
         {entries.map((entry) => {
+          const countState = getChallengeCountState(entry.countBefore, entry.umpireCount, entry.countAfter);
           const positiveDelta = entry.positiveOutcomeDelta;
           const deltaLabel =
             positiveDelta === null
@@ -140,7 +145,7 @@ export function ChallengeValueTimeline({
               </div>
 
               <div className="grid gap-3 md:grid-cols-4">
-                <MetricCard label="Count Shift" value={formatCountShift(entry)} />
+                <MetricCard label="Count Shift" value={countState.transitionLabel} />
                 <MetricCard label="Base / Score" value={`${entry.baseStateLabel} • ${entry.scoreStateLabel}`} />
                 <MetricCard label="Count Edge" value={deltaLabel} />
                 <MetricCard
@@ -253,15 +258,6 @@ function MetricCard({ label, value }: { label: string; value: string }) {
       <p className="mt-1 text-sm font-medium text-gray-700">{value}</p>
     </div>
   );
-}
-
-function formatCountShift(entry: ChallengeValueTimelineEntry) {
-  const initial = entry.umpireCount ?? entry.countBefore;
-  const final = entry.countAfter;
-  if (initial && final) {
-    return initial === final ? initial : `${initial} -> ${final}`;
-  }
-  return initial ?? final ?? "Unavailable";
 }
 
 function formatInning(entry: ChallengeValueTimelineEntry) {

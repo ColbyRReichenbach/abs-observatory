@@ -497,6 +497,91 @@ export type LiveChallengeWindow = {
   winExpectancyConfidence: ConfidenceBand | null;
 };
 
+export type GameChallengeImpactMoment = {
+  challengeId: string;
+  challengeTeamName: string | null;
+  inning: number | null;
+  halfInning: string | null;
+  calledDescription: string | null;
+  isOverturned: boolean;
+  countBefore: string | null;
+  umpireCount: string | null;
+  countAfter: string | null;
+  estimatedLeverageIndex: number;
+  estimatedChallengeSwing: number;
+  runExpectancyDelta: number | null;
+  runExpectancyConfidence: ConfidenceBand | null;
+  winExpectancyDelta: number | null;
+  winExpectancyConfidence: ConfidenceBand | null;
+  expectedChallengeValue: number | null;
+  decisionRecommendation: "challenge" | "hold" | "cannot_challenge" | null;
+  impactSummary: string | null;
+};
+
+export type GameChallengeImpactSummary = {
+  totalChallenges: number;
+  overturnedChallenges: number;
+  confirmedChallenges: number;
+  biggestSwing: GameChallengeImpactMoment | null;
+  highestLeverage: GameChallengeImpactMoment | null;
+  biggestRunValue: GameChallengeImpactMoment | null;
+  biggestWinValue: GameChallengeImpactMoment | null;
+};
+
+export type GameUmpireInGameSplit = {
+  pitcherThrows: "R" | "L";
+  batterStand: "R" | "L";
+  sampleSize: number;
+  overturnRate: number;
+  averageLeverage: number | null;
+  averageWinDelta: number | null;
+  averageRunDelta: number | null;
+};
+
+export type GameUmpireInGamePitchProfile = {
+  pitchType: string;
+  sampleSize: number;
+  overturnRate: number;
+  averageLeverage: number | null;
+};
+
+export type GameUmpireInGameLaneProfile = {
+  lane: string;
+  sampleSize: number;
+  overturnRate: number;
+  averageLeverage: number | null;
+};
+
+export type GameUmpireInGameSummary = {
+  totalChallenges: number;
+  overturnedChallenges: number;
+  mostTargetedSplit: GameUmpireInGameSplit | null;
+  highestRiskSplit: GameUmpireInGameSplit | null;
+  topPitchType: GameUmpireInGamePitchProfile | null;
+  topLane: GameUmpireInGameLaneProfile | null;
+  splits: GameUmpireInGameSplit[];
+};
+
+export type GameTeamChallengeComparisonSide = {
+  teamId: number | null;
+  abbreviation: string | null;
+  primaryColor: string | null;
+  totalChallenges: number;
+  overturnRate: number | null;
+  averageLeverage: number | null;
+  lateCloseShare: number | null;
+  totalWinValue: number | null;
+  totalRunValue: number | null;
+  totalEstimatedSwing: number;
+  expectedValueSum: number | null;
+};
+
+export type GameTeamChallengeComparison = {
+  home: GameTeamChallengeComparisonSide;
+  away: GameTeamChallengeComparisonSide;
+  valueMode: "win" | "run" | "estimated";
+};
+
 export type AIQueryResponse = {
   answer: string;
   sql: string;
