@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -32,34 +32,25 @@ const links = [
 
 export function Nav({ initialMode, canAccessAdmin = false }: { initialMode?: ViewMode; canAccessAdmin?: boolean }) {
   const pathname = usePathname();
-  const [activeMode, setActiveMode] = useState<ViewMode | undefined>(initialMode);
+  const activeMode = useSyncExternalStore(
+    (onStoreChange) => {
+      if (typeof window === "undefined") return () => {};
+
+      const handleViewModeChange = () => onStoreChange();
+      window.addEventListener(VIEW_MODE_EVENT, handleViewModeChange as EventListener);
+      window.addEventListener("popstate", onStoreChange);
+
+      return () => {
+        window.removeEventListener(VIEW_MODE_EVENT, handleViewModeChange as EventListener);
+        window.removeEventListener("popstate", onStoreChange);
+      };
+    },
+    () => readClientMode() ?? initialMode,
+    () => initialMode,
+  );
   const navLinks = canAccessAdmin
     ? [...links, { href: "/admin/ai", label: "Admin", match: "/admin" }]
     : links;
-
-  useEffect(() => {
-    setActiveMode(readClientMode() ?? initialMode);
-  }, [initialMode, pathname]);
-
-  useEffect(() => {
-    const syncMode = () => setActiveMode(readClientMode() ?? initialMode);
-    const handleViewModeChange = (event: Event) => {
-      const nextMode = (event as CustomEvent<ViewMode>).detail;
-      if (nextMode === "fan" || nextMode === "org") {
-        setActiveMode(nextMode);
-        return;
-      }
-      syncMode();
-    };
-
-    window.addEventListener(VIEW_MODE_EVENT, handleViewModeChange as EventListener);
-    window.addEventListener("popstate", syncMode);
-
-    return () => {
-      window.removeEventListener(VIEW_MODE_EVENT, handleViewModeChange as EventListener);
-      window.removeEventListener("popstate", syncMode);
-    };
-  }, [initialMode]);
 
   return (
     <header className="fixed top-8 left-0 right-0 z-50 px-6 pointer-events-none">
