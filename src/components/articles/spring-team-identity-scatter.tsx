@@ -18,6 +18,23 @@ type ChartPoint = SpringTeamIdentityPoint & {
   overturnPct: number;
 };
 
+function getScatterMousePosition(state: unknown) {
+  if (!state || typeof state !== "object" || !("chartX" in state) || !("chartY" in state)) return null;
+  const chartX = (state as { chartX?: unknown }).chartX;
+  const chartY = (state as { chartY?: unknown }).chartY;
+  if (typeof chartX !== "number" || typeof chartY !== "number") return null;
+  return { x: chartX, y: chartY };
+}
+
+function getActiveTeamPoint(state: unknown): ChartPoint | null {
+  if (!state || typeof state !== "object" || !("activePayload" in state)) return null;
+  const activePayload = (state as { activePayload?: Array<{ payload?: unknown }> }).activePayload;
+  const payload = activePayload?.[0]?.payload;
+  if (!payload || typeof payload !== "object") return null;
+  const point = payload as Partial<ChartPoint>;
+  return typeof point.teamId === "number" ? (point as ChartPoint) : null;
+}
+
 const TeamLogoDot = memo((props: { cx?: number; cy?: number; payload?: ChartPoint; active?: boolean }) => {
   const { cx, cy, payload, active } = props;
   if (cx == null || cy == null || !payload) return null;
@@ -106,13 +123,12 @@ export function SpringTeamIdentityScatter({ data }: { data: SpringTeamIdentityPo
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={420}>
         <ScatterChart
           margin={{ top: 34, right: 96, bottom: 56, left: 78 }}
-          onMouseMove={(state: any) => {
-            const event = state?.event;
-            if (event?.clientX != null && event?.clientY != null) {
-              setMousePos({ x: event.clientX, y: event.clientY });
+          onMouseMove={(state: unknown) => {
+            const nextMousePos = getScatterMousePosition(state);
+            if (nextMousePos) {
+              setMousePos(nextMousePos);
             }
-            const payload = state?.activePayload?.[0]?.payload as ChartPoint | undefined;
-            setHoveredPoint(payload ?? null);
+            setHoveredPoint(getActiveTeamPoint(state));
           }}
           onMouseLeave={() => setHoveredPoint(null)}
         >

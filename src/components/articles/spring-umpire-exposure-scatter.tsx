@@ -21,6 +21,25 @@ export type SpringUmpireExposurePoint = {
   overturnRate: number;
 };
 
+function getScatterMousePosition(state: unknown) {
+  if (!state || typeof state !== "object" || !("chartX" in state) || !("chartY" in state)) return null;
+  const chartX = (state as { chartX?: unknown }).chartX;
+  const chartY = (state as { chartY?: unknown }).chartY;
+  if (typeof chartX !== "number" || typeof chartY !== "number") return null;
+  return { x: chartX, y: chartY };
+}
+
+function getActiveUmpirePoint(state: unknown): SpringUmpireExposurePoint | null {
+  if (!state || typeof state !== "object" || !("activePayload" in state)) return null;
+  const activePayload = (state as { activePayload?: Array<{ payload?: unknown }> }).activePayload;
+  const payload = activePayload?.[0]?.payload;
+  if (!payload || typeof payload !== "object") return null;
+  const point = payload as Partial<SpringUmpireExposurePoint>;
+  return typeof point.umpireId === "number" || typeof point.umpireId === "string"
+    ? (point as SpringUmpireExposurePoint)
+    : null;
+}
+
 export function SpringUmpireExposureScatter({ data }: { data: SpringUmpireExposurePoint[] }) {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [hoveredPoint, setHoveredPoint] = useState<SpringUmpireExposurePoint | null>(null);
@@ -64,13 +83,12 @@ export function SpringUmpireExposureScatter({ data }: { data: SpringUmpireExposu
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={360}>
         <ScatterChart
           margin={{ top: 34, right: 36, bottom: 50, left: 72 }}
-          onMouseMove={(state: any) => {
-            const event = state?.event;
-            if (event?.clientX != null && event?.clientY != null) {
-              setMousePos({ x: event.clientX, y: event.clientY });
+          onMouseMove={(state: unknown) => {
+            const nextMousePos = getScatterMousePosition(state);
+            if (nextMousePos) {
+              setMousePos(nextMousePos);
             }
-            const payload = state?.activePayload?.[0]?.payload as SpringUmpireExposurePoint | undefined;
-            setHoveredPoint(payload ?? null);
+            setHoveredPoint(getActiveUmpirePoint(state));
           }}
           onMouseLeave={() => setHoveredPoint(null)}
         >

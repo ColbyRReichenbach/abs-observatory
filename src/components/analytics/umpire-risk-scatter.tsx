@@ -23,6 +23,13 @@ type UmpireRiskPoint = {
   riskTier: "Low" | "Moderate" | "Elevated" | "High";
 };
 
+function getActiveScatterUmpireId(state: unknown): number | null {
+  if (!state || typeof state !== "object" || !("activePayload" in state)) return null;
+  const activePayload = (state as { activePayload?: Array<{ payload?: { umpireId?: unknown } }> }).activePayload;
+  const umpireId = activePayload?.[0]?.payload?.umpireId;
+  return typeof umpireId === "number" ? umpireId : null;
+}
+
 function riskColor(riskTier: UmpireRiskPoint["riskTier"]) {
   switch (riskTier) {
     case "Low":
@@ -151,9 +158,8 @@ export function UmpireRiskScatter({ data }: { data: UmpireRiskPoint[] }) {
         <ResponsiveContainer width="100%" height={300} minWidth={0}>
           <ScatterChart
             margin={{ top: 28, right: 30, bottom: 50, left: 72 }}
-            onMouseMove={(state: any) => {
-              const nextUmpireId = state?.activePayload?.[0]?.payload?.umpireId ?? null;
-              setHoveredUmpireId(nextUmpireId);
+            onMouseMove={(state: unknown) => {
+              setHoveredUmpireId(getActiveScatterUmpireId(state));
             }}
             onMouseLeave={() => setHoveredUmpireId(null)}
           >

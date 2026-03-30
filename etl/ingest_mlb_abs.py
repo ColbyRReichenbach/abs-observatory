@@ -21,8 +21,9 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
     psycopg2 = None
 
-    def Json(value: Any) -> Any:
-        return value
+    class Json:  # pragma: no cover - simple import-safe shim
+        def __init__(self, value: Any):
+            self.adapted = value
 
     def execute_batch(*_args: Any, **_kwargs: Any) -> None:
         raise RuntimeError("psycopg2 is required for ETL database writes")

@@ -31,6 +31,13 @@ type TeamScatterChartPoint = TeamScatterPoint & {
     overturnPct: number;
 };
 
+function getActiveScatterTeamId(state: unknown): number | null {
+    if (!state || typeof state !== "object" || !("activePayload" in state)) return null;
+    const activePayload = (state as { activePayload?: Array<{ payload?: { teamId?: unknown } }> }).activePayload;
+    const teamId = activePayload?.[0]?.payload?.teamId;
+    return typeof teamId === "number" ? teamId : null;
+}
+
 type Props = {
     data: TeamScatterPoint[];
     mode?: "fan" | "org";
@@ -186,9 +193,8 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                         <ScatterChart
                             margin={{ top: 40, right: 100, bottom: 60, left: 80 }}
                             style={{ overflow: 'visible' }}
-                            onMouseMove={(state: any) => {
-                                const nextTeamId = state?.activePayload?.[0]?.payload?.teamId ?? null;
-                                setHoveredTeamId(nextTeamId);
+                            onMouseMove={(state: unknown) => {
+                                setHoveredTeamId(getActiveScatterTeamId(state));
                             }}
                             onMouseLeave={() => setHoveredTeamId(null)}
                         >
