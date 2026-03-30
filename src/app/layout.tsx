@@ -47,7 +47,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           <a href="#main-content" className="skip-link">
             Skip to main content
           </a>
-          <ViewModeSync />
+          <Suspense fallback={null}>
+            <ViewModeSync />
+          </Suspense>
           <Nav initialMode={initialMode} canAccessAdmin={adminVisible} />
           <main id="main-content">
             {children}
