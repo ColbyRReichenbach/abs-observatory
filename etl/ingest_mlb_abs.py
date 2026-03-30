@@ -20,6 +20,19 @@ API_BASE_V11 = "https://statsapi.mlb.com/api/v1.1"
 FINAL_PITCH_CALLED_TAKES = {"BALL", "CALLED STRIKE", "BALL IN DIRT"}
 
 
+def _height_to_inches(height_text: Optional[str]) -> Optional[float]:
+    if not height_text:
+        return None
+    normalized = height_text.strip()
+    try:
+        feet_part, inches_part = normalized.split("'")
+        feet = int(feet_part.strip())
+        inches = int(inches_part.replace('"', "").strip())
+        return float(feet * 12 + inches)
+    except (ValueError, AttributeError):
+        return None
+
+
 def _bases_state(play: Dict[str, Any]) -> str:
     matchup = play.get("matchup", {})
     first = matchup.get("postOnFirst")
@@ -157,6 +170,61 @@ def upsert_game(cur, feed: Dict[str, Any]) -> None:
             feed.get("liveData", {}).get("linescore", {}).get("teams", {}).get("away", {}).get("runs"),
             gd.get("venue", {}).get("name"),
         ),
+    )
+
+
+def upsert_players(cur, feed: Dict[str, Any]) -> None:
+    players = (feed.get("gameData", {}) or {}).get("players", {}) or {}
+    rows: List[Tuple[Any, ...]] = []
+
+    for player in players.values():
+        player_id = player.get("id")
+        if player_id is None:
+            continue
+        rows.append(
+            (
+                player_id,
+                player.get("fullName") or player.get("useName") or "Unknown Player",
+                player.get("height"),
+                _height_to_inches(player.get("height")),
+                player.get("strikeZoneTop"),
+                player.get("strikeZoneBottom"),
+                bool(player.get("active", True)),
+                Json(player),
+                datetime.now(timezone.utc),
+            )
+        )
+
+    if not rows:
+        return
+
+    execute_batch(
+        cur,
+        """
+        INSERT INTO players (
+          player_id,
+          full_name,
+          height_text,
+          height_inches,
+          abs_strike_zone_top,
+          abs_strike_zone_bottom,
+          active,
+          source_payload,
+          source_updated_at
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        ON CONFLICT (player_id) DO UPDATE SET
+          full_name = EXCLUDED.full_name,
+          height_text = COALESCE(EXCLUDED.height_text, players.height_text),
+          height_inches = COALESCE(EXCLUDED.height_inches, players.height_inches),
+          abs_strike_zone_top = COALESCE(EXCLUDED.abs_strike_zone_top, players.abs_strike_zone_top),
+          abs_strike_zone_bottom = COALESCE(EXCLUDED.abs_strike_zone_bottom, players.abs_strike_zone_bottom),
+          active = EXCLUDED.active,
+          source_payload = EXCLUDED.source_payload,
+          source_updated_at = EXCLUDED.source_updated_at,
+          updated_at = NOW()
+        """,
+        rows,
+        page_size=200,
     )
 
 
@@ -813,6 +881,7 @@ def ingest_game(cur, game_pk: int) -> Tuple[int, bool]:
     feed = fetch_game_feed(game_pk)
     store_source_snapshot(cur, "mlb_statsapi.feed_live", f"game:{game_pk}", feed)
     upsert_game(cur, feed)
+    upsert_players(cur, feed)
     upsert_officials(cur, game_pk, feed)
     upsert_abs_counters(cur, game_pk, feed)
     inserted = upsert_plays(cur, game_pk, feed)
