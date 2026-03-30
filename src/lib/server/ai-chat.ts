@@ -52,7 +52,16 @@ const CHAT_REQUEST_SCHEMA = z.object({
     .optional(),
 });
 
-const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
+function hasUsableOpenAiKey(rawKey: string | undefined): rawKey is string {
+  const key = rawKey?.trim();
+  if (!key) return false;
+  const normalized = key.toLowerCase();
+  return !normalized.startsWith("test-") && !normalized.includes("placeholder");
+}
+
+const openai = hasUsableOpenAiKey(process.env.OPENAI_API_KEY)
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
 const AI_CACHE_TTL_MS = 5 * 60 * 1000;
 const AI_MAX_REQUESTS_PER_MINUTE = 8;
 const AI_GLOBAL_REQUESTS_PER_MINUTE = 50;

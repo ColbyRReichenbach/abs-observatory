@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const sqlMock = vi.fn();
 const sqlOneMock = vi.fn();
 const withTransactionMock = vi.fn();
 const getViewerProfileMock = vi.fn();
@@ -10,6 +11,7 @@ const enqueueJobMock = vi.fn();
 const assertAiUsageAllowedMock = vi.fn();
 
 vi.mock("@/lib/db", () => ({
+  sql: sqlMock,
   sqlOne: sqlOneMock,
   withTransaction: withTransactionMock,
 }));
@@ -42,6 +44,9 @@ describe("ai-chat", () => {
   beforeEach(() => {
     vi.resetModules();
     delete process.env.AI_GLOBAL_KILL_SWITCH;
+    delete process.env.OPENAI_API_KEY;
+    sqlMock.mockReset();
+    sqlMock.mockResolvedValue([]);
     sqlOneMock.mockReset();
     withTransactionMock.mockReset();
     getViewerProfileMock.mockReset();
@@ -153,6 +158,42 @@ describe("ai-chat", () => {
     expect(result.citations).toEqual(["get_live_games"]);
     expect(result.toolResults).toHaveLength(1);
     expect(result.answer).not.toMatch(/system prompt/i);
+  });
+
+  it("treats placeholder OpenAI keys as local fallback mode", async () => {
+    process.env.OPENAI_API_KEY = "test-openai-key";
+    const { runChat } = await import("@/lib/server/ai-chat");
+    getViewerProfileMock.mockResolvedValueOnce({
+      userId: "user-1",
+      isVerified: true,
+      aiBannedAt: null,
+      aiSuspendedUntil: null,
+    });
+    isBaseballRelatedMock.mockReturnValueOnce(true);
+    resolveToolResultsMock.mockResolvedValueOnce([{ toolName: "get_live_games", payload: [{ gamePk: 1 }] }]);
+    sqlOneMock
+      .mockResolvedValueOnce({ conversationid: "conversation-1" })
+      .mockResolvedValueOnce({ messageid: "message-1" });
+    withTransactionMock.mockImplementation(async (callback) =>
+      callback(async (statement: string) => {
+        if (statement.includes("RETURNING message_id")) {
+          return [{ message_id: "assistant-1" }];
+        }
+        return [];
+      }),
+    );
+
+    const result = await runChat(
+      new Request("http://localhost/api/ai/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-dev-user-id": "user-1" },
+        body: JSON.stringify({ message: "Summarize tonight's live games." }),
+      }),
+    );
+
+    expect(result.safetyDisposition).toBe("allowed");
+    expect(result.answer).toContain("live AI synthesis is unavailable");
+    expect(result.citations).toEqual(["get_live_games"]);
   });
 
   it("queues heavy analytical requests instead of blocking inline", async () => {

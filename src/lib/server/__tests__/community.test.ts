@@ -383,6 +383,14 @@ describe("community service", () => {
       "user-1",
     ]);
 
+    sqlOneMock.mockResolvedValueOnce({
+      commentid: "comment-1",
+      threadid: "thread-1",
+      userid: "user-2",
+      moderationstatus: "published",
+      deletedat: null,
+    });
+
     await reportComment(new Request("http://localhost", { headers: { "x-dev-user-id": "user-1" } }), {
       commentId: "comment-1",
       reason: "Abusive language",

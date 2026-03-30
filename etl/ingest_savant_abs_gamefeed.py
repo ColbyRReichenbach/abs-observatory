@@ -10,7 +10,10 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 
-import requests
+try:
+    import requests
+except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
+    requests = None
 from dotenv import load_dotenv
 try:
     import psycopg2
@@ -35,6 +38,11 @@ USER_AGENT = "AiBS/1.0 (+https://github.com/ColbyRReichenbach)"
 def require_psycopg2() -> None:
     if psycopg2 is None:
         raise RuntimeError("psycopg2 is required to run ETL database operations")
+
+
+def require_requests() -> None:
+    if requests is None:
+        raise RuntimeError("requests is required to fetch Savant and Stats API payloads")
 
 
 @dataclass(frozen=True)
@@ -77,6 +85,7 @@ def request_json(
     retries: int = 5,
     base_backoff_seconds: float = 2.0,
 ) -> Dict[str, Any]:
+    require_requests()
     for attempt in range(retries):
         try:
             response = session.get(url, params=params, timeout=REQUEST_TIMEOUT)

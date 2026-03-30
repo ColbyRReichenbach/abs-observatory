@@ -6,7 +6,10 @@ import os
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-import requests
+try:
+    import requests
+except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
+    requests = None
 from dotenv import load_dotenv
 try:
     import psycopg2
@@ -32,6 +35,11 @@ FINAL_PITCH_CALLED_TAKES = {"BALL", "CALLED STRIKE", "BALL IN DIRT"}
 def require_psycopg2() -> None:
     if psycopg2 is None:
         raise RuntimeError("psycopg2 is required to run ETL database operations")
+
+
+def require_requests() -> None:
+    if requests is None:
+        raise RuntimeError("requests is required to fetch MLB Stats API payloads")
 
 
 def _height_to_inches(height_text: Optional[str]) -> Optional[float]:
@@ -115,6 +123,7 @@ def _score_from_result(play: Dict[str, Any], previous: Dict[str, int]) -> Dict[s
 
 
 def fetch_schedule(start_date: str, end_date: str, game_type: str = "S,R") -> List[int]:
+    require_requests()
     url = f"{API_BASE}/schedule"
     params = {
         "sportId": 1,
@@ -131,6 +140,7 @@ def fetch_schedule(start_date: str, end_date: str, game_type: str = "S,R") -> Li
 
 
 def fetch_game_feed(game_pk: int) -> Dict[str, Any]:
+    require_requests()
     url = f"{API_BASE_V11}/game/{game_pk}/feed/live"
     return requests.get(url, timeout=30).json()
 

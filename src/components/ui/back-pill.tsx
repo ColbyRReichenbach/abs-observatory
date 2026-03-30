@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { withViewModeHref } from "@/lib/view-mode-href";
 
@@ -24,10 +24,10 @@ type BackPillProps = {
  * - ChevronLeft icon animates translateX(-2px) on hover
  */
 export function BackPill({ label, href, useHistory }: BackPillProps) {
-    const router = useRouter();
     const searchParams = useSearchParams();
-    const activeMode = searchParams.get("view") === "org" || searchParams.get("view") === "fan"
-        ? searchParams.get("view")
+    const requestedMode = searchParams?.get("view");
+    const activeMode = requestedMode === "org" || requestedMode === "fan"
+        ? requestedMode
         : null;
 
     const inner = (
@@ -46,7 +46,15 @@ export function BackPill({ label, href, useHistory }: BackPillProps) {
 
     if (useHistory) {
         return (
-            <button type="button" onClick={() => router.back()} className={className}>
+            <button
+                type="button"
+                onClick={() => {
+                    if (typeof window !== "undefined") {
+                        window.history.back();
+                    }
+                }}
+                className={className}
+            >
                 {inner}
             </button>
         );

@@ -194,8 +194,9 @@ function ScoreRow({
   brand: TeamBranding;
 }) {
   const searchParams = useSearchParams();
-  const activeMode = searchParams.get("view") === "org" || searchParams.get("view") === "fan"
-    ? searchParams.get("view")
+  const requestedMode = searchParams?.get("view");
+  const activeMode = requestedMode === "org" || requestedMode === "fan"
+    ? requestedMode
     : null;
   const abbreviation = team.abbreviation?.trim() || team.name;
   const accentColor = brand.tokens.teamPrimary;

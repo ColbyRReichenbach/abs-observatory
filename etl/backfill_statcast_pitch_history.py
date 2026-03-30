@@ -12,7 +12,10 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
 
-import requests
+try:
+    import requests
+except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
+    requests = None
 from dotenv import load_dotenv
 try:
     import psycopg2
@@ -45,6 +48,11 @@ DEFAULT_BACKOFF_SECONDS = 2.0
 def require_psycopg2() -> None:
     if psycopg2 is None:
         raise RuntimeError("psycopg2 is required to run ETL database operations")
+
+
+def require_requests() -> None:
+    if requests is None:
+        raise RuntimeError("requests is required to fetch schedule games")
 
 
 @dataclass(frozen=True)
@@ -163,6 +171,7 @@ def normalize_json_value(value: Any) -> Any:
 
 
 def fetch_schedule_games(start_date: date, end_date: date) -> Dict[int, StatcastGameRecord]:
+    require_requests()
     payload = requests.get(  # pragma: no cover - thin wrapper retained for backward compatibility in tests
         f"{API_BASE}/schedule",
         params={

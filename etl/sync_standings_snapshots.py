@@ -6,7 +6,10 @@ import os
 from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
 
-import requests
+try:
+    import requests
+except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
+    requests = None
 from dotenv import load_dotenv
 try:
     import psycopg2
@@ -30,7 +33,13 @@ def require_psycopg2() -> None:
         raise RuntimeError("psycopg2 is required to run ETL database operations")
 
 
+def require_requests() -> None:
+    if requests is None:
+        raise RuntimeError("requests is required to fetch standings snapshots")
+
+
 def fetch_standings_snapshot(snapshot_date: str, season: Optional[int] = None) -> Dict[str, Any]:
+    require_requests()
     params = {
         "leagueId": "103,104",
         "standingsTypes": "regularSeason",

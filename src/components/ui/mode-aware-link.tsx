@@ -20,7 +20,7 @@ function readCookieMode(): ViewMode | null {
 
 export function ModeAwareLink({ href, ...props }: ModeAwareLinkProps) {
   const searchParams = useSearchParams();
-  const mode = (searchParams.get("view") as ViewMode | null) ?? readCookieMode();
+  const mode = (searchParams?.get("view") as ViewMode | null) ?? readCookieMode();
 
   const resolvedHref = useMemo(() => {
     if (!href.startsWith("/") || href.startsWith("//")) return href;
