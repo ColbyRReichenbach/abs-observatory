@@ -219,16 +219,50 @@ async function resolveChartInsight(params: {
   message: string;
   transcript: string;
 }) {
+  const hasPriorTurns = Boolean(params.transcript && params.transcript.trim() && params.transcript.trim() !== "No prior turns.");
+  const responseShape = hasPriorTurns
+    ? `Return strict JSON with this shape:
+{
+  "headline": "one concise direct answer",
+  "sections": [
+    {"label": "Direct answer", "body": "..."},
+    {"label": "Data behind it", "body": "..."},
+    {"label": "Baseball implication", "body": "..."}
+  ]
+}`
+    : `Return strict JSON with this shape:
+{
+  "headline": "one concise chart thesis",
+  "sections": [
+    {"label": "What the chart shows", "body": "..."},
+    {"label": "Baseball meaning", "body": "..."},
+    {"label": "How to use it", "body": "..."}
+  ]
+}`;
+  const objective = hasPriorTurns
+    ? `This is a follow-up question about the same chart.
+
+Answer the user's actual question first. Assume the reader can already see the chart and already has the initial explanation.
+Do not repeat a generic chart overview unless it is necessary to answer the follow-up.
+Go deeper into the numbers, buckets, and baseball decision logic that are visible in the supplied payload and prior turns.
+If the sample is thin or directional, say so plainly.`
+    : `The goal is to explain:
+1. what the visual is measuring,
+2. what the actual signal is,
+3. what the baseball implication is.`;
+
   if (!openai) {
     const fallback: StructuredChartInsight = {
       headline: params.chartContext.chartSummary,
       sections: [
         {
-          label: "What the chart shows",
-          body: params.chartContext.baseballQuestion,
+          label: hasPriorTurns ? "Direct answer" : "What the chart shows",
+          body: hasPriorTurns
+            ? `Live AI follow-up is unavailable, so this fallback cannot answer the specific question "${params.message}" beyond the supplied chart summary.`
+            : params.chartContext.baseballQuestion,
         },
         {
-          label: "Data note",
+          label: hasPriorTurns ? "Data note" : "How to use it",
           body: "Live AI synthesis is unavailable because OPENAI_API_KEY is not configured. The chart payload is available, but this explanation is using the local fallback path.",
         },
       ],
@@ -251,20 +285,16 @@ async function resolveChartInsight(params: {
 
 You must use only the supplied chart payload. Do not invent numbers, zones, leaders, or trends that are not present in the payload. If the sample is thin or directional, say so plainly.
 
-Return strict JSON with this shape:
-{
-  "headline": "one concise chart thesis",
-  "sections": [
-    {"label": "What the chart shows", "body": "..."},
-    {"label": "Baseball meaning", "body": "..."},
-    {"label": "How to use it", "body": "..."}
-  ]
-}
+${responseShape}
 
-The goal is to explain:
-1. what the visual is measuring,
-2. what the actual signal is,
-3. what the baseball implication is.
+${objective}
+
+Baseball rules you must obey:
+- If the payload says the final count has 3 strikes, call it a Strikeout, not just a pitcher-friendly count.
+- If the payload says the final count has 4 balls, call it a Walk, not just a hitter-friendly count.
+- Never change the count shown in the payload. If the visible baseball meaning is unusual, explain it from the payload rather than inventing a different count.
+- If the payload provides explicit labels like beforeLabel, afterLabel, transitionLabel, terminalOutcome, or countAdvantageLabel, prefer those labels over your own wording.
+- If a metric is missing, say it is unavailable. Do not backfill with guesses.
 
 CHART TYPE: ${params.chartContext.chartType}
 CHART TITLE: ${params.chartContext.chartTitle}

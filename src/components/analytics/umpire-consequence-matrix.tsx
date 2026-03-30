@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
 import { DirectionalCaution } from "@/components/analytics/directional-caution";
-import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
 import type { ChallengeEvent } from "@/lib/types";
 
 type MatrixCell = {
@@ -31,7 +30,7 @@ export function UmpireConsequenceMatrix({ challenges }: { challenges: ChallengeE
     [cells, selectedPitchFamily],
   );
   const [selectedKey, setSelectedKey] = useState<string | null>(selectedFallback);
-  const directionalOnly = challenges.length < 12 || cells.filter((cell) => cell.challenges >= 3).length < 3;
+  const directionalOnly = challenges.length < 10 || cells.filter((cell) => cell.challenges >= 2).length < 2;
 
   const selected = selectedKey ? cells.find((cell) => keyFor(cell.pitchFamily, cell.countBucket) === selectedKey) ?? null : null;
 
@@ -103,17 +102,15 @@ export function UmpireConsequenceMatrix({ challenges }: { challenges: ChallengeE
                     }`}
                     style={{ backgroundColor: fill }}
                   >
-                    {cell && cell.challenges >= 3 ? (
+                    {cell && cell.challenges > 0 ? (
                       <>
                         <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">{cell.challenges} challenges</p>
-                        <p className="mt-3 text-2xl font-display leading-none text-[var(--ink-0)]">{formatPercent(cell.avgAbsWin)}</p>
+                        <p className="mt-3 text-2xl font-display leading-none text-[var(--ink-0)]">{formatPercent(cell.avgAbsWin ?? cell.avgExpected)}</p>
                         <p className="mt-2 text-[11px] text-[var(--ink-2)]">{(cell.overturnRate * 100).toFixed(1)}% overturned</p>
+                        {cell.challenges < 3 ? (
+                          <p className="mt-1 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Directional</p>
+                        ) : null}
                       </>
-                    ) : cell ? (
-                      <div className="flex h-full flex-col justify-center">
-                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">{cell.challenges} challenges</p>
-                        <p className="mt-3 text-[11px] font-medium text-[var(--ink-3)]">Directional only</p>
-                      </div>
                     ) : (
                       <div className="flex h-full items-center justify-center text-[11px] font-medium text-[var(--ink-3)]">No sample</div>
                     )}
@@ -134,7 +131,7 @@ export function UmpireConsequenceMatrix({ challenges }: { challenges: ChallengeE
                     {selected.pitchFamily} · {selected.countBucket}
                   </p>
                   <p className="mt-2 text-sm leading-7 text-[var(--ink-2)]">
-                    This bucket is carrying {formatPercent(selected.avgAbsWin)} average absolute WE swing, essentially WPA movement on overturn, and {formatRun(selected.avgAbsRun)} average RE swing across {selected.challenges} challenged pitches.
+                    This bucket is carrying {formatPercent(selected.avgAbsWin ?? selected.avgExpected)} average absolute WE swing, essentially WPA movement on overturn, and {formatRun(selected.avgAbsRun)} average RE swing across {selected.challenges} challenged pitches.
                     {selected.challenges < 3 ? " The sample is still too thin for a hard read." : ""}
                   </p>
                 </div>
@@ -189,12 +186,6 @@ function buildMatrix(challenges: ChallengeEvent[]) {
   const cells = [...grouped.entries()].map(([key, bucket]) => {
     const [pitchFamily, countBucket] = key.split("::");
     const overturned = bucket.filter((challenge) => challenge.isOverturned);
-    const trustedWin = overturned.filter(
-      (challenge) => challenge.winExpectancyDelta !== null && hasTrustedModelConfidenceBand(challenge.winExpectancyConfidence ?? null),
-    );
-    const trustedRun = overturned.filter(
-      (challenge) => challenge.runExpectancyDelta !== null && hasTrustedModelConfidenceBand(challenge.runExpectancyConfidence ?? null),
-    );
     const expected = bucket
       .map((challenge) => challenge.expectedChallengeValue)
       .filter((value): value is number => typeof value === "number");
@@ -211,16 +202,26 @@ function buildMatrix(challenges: ChallengeEvent[]) {
       challenges: bucket.length,
       overturned: overturned.length,
       overturnRate: bucket.length > 0 ? overturned.length / bucket.length : 0,
-      avgAbsWin: average(trustedWin.map((challenge) => Math.abs(challenge.winExpectancyDelta ?? 0))),
-      avgAbsRun: average(trustedRun.map((challenge) => Math.abs(challenge.runExpectancyDelta ?? 0))),
-      avgExpected: average(expected),
+          avgAbsWin: average(
+            overturned
+              .map((challenge) => challenge.winExpectancyDelta)
+              .filter((value): value is number => typeof value === "number")
+              .map((value) => Math.abs(value)),
+          ),
+          avgAbsRun: average(
+            overturned
+              .map((challenge) => challenge.runExpectancyDelta)
+              .filter((value): value is number => typeof value === "number")
+              .map((value) => Math.abs(value)),
+          ),
+          avgExpected: average(expected),
       avgVelocity: average(velocities),
       avgSpin: average(spins),
     };
   });
 
   const topCell = [...cells].sort((left, right) => {
-    const winDiff = (right.avgAbsWin ?? -1) - (left.avgAbsWin ?? -1);
+    const winDiff = ((right.avgAbsWin ?? right.avgExpected) ?? -1) - ((left.avgAbsWin ?? left.avgExpected) ?? -1);
     if (winDiff !== 0) return winDiff;
     return right.challenges - left.challenges;
   })[0];
@@ -265,7 +266,7 @@ function formatRun(value: number | null) {
 
 function consequenceColor(value: number | null, sample: number) {
   if (sample === 0 || value === null) return "rgba(255,255,255,1)";
-  if (sample < 3) return "rgba(255,255,255,1)";
+  if (sample < 3) return "rgba(59, 130, 246, 0.08)";
   if (value >= 0.035) return "rgba(220, 38, 38, 0.18)";
   if (value >= 0.025) return "rgba(245, 158, 11, 0.16)";
   if (value >= 0.015) return "rgba(59, 130, 246, 0.14)";

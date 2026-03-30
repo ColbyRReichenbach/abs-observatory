@@ -82,6 +82,20 @@ function StructuredInsightView({
   );
 }
 
+function ChartContextSummary({
+  chartContext,
+}: {
+  chartContext: ChartInsightPayload;
+}) {
+  return (
+    <div className="rounded-[1.25rem] border border-gray-100 bg-gray-50/60 px-4 py-4">
+      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">Chart Focus</p>
+      <p className="mt-2 text-sm font-semibold leading-relaxed text-gray-900">{chartContext.baseballQuestion}</p>
+      <p className="mt-2 text-sm leading-relaxed text-gray-600">{chartContext.chartSummary}</p>
+    </div>
+  );
+}
+
 export function AIInsightBubble({
   insight,
   title = "AI Insight",
@@ -299,7 +313,7 @@ export function AIInsightBubble({
                     className={`fixed left-1/2 top-1/2 z-[101] max-h-[min(84vh,56rem)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[2rem] border border-gray-100 bg-white shadow-2xl ${spotlight ? "w-[min(84rem,calc(100vw-2rem))]" : "w-[min(46rem,calc(100vw-2rem))]"}`}
                   >
                     <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-blue-400 via-indigo-500 to-blue-600" />
-                    <div className="max-h-[min(84vh,56rem)] overflow-y-auto p-8 pr-6">
+                    <div className="h-[min(84vh,56rem)] overflow-hidden p-8 pr-6">
                       <div className="mb-6 flex items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
                           <ExpandableAiBSButton
@@ -321,9 +335,9 @@ export function AIInsightBubble({
                         </motion.button>
                       </div>
 
-                      <div className={spotlight ? "grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(24rem,0.9fr)]" : ""}>
+                      <div className={spotlight ? "grid h-[calc(min(84vh,56rem)-7rem)] gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(24rem,0.9fr)]" : ""}>
                         {spotlight ? (
-                          <div className="rounded-[1.5rem] border border-gray-100 bg-gray-50/60 p-5">
+                          <div className="h-full overflow-auto rounded-[1.5rem] border border-gray-100 bg-gray-50/60 p-5">
                             <div className="mb-4">
                               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
                                 {spotlightTitle ?? "Chart Spotlight"}
@@ -333,7 +347,7 @@ export function AIInsightBubble({
                           </div>
                         ) : null}
 
-                        <div className={spotlight ? "flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-gray-100 bg-white" : ""}>
+                        <div className={spotlight ? "flex h-full min-h-0 flex-col overflow-hidden rounded-[1.5rem] border border-gray-100 bg-white" : ""}>
                           <div className={spotlight ? "border-b border-gray-100 px-5 py-4" : "mb-4"}>
                             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">Chart Read</p>
                             <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
@@ -341,26 +355,23 @@ export function AIInsightBubble({
                             </p>
                           </div>
 
-                          <div ref={threadRef} className={spotlight ? "flex-1 overflow-y-auto px-5 py-5" : ""}>
+                          <div ref={threadRef} className={spotlight ? "min-h-0 flex-1 overflow-y-auto px-5 py-5" : ""}>
                             <div className="space-y-4">
-                              <div className="rounded-[1.5rem] border border-gray-100 bg-gray-50/60 px-4 py-4">
-                                <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">
-                                  Chart context
-                                </p>
-                                {pinnedAssistantMessage?.structuredInsight ? (
-                                  <StructuredInsightView insight={pinnedAssistantMessage.structuredInsight} />
-                                ) : pinnedAssistantMessage ? (
-                                  <div className="rounded-[1.25rem] border border-gray-100 bg-white px-4 py-4 text-sm leading-relaxed text-gray-700">
-                                    {pinnedAssistantMessage.content}
-                                  </div>
-                                ) : insightContent ? (
-                                  <div className="space-y-5">{insightContent}</div>
-                                ) : (
-                                  <div className="rounded-[1.25rem] border border-gray-100 bg-white px-4 py-4 text-sm leading-relaxed text-gray-700">
-                                    {insight}
-                                  </div>
-                                )}
-                              </div>
+                              {chartContext ? <ChartContextSummary chartContext={chartContext} /> : null}
+
+                              {pinnedAssistantMessage?.structuredInsight ? (
+                                <StructuredInsightView insight={pinnedAssistantMessage.structuredInsight} />
+                              ) : pinnedAssistantMessage ? (
+                                <div className="rounded-[1.25rem] border border-gray-100 bg-white px-4 py-4 text-sm leading-relaxed text-gray-700">
+                                  {pinnedAssistantMessage.content}
+                                </div>
+                              ) : insightContent ? (
+                                <div className="space-y-5">{insightContent}</div>
+                              ) : (
+                                <div className="rounded-[1.25rem] border border-gray-100 bg-white px-4 py-4 text-sm leading-relaxed text-gray-700">
+                                  {insight}
+                                </div>
+                              )}
 
                               {threadMessages.map((message, index) =>
                                 message.role === "user" ? (

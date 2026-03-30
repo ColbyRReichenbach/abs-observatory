@@ -294,7 +294,13 @@ async function TeamsPageBody({
                         <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-50 text-[10px] font-black text-gray-400 group-hover/row:bg-black group-hover/row:text-white transition-all transform group-hover/row:scale-110">
                           {(idx + 1).toString().padStart(2, '0')}
                         </span>
-                        <TeamIcon teamId={t.teamId} name={t.teamName} size={32} className="shadow-sm border-white/5 group-hover/row:scale-110" />
+                        <TeamIcon
+                          teamId={t.teamId}
+                          name={t.teamName}
+                          size={32}
+                          variant="flat"
+                          className="group-hover/row:scale-110"
+                        />
                         <span className="font-black text-gray-900 tracking-tight group-hover/row:text-blue-600 transition-colors">
                           {t.teamName}
                         </span>

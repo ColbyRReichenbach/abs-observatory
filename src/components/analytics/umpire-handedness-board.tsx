@@ -35,7 +35,7 @@ export function UmpireHandednessBoard({
   const cells = useMemo(() => buildCells(challenges, matchupVulnerabilities), [challenges, matchupVulnerabilities]);
   const [selectedKey, setSelectedKey] = useState<string>(cells[0] ? keyFor(cells[0].pitcherThrows, cells[0].batterStand) : "R-R");
   const selected = cells.find((cell) => keyFor(cell.pitcherThrows, cell.batterStand) === selectedKey) ?? cells[0] ?? null;
-  const directionalOnly = challenges.length < 12 || cells.filter((cell) => cell.challengedCount >= 4).length < 2;
+  const directionalOnly = challenges.length < 10 || cells.filter((cell) => cell.challengedCount >= 2).length < 2;
 
   return (
     <section className="mb-12">
@@ -61,6 +61,7 @@ export function UmpireHandednessBoard({
           {cells.map((cell) => {
             const active = selectedKey === keyFor(cell.pitcherThrows, cell.batterStand);
             const trusted = cell.challengedCount >= 4;
+            const directional = cell.challengedCount > 0 && cell.challengedCount < 4;
             return (
               <button
                 key={keyFor(cell.pitcherThrows, cell.batterStand)}
@@ -76,13 +77,13 @@ export function UmpireHandednessBoard({
                     <p className="mt-1 text-[11px] text-[var(--ink-3)]">{cell.challengedCount} challenges</p>
                   </div>
                   <span className="rounded-full bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-blue-700">
-                    {trusted ? `${cell.overturnRate.toFixed(1)}%` : "thin"}
+                    {trusted ? `${cell.overturnRate.toFixed(1)}%` : directional ? "dir." : "thin"}
                   </span>
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                    <MiniStat label="Abs WE / WPA" value={trusted ? formatPercent(cell.avgAbsWin) : "N/A"} />
-                    <MiniStat label="Abs RE" value={trusted ? formatRun(cell.avgAbsRun) : "N/A"} />
-                    <MiniStat label="Expected WE" value={trusted ? formatPercent(cell.avgExpected) : "N/A"} />
+                  <MiniStat label="Abs WE / WPA" value={formatPercent(cell.avgAbsWin)} muted={!trusted} />
+                  <MiniStat label="Abs RE" value={formatRun(cell.avgAbsRun)} muted={!trusted} />
+                  <MiniStat label="Expected WE" value={formatPercent(cell.avgExpected)} muted={!trusted} />
                 </div>
               </button>
             );
@@ -103,8 +104,8 @@ export function UmpireHandednessBoard({
                 <MiniStat label="Top Zone" value={selected.topZone ?? "N/A"} />
               </div>
               <p className="mt-4 text-sm leading-7 text-[var(--ink-2)]">
-                This bucket is the clearest place to test for repeatable matchup exposure. The current sample leans toward {selected.topPitchType?.toLowerCase() ?? "mixed pitch"} traffic in {selected.topCount ?? "mixed counts"}, with the hottest zone read around {selected.topZone?.toLowerCase() ?? "mixed lanes"}.
-                {selected.challengedCount < 4 ? " The cell is still directional and should not drive a hard tactical call alone." : ""}
+                This bucket is the clearest place to test for repeatable matchup exposure. The current review sample leans toward {selected.topPitchType?.toLowerCase() ?? "mixed pitch"} traffic in {selected.topCount ?? "mixed counts"}, with the hottest zone read around {selected.topZone?.toLowerCase() ?? "mixed lanes"}.
+                {selected.challengedCount < 4 ? " This is still directional review evidence, but it is not empty." : ""}
               </p>
             </>
           ) : (
@@ -171,9 +172,9 @@ function formatRun(value: number | null) {
   return value === null ? "N/A" : `${value.toFixed(2)} runs`;
 }
 
-function MiniStat({ label, value }: { label: string; value: string }) {
+function MiniStat({ label, value, muted = false }: { label: string; value: string; muted?: boolean }) {
   return (
-    <div className="rounded-[1rem] border border-gray-100 bg-[var(--surface-infield)] px-3 py-3">
+    <div className={`rounded-[1rem] border border-gray-100 px-3 py-3 ${muted ? "bg-white" : "bg-[var(--surface-infield)]"}`}>
       <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">{label}</p>
       <p className="mt-2 text-base font-display text-[var(--ink-0)]">{value}</p>
     </div>

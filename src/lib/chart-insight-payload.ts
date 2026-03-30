@@ -6,6 +6,7 @@ import type {
   TeamChallengeValueSummary,
   TeamDecisionValueReport,
 } from "@/lib/types";
+import { getChallengeCountState } from "@/lib/challenge-context";
 
 export type StructuredChartInsight = {
   headline: string;
@@ -297,6 +298,16 @@ export function buildGameChallengeOpportunityBoardPayload(board: GameChallengeOp
 
 export function buildChallengeValueTimelinePayload(entries: ChallengeValueTimelineEntry[]): ChartInsightPayload {
   const simplified = entries.slice(0, 12).map((entry) => ({
+    ...(() => {
+      const countState = getChallengeCountState(entry.countBefore, entry.umpireCount, entry.countAfter);
+      return {
+        countBefore: countState.beforeLabel,
+        countAfter: countState.afterLabel,
+        countShift: countState.transitionLabel,
+        terminalOutcome: countState.terminalOutcome,
+        countAdvantageLabel: countState.countAdvantageLabel,
+      };
+    })(),
     challengeId: entry.challengeId,
     inning: entry.inning,
     halfInning: entry.halfInning,
@@ -304,7 +315,6 @@ export function buildChallengeValueTimelinePayload(entries: ChallengeValueTimeli
     overturned: entry.isOverturned,
     estimatedSwing: entry.estimatedChallengeSwing,
     estimatedEli: entry.estimatedLeverageIndex,
-    countShift: `${entry.countBefore ?? "?"} -> ${entry.countAfter ?? "?"}`,
     runDelta: entry.runExpectancyDelta === null ? null : Number(entry.runExpectancyDelta.toFixed(3)),
     winDelta: entry.winExpectancyDelta === null ? null : Number((entry.winExpectancyDelta * 100).toFixed(2)),
     expectedValuePct: entry.expectedChallengeValue === null ? null : Number((entry.expectedChallengeValue * 100).toFixed(2)),
@@ -326,6 +336,7 @@ export function buildChallengeValueTimelinePayload(entries: ChallengeValueTimeli
 }
 
 export function buildChallengeDecisionChartPayload(challenge: ChallengeEvent): ChartInsightPayload {
+  const countState = getChallengeCountState(challenge.countBefore, challenge.umpireCount, challenge.countAfter);
   return {
     chartType: "challenge_decision_brief",
     chartKey: `challenge-decision:${challenge.challengeId}`,
@@ -341,8 +352,13 @@ export function buildChallengeDecisionChartPayload(challenge: ChallengeEvent): C
         challengeTeam: challenge.challengeTeamName,
       },
       count: {
-        before: challenge.umpireCount ?? challenge.countBefore,
-        after: challenge.countAfter,
+        before: countState.initial,
+        after: countState.final,
+        beforeLabel: countState.beforeLabel,
+        afterLabel: countState.afterLabel,
+        transitionLabel: countState.transitionLabel,
+        terminalOutcome: countState.terminalOutcome,
+        countAdvantageLabel: countState.countAdvantageLabel,
       },
       gameState: {
         inning: challenge.inning,

@@ -108,8 +108,7 @@ export async function saveAIFeedback(request: Request, input: AIFeedbackInput) {
     normalizeComment(existing.comment) !== comment;
   const initialReviewPriority = input.sentiment === "up" ? "low" : "normal";
 
-  const row = await sqlOne<{ feedbackid: string }>(
-    `
+  const insertSqlWithGeneration = `
     INSERT INTO ai.feedback (
       actor_key,
       user_id,
@@ -165,26 +164,91 @@ export async function saveAIFeedback(request: Request, input: AIFeedbackInput) {
       metadata = COALESCE(EXCLUDED.metadata, ai.feedback.metadata),
       updated_at = NOW()
     RETURNING feedback_id AS feedbackId
-    `,
-    [
-      actorKey,
-      viewer?.userId ?? null,
-      input.sessionId ?? null,
-      input.surface,
-      input.targetType,
-      input.targetId,
-      input.sentiment,
-      input.generationId ?? null,
-      input.conversationId ?? null,
-      input.messageId ?? null,
-      input.articleId ?? null,
-      input.gamePk ?? null,
+    `;
+  const insertParams = [
+    actorKey,
+    viewer?.userId ?? null,
+    input.sessionId ?? null,
+    input.surface,
+    input.targetType,
+    input.targetId,
+    input.sentiment,
+    input.generationId ?? null,
+    input.conversationId ?? null,
+    input.messageId ?? null,
+    input.articleId ?? null,
+    input.gamePk ?? null,
+    comment,
+    initialClassificationStatus,
+    initialReviewPriority,
+    input.metadata ?? null,
+  ];
+  const insertSqlWithoutGeneration = `
+    INSERT INTO ai.feedback (
+      actor_key,
+      user_id,
+      session_id,
+      surface,
+      target_type,
+      target_id,
+      sentiment,
+      conversation_id,
+      message_id,
+      article_id,
+      game_pk,
       comment,
-      initialClassificationStatus,
-      initialReviewPriority,
-      input.metadata ?? null,
-    ],
-  );
+      classification_status,
+      review_priority,
+      metadata
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $9, $10, $11, $12, $13, $14, $15, $16)
+    ON CONFLICT (actor_key, surface, target_type, target_id) DO UPDATE SET
+      sentiment = EXCLUDED.sentiment,
+      conversation_id = COALESCE(EXCLUDED.conversation_id, ai.feedback.conversation_id),
+      message_id = COALESCE(EXCLUDED.message_id, ai.feedback.message_id),
+      article_id = COALESCE(EXCLUDED.article_id, ai.feedback.article_id),
+      game_pk = COALESCE(EXCLUDED.game_pk, ai.feedback.game_pk),
+      comment = EXCLUDED.comment,
+      classification_status = CASE
+        WHEN ai.feedback.comment IS DISTINCT FROM EXCLUDED.comment OR ai.feedback.sentiment IS DISTINCT FROM EXCLUDED.sentiment
+          THEN EXCLUDED.classification_status
+        ELSE ai.feedback.classification_status
+      END,
+      classification_bucket = CASE
+        WHEN ai.feedback.comment IS DISTINCT FROM EXCLUDED.comment OR ai.feedback.sentiment IS DISTINCT FROM EXCLUDED.sentiment
+          THEN NULL
+        ELSE ai.feedback.classification_bucket
+      END,
+      classification_confidence = CASE
+        WHEN ai.feedback.comment IS DISTINCT FROM EXCLUDED.comment OR ai.feedback.sentiment IS DISTINCT FROM EXCLUDED.sentiment
+          THEN NULL
+        ELSE ai.feedback.classification_confidence
+      END,
+      classification_notes = CASE
+        WHEN ai.feedback.comment IS DISTINCT FROM EXCLUDED.comment OR ai.feedback.sentiment IS DISTINCT FROM EXCLUDED.sentiment
+          THEN NULL
+        ELSE ai.feedback.classification_notes
+      END,
+      review_priority = CASE
+        WHEN ai.feedback.comment IS DISTINCT FROM EXCLUDED.comment OR ai.feedback.sentiment IS DISTINCT FROM EXCLUDED.sentiment
+          THEN EXCLUDED.review_priority
+        ELSE ai.feedback.review_priority
+      END,
+      metadata = COALESCE(EXCLUDED.metadata, ai.feedback.metadata),
+      updated_at = NOW()
+    RETURNING feedback_id AS feedbackId
+  `;
+
+  let row: { feedbackid: string } | null = null;
+  try {
+    row = await sqlOne<{ feedbackid: string }>(insertSqlWithGeneration, insertParams);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.includes('column "generation_id"')) {
+      throw error;
+    }
+    row = await sqlOne<{ feedbackid: string }>(insertSqlWithoutGeneration, insertParams);
+  }
 
   await writeAuditLog({
     actorUserId: viewer?.userId ?? null,

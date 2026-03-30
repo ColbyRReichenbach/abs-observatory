@@ -1,6 +1,6 @@
 "use client";
 
-import { getGameTypeLabel } from "@/lib/game-type";
+import { getGameTypeLabel, shouldShowGameTypeBadge } from "@/lib/game-type";
 
 export function GameTypeBadge({
   gameType,
@@ -9,6 +9,10 @@ export function GameTypeBadge({
   gameType: string | null | undefined;
   compact?: boolean;
 }) {
+  if (!shouldShowGameTypeBadge(gameType)) {
+    return null;
+  }
+
   const label = getGameTypeLabel(gameType);
 
   const toneClass =

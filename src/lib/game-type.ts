@@ -4,6 +4,20 @@ export type GameTypeLabel = {
   tone: "blue" | "emerald" | "gray" | "amber";
 };
 
+export function shouldShowGameTypeBadge(gameType: string | null | undefined): boolean {
+  switch ((gameType ?? "").toUpperCase()) {
+    case "S":
+    case "F":
+    case "D":
+    case "L":
+    case "W":
+      return true;
+    case "R":
+    default:
+      return false;
+  }
+}
+
 export function getGameTypeLabel(gameType: string | null | undefined): GameTypeLabel {
   switch ((gameType ?? "").toUpperCase()) {
     case "S":

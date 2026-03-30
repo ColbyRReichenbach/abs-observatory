@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 
-import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
 import type { ChallengeEvent } from "@/lib/types";
 
 type BucketMode = "inning_phase" | "count_state" | "base_out_state";
@@ -70,8 +69,8 @@ export function UmpireConsequenceBoard({
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <MetricCard label="Avg Abs WE Swing" value={summary.avgAbsoluteWinSwing} note="Overturned calls only" />
-          <MetricCard label="Avg Abs RE Swing" value={summary.avgAbsoluteRunSwing} note="Overturned calls only" />
+          <MetricCard label="Avg Abs WE Swing" value={summary.avgAbsoluteWinSwing} note="Reviewed overturns" />
+          <MetricCard label="Avg Abs RE Swing" value={summary.avgAbsoluteRunSwing} note="Reviewed overturns" />
           <MetricCard label="High-Impact Overturns" value={summary.highImpactOverturnShare} note=">= 2.0 win expectancy percentage points" />
           <MetricCard label="Avg Expected Review Value" value={summary.avgExpectedValue} note="Modeled challenge value" />
         </div>
@@ -148,26 +147,22 @@ export function UmpireConsequenceBoard({
 
 function buildConsequenceSummary(challenges: ChallengeEvent[]) {
   const overturned = challenges.filter((challenge) => challenge.isOverturned);
-  const trustedWin = overturned.filter(
-    (challenge) => challenge.winExpectancyDelta !== null && hasTrustedModelConfidenceBand(challenge.winExpectancyConfidence ?? null),
-  );
-  const trustedRun = overturned.filter(
-    (challenge) => challenge.runExpectancyDelta !== null && hasTrustedModelConfidenceBand(challenge.runExpectancyConfidence ?? null),
-  );
+  const winSample = overturned.filter((challenge) => challenge.winExpectancyDelta !== null);
+  const runSample = overturned.filter((challenge) => challenge.runExpectancyDelta !== null);
   const expected = challenges.filter((challenge) => challenge.expectedChallengeValue !== null);
   const topBucket = buildBuckets(challenges, "count_state")[0] ?? null;
 
-  const avgAbsWe = average(trustedWin.map((challenge) => absMetric(challenge.winExpectancyDelta)));
-  const avgAbsRe = average(trustedRun.map((challenge) => absMetric(challenge.runExpectancyDelta)));
+  const avgAbsWe = average(winSample.map((challenge) => absMetric(challenge.winExpectancyDelta)));
+  const avgAbsRe = average(runSample.map((challenge) => absMetric(challenge.runExpectancyDelta)));
   const avgExpected = average(expected.map((challenge) => challenge.expectedChallengeValue ?? 0));
   const highImpactShare =
-    trustedWin.length > 0
-      ? trustedWin.filter((challenge) => absMetric(challenge.winExpectancyDelta) >= 0.02).length / trustedWin.length
+    winSample.length > 0
+      ? winSample.filter((challenge) => absMetric(challenge.winExpectancyDelta) >= 0.02).length / winSample.length
       : null;
 
   const read =
-    trustedWin.length === 0
-      ? "The consequence layer is still stabilizing. There is not enough trusted win-expectancy coverage yet to separate which reviewed misses are doing the most game-state damage."
+    winSample.length === 0
+      ? "The consequence layer is still stabilizing. There is not enough reviewed win-expectancy coverage yet to separate which reviewed misses are doing the most game-state damage."
       : `When this umpire does get overturned, the average absolute swing is ${formatPercent(avgAbsWe)} in win expectancy and ${formatRun(
           avgAbsRe,
         )} in run expectancy. The highest-cost count family right now is ${topBucket?.label?.toLowerCase() ?? "still settling"}, which is the first place an analyst should look for repeat exposure.`;
@@ -195,12 +190,6 @@ function buildBuckets(challenges: ChallengeEvent[], mode: BucketMode): Consequen
   return [...buckets.entries()]
     .map(([label, bucketChallenges]) => {
       const overturned = bucketChallenges.filter((challenge) => challenge.isOverturned);
-      const trustedWin = overturned.filter(
-        (challenge) => challenge.winExpectancyDelta !== null && hasTrustedModelConfidenceBand(challenge.winExpectancyConfidence ?? null),
-      );
-      const trustedRun = overturned.filter(
-        (challenge) => challenge.runExpectancyDelta !== null && hasTrustedModelConfidenceBand(challenge.runExpectancyConfidence ?? null),
-      );
       const expected = bucketChallenges.filter((challenge) => challenge.expectedChallengeValue !== null);
       const leverageValues = bucketChallenges
         .map((challenge) => challenge.estimatedLeverageIndex)
@@ -216,8 +205,18 @@ function buildBuckets(challenges: ChallengeEvent[], mode: BucketMode): Consequen
           bucketChallenges.length > 0
             ? bucketChallenges.filter((challenge) => (challenge.estimatedLeverageIndex ?? 0) >= 65).length / bucketChallenges.length
             : 0,
-        avgAbsoluteWinSwing: average(trustedWin.map((challenge) => absMetric(challenge.winExpectancyDelta))),
-        avgAbsoluteRunSwing: average(trustedRun.map((challenge) => absMetric(challenge.runExpectancyDelta))),
+        avgAbsoluteWinSwing: average(
+          overturned
+            .map((challenge) => challenge.winExpectancyDelta)
+            .filter((value): value is number => typeof value === "number")
+            .map((value) => Math.abs(value)),
+        ),
+        avgAbsoluteRunSwing: average(
+          overturned
+            .map((challenge) => challenge.runExpectancyDelta)
+            .filter((value): value is number => typeof value === "number")
+            .map((value) => Math.abs(value)),
+        ),
         avgExpectedValue: average(expected.map((challenge) => challenge.expectedChallengeValue ?? 0)),
       };
     })
@@ -235,8 +234,7 @@ function buildTopCalls(challenges: ChallengeEvent[]) {
     .filter(
       (challenge) =>
         challenge.isOverturned &&
-        challenge.winExpectancyDelta !== null &&
-        hasTrustedModelConfidenceBand(challenge.winExpectancyConfidence ?? null),
+        challenge.winExpectancyDelta !== null,
     )
     .sort((left, right) => absMetric(right.winExpectancyDelta) - absMetric(left.winExpectancyDelta))
     .slice(0, 4);

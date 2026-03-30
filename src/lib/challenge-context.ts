@@ -33,6 +33,40 @@ export function formatCountTransitionLabel(before?: string | null, after?: strin
   return from === to ? to : `${from} → ${to}`;
 }
 
+export function getChallengeCountState(before?: string | null, umpireCount?: string | null, after?: string | null) {
+  const initial = umpireCount ?? before ?? null;
+  const final = after ?? null;
+  const beforeLabel = formatCountStateLabel(initial);
+  const afterLabel = formatCountStateLabel(final);
+  const transitionLabel = formatCountTransitionLabel(initial, final);
+  const parsedFinal = parseCountKey(final);
+  const terminalOutcome =
+    parsedFinal?.balls !== undefined && parsedFinal.balls >= 4
+      ? "Walk"
+      : parsedFinal?.strikes !== undefined && parsedFinal.strikes >= 3
+        ? "Strikeout"
+        : null;
+  const countAdvantageLabel = (() => {
+    const parsed = parseCountKey(final ?? initial);
+    if (!parsed) return "Unknown";
+    if (parsed.balls >= 4) return "Walk";
+    if (parsed.strikes >= 3) return "Strikeout";
+    if (parsed.balls > parsed.strikes) return "Hitter ahead";
+    if (parsed.strikes > parsed.balls) return "Pitcher ahead";
+    return "Even count";
+  })();
+
+  return {
+    initial,
+    final,
+    beforeLabel,
+    afterLabel,
+    transitionLabel,
+    terminalOutcome,
+    countAdvantageLabel,
+  };
+}
+
 export function normalizeHalfInning(halfInning?: string | null) {
   if (!halfInning) return null;
   const normalized = halfInning.trim().toLowerCase();

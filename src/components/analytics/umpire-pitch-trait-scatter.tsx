@@ -27,7 +27,7 @@ export function UmpirePitchTraitScatter({ challenges }: { challenges: ChallengeE
   const selected = points.find((point) => point.pitchFamily === selectedFamily) ?? points[0] ?? null;
 
   const domain = useMemo(() => buildDomain(points, axis), [points, axis]);
-  const trustedPoints = points.filter((point) => point.sample >= 3);
+  const trustedPoints = points.filter((point) => point.sample >= 2);
   const directionalOnly = trustedPoints.length < 2;
 
   return (
@@ -133,8 +133,8 @@ export function UmpirePitchTraitScatter({ challenges }: { challenges: ChallengeE
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <MiniStat label="Challenges" value={`${selected.sample}`} />
                   <MiniStat label="Overturn Rate" value={`${selected.overturnRate.toFixed(1)}%`} />
-                  <MiniStat label="Abs WE / WPA" value={selected.sample >= 3 ? formatPercent(selected.avgAbsWin) : "N/A"} />
-                  <MiniStat label="Expected WE" value={selected.sample >= 3 ? formatPercent(selected.avgExpected) : "N/A"} />
+                  <MiniStat label="Abs WE / WPA" value={formatPercent(selected.avgAbsWin)} muted={selected.sample < 3} />
+                  <MiniStat label="Expected WE" value={formatPercent(selected.avgExpected)} muted={selected.sample < 3} />
                 </div>
                 <p className="mt-4 text-sm leading-7 text-[var(--ink-2)]">
                   {selected.pitchFamily} is sitting at {selected.avgVelocity ? `${selected.avgVelocity.toFixed(1)} mph` : "unknown velocity"} and{" "}
@@ -223,9 +223,9 @@ function formatPercent(value: number | null) {
   return value === null ? "N/A" : `${(value * 100).toFixed(1)} pts`;
 }
 
-function MiniStat({ label, value }: { label: string; value: string }) {
+function MiniStat({ label, value, muted = false }: { label: string; value: string; muted?: boolean }) {
   return (
-    <div className="rounded-[1rem] border border-gray-100 bg-[var(--surface-infield)] px-3 py-3">
+    <div className={`rounded-[1rem] border border-gray-100 px-3 py-3 ${muted ? "bg-white" : "bg-[var(--surface-infield)]"}`}>
       <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">{label}</p>
       <p className="mt-2 text-base font-display text-[var(--ink-0)]">{value}</p>
     </div>

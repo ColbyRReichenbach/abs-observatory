@@ -161,9 +161,7 @@ export function LeagueCalendar({
                                             {game.awayAbbr} @ {game.homeAbbr}
                                         </p>
                                     ) : null}
-                                    <div className="mb-2">
-                                        <GameTypeBadge gameType={game.gameType} compact />
-                                    </div>
+                                    <GameTypeBadge gameType={game.gameType} compact />
 
                                     <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-50">
                                         <GameStatusIndicator status={game.status} />

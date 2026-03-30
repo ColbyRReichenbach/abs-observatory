@@ -163,15 +163,15 @@ export function TeamOrgCommandCenter({
                     {selectedWindow.label}
                   </p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <MiniMetric label="Expected" value={formatSignedPercent(selectedWindow.averageExpectedChallengeValue)} />
-                    <MiniMetric label="Realized" value={formatSignedPercent(selectedWindow.averageRealizedChallengeValue)} />
-                    <MiniMetric label="Surplus" value={formatSignedPercent(selectedWindow.decisionSurplus)} />
+                    <MiniMetric label="Modeled" value={formatSignedPercent(selectedWindow.averageExpectedChallengeValue)} />
+                    <MiniMetric label="Actual" value={formatSignedPercent(selectedWindow.averageRealizedChallengeValue)} />
+                    <MiniMetric label="Actual - Model" value={formatSignedPercent(selectedWindow.decisionSurplus)} />
                     <MiniMetric label="Sample" value={`${selectedWindow.challenges}`} />
                   </div>
                   <p className="mt-4 text-sm leading-7 text-[var(--ink-2)]">
                     {hasTrustedModelConfidenceBand(selectedWindow.modelConfidence)
-                      ? `The model trusts this window enough to separate expected from realized value. Challenge recommendations ran at ${formatShare(selectedWindow.challengeRecommendationRate)}, while holds still made up ${formatShare(selectedWindow.holdRecommendationRate)} of the sample.`
-                      : "This window is directionally useful, but not yet trusted enough to anchor a hard recommendation on its own."}
+                      ? `Modeled is the average pre-review win value the model expected, actual is what the challenges in this window really returned, and actual minus model is the club's decision surplus. Challenge recommendations ran at ${formatShare(selectedWindow.challengeRecommendationRate)}, while holds still made up ${formatShare(selectedWindow.holdRecommendationRate)} of the sample.`
+                      : "Modeled is the pre-review expectation, actual is what the team really got back, and actual minus model is the directional surplus. This window is useful, but not yet trusted enough to anchor a hard recommendation on its own."}
                   </p>
                 </>
               ) : (
