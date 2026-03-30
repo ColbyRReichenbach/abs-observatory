@@ -49,12 +49,16 @@ export async function PregameScoutingReport({ game, viewMode }: { game: GameHubG
                             opportunityBoard={opportunityBoard}
                             homeLabel={homeLabel}
                             awayLabel={awayLabel}
+                            homeColor={game.homeprimarycolor ?? "#2563eb"}
+                            awayColor={game.awayprimarycolor ?? "#ef4444"}
                             viewMode={viewMode}
                         />
                         <PregameTimingComparisonChart
                             intel={intel}
                             homeLabel={homeLabel}
                             awayLabel={awayLabel}
+                            homeColor={game.homeprimarycolor ?? "#2563eb"}
+                            awayColor={game.awayprimarycolor ?? "#ef4444"}
                             viewMode={viewMode}
                         />
                     </section>

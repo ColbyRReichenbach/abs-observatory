@@ -6,20 +6,21 @@ import { ChartTooltip } from "@/components/ui/chart-tooltip";
 import type { GameChallengeOpportunityBoard, PregameIntel } from "@/lib/types";
 import type { ViewMode } from "@/lib/view-mode";
 
-const HOME_COLOR = "#2563eb";
-const AWAY_COLOR = "#ef4444";
-
 export function PregameTeamComparisonChart({
   intel,
   opportunityBoard,
   homeLabel,
   awayLabel,
+  homeColor,
+  awayColor,
   viewMode,
 }: {
   intel: PregameIntel;
   opportunityBoard?: GameChallengeOpportunityBoard | null;
   homeLabel: string;
   awayLabel: string;
+  homeColor: string;
+  awayColor: string;
   viewMode: ViewMode;
 }) {
   const modeledHome = summarizeModeledBoard(opportunityBoard, "home");
@@ -48,16 +49,16 @@ export function PregameTeamComparisonChart({
         ]
       : [
           {
-            metric: "Offense",
+            metric: "Offense / Game",
             home: intel.homeTeam.offensiveChallenges,
             away: intel.awayTeam.offensiveChallenges,
-            formatter: "count" as const,
+            formatter: "number" as const,
           },
           {
-            metric: "Defense",
+            metric: "Defense / Game",
             home: intel.homeTeam.defensiveChallenges,
             away: intel.awayTeam.defensiveChallenges,
-            formatter: "count" as const,
+            formatter: "number" as const,
           },
           {
             metric: "Overturn %",
@@ -76,11 +77,16 @@ export function PregameTeamComparisonChart({
         <p className="text-2xl font-display leading-none text-gray-900">
           Home vs Away <span className="text-gray-400">Profile</span>
         </p>
+        <p className="mt-2 text-[11px] font-medium leading-relaxed text-[var(--ink-2)]">
+          {viewMode === "org"
+            ? "Modeled pressure and review outcomes shown on a shared axis, using each club's per-game challenge profile rather than raw season totals."
+            : "Per-game challenge offense, challenge defense, and overturn success shown on the same scale so the matchup reads as style, not just accumulated volume."}
+        </p>
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-4 text-[10px] font-black uppercase tracking-widest text-gray-400">
-        <Legend color={HOME_COLOR} label={homeLabel} />
-        <Legend color={AWAY_COLOR} label={awayLabel} />
+        <Legend color={homeColor} label={homeLabel} />
+        <Legend color={awayColor} label={awayLabel} />
       </div>
 
       <div className="h-[20rem] w-full">
@@ -110,12 +116,12 @@ export function PregameTeamComparisonChart({
                       {
                         label: homeLabel,
                         value: formatValue(payload[0]?.value, row?.formatter),
-                        color: HOME_COLOR,
+                        color: homeColor,
                       },
                       {
                         label: awayLabel,
                         value: formatValue(payload[1]?.value, row?.formatter),
-                        color: AWAY_COLOR,
+                        color: awayColor,
                       },
                     ]}
                   />
@@ -124,12 +130,12 @@ export function PregameTeamComparisonChart({
             />
             <Bar dataKey="home" radius={[10, 10, 0, 0]} maxBarSize={42}>
               {data.map((_, index) => (
-                <Cell key={`home-${index}`} fill={HOME_COLOR} />
+                <Cell key={`home-${index}`} fill={homeColor} />
               ))}
             </Bar>
             <Bar dataKey="away" radius={[10, 10, 0, 0]} maxBarSize={42}>
               {data.map((_, index) => (
-                <Cell key={`away-${index}`} fill={AWAY_COLOR} />
+                <Cell key={`away-${index}`} fill={awayColor} />
               ))}
             </Bar>
           </BarChart>

@@ -88,7 +88,7 @@ export function TeamOrgCommandCenter({
             accent={teamColor}
           />
           <MetricCard
-            label="Captured Value"
+            label="Higher-Value Share"
             value={formatShare(report.summary.capturedValueShare)}
             note={`${formatShare(report.summary.wastedValueShare)} lower-value`}
             accent={teamColor}
@@ -137,7 +137,7 @@ export function TeamOrgCommandCenter({
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-[var(--ink-0)]">{window.label}</p>
                       <p className="mt-1 text-[11px] text-[var(--ink-3)]">
-                        {window.challenges} challenges · {formatShare(window.capturedValueShare)} captured · {formatShare(window.wastedValueShare)} low-value
+                        {window.challenges} challenges · {formatShare(window.capturedValueShare)} higher-value · {formatShare(window.wastedValueShare)} lower-value
                       </p>
                     </div>
                     <span
@@ -170,8 +170,8 @@ export function TeamOrgCommandCenter({
                   </div>
                   <p className="mt-4 text-sm leading-7 text-[var(--ink-2)]">
                     {hasTrustedModelConfidenceBand(selectedWindow.modelConfidence)
-                      ? `Modeled is the average pre-review win value the model expected, actual is what the challenges in this window really returned, and actual minus model is the club's decision surplus. Challenge recommendations ran at ${formatShare(selectedWindow.challengeRecommendationRate)}, while holds still made up ${formatShare(selectedWindow.holdRecommendationRate)} of the sample.`
-                      : "Modeled is the pre-review expectation, actual is what the team really got back, and actual minus model is the directional surplus. This window is useful, but not yet trusted enough to anchor a hard recommendation on its own."}
+                      ? `Modeled is the average pre-review win value the model expected, actual is what the challenges in this window really returned, and actual minus model is the club's decision surplus. Higher-value share reflects how often this window landed in the stronger side of the model's recommendation set. Challenge recommendations ran at ${formatShare(selectedWindow.challengeRecommendationRate)}, while holds still made up ${formatShare(selectedWindow.holdRecommendationRate)} of the sample.`
+                      : "Modeled is the pre-review expectation, actual is what the team really got back, and actual minus model is the directional surplus. Higher-value share is still directional here because the sample is not yet trusted enough to anchor a hard recommendation on its own."}
                   </p>
                 </>
               ) : (
@@ -266,7 +266,7 @@ function BreakdownDrilldown({
                 <div className="min-w-0 lg:w-56">
                   <p className="text-sm font-semibold text-[var(--ink-0)]">{entry.label}</p>
                   <p className="mt-1 text-[11px] text-[var(--ink-3)]">
-                    {entry.challenges} challenges · {formatShare(entry.capturedValueShare)} captured · {formatShare(entry.wastedValueShare)} low-value
+                    {entry.challenges} challenges · {formatShare(entry.capturedValueShare)} higher-value · {formatShare(entry.wastedValueShare)} lower-value
                   </p>
                 </div>
                 <div className="relative h-8 flex-1 rounded-full bg-white">

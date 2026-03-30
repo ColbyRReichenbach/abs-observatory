@@ -127,6 +127,7 @@ export type ChallengePitchLaneBaseline = {
 };
 
 export type PitchTimelineEntry = {
+  eventId: string;
   gamePk: number;
   atBatIndex: number;
   pitchNumber: number;
@@ -152,12 +153,19 @@ export type PitchTimelineEntry = {
   countBefore: string | null;
   countAfter: string | null;
   umpireCount: string | null;
+  countBeforeLabel: string;
+  countAfterLabel: string;
+  umpireCountLabel: string;
+  countTransitionLabel: string;
+  terminalOutcome: "Walk" | "Strikeout" | null;
   outsBefore: number | null;
   outsAfter: number | null;
   basesStateBefore: string | null;
   basesStateAfter: string | null;
   isInPlay: boolean;
   endedPlateAppearance: boolean;
+  isChallenge: boolean;
+  description: string;
   challengeId: string | null;
   challengePlayerName: string | null;
   challengeTeamId: number | null;

@@ -1,5 +1,12 @@
 import { sql } from "@/lib/db";
-import { formatBasesStateLabel, formatScoreStateLabel, getChallengeScenarioTags } from "@/lib/challenge-context";
+import {
+  formatBasesStateLabel,
+  formatCountTransitionLabel,
+  formatCountStateLabel,
+  getChallengeCountState,
+  getChallengeScenarioTags,
+  formatScoreStateLabel,
+} from "@/lib/challenge-context";
 import { buildChallengeValueSnapshot, buildCountStateBaselineMap, type CountStateBaseline } from "@/lib/challenge-value";
 import { summarizeEstimatedLeverage } from "@/lib/estimated-leverage";
 import {
@@ -320,6 +327,23 @@ function resolveUmpireCountState(
   if (ballsAfter !== null && ballsAfter > ballsBefore) return `${ballsBefore}-${strikesBefore + 1}`;
   if (strikesAfter !== null && strikesAfter > strikesBefore) return `${ballsBefore + 1}-${strikesBefore}`;
   return ballsAfter === null || strikesAfter === null ? null : `${ballsAfter}-${strikesAfter}`;
+}
+
+function buildPitchTimelineDescription(row: {
+  challenge_id: string | null;
+  impact_summary: string;
+  play_description: string | null;
+  called_description: string | null;
+  pitch_type_description: string | null;
+}) {
+  if (row.challenge_id && row.impact_summary) return row.impact_summary;
+  if (row.play_description) return row.play_description;
+  if (row.called_description && row.pitch_type_description) {
+    return `${row.called_description} • ${row.pitch_type_description}`;
+  }
+  if (row.called_description) return row.called_description;
+  if (row.pitch_type_description) return row.pitch_type_description;
+  return row.challenge_id ? "Challenge event" : "Pitch event";
 }
 
 function buildCountBaselineDetail(
@@ -996,7 +1020,7 @@ function buildTeamDecisionBreakdownSection(
     title,
     bestEntry: rankedEntries[0] ?? null,
     weakestEntry: rankedEntries.length > 0 ? rankedEntries[rankedEntries.length - 1] : null,
-    entries: rankedEntries.slice(0, 4),
+    entries: rankedEntries,
     positiveCount: rankedEntries.filter((entry) => (entry.decisionSurplus ?? 0) > 0.0005).length,
     negativeCount: rankedEntries.filter((entry) => (entry.decisionSurplus ?? 0) < -0.0005).length,
     neutralCount: rankedEntries.filter((entry) => Math.abs(entry.decisionSurplus ?? 0) <= 0.0005).length,
@@ -2556,56 +2580,82 @@ export async function getGamePitchTimeline(
       params,
     );
 
-    return rows.map((row) => ({
-      gamePk: Number(row.game_pk),
-      atBatIndex: Number(row.at_bat_index),
-      pitchNumber: Number(row.pitch_number),
-      playEventIndex: row.play_event_index === null ? null : Number(row.play_event_index),
-      inning: row.inning,
-      halfInning: row.half_inning,
-      batterId: row.batter_id === null ? null : Number(row.batter_id),
-      batterName: row.batter_name,
-      pitcherId: row.pitcher_id === null ? null : Number(row.pitcher_id),
-      pitcherName: row.pitcher_name,
-      calledCode: row.called_code,
-      calledDescription: row.called_description,
-      playDescription: row.play_description,
-      pitchTypeCode: row.pitch_type_code,
-      pitchType: row.pitch_type_description,
-      startSpeed: row.start_speed === null ? null : Number(row.start_speed),
-      spinRate: row.spin_rate === null ? null : Number(row.spin_rate),
-      px: row.px === null ? null : Number(row.px),
-      pz: row.pz === null ? null : Number(row.pz),
-      strikeZoneTop: row.strike_zone_top === null ? null : Number(row.strike_zone_top),
-      strikeZoneBottom: row.strike_zone_bottom === null ? null : Number(row.strike_zone_bottom),
-      zone: row.zone === null ? null : Number(row.zone),
-      countBefore:
-        row.balls_before === null || row.strikes_before === null ? null : `${row.balls_before}-${row.strikes_before}`,
-      countAfter:
-        row.balls_after === null || row.strikes_after === null ? null : `${row.balls_after}-${row.strikes_after}`,
-      umpireCount: (() => {
-        if (row.balls_before === null || row.strikes_before === null) return null;
-        if (!row.challenge_id || !row.is_overturned) return row.balls_after === null || row.strikes_after === null ? null : `${row.balls_after}-${row.strikes_after}`;
-        if (row.balls_after !== null && row.balls_after > row.balls_before) return `${row.balls_before}-${row.strikes_before + 1}`;
-        if (row.strikes_after !== null && row.strikes_after > row.strikes_before) return `${row.balls_before + 1}-${row.strikes_before}`;
-        return row.balls_after === null || row.strikes_after === null ? null : `${row.balls_after}-${row.strikes_after}`;
-      })(),
-      outsBefore: row.outs_before,
-      outsAfter: row.outs_after,
-      basesStateBefore: row.bases_state_before,
-      basesStateAfter: row.bases_state_after,
-      isInPlay: row.is_in_play,
-      endedPlateAppearance: row.ended_plate_appearance,
-      challengeId: row.challenge_id,
-      challengePlayerName: row.challenge_player_name,
-      challengeTeamId: row.challenge_team_id === null ? null : Number(row.challenge_team_id),
-      isOverturned: row.is_overturned,
-      locationSource: row.location_source,
-      inferenceMethod: row.inference_method,
-      inferenceConfidence: row.inference_confidence,
-      impactType: row.impact_type,
-      impactSummary: row.impact_summary,
-    }));
+    return rows.map((row) => {
+      const countBefore =
+        row.balls_before === null || row.strikes_before === null ? null : `${row.balls_before}-${row.strikes_before}`;
+      const countAfter =
+        row.balls_after === null || row.strikes_after === null ? null : `${row.balls_after}-${row.strikes_after}`;
+      const umpireCount =
+        row.balls_before === null || row.strikes_before === null
+          ? null
+          : resolveUmpireCountState(
+              row.balls_before,
+              row.strikes_before,
+              row.balls_after,
+              row.strikes_after,
+              Boolean(row.is_overturned),
+            );
+      const countState = getChallengeCountState(countBefore, umpireCount, countAfter);
+      const description = buildPitchTimelineDescription(row);
+      const terminalOutcome =
+        countState.terminalOutcome === "Walk" || countState.terminalOutcome === "Strikeout"
+          ? countState.terminalOutcome
+          : null;
+      const eventId =
+        row.challenge_id ??
+        `pitch:${row.game_pk}:${row.at_bat_index}:${row.pitch_number}:${row.play_event_index ?? 0}`;
+
+      return {
+        eventId,
+        gamePk: Number(row.game_pk),
+        atBatIndex: Number(row.at_bat_index),
+        pitchNumber: Number(row.pitch_number),
+        playEventIndex: row.play_event_index === null ? null : Number(row.play_event_index),
+        inning: row.inning,
+        halfInning: row.half_inning,
+        batterId: row.batter_id === null ? null : Number(row.batter_id),
+        batterName: row.batter_name,
+        pitcherId: row.pitcher_id === null ? null : Number(row.pitcher_id),
+        pitcherName: row.pitcher_name,
+        calledCode: row.called_code,
+        calledDescription: row.called_description,
+        playDescription: row.play_description,
+        pitchTypeCode: row.pitch_type_code,
+        pitchType: row.pitch_type_description,
+        startSpeed: row.start_speed === null ? null : Number(row.start_speed),
+        spinRate: row.spin_rate === null ? null : Number(row.spin_rate),
+        px: row.px === null ? null : Number(row.px),
+        pz: row.pz === null ? null : Number(row.pz),
+        strikeZoneTop: row.strike_zone_top === null ? null : Number(row.strike_zone_top),
+        strikeZoneBottom: row.strike_zone_bottom === null ? null : Number(row.strike_zone_bottom),
+        zone: row.zone === null ? null : Number(row.zone),
+        countBefore,
+        countAfter,
+        umpireCount,
+        countBeforeLabel: formatCountStateLabel(countBefore),
+        countAfterLabel: formatCountStateLabel(countAfter),
+        umpireCountLabel: formatCountStateLabel(umpireCount),
+        countTransitionLabel: formatCountTransitionLabel(umpireCount ?? countBefore, countAfter),
+        terminalOutcome,
+        outsBefore: row.outs_before,
+        outsAfter: row.outs_after,
+        basesStateBefore: row.bases_state_before,
+        basesStateAfter: row.bases_state_after,
+        isInPlay: row.is_in_play,
+        endedPlateAppearance: row.ended_plate_appearance,
+        isChallenge: Boolean(row.challenge_id),
+        description,
+        challengeId: row.challenge_id,
+        challengePlayerName: row.challenge_player_name,
+        challengeTeamId: row.challenge_team_id === null ? null : Number(row.challenge_team_id),
+        isOverturned: row.is_overturned,
+        locationSource: row.location_source,
+        inferenceMethod: row.inference_method,
+        inferenceConfidence: row.inference_confidence,
+        impactType: row.impact_type,
+        impactSummary: row.impact_summary,
+      };
+    });
   });
 }
 

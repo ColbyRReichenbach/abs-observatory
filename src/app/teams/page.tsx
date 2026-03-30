@@ -76,6 +76,8 @@ async function TeamsPageBody({
   const totalSuccessful = teams.reduce((s, t) => s + t.usedSuccessful, 0);
   const leagueAvgRate = totalChallenges > 0 ? totalSuccessful / totalChallenges : 0;
   const leagueAvgRemaining = teams.length > 0 ? teams.reduce((s, t) => s + t.avgRemaining, 0) / teams.length : 0;
+  const leagueAvgChallengeRatePerGame =
+    teams.length > 0 ? teams.reduce((sum, team) => sum + team.challengeRatePerGame, 0) / teams.length : 0;
   const leagueAvgLatePressureShare =
     teams.length > 0 ? teams.reduce((sum, team) => sum + team.lateLeverageShare, 0) / teams.length : 0;
   const leagueAvgEarlyBurnShare =
@@ -219,7 +221,7 @@ async function TeamsPageBody({
                         <span className="text-[10px] text-[var(--ink-3)]">—</span>
                       </td>
                       <td className="text-center font-mono text-gray-400 italic font-bold">
-                        {(teams.length > 0 ? totalChallenges / Math.max(1, teams.reduce((sum, team) => sum + team.gamesTracked, 0) / teams.length) : 0).toFixed(2)}
+                        {leagueAvgChallengeRatePerGame.toFixed(2)}
                       </td>
                       <td className="text-center font-mono text-gray-400 italic font-bold">
                         {`${Math.round(leagueAvgLatePressureShare * 100)}%`}

@@ -43,7 +43,7 @@ export default async function UmpiresPage({ searchParams }: { searchParams: Prom
     overturnRateVariance: u.overturnRateVariance,
     riskTier: u.riskTier,
   }));
-  const watchList = [...sorted].slice(0, 3);
+  const watchList = [...umpires].sort((a, b) => a.reportCardScore - b.reportCardScore).slice(0, 3);
   const copy = getUmpiresPageViewCopy(viewMode);
   const leaderboardSection = (
     <UmpireLeaderboardTable

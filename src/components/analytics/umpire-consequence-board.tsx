@@ -18,6 +18,18 @@ type ConsequenceBucket = {
   avgExpectedValue: number | null;
 };
 
+function bucketImpactScore(bucket: Pick<ConsequenceBucket, "avgAbsoluteWinSwing" | "avgAbsoluteRunSwing" | "avgExpectedValue">) {
+  if (bucket.avgAbsoluteWinSwing !== null) return bucket.avgAbsoluteWinSwing;
+  if (bucket.avgAbsoluteRunSwing !== null) return bucket.avgAbsoluteRunSwing;
+  return bucket.avgExpectedValue ?? -Infinity;
+}
+
+function challengeImpactScore(challenge: ChallengeEvent) {
+  if (typeof challenge.winExpectancyDelta === "number") return Math.abs(challenge.winExpectancyDelta);
+  if (typeof challenge.runExpectancyDelta === "number") return Math.abs(challenge.runExpectancyDelta);
+  return typeof challenge.expectedChallengeValue === "number" ? Math.abs(challenge.expectedChallengeValue) : -Infinity;
+}
+
 export function UmpireConsequenceBoard({
   challenges,
 }: {
@@ -69,8 +81,8 @@ export function UmpireConsequenceBoard({
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <MetricCard label="Avg Abs WE Swing" value={summary.avgAbsoluteWinSwing} note="Reviewed overturns" />
-          <MetricCard label="Avg Abs RE Swing" value={summary.avgAbsoluteRunSwing} note="Reviewed overturns" />
+          <MetricCard label="Avg Abs WE Swing" value={summary.avgAbsoluteWinSwing} note="Overturned sample only" />
+          <MetricCard label="Avg Abs RE Swing" value={summary.avgAbsoluteRunSwing} note="Overturned sample only" />
           <MetricCard label="High-Impact Overturns" value={summary.highImpactOverturnShare} note=">= 2.0 win expectancy percentage points" />
           <MetricCard label="Avg Expected Review Value" value={summary.avgExpectedValue} note="Modeled challenge value" />
         </div>
@@ -109,7 +121,7 @@ export function UmpireConsequenceBoard({
           </div>
 
           <div className="rounded-[1.75rem] border border-gray-100 bg-white p-5">
-            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Largest Consequence Calls</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Largest Overturned Swings</p>
             <div className="mt-4 space-y-3">
               {topCalls.length > 0 ? (
                 topCalls.map((challenge) => (
@@ -165,7 +177,7 @@ function buildConsequenceSummary(challenges: ChallengeEvent[]) {
       ? "The consequence layer is still stabilizing. There is not enough reviewed win-expectancy coverage yet to separate which reviewed misses are doing the most game-state damage."
       : `When this umpire does get overturned, the average absolute swing is ${formatPercent(avgAbsWe)} in win expectancy and ${formatRun(
           avgAbsRe,
-        )} in run expectancy. The highest-cost count family right now is ${topBucket?.label?.toLowerCase() ?? "still settling"}, which is the first place an analyst should look for repeat exposure.`;
+        )} in run expectancy. The highest-cost count family right now is ${topBucket?.label?.toLowerCase() ?? "still settling"}, which is the first place an analyst should look for repeat exposure. Expected review value is tracked separately from those overturned-only swings.`;
 
   return {
     avgAbsoluteWinSwing: formatPercent(avgAbsWe),
@@ -173,7 +185,13 @@ function buildConsequenceSummary(challenges: ChallengeEvent[]) {
     highImpactOverturnShare: formatShare(highImpactShare),
     avgExpectedValue: formatPercent(avgExpected),
     topBucketLabel: topBucket?.label ?? "Stabilizing",
-    topBucketNote: topBucket ? `${formatPercent(topBucket.avgAbsoluteWinSwing)} abs WE · ${(topBucket.overturnRate * 100).toFixed(1)}% overturned` : "No stable bucket yet",
+    topBucketNote: topBucket
+      ? topBucket.avgAbsoluteWinSwing !== null
+        ? `${formatPercent(topBucket.avgAbsoluteWinSwing)} abs WE on overturned sample · ${(topBucket.overturnRate * 100).toFixed(1)}% overturned`
+        : topBucket.avgAbsoluteRunSwing !== null
+          ? `${formatRun(topBucket.avgAbsoluteRunSwing)} abs RE on overturned sample · ${(topBucket.overturnRate * 100).toFixed(1)}% overturned`
+          : `${formatPercent(topBucket.avgExpectedValue)} expected review value · ${(topBucket.overturnRate * 100).toFixed(1)}% overturned`
+      : "No stable bucket yet",
     read,
   };
 }
@@ -221,8 +239,8 @@ function buildBuckets(challenges: ChallengeEvent[], mode: BucketMode): Consequen
       };
     })
     .sort((left, right) => {
-      const winDiff = (right.avgAbsoluteWinSwing ?? -Infinity) - (left.avgAbsoluteWinSwing ?? -Infinity);
-      if (winDiff !== 0) return winDiff;
+      const impactDiff = bucketImpactScore(right) - bucketImpactScore(left);
+      if (impactDiff !== 0) return impactDiff;
       const leverageDiff = right.avgLeverage - left.avgLeverage;
       if (leverageDiff !== 0) return leverageDiff;
       return right.challenges - left.challenges;
@@ -234,9 +252,9 @@ function buildTopCalls(challenges: ChallengeEvent[]) {
     .filter(
       (challenge) =>
         challenge.isOverturned &&
-        challenge.winExpectancyDelta !== null,
+        (challenge.winExpectancyDelta !== null || challenge.runExpectancyDelta !== null || challenge.expectedChallengeValue !== null),
     )
-    .sort((left, right) => absMetric(right.winExpectancyDelta) - absMetric(left.winExpectancyDelta))
+    .sort((left, right) => challengeImpactScore(right) - challengeImpactScore(left))
     .slice(0, 4);
 }
 

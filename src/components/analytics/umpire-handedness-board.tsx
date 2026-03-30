@@ -99,13 +99,15 @@ export function UmpireHandednessBoard({
               </p>
               <div className="mt-4 grid gap-4 lg:grid-cols-4">
                 <MiniStat label="Overturn Rate" value={`${selected.overturnRate.toFixed(1)}%`} />
-                <MiniStat label="Top Pitch" value={selected.topPitchType ?? "N/A"} />
-                <MiniStat label="Top Count" value={selected.topCount ?? "N/A"} />
-                <MiniStat label="Top Zone" value={selected.topZone ?? "N/A"} />
+                <MiniStat label={selected.challengedCount < 4 ? "Current Pitch Lean" : "Top Pitch"} value={selected.topPitchType ?? "N/A"} />
+                <MiniStat label={selected.challengedCount < 4 ? "Current Count Lean" : "Top Count"} value={selected.topCount ?? "N/A"} />
+                <MiniStat label={selected.challengedCount < 4 ? "Current Zone Lean" : "Top Zone"} value={selected.topZone ?? "N/A"} />
               </div>
               <p className="mt-4 text-sm leading-7 text-[var(--ink-2)]">
                 This bucket is the clearest place to test for repeatable matchup exposure. The current review sample leans toward {selected.topPitchType?.toLowerCase() ?? "mixed pitch"} traffic in {selected.topCount ?? "mixed counts"}, with the hottest zone read around {selected.topZone?.toLowerCase() ?? "mixed lanes"}.
-                {selected.challengedCount < 4 ? " This is still directional review evidence, but it is not empty." : ""}
+                {selected.challengedCount < 4
+                  ? " This is still directional review evidence, so treat the pitch, count, and zone reads as early leans rather than hard tendencies."
+                  : ""}
               </p>
             </>
           ) : (

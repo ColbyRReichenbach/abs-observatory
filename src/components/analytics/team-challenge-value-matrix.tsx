@@ -133,7 +133,7 @@ export function TeamChallengeValueMatrix({
         </div>
         <div className="rounded-2xl border border-gray-100 bg-gray-50/60 px-4 py-4">
           <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-            {viewMode === "org" ? "Most Used Window" : "Most Used Spot"}
+            {viewMode === "org" ? "Priority Window" : "Highest-Value Spot"}
           </p>
           <p className="mt-1 text-sm font-medium text-gray-700">
             {preferredCell ? `${preferredCell.rowLabel} • ${preferredCell.colLabel}` : "No clear favorite yet"}
@@ -146,7 +146,7 @@ export function TeamChallengeValueMatrix({
                     : preferredCell.avgRunExpectancyDelta !== null
                       ? ` and ${preferredCell.avgRunExpectancyDelta >= 0 ? "+" : ""}${preferredCell.avgRunExpectancyDelta.toFixed(3)} RE`
                       : ""
-                }`
+                }. This callout follows value and leverage, not pure usage volume.`
               : "No scenario trend yet."}
           </p>
         </div>

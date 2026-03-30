@@ -253,11 +253,11 @@ async function HomePageBody({
                 <p className="mt-1 text-xs text-[var(--ink-3)]">{highestRiskUmpire ? `${highestRiskUmpire.orgDescriptor} · ${highestRiskUmpire.riskTier}` : "No elevated risk profile available."}</p>
               </div>
               <div className="panel border-gray-100 bg-white p-5 shadow-2xl shadow-black/[0.03]">
-                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-500">Disciplined Club</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-500">Discipline Signal</p>
                 <p className="mt-2 text-lg font-semibold text-[var(--ink-0)]">{mostDisciplinedTeam?.teamName ?? "No signal"}</p>
                 <p className="mt-1 text-xs text-[var(--ink-3)]">
                   {mostDisciplinedTeam
-                    ? `${mostDisciplinedTeam.orgStyleLabel} · ${formatOrgOperatorValue(mostDisciplinedTeam) ?? `${mostDisciplinedTeam.avgRemaining.toFixed(2)} avg challenges remaining`}`
+                    ? `${mostDisciplinedTeam.orgStyleLabel} · ${formatOrgOperatorValue(mostDisciplinedTeam) ?? `${mostDisciplinedTeam.avgRemaining.toFixed(2)} avg challenges remaining`} · heuristic blend of remaining inventory and success rate`
                     : "No discipline signal available yet."}
                 </p>
               </div>
@@ -266,7 +266,7 @@ async function HomePageBody({
                 <p className="mt-2 text-lg font-semibold text-[var(--ink-0)]">{bestDecisionClub?.teamName ?? "No signal"}</p>
                 <p className="mt-1 text-xs text-[var(--ink-3)]">
                   {bestDecisionClub
-                    ? `${formatOrgOperatorValue(bestDecisionClub)} · ${(bestDecisionClub.capturedValueShare * 100).toFixed(0)}% captured value share`
+                    ? `${formatOrgOperatorValue(bestDecisionClub)} · ${(bestDecisionClub.capturedValueShare * 100).toFixed(0)}% higher-value share`
                     : "Decision-value leaders will appear once modeled samples stabilize."}
                 </p>
               </div>
@@ -275,7 +275,7 @@ async function HomePageBody({
                 <p className="mt-2 text-lg font-semibold text-[var(--ink-0)]">{mostWastefulClub?.teamName ?? "No signal"}</p>
                 <p className="mt-1 text-xs text-[var(--ink-3)]">
                   {mostWastefulClub
-                    ? `${formatOrgOperatorValue(mostWastefulClub)} · ${(mostWastefulClub.wastedValueShare * 100).toFixed(0)}% low-value share`
+                    ? `${formatOrgOperatorValue(mostWastefulClub)} · ${(mostWastefulClub.wastedValueShare * 100).toFixed(0)}% lower-value share`
                     : "Wasteful decision signals will appear once modeled samples stabilize."}
                 </p>
               </div>

@@ -13,6 +13,7 @@ type PhaseBucket = {
   usageShare: number;
   expectedShare: number;
   realizedShare: number;
+  executionGap: number;
 };
 
 const ORDER = [
@@ -91,9 +92,9 @@ export function TeamInventoryDeploymentChart({
                 </div>
               </div>
               <ValueBar label="Usage" value={bucket.usageShare} color="#94a3b8" />
-              <ValueBar label="Expected WE" value={bucket.expectedShare} color="#2563eb" />
-              <ValueBar label="Realized WE" value={bucket.realizedShare} color="#059669" />
-              <ValueBar label="Value Edge" value={Math.abs(bucket.realizedShare - bucket.usageShare)} color="#7c3aed" />
+              <ValueBar label="Expected Value" value={bucket.expectedShare} color="#2563eb" signed />
+              <ValueBar label="Realized Value" value={bucket.realizedShare} color="#059669" signed />
+              <ValueBar label="Exec Gap" value={bucket.executionGap} color="#7c3aed" signed />
             </button>
           ))}
 
@@ -105,9 +106,9 @@ export function TeamInventoryDeploymentChart({
               value={`${Math.round(hovered.usageShare * 100)}%`}
               subValueLabel="Usage Share"
               extra={[
-                { label: "Expected WE Share", value: `${Math.round(hovered.expectedShare * 100)}%`, mono: false },
-                { label: "Realized WE Share", value: `${Math.round(hovered.realizedShare * 100)}%`, mono: false },
-                { label: "Value Edge", value: `${Math.round(Math.abs(hovered.realizedShare - hovered.usageShare) * 100)}%`, mono: false },
+                { label: "Expected Value Share", value: formatSignedShare(hovered.expectedShare), mono: false },
+                { label: "Realized Value Share", value: formatSignedShare(hovered.realizedShare), mono: false },
+                { label: "Execution Gap", value: formatSignedShare(hovered.executionGap), mono: false },
                 { label: "Challenges", value: hovered.challenges, mono: false },
               ]}
             />
@@ -123,36 +124,73 @@ function buildBuckets(report: TeamDecisionValueReport) {
   const orderedEntries = ORDER.map(({ aliases }) => section?.entries.find((entry) => aliases.includes(entry.label)) ?? null);
   const entries = orderedEntries.filter(Boolean);
   const totalChallenges = entries.reduce((sum, entry) => sum + (entry?.challenges ?? 0), 0);
-  const totalExpected = entries.reduce(
+  const totalAbsExpected = entries.reduce(
     (sum, entry) => sum + Math.abs((entry?.averageExpectedChallengeValue ?? 0) * (entry?.challenges ?? 0)),
     0,
   );
-  const totalRealized = entries.reduce(
+  const totalAbsRealized = entries.reduce(
     (sum, entry) => sum + Math.abs((entry?.averageRealizedChallengeValue ?? 0) * (entry?.challenges ?? 0)),
     0,
   );
 
   return ORDER.map(({ label, aliases }) => {
     const entry = section?.entries.find((item) => aliases.includes(item.label)) ?? null;
-    const weightedExpected = Math.abs((entry?.averageExpectedChallengeValue ?? 0) * (entry?.challenges ?? 0));
-    const weightedRealized = Math.abs((entry?.averageRealizedChallengeValue ?? 0) * (entry?.challenges ?? 0));
+    const weightedExpected = (entry?.averageExpectedChallengeValue ?? 0) * (entry?.challenges ?? 0);
+    const weightedRealized = (entry?.averageRealizedChallengeValue ?? 0) * (entry?.challenges ?? 0);
+    const expectedShare = totalAbsExpected > 0 ? weightedExpected / totalAbsExpected : 0;
+    const realizedShare = totalAbsRealized > 0 ? weightedRealized / totalAbsRealized : 0;
     return {
       label,
       challenges: entry?.challenges ?? 0,
       usageShare: totalChallenges > 0 ? (entry?.challenges ?? 0) / totalChallenges : 0,
-      expectedShare: totalExpected > 0 ? weightedExpected / totalExpected : 0,
-      realizedShare: totalRealized > 0 ? weightedRealized / totalRealized : 0,
+      expectedShare,
+      realizedShare,
+      executionGap: realizedShare - expectedShare,
     };
   });
 }
 
-function ValueBar({ label, value, color }: { label: string; value: number; color: string }) {
+function ValueBar({
+  label,
+  value,
+  color,
+  signed = false,
+}: {
+  label: string;
+  value: number;
+  color: string;
+  signed?: boolean;
+}) {
+  if (!signed) {
+    return (
+      <div className="flex flex-col justify-center">
+        <div className="mb-2 text-[9px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">{label}</div>
+        <div className="h-3 rounded-full bg-gray-100">
+          <div className="h-full rounded-full" style={{ width: `${Math.max(4, value * 100)}%`, backgroundColor: color }} />
+        </div>
+      </div>
+    );
+  }
+
+  const magnitude = Math.min(50, Math.abs(value) * 100);
   return (
     <div className="flex flex-col justify-center">
       <div className="mb-2 text-[9px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">{label}</div>
-      <div className="h-3 rounded-full bg-gray-100">
-        <div className="h-full rounded-full" style={{ width: `${Math.max(4, value * 100)}%`, backgroundColor: color }} />
+      <div className="relative h-3 rounded-full bg-gray-100">
+        <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-gray-200" />
+        <div
+          className="absolute top-0 h-full rounded-full"
+          style={{
+            left: value >= 0 ? "50%" : `calc(50% - ${magnitude}%)`,
+            width: `${Math.max(3, magnitude)}%`,
+            backgroundColor: color,
+          }}
+        />
       </div>
     </div>
   );
+}
+
+function formatSignedShare(value: number) {
+  return `${value >= 0 ? "+" : ""}${Math.round(value * 100)}%`;
 }

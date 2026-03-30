@@ -73,7 +73,7 @@ export function TeamDecisionValueSummaryCard({
                 accent={teamColor}
               />
               <DecisionMetric
-                label="Captured Value Share"
+                label="Higher-Value Share"
                 value={formatShare(summary.capturedValueShare)}
                 accent={teamColor}
               />

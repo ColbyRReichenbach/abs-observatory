@@ -70,7 +70,7 @@ function BreakdownSectionCard({
       : focus === "leaks"
         ? section.entries.filter((entry) => (entry.decisionSurplus ?? 0) < -0.0005)
         : section.entries;
-  const displayEntries = filteredEntries.length > 0 ? filteredEntries : section.entries;
+  const displayEntries = (filteredEntries.length > 0 ? filteredEntries : section.entries).slice(0, 5);
 
   return (
     <div className="rounded-[1.5rem] border border-gray-100 bg-white p-5">
@@ -108,7 +108,7 @@ function BreakdownSectionCard({
                 <div>
                   <p className="text-sm font-semibold text-[var(--ink-0)]">{entry.label}</p>
                   <p className="mt-1 text-[11px] text-[var(--ink-3)]">
-                    {entry.challenges} challenges · {formatShare(entry.capturedValueShare)} captured · {formatShare(entry.wastedValueShare)} low-value
+                    {entry.challenges} challenges · {formatShare(entry.capturedValueShare)} higher-value · {formatShare(entry.wastedValueShare)} lower-value
                   </p>
                 </div>
                 <span className="rounded-full bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-[var(--ink-0)]">

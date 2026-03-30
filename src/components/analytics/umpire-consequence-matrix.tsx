@@ -45,7 +45,7 @@ export function UmpireConsequenceMatrix({ challenges }: { challenges: ChallengeE
             </p>
           </div>
           <p className="max-w-xl text-sm leading-6 text-[var(--ink-2)]">
-            This is the first org question: when this umpire gets challenged, which count environments and pitch families are creating the largest modeled win and run swings?
+            This is the first org question: when this umpire gets challenged, which count environments and pitch families are carrying the biggest expected review value, and which overturned samples have produced the largest actual swings?
           </p>
           {directionalOnly ? (
             <div className="xl:ml-4 xl:shrink-0">
@@ -107,6 +107,9 @@ export function UmpireConsequenceMatrix({ challenges }: { challenges: ChallengeE
                         <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">{cell.challenges} challenges</p>
                         <p className="mt-3 text-2xl font-display leading-none text-[var(--ink-0)]">{formatPercent(cell.avgAbsWin ?? cell.avgExpected)}</p>
                         <p className="mt-2 text-[11px] text-[var(--ink-2)]">{(cell.overturnRate * 100).toFixed(1)}% overturned</p>
+                        <p className="mt-1 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">
+                          {cell.avgAbsWin !== null ? "Overturned swing" : "Expected review value"}
+                        </p>
                         {cell.challenges < 3 ? (
                           <p className="mt-1 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Directional</p>
                         ) : null}
@@ -131,7 +134,7 @@ export function UmpireConsequenceMatrix({ challenges }: { challenges: ChallengeE
                     {selected.pitchFamily} · {selected.countBucket}
                   </p>
                   <p className="mt-2 text-sm leading-7 text-[var(--ink-2)]">
-                    This bucket is carrying {formatPercent(selected.avgAbsWin ?? selected.avgExpected)} average absolute WE swing, essentially WPA movement on overturn, and {formatRun(selected.avgAbsRun)} average RE swing across {selected.challenges} challenged pitches.
+                    This bucket is carrying {formatPercent(selected.avgAbsWin ?? selected.avgExpected)} {selected.avgAbsWin !== null ? "average absolute WE swing on overturned calls" : "average expected review value"}, and {formatRun(selected.avgAbsRun)} average RE swing on the overturned sample across {selected.challenges} challenged pitches.
                     {selected.challenges < 3 ? " The sample is still too thin for a hard read." : ""}
                   </p>
                 </div>
@@ -140,8 +143,8 @@ export function UmpireConsequenceMatrix({ challenges }: { challenges: ChallengeE
                   extra={[
                     { label: "Challenges", value: selected.challenges },
                     { label: "Overturn Rate", value: `${(selected.overturnRate * 100).toFixed(1)}%` },
-                    { label: "Abs WE / WPA", value: formatPercent(selected.avgAbsWin) },
-                    { label: "Abs RE", value: formatRun(selected.avgAbsRun) },
+                    { label: "Abs WE / WPA (overturned)", value: formatPercent(selected.avgAbsWin) },
+                    { label: "Abs RE (overturned)", value: formatRun(selected.avgAbsRun) },
                     { label: "Expected WE", value: formatPercent(selected.avgExpected) },
                     { label: "Avg Velo", value: selected.avgVelocity ? `${selected.avgVelocity.toFixed(1)} mph` : "N/A", mono: false },
                     { label: "Avg Spin", value: selected.avgSpin ? `${Math.round(selected.avgSpin)} rpm` : "N/A", mono: false },

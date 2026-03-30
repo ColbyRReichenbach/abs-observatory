@@ -6,19 +6,21 @@ import { ChartTooltip } from "@/components/ui/chart-tooltip";
 import type { PregameIntel } from "@/lib/types";
 import type { ViewMode } from "@/lib/view-mode";
 
-const HOME_COLOR = "#2563eb";
-const AWAY_COLOR = "#ef4444";
 const LEAGUE_COLOR = "#94a3b8";
 
 export function PregameTimingComparisonChart({
   intel,
   homeLabel,
   awayLabel,
+  homeColor,
+  awayColor,
   viewMode,
 }: {
   intel: PregameIntel;
   homeLabel: string;
   awayLabel: string;
+  homeColor: string;
+  awayColor: string;
   viewMode: ViewMode;
 }) {
   const data = Array.from({ length: 9 }, (_, index) => ({
@@ -37,11 +39,16 @@ export function PregameTimingComparisonChart({
         <p className="text-2xl font-display leading-none text-gray-900">
           Inning by Inning <span className="text-gray-400">Shape</span>
         </p>
+        <p className="mt-2 text-[11px] font-medium leading-relaxed text-[var(--ink-2)]">
+          {viewMode === "org"
+            ? "Each line shows where a club tends to allocate its tracked challenge volume by inning, normalized to share instead of raw count."
+            : "These lines show when each team tends to use its challenges across the game, normalized so timing preference is easier to compare than sheer volume."}
+        </p>
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-4 text-[10px] font-black uppercase tracking-widest text-gray-400">
-        <Legend color={HOME_COLOR} label={homeLabel} />
-        <Legend color={AWAY_COLOR} label={awayLabel} />
+        <Legend color={homeColor} label={homeLabel} />
+        <Legend color={awayColor} label={awayLabel} />
         <Legend color={LEAGUE_COLOR} label="League" />
       </div>
 
@@ -59,6 +66,7 @@ export function PregameTimingComparisonChart({
               axisLine={false}
               tickLine={false}
               tick={{ fill: "#9ca3af", fontSize: 10, fontWeight: 700 }}
+              tickFormatter={(value) => `${Math.round(Number(value) * 100)}%`}
             />
             <Tooltip
               content={({ active, payload, label }) => {
@@ -67,16 +75,16 @@ export function PregameTimingComparisonChart({
                   <ChartTooltip
                     title={`Inning ${label}`}
                     extra={[
-                      { label: homeLabel, value: Number(payload[0]?.value ?? 0).toFixed(1), color: HOME_COLOR },
-                      { label: awayLabel, value: Number(payload[1]?.value ?? 0).toFixed(1), color: AWAY_COLOR },
-                      { label: "League", value: Number(payload[2]?.value ?? 0).toFixed(1), color: LEAGUE_COLOR },
+                      { label: homeLabel, value: `${Math.round(Number(payload[0]?.value ?? 0) * 100)}%`, color: homeColor },
+                      { label: awayLabel, value: `${Math.round(Number(payload[1]?.value ?? 0) * 100)}%`, color: awayColor },
+                      { label: "League", value: `${Math.round(Number(payload[2]?.value ?? 0) * 100)}%`, color: LEAGUE_COLOR },
                     ]}
                   />
                 );
               }}
             />
-            <Line type="monotone" dataKey="home" stroke={HOME_COLOR} strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-            <Line type="monotone" dataKey="away" stroke={AWAY_COLOR} strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+            <Line type="monotone" dataKey="home" stroke={homeColor} strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+            <Line type="monotone" dataKey="away" stroke={awayColor} strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} />
             <Line type="monotone" dataKey="league" stroke={LEAGUE_COLOR} strokeWidth={2} strokeDasharray="4 4" dot={false} />
           </LineChart>
         </ResponsiveContainer>
