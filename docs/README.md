@@ -1,25 +1,48 @@
-# Docs Index
+# AiBS Documentation Index
 
 This directory contains the retained internal documentation set for AiBS.
 
-Use this structure:
+The current docs are organized around one rule:
 
-- `product/`
-  - current product truth, roadmap, and verification rules
-- `reference/`
-  - technical overview, security overview, and explicit documentation gaps
-- `architecture/`
-  - stack decisions and backend architecture plans
-- `editorial/`
-  - The Absolute Observer editorial workflow and model-policy docs
-- `launch/`
-  - private alpha, provider setup, monitoring, and challenge-model rollout plans
-- `archive/`
-  - superseded planning material kept only for historical context
+- current reference docs should be auditable against the repository as it exists now
+- historical planning material should live in archive and not compete with current truth
 
-Start here for product status:
+## Current Reference
+
+Use these first:
 
 - [product/product-source-of-truth.md](./product/product-source-of-truth.md)
+  - current product behavior, audience split, and model-truth boundaries
+
+- [product/page-route-coverage.md](./product/page-route-coverage.md)
+  - current route surface for public pages, authenticated pages, admin pages, and APIs
+
 - [reference/technical.md](./reference/technical.md)
+  - current runtime, data, route, and subsystem implementation overview
+
 - [reference/security.md](./reference/security.md)
+  - current security controls and enforcement boundaries
+
 - [reference/gap-list.md](./reference/gap-list.md)
+  - current documentation and platform truth boundaries
+
+- [models/README.md](./models/README.md)
+  - model audit framework and retained model-history references
+
+## Secondary Reference
+
+These remain useful, but are narrower in scope:
+
+- `architecture/`
+  - retained architecture decisions and implementation references
+
+- `editorial/`
+  - editorial workflow and Absolute Observer system references
+
+- `launch/`
+  - operational runbooks and launch records
+  - some files are historical and should not be treated as current product truth
+
+## Historical Material
+
+Historical planning material is intentionally not part of the retained docs set. Current-reference docs should stand on their own without requiring archived sprint notes or exploratory plans.

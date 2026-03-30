@@ -5,7 +5,6 @@ This document defines the exact verification gates that each sprint must pass be
 Use this together with:
 - [product-source-of-truth.md](./product-source-of-truth.md)
 - [roadmap.md](./roadmap.md)
-- [plan.md](../archive/2026-03/backend-scale-security-plan.md)
 - [stack-selection.md](../architecture/stack-selection.md)
 - [ai-backend-plan.md](../architecture/ai-backend-plan.md)
 - [ai-implementation-sequence.md](../architecture/ai-implementation-sequence.md)
