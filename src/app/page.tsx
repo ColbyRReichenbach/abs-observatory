@@ -106,7 +106,7 @@ async function HomePageBody({
           .sort((left, right) => right.lateCloseExpectedValueShare - left.lateCloseExpectedValueShare)[0] ?? null
       : null;
   const spotlightUmps = [...umpires].sort((a, b) => a.reportCardScore - b.reportCardScore).slice(0, 3);
-  const mostDisciplinedTeam =
+  const mostSelectiveTeam =
     [...teams].sort((a, b) => (b.avgRemaining * b.overturnRate) - (a.avgRemaining * a.overturnRate))[0] ?? null;
   return (
     <>
@@ -253,39 +253,39 @@ async function HomePageBody({
                 <p className="mt-1 text-xs text-[var(--ink-3)]">{highestRiskUmpire ? `${highestRiskUmpire.orgDescriptor} · ${highestRiskUmpire.riskTier}` : "No elevated risk profile available."}</p>
               </div>
               <div className="panel border-gray-100 bg-white p-5 shadow-2xl shadow-black/[0.03]">
-                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-500">Discipline Signal</p>
-                <p className="mt-2 text-lg font-semibold text-[var(--ink-0)]">{mostDisciplinedTeam?.teamName ?? "No signal"}</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-500">Selective Use Signal</p>
+                <p className="mt-2 text-lg font-semibold text-[var(--ink-0)]">{mostSelectiveTeam?.teamName ?? "No signal"}</p>
                 <p className="mt-1 text-xs text-[var(--ink-3)]">
-                  {mostDisciplinedTeam
-                    ? `${mostDisciplinedTeam.orgStyleLabel} · ${formatOrgOperatorValue(mostDisciplinedTeam) ?? `${mostDisciplinedTeam.avgRemaining.toFixed(2)} avg challenges remaining`} · heuristic blend of remaining inventory and success rate`
-                    : "No discipline signal available yet."}
+                  {mostSelectiveTeam
+                    ? `${mostSelectiveTeam.orgStyleLabel} · ${formatOrgOperatorValue(mostSelectiveTeam) ?? `${mostSelectiveTeam.avgRemaining.toFixed(2)} avg challenges remaining`} · heuristic blend of retained challenges and overturn success`
+                    : "No selective-use signal available yet."}
                 </p>
               </div>
               <div className="panel border-gray-100 bg-white p-5 shadow-2xl shadow-black/[0.03]">
-                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-500">Best Decision Club</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-500">Best Review Surplus</p>
                 <p className="mt-2 text-lg font-semibold text-[var(--ink-0)]">{bestDecisionClub?.teamName ?? "No signal"}</p>
                 <p className="mt-1 text-xs text-[var(--ink-3)]">
                   {bestDecisionClub
-                    ? `${formatOrgOperatorValue(bestDecisionClub)} · ${(bestDecisionClub.capturedValueShare * 100).toFixed(0)}% higher-value share`
-                    : "Decision-value leaders will appear once modeled samples stabilize."}
+                    ? `${formatOrgOperatorValue(bestDecisionClub)} · ${(bestDecisionClub.capturedValueShare * 100).toFixed(0)}% high-value window share`
+                    : "Review-surplus leaders will appear once modeled samples stabilize."}
                 </p>
               </div>
               <div className="panel border-gray-100 bg-white p-5 shadow-2xl shadow-black/[0.03]">
-                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-500">Most Wasteful Club</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-500">Highest Low-Value Usage Risk</p>
                 <p className="mt-2 text-lg font-semibold text-[var(--ink-0)]">{mostWastefulClub?.teamName ?? "No signal"}</p>
                 <p className="mt-1 text-xs text-[var(--ink-3)]">
                   {mostWastefulClub
-                    ? `${formatOrgOperatorValue(mostWastefulClub)} · ${(mostWastefulClub.wastedValueShare * 100).toFixed(0)}% lower-value share`
-                    : "Wasteful decision signals will appear once modeled samples stabilize."}
+                    ? `${formatOrgOperatorValue(mostWastefulClub)} · ${(mostWastefulClub.wastedValueShare * 100).toFixed(0)}% low-value window share`
+                    : "Low-value review usage signals will appear once modeled samples stabilize."}
                 </p>
               </div>
               <div className="panel border-gray-100 bg-white p-5 shadow-2xl shadow-black/[0.03]">
-                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-500">Big-Spot Decision Club</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-500">Best High-Leverage Review Profile</p>
                 <p className="mt-2 text-lg font-semibold text-[var(--ink-0)]">{bigSpotDecisionClub?.teamName ?? "No signal"}</p>
                 <p className="mt-1 text-xs text-[var(--ink-3)]">
                   {bigSpotDecisionClub
-                    ? `${formatOrgOperatorValue(bigSpotDecisionClub)} · ${(bigSpotDecisionClub.lateCloseExpectedValueShare * 100).toFixed(0)}% late-close EV share`
-                    : "Big-spot decision signals will appear once modeled samples stabilize."}
+                    ? `${formatOrgOperatorValue(bigSpotDecisionClub)} · ${(bigSpotDecisionClub.lateCloseExpectedValueShare * 100).toFixed(0)}% late-game EV share`
+                    : "High-leverage review signals will appear once modeled samples stabilize."}
                 </p>
               </div>
             </div>
@@ -316,7 +316,7 @@ async function HomePageBody({
               <div>
                 <div className="mb-3 flex items-baseline justify-between">
                   <h2 className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">
-                    Challenge Operators
+                    Team Review Patterns
                   </h2>
                   <Link href={withViewModeHref("/teams", viewMode)} className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-primary)] hover:underline">
                     See All Teams →
@@ -538,7 +538,7 @@ function formatOrgOperatorValue(team: {
   avgRunExpectancyDelta: number | null;
 }) {
   if (team.decisionSurplus !== null && hasTrustedModelConfidenceBand(team.decisionValueConfidence)) {
-    return `${team.decisionSurplus >= 0 ? "+" : ""}${(team.decisionSurplus * 100).toFixed(2)}% Decision Surplus`;
+    return `${team.decisionSurplus >= 0 ? "+" : ""}${(team.decisionSurplus * 100).toFixed(2)}% Review Surplus`;
   }
   if (team.avgWinExpectancyDelta !== null && hasTrustedModelConfidenceBand(team.winValueConfidence)) {
     return `${team.avgWinExpectancyDelta >= 0 ? "+" : ""}${(team.avgWinExpectancyDelta * 100).toFixed(2)}% WE`;

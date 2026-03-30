@@ -53,9 +53,9 @@ export function TeamOrgCommandCenter({
       <div className="panel p-8">
         <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <h4 className="mb-1 text-[10px] font-bold uppercase tracking-widest text-blue-500">Decision Operations</h4>
+            <h4 className="mb-1 text-[10px] font-bold uppercase tracking-widest text-blue-500">Challenge Management</h4>
             <p className="text-2xl font-display leading-none text-gray-900">
-              Analyst <span className="text-gray-400">Command Center</span>
+              Review <span className="text-gray-400">Profile</span>
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -74,7 +74,7 @@ export function TeamOrgCommandCenter({
         </div>
 
         <div className="mb-6 rounded-[1.5rem] border border-gray-100 bg-gray-50/60 p-5">
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Baseball Read</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Review Read</p>
           <p className="mt-2 text-sm leading-7 text-[var(--ink-2)]">
             {buildDecisionRead(report, challengeSummary, trustedDecisionModel, trustedWinSummary)}
           </p>
@@ -82,25 +82,25 @@ export function TeamOrgCommandCenter({
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard
-            label="Decision Surplus"
+            label="Review Surplus"
             value={report.summary.decisionSurplus === null ? "N/A" : formatSignedPercent(report.summary.decisionSurplus)}
             note={trustedDecisionModel ? "Expected vs realized WE" : "Model still stabilizing"}
             accent={teamColor}
           />
           <MetricCard
-            label="Higher-Value Share"
+            label="High-Value Window Share"
             value={formatShare(report.summary.capturedValueShare)}
-            note={`${formatShare(report.summary.wastedValueShare)} lower-value`}
+            note={`${formatShare(report.summary.wastedValueShare)} low-value`}
             accent={teamColor}
           />
           <MetricCard
-            label="Late-Close EV"
+            label="Late-Game EV Share"
             value={formatShare(report.summary.lateCloseExpectedValueShare)}
             note={`${formatShare(report.summary.highPressureExpectedValueShare)} high-leverage EV`}
             accent={teamColor}
           />
           <MetricCard
-            label="Best Window"
+            label="Best Review Window"
             value={report.summary.bestDecisionWindowLabel ?? "Stabilizing"}
             note={
               report.summary.bestDecisionWindowExpectedValue === null
@@ -115,9 +115,9 @@ export function TeamOrgCommandCenter({
           <div className="rounded-[1.75rem] border border-gray-100 bg-[var(--surface-infield)] p-5">
             <div className="mb-4 flex items-center justify-between gap-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Window Ladder</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Review Window Ladder</p>
                 <p className="mt-1 text-sm font-medium text-[var(--ink-2)]">
-                  Drill into where this club is actually gaining or leaking decision value.
+                  Drill into where this club is actually adding review value or leaving it on the table.
                 </p>
               </div>
             </div>
@@ -137,7 +137,7 @@ export function TeamOrgCommandCenter({
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-[var(--ink-0)]">{window.label}</p>
                       <p className="mt-1 text-[11px] text-[var(--ink-3)]">
-                        {window.challenges} challenges · {formatShare(window.capturedValueShare)} higher-value · {formatShare(window.wastedValueShare)} lower-value
+                        {window.challenges} challenges · {formatShare(window.capturedValueShare)} high-value · {formatShare(window.wastedValueShare)} low-value
                       </p>
                     </div>
                     <span
@@ -156,22 +156,22 @@ export function TeamOrgCommandCenter({
 
           <div className="space-y-4">
             <div className="rounded-[1.75rem] border border-gray-100 bg-white p-5">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Selected Window</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Selected Review Window</p>
               {selectedWindow ? (
                 <>
                   <p className="mt-3 text-2xl font-display leading-tight text-[var(--ink-0)]" style={{ color: teamColor }}>
                     {selectedWindow.label}
                   </p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <MiniMetric label="Modeled" value={formatSignedPercent(selectedWindow.averageExpectedChallengeValue)} />
+                    <MiniMetric label="Expected" value={formatSignedPercent(selectedWindow.averageExpectedChallengeValue)} />
                     <MiniMetric label="Actual" value={formatSignedPercent(selectedWindow.averageRealizedChallengeValue)} />
-                    <MiniMetric label="Actual - Model" value={formatSignedPercent(selectedWindow.decisionSurplus)} />
+                    <MiniMetric label="Surplus" value={formatSignedPercent(selectedWindow.decisionSurplus)} />
                     <MiniMetric label="Sample" value={`${selectedWindow.challenges}`} />
                   </div>
                   <p className="mt-4 text-sm leading-7 text-[var(--ink-2)]">
                     {hasTrustedModelConfidenceBand(selectedWindow.modelConfidence)
-                      ? `Modeled is the average pre-review win value the model expected, actual is what the challenges in this window really returned, and actual minus model is the club's decision surplus. Higher-value share reflects how often this window landed in the stronger side of the model's recommendation set. Challenge recommendations ran at ${formatShare(selectedWindow.challengeRecommendationRate)}, while holds still made up ${formatShare(selectedWindow.holdRecommendationRate)} of the sample.`
-                      : "Modeled is the pre-review expectation, actual is what the team really got back, and actual minus model is the directional surplus. Higher-value share is still directional here because the sample is not yet trusted enough to anchor a hard recommendation on its own."}
+                      ? `Expected is the average pre-review win value the model projected, actual is what the challenges in this window really returned, and surplus is actual minus expected. High-value share reflects how often this window landed in the stronger side of the model's recommendation set. Challenge recommendations ran at ${formatShare(selectedWindow.challengeRecommendationRate)}, while holds still made up ${formatShare(selectedWindow.holdRecommendationRate)} of the sample.`
+                      : "Expected is the pre-review model estimate, actual is what the team really got back, and surplus is the directional gap between the two. High-value share is still directional here because the sample is not yet trusted enough to anchor a hard recommendation on its own."}
                   </p>
                 </>
               ) : (
@@ -180,7 +180,7 @@ export function TeamOrgCommandCenter({
             </div>
 
             <div className="rounded-[1.75rem] border border-gray-100 bg-white p-5">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Pitcher Rescue Ledger</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Overturned Pitcher Saves</p>
               <div className="mt-4 space-y-3">
                 {bailouts.length > 0 ? (
                   bailouts.slice(0, 3).map((pitcher) => (
@@ -195,7 +195,7 @@ export function TeamOrgCommandCenter({
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-[var(--ink-3)]">No overturned defensive rescue pattern has separated yet.</p>
+                  <p className="text-sm text-[var(--ink-3)]">No overturned pitcher-save pattern has separated yet.</p>
                 )}
               </div>
             </div>
@@ -206,7 +206,7 @@ export function TeamOrgCommandCenter({
           <div className="mt-8 rounded-[1.75rem] border border-gray-100 bg-white p-5">
             <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Breakdown Drilldown</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Review Breakdown</p>
                 <p className="mt-1 text-sm font-medium text-[var(--ink-2)]">
                   Use the tabs to switch between inning phase, count state, and base/out context. Only the highest-separation buckets stay in view.
                 </p>

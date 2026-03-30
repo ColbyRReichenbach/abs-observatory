@@ -185,7 +185,7 @@ async function TeamsPageBody({
               <th className="text-center">{viewMode === "org" ? "Deployment" : "Timing"}</th>
               <th className="text-center">Trend</th>
               {showDecisionValueColumns ? <th className="text-right">Late-Close EV Share</th> : null}
-              {showDecisionValueColumns ? <th className="text-right">Decision Surplus</th> : null}
+              {showDecisionValueColumns ? <th className="text-right">Review Surplus</th> : null}
               <th className="text-right">{viewMode === "org" ? (leagueAvgWinExpectancyDelta !== null ? "Avg WE Δ" : "Avg RE Δ") : "Avg Rem"}</th>
               <th className="text-right">{copy.tableVolumeHeader}</th>
             </tr>
@@ -524,10 +524,10 @@ function getDecisionReadLabel(
   capturedValueShare: number,
   wastedValueShare: number,
 ) {
-  if (decisionSurplus !== null && decisionSurplus >= 0.001) return "Value Capture";
-  if (decisionSurplus !== null && decisionSurplus <= -0.001) return "Leak Risk";
-  if (capturedValueShare > wastedValueShare) return "Value Capture";
-  if (wastedValueShare > capturedValueShare) return "Leak Risk";
+  if (decisionSurplus !== null && decisionSurplus >= 0.001) return "High-Value Usage";
+  if (decisionSurplus !== null && decisionSurplus <= -0.001) return "Low-Value Usage Risk";
+  if (capturedValueShare > wastedValueShare) return "High-Value Usage";
+  if (wastedValueShare > capturedValueShare) return "Low-Value Usage Risk";
   return "Neutral";
 }
 
@@ -537,8 +537,8 @@ function getDecisionReadTone(
   wastedValueShare: number,
 ): "emerald" | "amber" | "gray" {
   const label = getDecisionReadLabel(decisionSurplus, capturedValueShare, wastedValueShare);
-  if (label === "Value Capture") return "emerald";
-  if (label === "Leak Risk") return "amber";
+  if (label === "High-Value Usage") return "emerald";
+  if (label === "Low-Value Usage Risk") return "amber";
   return "gray";
 }
 

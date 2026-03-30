@@ -32,7 +32,7 @@ export function GameImpactStoryCards({
   return (
     <section className="grid gap-4 lg:grid-cols-3">
       <StoryCard
-        eyebrow={viewMode === "org" ? "Biggest Consequence" : "Loudest Review"}
+        eyebrow={viewMode === "org" ? "Biggest Consequence" : "Biggest Review Swing"}
         title={
           summary.biggestSwing
             ? `${summary.biggestSwing.challengeTeamName ?? "Team"} ${summary.biggestSwing.isOverturned ? "won" : "lost"} the biggest swing`
@@ -47,7 +47,7 @@ export function GameImpactStoryCards({
         }
       />
       <StoryCard
-        eyebrow={viewMode === "org" ? "Highest Leverage Spot" : "Tightest Spot"}
+        eyebrow={viewMode === "org" ? "Highest Leverage Spot" : "Highest-Leverage Spot"}
         title={
           summary.highestLeverage
             ? `${summary.highestLeverage.challengeTeamName ?? "Team"} hit ${summary.highestLeverage.estimatedLeverageIndex} ELI`
@@ -63,7 +63,7 @@ export function GameImpactStoryCards({
         }
       />
       <StoryCard
-        eyebrow={viewMode === "org" ? "Value Lens" : "What It Changed"}
+        eyebrow={viewMode === "org" ? "Value Lens" : "Largest Game-State Shift"}
         title={
           bestValueMoment
             ? `${bestValueMoment.challengeTeamName ?? "Team"} ${

@@ -46,7 +46,7 @@ export function TeamDecisionWindowBoard({
 
         <div className="grid gap-4 md:grid-cols-2">
           <HighlightCard
-            eyebrow={viewMode === "org" ? "Best Decision Window" : "Best Challenge Window"}
+            eyebrow={viewMode === "org" ? "Best Review Window" : "Best Challenge Window"}
             entry={strongest}
             teamColor={teamColor}
             fallback="No trusted positive decision window has stabilized yet."

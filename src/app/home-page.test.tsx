@@ -44,10 +44,10 @@ vi.mock("@/lib/data", () => ({
       challengesTotal: 10,
       avgRemaining: 1.1,
       overturnRate: 0.7,
-      style: "Clutch",
-      orgStyleLabel: "Opportunistic",
+      style: "High-Impact",
+      orgStyleLabel: "Timely",
       styleConfidence: "high",
-      styleScores: { Clutch: 80, Calculated: 65, "Trigger-Happy": 40, Passive: 25 },
+      styleScores: { "High-Impact": 80, Selective: 65, Overactive: 40, "Low-Usage": 25 },
       challengeRatePerGame: 1,
       lateLeverageShare: 0.45,
       earlyLowLeverageShare: 0.2,
@@ -70,7 +70,7 @@ vi.mock("@/lib/data", () => ({
       gamesWorked: 12,
       reportCardScore: 42,
       grade: "D",
-      fanDescriptor: "Erratic",
+      fanDescriptor: "Volatile",
       orgDescriptor: "Elevated risk",
       confidence: "medium",
       riskTier: "Elevated",
@@ -85,18 +85,17 @@ describe("home page", () => {
     const page = await HomePage({ searchParams: Promise.resolve({}) });
     const html = renderToStaticMarkup(page);
 
-    expect(html).toContain("Today&#x27;s Most Controversial Call");
-    expect(html).toContain("Team Personalities");
-    expect(html).toContain("Umpires in the Spotlight");
+    expect(html).toContain("The home of MLB ABS challenge coverage.");
+    expect(html).toContain("Most");
+    expect(html).toContain("Consequential");
   });
 
   it("renders org-oriented labels when view=org", async () => {
     const page = await HomePage({ searchParams: Promise.resolve({ view: "org" }) });
     const html = renderToStaticMarkup(page);
 
-    expect(html).toContain("League Signal");
-    expect(html).toContain("Challenge Operators");
-    expect(html).toContain("Umpire Watch List");
-    expect(html).toContain("Watch:");
+    expect(html).toContain("Leaguewide ABS challenge monitoring for prep, leverage, and review support.");
+    expect(html).toContain("Most");
+    expect(html).toContain("Consequential");
   });
 });

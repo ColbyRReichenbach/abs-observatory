@@ -31,41 +31,59 @@ export function CurrentDecisionCard({
 
   const nextBallValue = useWinValue ? snapshot.nextBallWinExpectancyDelta : snapshot.nextBallRunExpectancyDelta;
   const nextStrikeValue = useWinValue ? snapshot.nextStrikeWinExpectancyDelta : snapshot.nextStrikeRunExpectancyDelta;
+  const nextBallSelectionValue = nextBallValue ?? snapshot.nextBallExpectedChallengeValue;
+  const nextStrikeSelectionValue = nextStrikeValue ?? snapshot.nextStrikeExpectedChallengeValue;
   const bestPath =
-    nextBallValue === null && nextStrikeValue === null
+    nextBallSelectionValue === null && nextStrikeSelectionValue === null
       ? null
-      : nextStrikeValue === null || (nextBallValue !== null && nextBallValue >= nextStrikeValue)
+      : nextStrikeSelectionValue === null || (nextBallSelectionValue !== null && nextBallSelectionValue >= nextStrikeSelectionValue)
         ? {
-            label: "Ball overturn",
+            label: "Called strike overturned",
             recommendation: snapshot.nextBallDecisionRecommendation,
             expectedValue: snapshot.nextBallExpectedChallengeValue,
             overturnProbability: snapshot.nextBallOverturnProbability,
             countLabel: formatCountStateLabel(snapshot.nextBallCountKey),
             deltaLabel: useWinValue ? signedPercent(snapshot.nextBallWinExpectancyDelta) : signedRunValue(snapshot.nextBallRunExpectancyDelta),
+            deltaMode:
+              nextBallValue !== null
+                ? useWinValue
+                  ? "win"
+                  : "run"
+                : snapshot.nextBallExpectedChallengeValue !== null
+                  ? "expected"
+                  : "unknown",
           }
         : {
-            label: "Strike confirmation",
+            label: "Called ball overturned",
             recommendation: snapshot.nextStrikeDecisionRecommendation,
             expectedValue: snapshot.nextStrikeExpectedChallengeValue,
             overturnProbability: snapshot.nextStrikeOverturnProbability,
             countLabel: formatCountStateLabel(snapshot.nextStrikeCountKey),
             deltaLabel: useWinValue ? signedPercent(snapshot.nextStrikeWinExpectancyDelta) : signedRunValue(snapshot.nextStrikeRunExpectancyDelta),
+            deltaMode:
+              nextStrikeValue !== null
+                ? useWinValue
+                  ? "win"
+                  : "run"
+                : snapshot.nextStrikeExpectedChallengeValue !== null
+                  ? "expected"
+                  : "unknown",
           };
   const pathEyebrow =
     viewMode === "org"
       ? bestPath?.recommendation === "challenge"
         ? "Best Challenge Path"
-        : "Largest Available Swing"
+        : "Largest Available Review Swing"
       : bestPath?.recommendation === "challenge"
         ? "Most Meaningful Flip"
-        : "Largest Available Swing";
+        : "Largest Available Review Swing";
 
   return (
     <section className="panel p-6 shadow-2xl shadow-black/[0.02] border border-gray-50 bg-white">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
-            {viewMode === "org" ? "Current Decision" : "Current Review Spot"}
+            {viewMode === "org" ? "Current Challenge Decision" : "Current Review Spot"}
           </h4>
           <p className="text-2xl font-display leading-none text-gray-900">
             Challenge <span className="text-gray-400">Now?</span>
@@ -123,9 +141,17 @@ export function CurrentDecisionCard({
             </div>
             <div className="text-right">
               <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">
-                {useWinValue ? "Game Swing" : "Run Swing"}
+                {bestPath.deltaMode === "win"
+                  ? "Game Swing"
+                  : bestPath.deltaMode === "run"
+                    ? "Run Swing"
+                    : "Expected Review Value"}
               </p>
-              <p className="mt-1 text-xl font-display text-gray-900">{bestPath.deltaLabel}</p>
+              <p className="mt-1 text-xl font-display text-gray-900">
+                {bestPath.deltaMode === "expected" && bestPath.expectedValue !== null
+                  ? signedPercent(bestPath.expectedValue)
+                  : bestPath.deltaLabel}
+              </p>
             </div>
           </div>
           <p className="mt-3 text-sm font-medium leading-relaxed text-gray-600">

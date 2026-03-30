@@ -63,7 +63,7 @@ describe("rubric helpers", () => {
     expect(steady.score - volatile.score).toBeLessThan(20);
   });
 
-  it("assigns clutch when the style race is close but late-game identity wins", () => {
+  it("assigns high-impact when the style race is close but late-game identity wins", () => {
     const result = computeTeamChallengeStyle({
       sampleSize: 20,
       challengeRatePerGame: 2.1,
@@ -78,8 +78,8 @@ describe("rubric helpers", () => {
       leagueOverturnRate: 0.42,
     });
 
-    expect(result.style).toBe("Clutch");
-    expect(result.orgLabel).toBe("Opportunistic");
+    expect(result.style).toBe("High-Impact");
+    expect(result.orgLabel).toBe("Timely");
   });
 
   it("penalizes confirmed calls in controversy scoring", () => {

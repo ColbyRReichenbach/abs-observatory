@@ -122,7 +122,7 @@ export function TeamDecisionValueScatter({
               subValueLabel="Realized WE"
               extra={[
                 { label: "Expected WE", value: formatValue(hovered.expected), mono: false },
-                { label: "Decision Surplus", value: formatValue(hovered.surplus), mono: false },
+                { label: "Review Surplus", value: formatValue(hovered.surplus), mono: false },
                 { label: "Sample", value: hovered.challenges, mono: false },
               ]}
             />

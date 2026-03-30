@@ -146,26 +146,26 @@ export function UmpireRiskScatter({ data }: { data: UmpireRiskPoint[] }) {
     <div className="panel h-full flex flex-col overflow-visible border-gray-100 bg-white shadow-2xl shadow-black/[0.03] p-6">
       <div className="mb-6">
         <h4 className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mb-1">
-          Prep Value
+          Review Risk
         </h4>
         <p className="text-2xl font-display leading-none text-gray-900">
-          Umpire <span className="text-gray-400 italic">Risk Map</span>
+          Umpire <span className="text-gray-400 italic">Review Map</span>
         </p>
       </div>
 
       <div className="relative h-[300px] w-full" onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}>
         <div className="pointer-events-none absolute inset-0 z-10">
           <span className="absolute top-2 left-12 text-[9px] font-black uppercase tracking-[0.14em] text-emerald-500/50">
-            Volatile Accurate
+            Low Overturn / Volatile
           </span>
           <span className="absolute top-2 right-4 text-[9px] font-black uppercase tracking-[0.14em] text-red-500/50">
-            Reliably Problematic
+            High Overturn / Volatile
           </span>
           <span className="absolute bottom-6 left-12 text-[9px] font-black uppercase tracking-[0.14em] text-blue-500/50">
-            Reliable Accurate
+            Low Overturn / Steady
           </span>
           <span className="absolute bottom-6 right-4 text-[9px] font-black uppercase tracking-[0.14em] text-amber-500/50">
-            Volatile Problematic
+            High Overturn / Steady
           </span>
         </div>
 

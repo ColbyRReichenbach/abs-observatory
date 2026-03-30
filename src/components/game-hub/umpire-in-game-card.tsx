@@ -41,7 +41,7 @@ export function UmpireInGameCard({
             {viewMode === "org" ? "Umpire In Game" : "Umpire Tonight"}
           </h4>
           <p className="text-2xl font-display leading-none text-gray-900">
-            Vulnerability <span className="text-gray-400">Read</span>
+            Tonight&apos;s <span className="text-gray-400">Review Pattern</span>
           </p>
           <p className="mt-2 text-[11px] font-medium leading-relaxed text-[var(--ink-2)]">
             {summary.totalChallenges} reviewed pitch{summary.totalChallenges === 1 ? "" : "es"} so far •{" "}

@@ -816,7 +816,7 @@ export type ConfidenceBand = "low" | "medium" | "high";
 
 export type UmpireGrade = "A" | "B" | "C" | "D" | "F";
 
-export type UmpireFanDescriptor = "Reliable" | "Balanced" | "Uneasy" | "Erratic" | "Chaotic";
+export type UmpireFanDescriptor = "Reliable" | "Steady" | "Watchful" | "Volatile" | "High-Risk";
 
 export type UmpireOrgDescriptor =
   | "Low-risk profile"
@@ -825,13 +825,13 @@ export type UmpireOrgDescriptor =
   | "Elevated risk"
   | "High-risk profile";
 
-export type TeamStyle = "Clutch" | "Calculated" | "Trigger-Happy" | "Passive";
+export type TeamStyle = "High-Impact" | "Selective" | "Overactive" | "Low-Usage";
 
 export type TeamStyleOrgLabel =
-  | "Opportunistic"
-  | "Disciplined"
-  | "Aggressive"
-  | "Conservative";
+  | "Timely"
+  | "Selective"
+  | "High-Usage"
+  | "Low-Usage";
 
 export type ControversyReasonChip =
   | "Late Inning"

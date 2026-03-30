@@ -71,7 +71,7 @@ export function AtBatContextCard({
       ? `Comparable game states move run expectancy by ${formatRunDelta(challenge.runExpectancyDelta)} from this review state.`
       : challenge.positiveOutcomeDelta === null || challenge.positiveOutcomeDelta === undefined
         ? "No stable league comparison is available for this count change."
-        : `Comparable plate appearances shift positive outcome rate by ${formatSignedPoints(challenge.positiveOutcomeDelta)}.`;
+        : `Comparable plate appearances shift offensive success rate by ${formatSignedPoints(challenge.positiveOutcomeDelta)}.`;
   const decisionNarrative =
     estimatedOverturnProbability === null || expectedChallengeValue === null
       ? "Model recommendation is unavailable for this review."

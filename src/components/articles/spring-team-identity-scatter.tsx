@@ -131,7 +131,7 @@ export function SpringTeamIdentityScatter({ data }: { data: SpringTeamIdentityPo
           Heavy And Sharp
         </span>
         <span className="absolute bottom-6 left-12 text-[9px] font-black uppercase tracking-[0.14em] text-red-400/50">
-          Passive Or Cold
+          Low Usage
         </span>
         <span className="absolute bottom-6 right-4 text-[9px] font-black uppercase tracking-[0.14em] text-amber-500/50">
           High Volume, Mixed Return

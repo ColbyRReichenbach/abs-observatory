@@ -387,7 +387,7 @@ async function UmpireAnalyticsSections({
             <div className="mb-8 pb-4 border-b border-gray-50 flex items-center justify-between">
               <div>
                 <h4 className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mb-1">
-                  {viewMode === "org" ? "Zone Risk Map" : "Zone Personality"}
+                  {viewMode === "org" ? "Zone Risk Map" : "Zone Review Pattern"}
                 </h4>
                 <p className="text-2xl font-display leading-none text-gray-900">
                   {viewMode === "org" ? (

@@ -4,17 +4,17 @@ export type GameViewState = "pregame" | "live" | "final";
 
 const HOME_PAGE_COPY = {
   fan: {
-    heroDeck: "The home of MLB challenge intelligence.",
+    heroDeck: "The home of MLB ABS challenge coverage.",
     summaryLabel: "story",
-    teamsSectionTitle: "Team Personalities",
-    umpiresSectionTitle: "Umpires in the Spotlight",
+    teamsSectionTitle: "Team Review Profiles",
+    umpiresSectionTitle: "Umpires In Focus",
     topMomentEyebrow: "Today's Most Controversial Call",
     topMomentTitleFallback: "Slate settling",
   },
   org: {
-    heroDeck: "League monitoring for ABS operations, prep, and leverage decisions.",
+    heroDeck: "Leaguewide ABS challenge monitoring for prep, leverage, and review support.",
     summaryLabel: "ops note",
-    teamsSectionTitle: "Challenge Operators",
+    teamsSectionTitle: "Team Review Patterns",
     umpiresSectionTitle: "Umpire Watch List",
     topMomentEyebrow: "Highest-Pressure Review",
     topMomentTitleFallback: "Operational slate scan",
@@ -25,20 +25,20 @@ const TEAMS_PAGE_COPY = {
   fan: {
     heroTitle: "Team Leaderboard",
     heroDeck:
-      "Aggregated ABS challenge data across all 30 MLB franchises, emphasizing team personality, later-game habits, and challenge identity.",
+      "Aggregated ABS challenge data across all 30 MLB clubs, emphasizing review frequency, overturn results, and late-game usage.",
     spotlightEyebrow: "Biggest Mover",
-    spotlightLabel: "Profile",
+    spotlightLabel: "Review profile",
     tableProfileHeader: "Profile",
-    tableRateHeader: "Effectiveness",
+    tableRateHeader: "Review impact",
     tableVolumeHeader: "Challenges",
     sectionOrder: ["spotlight", "scatter", "table"],
   },
   org: {
     heroTitle: "Team Leaderboard",
     heroDeck:
-      "Aggregated ABS challenge data across all 30 MLB franchises, emphasizing challenge discipline, situational timing, and decision quality.",
-    spotlightEyebrow: "Recent Signal",
-    spotlightLabel: "Discipline",
+      "Aggregated ABS challenge data across all 30 MLB clubs, emphasizing challenge usage, leverage timing, and review outcomes.",
+    spotlightEyebrow: "Review Signal",
+    spotlightLabel: "Usage pattern",
     tableProfileHeader: "Profile",
     tableRateHeader: "Timing Index",
     tableVolumeHeader: "Games",
@@ -49,11 +49,11 @@ const TEAMS_PAGE_COPY = {
 const TEAM_DETAIL_COPY = {
   fan: {
     heroSubtitle:
-      "Full ABS personality breakdown, from turning points to challenge identity.",
+      "Full ABS challenge profile, from turning points to review usage and game-state swings.",
     trendEyebrow: "Season Tempo",
     trendTitle: "Challenge Trajectory",
-    aggressionEyebrow: "Team Personality",
-    aggressionTitle: "Challenge Aggression",
+    aggressionEyebrow: "Review Profile",
+    aggressionTitle: "Challenge Usage",
     heatmapEyebrow: "Offensive Approach",
     heatmapTitle: "Team Challenge Map",
     efficiencyTitle: "Challenge Rhythm Map",
@@ -63,14 +63,14 @@ const TEAM_DETAIL_COPY = {
   },
   org: {
     heroSubtitle:
-      "Strategic ABS profile, built around challenge posture, situational timing, and umpire context.",
+      "Strategic ABS profile, built around challenge usage, leverage timing, and umpire context.",
     trendEyebrow: "Challenge Trendline",
-    trendTitle: "Decision Trajectory",
+    trendTitle: "Review Trajectory",
     aggressionEyebrow: "Challenge Posture",
     aggressionTitle: "Offense / Defense Posture",
     heatmapEyebrow: "Challenge Targets",
     heatmapTitle: "Team Challenge Map",
-    efficiencyTitle: "Situational Decision Matrix",
+    efficiencyTitle: "Situational Review Matrix",
     efficiencyAccent: "Efficiency Heatmap",
     schedulePlacement: "early",
     lowerSectionOrder: ["umpires", "style", "splits"],
@@ -81,15 +81,15 @@ const UMPIRES_PAGE_COPY = {
   fan: {
     heroTitle: "Umpire Rankings",
     heroDeck:
-      "ABS challenge rankings across the active MLB umpire pool, highlighting who looks steady, shaky, or chaotic in the review sample.",
+      "ABS challenge rankings across the active MLB umpire pool, highlighting which umpires look steady, volatile, or high-risk in the review sample.",
     watchTitle: "Tonight's Spotlight",
     leaderboardPlacement: "late",
   },
   org: {
     heroTitle: "Umpire Rankings",
     heroDeck:
-      "Operational ABS challenge rankings across the active MLB umpire pool, highlighting risk, stability, and prep value in the current sample.",
-    watchTitle: "Prep Assignments",
+      "Operational ABS challenge rankings across the active MLB umpire pool, highlighting review risk, stability, and pregame watch value in the current sample.",
+    watchTitle: "Pregame Watch",
     leaderboardPlacement: "early",
   },
 } as const;
@@ -97,14 +97,14 @@ const UMPIRES_PAGE_COPY = {
 const UMPIRE_DETAIL_COPY = {
   fan: {
     heroSubtitle:
-      "ABS personality file, from the loudest missed zones to the most dramatic challenge swings.",
+      "ABS review file, from the most active zones to the biggest challenge swings.",
     historyEyebrow: "Historical Assignments",
     historyTitle: "Recent Gameday Feed",
     historyPlacement: "early",
   },
   org: {
     heroSubtitle:
-      "Operational ABS profile, centered on grade stability, directional bias, and pregame prep value.",
+      "Operational ABS profile, centered on grade stability, directional bias, and pregame review prep.",
     historyEyebrow: "Historical Assignments",
     historyTitle: "Recent Gameday Feed",
     historyPlacement: "early",
@@ -117,43 +117,43 @@ const GAME_VIEW_COPY: Record<
 > = {
   pregame: {
     fan: {
-      eyebrow: "Tonight's ABS Story",
-      title: "Pregame Spotlight",
-      deck: "Story-first pregame matchup visuals for who challenges more, who wins reviews more often, and where tonight could get loud.",
+      eyebrow: "Tonight's ABS Matchup",
+      title: "Pregame Review Story",
+      deck: "Story-first pregame matchup visuals for who challenges more, who wins reviews more often, and where tonight could turn into a review game.",
       sectionOrder: ["visuals", "briefing", "history"],
     },
     org: {
       eyebrow: "ABS Scouting Report",
-      title: "Pregame Intelligence",
-      deck: "Decision-first pregame board built around modeled leverage pockets, team deployment timing, and tonight's umpire profile.",
+      title: "Pregame Prep Board",
+      deck: "Decision-first pregame board built around modeled leverage pockets, challenge reserve, and tonight's umpire review profile.",
       sectionOrder: ["briefing", "visuals", "history"],
     },
   },
   live: {
     fan: {
-      eyebrow: "Live Feed",
-      title: "Challenge Drama",
-      deck: "A live story surface for what the current review spot means, who is winning the ABS battle, and how tonight's challenges are changing the game.",
+      eyebrow: "Live ABS",
+      title: "Review Story",
+      deck: "A live story surface for what the current review spot means, who is winning the challenge battle, and how tonight's reviews are changing the game.",
       sectionOrder: ["meter", "visuals", "explorer"],
     },
     org: {
-      eyebrow: "Live War Room",
-      title: "Match Events",
-      deck: "Real-time challenge monitoring for whether to review now, what value each team is capturing, and where the umpire is vulnerable tonight.",
+      eyebrow: "Live Challenge Desk",
+      title: "Review Decision Support",
+      deck: "Real-time challenge support for whether to review now, what value each team is capturing, and where the umpire is vulnerable tonight.",
       sectionOrder: ["briefing", "visuals", "explorer"],
     },
   },
   final: {
     fan: {
-      eyebrow: "After-Action Report",
+      eyebrow: "Postgame Review",
       title: "ABS Game Story",
       deck: "A chart-first postgame recap of which club handled the challenge game better, where the biggest swings landed, and what the umpire looked like by final out.",
       sectionOrder: ["summary", "waterfall", "debrief", "explorer"],
     },
     org: {
-      eyebrow: "After-Action Report",
+      eyebrow: "Postgame Review",
       title: "ABS Game Analysis",
-      deck: "Analytics-first postgame review of actual value gained, modeled opportunity captured, and whether the challenge strategy held up across the full game.",
+      deck: "Analytics-first postgame review of actual value gained, modeled opportunity captured, and whether the challenge plan held up across the full game.",
       sectionOrder: ["summary", "waterfall", "debrief", "explorer"],
     },
   },

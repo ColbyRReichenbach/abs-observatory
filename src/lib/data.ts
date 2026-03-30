@@ -2234,15 +2234,19 @@ export async function getLiveChallengeWindow(gamePk: number): Promise<LiveChalle
     const awayScore = liveStatus.awayScore ?? latestChallenge?.awayScore ?? null;
     const currentCountKey =
       balls === null || strikes === null ? null : `${Math.max(0, Math.min(3, balls))}-${Math.max(0, Math.min(2, strikes))}`;
-    const nextBallCountKey =
+    const nextBallLookupCountKey =
       balls === null || strikes === null || balls >= 3 ? null : `${Math.min(3, balls + 1)}-${Math.max(0, Math.min(2, strikes))}`;
-    const nextStrikeCountKey =
+    const nextStrikeLookupCountKey =
       balls === null || strikes === null || strikes >= 2 ? null : `${Math.max(0, Math.min(3, balls))}-${Math.min(2, strikes + 1)}`;
+    const nextBallCountKey =
+      balls === null || strikes === null ? null : `${Math.min(4, Math.max(0, balls + 1))}-${Math.max(0, Math.min(2, strikes))}`;
+    const nextStrikeCountKey =
+      balls === null || strikes === null ? null : `${Math.max(0, Math.min(3, balls))}-${Math.min(3, Math.max(0, strikes + 1))}`;
 
     const baselineMap = buildCountStateBaselineMap(baselines);
     const currentBaseline = currentCountKey ? baselineMap.get(currentCountKey) ?? null : null;
-    const nextBallBaseline = nextBallCountKey ? baselineMap.get(nextBallCountKey) ?? null : null;
-    const nextStrikeBaseline = nextStrikeCountKey ? baselineMap.get(nextStrikeCountKey) ?? null : null;
+    const nextBallBaseline = nextBallLookupCountKey ? baselineMap.get(nextBallLookupCountKey) ?? null : null;
+    const nextStrikeBaseline = nextStrikeLookupCountKey ? baselineMap.get(nextStrikeLookupCountKey) ?? null : null;
     const currentRunExpectancy = resolveRunExpectancyWithFallback(
       {
         inning: liveStatus.inning,
@@ -2261,7 +2265,7 @@ export async function getLiveChallengeWindow(gamePk: number): Promise<LiveChalle
         halfInning: liveStatus.halfInning,
         outs,
         basesState,
-        countKey: nextBallCountKey,
+        countKey: nextBallLookupCountKey,
         homeScore,
         awayScore,
       },
@@ -2273,7 +2277,7 @@ export async function getLiveChallengeWindow(gamePk: number): Promise<LiveChalle
         halfInning: liveStatus.halfInning,
         outs,
         basesState,
-        countKey: nextStrikeCountKey,
+        countKey: nextStrikeLookupCountKey,
         homeScore,
         awayScore,
       },
@@ -2297,7 +2301,7 @@ export async function getLiveChallengeWindow(gamePk: number): Promise<LiveChalle
         halfInning: liveStatus.halfInning,
         outs,
         basesState,
-        countKey: nextBallCountKey,
+        countKey: nextBallLookupCountKey,
         homeScore,
         awayScore,
       },
@@ -2309,7 +2313,7 @@ export async function getLiveChallengeWindow(gamePk: number): Promise<LiveChalle
         halfInning: liveStatus.halfInning,
         outs,
         basesState,
-        countKey: nextStrikeCountKey,
+        countKey: nextStrikeLookupCountKey,
         homeScore,
         awayScore,
       },
@@ -4682,7 +4686,7 @@ export async function getTeamMemories(
 
     // Construct a narrative title
     let title = isOverturned ? 'Crucial Overturn' : 'Stands as Called';
-    if (Number(r.inning) >= 8) title = isOverturned ? 'Clutch Late Inning Save' : 'Heartbreaker';
+    if (Number(r.inning) >= 8) title = isOverturned ? 'High-Leverage Late Overturn' : 'Late Review Stands';
 
     const calledDesc = r.called_description ? r.called_description : 'Pitch Event';
     return {

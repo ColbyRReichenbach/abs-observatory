@@ -82,7 +82,7 @@ export default async function UmpiresPage({ searchParams }: { searchParams: Prom
           <div className="panel h-full flex flex-col border-gray-100 bg-white p-6 shadow-2xl shadow-black/[0.03]">
             <div className="mb-4">
               <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
-                This Week&apos;s Watch
+                This Week&apos;s Review Watch
               </h4>
               <p className="text-2xl font-display leading-none text-gray-900">
                 {copy.watchTitle.split(" ").slice(0, 1).join(" ")} <span className="text-gray-400 italic">{copy.watchTitle.split(" ").slice(1).join(" ")}</span>
@@ -148,7 +148,7 @@ function buildWatchLabel(umpire: {
   const drift =
     umpire.recentOverturnRate === null ? 0 : umpire.recentOverturnRate - umpire.overturnRate;
   if ((umpire.riskTier === "High" || umpire.overturnRateVariance >= 0.2) && drift >= 0.05) return "Escalating";
-  if (umpire.riskTier === "High" || umpire.overturnRateVariance >= 0.2) return "High Watch";
-  if (drift >= 0.05) return "Drifting Up";
+  if (umpire.riskTier === "High" || umpire.overturnRateVariance >= 0.2) return "Elevated Watch";
+  if (drift >= 0.05) return "Trend Up";
   return umpire.riskTier;
 }

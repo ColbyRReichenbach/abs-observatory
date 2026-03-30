@@ -156,7 +156,7 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                     {mode === "org" ? "Strategy Map" : "Identity Map"}
                 </h4>
                 <p className="text-2xl font-display leading-none text-gray-900">
-                    Team <span className="text-gray-400">{mode === "org" ? "Positioning" : "Personalities"}</span>
+                    Team <span className="text-gray-400">{mode === "org" ? "Review Patterns" : "Review Profiles"}</span>
                 </p>
             </div>
 
@@ -168,16 +168,16 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                 {/* Quadrant labels */}
                 <div className="pointer-events-none absolute inset-0 z-10">
                     <span className="absolute top-2 right-4 text-[9px] font-black uppercase tracking-[0.14em] text-emerald-500/50">
-                        {mode === "org" ? "Elite Challengers" : "Clutch"}
+                        {mode === "org" ? "Timely" : "High-Impact"}
                     </span>
                     <span className="absolute top-2 left-12 text-[9px] font-black uppercase tracking-[0.14em] text-blue-500/50">
-                        {mode === "org" ? "Disciplined" : "Calculated"}
+                        Selective
                     </span>
                     <span className="absolute bottom-6 right-4 text-[9px] font-black uppercase tracking-[0.14em] text-amber-500/50">
-                        {mode === "org" ? "Burning Window" : "Trigger-Happy"}
+                        {mode === "org" ? "High-Usage" : "Overactive"}
                     </span>
                     <span className="absolute bottom-6 left-12 text-[9px] font-black uppercase tracking-[0.14em] text-red-400/50">
-                        Passive
+                        Low-Usage
                     </span>
                 </div>
 

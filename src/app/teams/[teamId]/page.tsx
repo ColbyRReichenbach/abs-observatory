@@ -721,7 +721,7 @@ async function TeamLowerSections({
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
-              {viewMode === "org" ? "Strategic Identity" : "Club Personality"}
+              {viewMode === "org" ? "Strategic Review Pattern" : "Club Review Pattern"}
             </h4>
             <p className="text-xl font-display leading-none text-gray-900">
               {viewMode === "org" ? (

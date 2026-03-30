@@ -19,24 +19,24 @@ export function TeamDecisionValueSummaryCard({
   const surplus = summary.decisionSurplus;
 
   const orgNarrative = !trusted
-    ? "This decision read is still stabilizing. AiBS is tracking challenge timing, but the expected-value model needs a larger confident sample before it becomes a primary recommendation layer."
+    ? "This review read is still stabilizing. AiBS is tracking challenge timing, but the expected-value model needs a larger confident sample before it becomes a primary recommendation layer."
     : surplus === null
-      ? "Decision-value coverage is available, but the current sample is not large enough to separate expected and realized value cleanly."
+      ? "Review-value coverage is available, but the current sample is not large enough to separate expected and realized value cleanly."
       : surplus >= 0
         ? "This club is capturing at least as much win value as the model expects from comparable challenge windows."
         : "This club is leaving value on the table relative to what the model expects from similar challenge windows.";
   const fanNarrative = !trusted
-    ? "This team is building an early decision profile, but the smartest-vs-costliest challenge read is still settling in."
+    ? "This team is building an early review profile, but the challenge-value read is still settling in."
     : summary.capturedValueShare >= summary.wastedValueShare
-      ? "This team has been turning a larger share of similar challenge windows into favorable results."
-      : "This team has created some favorable challenge windows, but the lower-value share is still elevated.";
+      ? "This team has been turning a larger share of similar challenge windows into stronger review results."
+      : "This team has created some stronger review windows, but the lower-value share is still elevated.";
 
   return (
     <section className="mt-8">
       <div className="panel p-8">
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">Decision Value Summary</h4>
+            <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">Review Value Summary</h4>
             <p className="text-2xl font-display leading-none text-gray-900">
               {viewMode === "org" ? (
                 <>
@@ -44,7 +44,7 @@ export function TeamDecisionValueSummaryCard({
                 </>
               ) : (
                 <>
-                  Smart <span className="text-gray-400">Challenge Read</span>
+                  Challenge <span className="text-gray-400">Results</span>
                 </>
               )}
             </p>
@@ -58,22 +58,22 @@ export function TeamDecisionValueSummaryCard({
           {viewMode === "org" ? (
             <>
               <DecisionMetric
-                label="Avg Expected WE Δ"
+                label="Avg Expected Review WE Δ"
                 value={expected === null ? "N/A" : formatWinValue(expected)}
                 accent={teamColor}
               />
               <DecisionMetric
-                label="Avg Realized WE Δ"
+                label="Avg Realized Review WE Δ"
                 value={realized === null ? "N/A" : formatWinValue(realized)}
                 accent={teamColor}
               />
               <DecisionMetric
-                label="Decision Surplus"
+                label="Review Surplus"
                 value={surplus === null ? "N/A" : formatWinValue(surplus)}
                 accent={teamColor}
               />
               <DecisionMetric
-                label="Higher-Value Share"
+                label="High-Value Window Share"
                 value={formatShare(summary.capturedValueShare)}
                 accent={teamColor}
               />
@@ -83,17 +83,17 @@ export function TeamDecisionValueSummaryCard({
                 accent={teamColor}
               />
               <DecisionMetric
-                label="Best Decision Window"
+                label="Best Review Window"
                 value={summary.bestDecisionWindowLabel ?? "Stabilizing"}
                 accent={teamColor}
               />
             </>
           ) : (
             <>
-              <DecisionMetric label="Higher-Value Share" value={formatShare(summary.capturedValueShare)} accent={teamColor} />
-              <DecisionMetric label="Lower-Value Share" value={formatShare(summary.wastedValueShare)} accent={teamColor} />
+              <DecisionMetric label="High-Value Window Share" value={formatShare(summary.capturedValueShare)} accent={teamColor} />
+              <DecisionMetric label="Low-Value Window Share" value={formatShare(summary.wastedValueShare)} accent={teamColor} />
               <DecisionMetric
-                label="Best Challenge Window"
+                label="Best Review Window"
                 value={summary.bestDecisionWindowLabel ?? "Still building"}
                 accent={teamColor}
               />
@@ -103,15 +103,15 @@ export function TeamDecisionValueSummaryCard({
 
         <div className="mt-6 rounded-[1.5rem] border border-gray-100 bg-gray-50/60 p-5">
           <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">
-            {viewMode === "org" ? "AiBS Decision Model Read" : "What This Means"}
+            {viewMode === "org" ? "AiBS Review Model Read" : "What This Means"}
           </p>
           <p className="mt-2 text-sm leading-7 text-[var(--ink-2)]">{viewMode === "org" ? orgNarrative : fanNarrative}</p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Chip label={`Challenge ${formatShare(summary.challengeRecommendationRate)}`} />
-            <Chip label={`Hold ${formatShare(summary.holdRecommendationRate)}`} />
-            <Chip label={`High-leverage EV ${formatShare(summary.highPressureExpectedValueShare)}`} />
+            <Chip label={`Model Challenge Rate ${formatShare(summary.challengeRecommendationRate)}`} />
+            <Chip label={`Model Hold Rate ${formatShare(summary.holdRecommendationRate)}`} />
+            <Chip label={`High-Leverage EV Share ${formatShare(summary.highPressureExpectedValueShare)}`} />
             {summary.bestDecisionWindowExpectedValue !== null ? (
-              <Chip label={`Best window ${formatWinValue(summary.bestDecisionWindowExpectedValue)}`} />
+              <Chip label={`Best Window EV ${formatWinValue(summary.bestDecisionWindowExpectedValue)}`} />
             ) : null}
           </div>
         </div>

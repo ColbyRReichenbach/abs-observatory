@@ -78,7 +78,7 @@ export function HeatmapDeepDive({
                                             Deep Dive Analysis
                                         </h4>
                                         <p className="text-3xl font-display leading-tight text-gray-900">
-                                            Zone <span className="text-gray-400 italic">Personality</span>
+                                            Zone <span className="text-gray-400 italic">Review Pattern</span>
                                         </p>
                                     </div>
 
