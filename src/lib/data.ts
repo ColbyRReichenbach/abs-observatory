@@ -2683,6 +2683,14 @@ export async function getUmpireLeaderboard(range: RangeKey = "season"): Promise<
       FROM umpire_abs_game_summary s
       JOIN games g ON g.game_pk = s.game_pk
       WHERE ${window.clause}
+    ),
+    home_plate_officials AS (
+      SELECT DISTINCT ON (o.official_id)
+        o.official_id,
+        o.official_name
+      FROM officials o
+      WHERE o.official_type = 'Home Plate'
+      ORDER BY o.official_id, o.game_pk DESC
     )
     SELECT
       o.official_id AS umpireId,
@@ -2695,9 +2703,8 @@ export async function getUmpireLeaderboard(range: RangeKey = "season"): Promise<
         ELSE 0
       END AS overturnRate,
       COUNT(DISTINCT s.game_pk) AS gamesWorked
-    FROM officials o
+    FROM home_plate_officials o
     LEFT JOIN filtered_summary s ON s.umpire_id = o.official_id
-    WHERE o.official_type = 'Home Plate'
     GROUP BY o.official_id, o.official_name
     ORDER BY challengedCalls DESC, o.official_name ASC
     `,

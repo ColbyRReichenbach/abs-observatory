@@ -28,6 +28,7 @@ function withSecurityHeaders(response: NextResponse) {
 }
 
 const fallbackProxy = () => withSecurityHeaders(NextResponse.next());
+const authProxy = clerkMiddleware(() => withSecurityHeaders(NextResponse.next()));
 
 export const config = {
   matcher: [
@@ -36,10 +37,6 @@ export const config = {
   ],
 };
 
-export function proxy() {
-  return fallbackProxy();
+export function proxy(...args: Parameters<typeof authProxy>) {
+  return hasClerkCredentials ? authProxy(...args) : fallbackProxy();
 }
-
-export default hasClerkCredentials
-  ? clerkMiddleware(() => withSecurityHeaders(NextResponse.next()))
-  : fallbackProxy;
