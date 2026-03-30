@@ -51,6 +51,14 @@ export function CurrentDecisionCard({
             countLabel: formatCountStateLabel(snapshot.nextStrikeCountKey),
             deltaLabel: useWinValue ? signedPercent(snapshot.nextStrikeWinExpectancyDelta) : signedRunValue(snapshot.nextStrikeRunExpectancyDelta),
           };
+  const pathEyebrow =
+    viewMode === "org"
+      ? bestPath?.recommendation === "challenge"
+        ? "Best Challenge Path"
+        : "Largest Available Swing"
+      : bestPath?.recommendation === "challenge"
+        ? "Most Meaningful Flip"
+        : "Largest Available Swing";
 
   return (
     <section className="panel p-6 shadow-2xl shadow-black/[0.02] border border-gray-50 bg-white">
@@ -107,7 +115,7 @@ export function CurrentDecisionCard({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">
-                {viewMode === "org" ? "Best Available Path" : "Most Meaningful Flip"}
+                {pathEyebrow}
               </p>
               <p className="mt-1 text-base font-display text-gray-900">
                 {bestPath.label} to <span className="text-blue-500">{bestPath.countLabel}</span>
@@ -124,7 +132,7 @@ export function CurrentDecisionCard({
             {bestPath.recommendation === "challenge"
               ? "Model would challenge this spot."
               : bestPath.recommendation === "hold"
-                ? "Model would hold the challenge here."
+                ? "This path has the biggest swing on the board, but the model would still hold the challenge here."
                 : "Review is not advised from the current path."}{" "}
             {bestPath.expectedValue === null
               ? "Expected value is still stabilizing."

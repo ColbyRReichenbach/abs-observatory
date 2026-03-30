@@ -25,8 +25,6 @@ export async function PostgameAAR({ game, challenges, initialChallengeId = null,
     const canRegenerateDebrief = await canManageGameReports();
     const copy = getGameViewCopy(viewMode, "final");
 
-    const totalChallenges = challenges.length;
-    const totalOverturned = challenges.filter((c) => c.isOverturned).length;
     const reportTimestamp = report
         ? new Intl.DateTimeFormat("en-US", {
             month: "short",
@@ -75,23 +73,9 @@ export async function PostgameAAR({ game, challenges, initialChallengeId = null,
                     <h3 className="font-display text-4xl uppercase tracking-tighter text-gray-900 mb-4 leading-tight">
                         Game <span className="text-blue-600/40 italic">Debrief</span>
                     </h3>
-
-                    <div className="flex flex-wrap items-center justify-center gap-4 mt-6">
-                        <div className="px-4 py-2 rounded-2xl bg-gray-50 border border-gray-100 flex flex-col items-center min-w-[100px]">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Total Logic</span>
-                            <span className="text-xl font-display font-black text-gray-900">{totalChallenges} Plays</span>
-                        </div>
-                        <div className="px-4 py-2 rounded-2xl bg-blue-50/50 border border-blue-100/50 flex flex-col items-center min-w-[100px]">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">Reverse</span>
-                            <span className="text-xl font-display font-black text-blue-600">{totalOverturned} Calls</span>
-                        </div>
-                        {challenges.some(c => c.impactType?.toLowerCase().includes("high")) && (
-                            <div className="px-4 py-2 rounded-2xl bg-emerald-50/50 border border-emerald-100/50 flex flex-col items-center min-w-[100px]">
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Pivotal Swap</span>
-                                <span className="text-xl font-display font-black text-emerald-600">High Impact</span>
-                            </div>
-                        )}
-                    </div>
+                    <p className="mx-auto mt-4 max-w-2xl text-sm font-medium leading-relaxed text-gray-500">
+                        Narrative readout of how the review battle unfolded after the charts have established which club actually captured the value.
+                    </p>
                 </div>
 
                 <div className="prose prose-slate max-w-none min-w-0 overflow-hidden break-words [overflow-wrap:anywhere]

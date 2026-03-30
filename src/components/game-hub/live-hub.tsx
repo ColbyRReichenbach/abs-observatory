@@ -143,18 +143,22 @@ export function LiveWarRoom({ game, challenges, liveStatus, counters, liveChalle
                     </span>
                     <span className="text-[var(--ink-3)]">·</span>
                     <span className="text-[var(--ink-2)]">
-                        Count: <strong>{latestChallenge?.umpireCount || `${currentBalls}-${currentStrikes}`}</strong>
+                        {latestChallenge?.basesState ? (
+                            <>Base state: <strong>{latestChallenge.basesState}</strong></>
+                        ) : (
+                            <>Bases <strong>empty</strong></>
+                        )}
                     </span>
                     <span className="text-[var(--ink-3)]">·</span>
                     <span className="text-[var(--ink-2)]">
                         {sameCountChallenges > 0 ? (
                             viewMode === "org" ? (
-                                <>This count has been reviewed <strong className="text-blue-600">{sameCountChallenges}x</strong></>
+                                <>This state has been reviewed <strong className="text-blue-600">{sameCountChallenges}x</strong></>
                             ) : (
-                                <>This count has already sparked <strong className="text-blue-600">{sameCountChallenges} challenge{sameCountChallenges === 1 ? "" : "s"}</strong></>
+                                <>This spot has already sparked <strong className="text-blue-600">{sameCountChallenges} challenge{sameCountChallenges === 1 ? "" : "s"}</strong></>
                             )
                         ) : (
-                            <>{viewMode === "org" ? "No review at this count yet" : "No challenge drama at this count yet"}</>
+                            <>{viewMode === "org" ? "No review at this state yet" : "No challenge drama at this state yet"}</>
                         )}
                     </span>
                     {isLateInning && (

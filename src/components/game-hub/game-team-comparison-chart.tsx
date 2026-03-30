@@ -78,6 +78,9 @@ function MetricAxisRow({
   const rawValues = [metric.homeValue, metric.awayValue].filter(
     (value): value is number => typeof value === "number" && Number.isFinite(value),
   );
+  const hasMixedConfidence =
+    (metric.homeValue === null && metric.awayValue !== null) ||
+    (metric.homeValue !== null && metric.awayValue === null);
   if (!rawValues.length) {
     return (
       <div className="rounded-2xl border border-gray-100 bg-gray-50/60 px-4 py-4">
@@ -106,10 +109,20 @@ function MetricAxisRow({
           {metric.note ? <p className="mt-1 text-[11px] font-medium leading-relaxed text-gray-500">{metric.note}</p> : null}
         </div>
         <div className="flex flex-wrap items-center gap-4 text-[11px] font-semibold text-gray-600">
+          {hasMixedConfidence ? (
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-amber-700">
+              Mixed Confidence
+            </span>
+          ) : null}
           <ValuePill label={homeLabel} value={formatMetric(metric.homeValue, metric.format)} color={homeColor} />
           <ValuePill label={awayLabel} value={formatMetric(metric.awayValue, metric.format)} color={awayColor} />
         </div>
       </div>
+      {hasMixedConfidence ? (
+        <p className="mt-2 text-[11px] font-medium leading-relaxed text-amber-700">
+          One club has a trusted modeled read here while the other side is still below confidence threshold, so compare the available value carefully.
+        </p>
+      ) : null}
 
       <div className="relative mt-4 h-12">
         <div className="absolute inset-x-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full bg-gray-200" />
