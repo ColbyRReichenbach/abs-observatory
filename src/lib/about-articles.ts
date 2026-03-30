@@ -74,7 +74,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
     quickFacts: [
       { label: "Primary focus", value: "ABS challenge tracking, context, and explanation" },
       { label: "Core public routes", value: "Home, teams, umpires, games, articles, and About" },
-      { label: "Public AI scope", value: "Visualizer only on selected analytics pages" },
+      { label: "Public AI scope", value: "Bounded AI explanation on selected analytics and game-context surfaces" },
     ],
     sections: [
       {
@@ -106,7 +106,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
   {
     slug: "about-me",
     title: "About Me",
-    dek: "The builder's perspective behind AiBS and the standards guiding the product, data, and launch decisions.",
+    dek: "The builder's perspective behind AiBS and the standards guiding the product, data, and scope decisions.",
     authorName: "Colby Reichenbach",
     articleType: "founder",
     publishedAt: "2026-03-24",
@@ -138,7 +138,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         eyebrow: "Priority",
         heading: "Trust beats flash.",
         paragraphs: [
-          "Launch decisions in this codebase reflect that bias. Public AI was narrowed to the visualizer instead of every possible surface. Query Lab and Copilot were gated for launch. Model audits, smoke checks, route timing, and repo-integrity guardrails were treated as launch work, not optional polish.",
+          "The same bias shapes product scope. Public AI is kept bounded to surfaces where the response can stay tied to a specific chart, game state, or analytic context. Query Lab and Copilot remain gated until they can meet a higher support and product bar.",
           "That is the kind of bar I want the project to maintain. Better to ship a smaller product with coherent behavior than a broader product with blurry edges.",
         ],
       },
@@ -223,7 +223,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         eyebrow: "Geometry",
         heading: "AiBS is aligned to current ABS logic, not a vague zone approximation.",
         paragraphs: [
-          "The product uses batter-specific strike-zone resolution and direction-aware inside/outside geometry for challenge analysis. During the current launch cycle, the model layer was updated to align overturn logic more closely with MLB's published ABS framing rather than a generic stat-zone approximation.",
+          "The product uses batter-specific strike-zone resolution and direction-aware inside/outside geometry for challenge analysis. The model layer is aligned to MLB's published ABS framing rather than a generic stat-zone approximation.",
           "That means the product distinguishes between called strikes that should become balls and called balls that should become strikes, instead of treating all distance from the boundary the same way.",
         ],
       },
@@ -258,7 +258,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
     heroHeading: "AiBS is an end-to-end baseball product, not just a frontend over raw feeds.",
     leadParagraphs: [
       "The system starts with MLB and related public baseball data, moves through ETL and database transforms, resolves ABS-specific geometry, computes model outputs and summary marts, and then feeds those results into purpose-built public routes.",
-      "That same system also supports model audits, usage tracking, admin analytics, and controlled AI surfaces. The product layer and the operational layer are part of the same application, which is why launch work has included smoke checks, audit runs, alerting, and repo-integrity safeguards alongside frontend changes.",
+      "That same system also supports model audits, usage tracking, admin analytics, and controlled AI surfaces. The product layer and the operational layer are part of the same application, which is why smoke checks, audit runs, alerting, and release verification sit alongside frontend work instead of after it.",
       "The result is a site where the baseball-facing experience and the engineering workflow are tightly coupled instead of being treated as separate worlds.",
     ],
     quickFacts: [
@@ -276,14 +276,14 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         ],
       },
       {
-        eyebrow: "Launch posture",
-        heading: "The current public scope is intentionally narrower than the full system.",
+        eyebrow: "Public scope",
+        heading: "The public product is intentionally narrower than the full system.",
         paragraphs: [
-          "For Opening Day, AiBS is launching with the public core product and visualizer AI surfaces only. Copilot, Query Lab, and daily AI editorial automation are not part of the public promise. That scope was enforced in code so the walkthrough and the product match each other.",
-          "That is a product decision as much as an engineering one. Stability matters more than exposing every internal surface on day one.",
+          "The public site exposes the core baseball product, published editorial, and bounded AI explanation on selected analytics and game-context surfaces. Broader AI tools and admin workflows still exist in the system, but they remain gated behind launch configuration and role checks.",
+          "That is a product decision as much as an engineering one. Stability matters more than exposing every internal surface at once.",
         ],
         bullets: [
-          "Public: home, teams, umpires, games, articles, About, and visualizer AI on selected analytics pages.",
+          "Public: home, teams, umpires, games, articles, About, and bounded AI explanation on selected pages.",
           "Gated: Copilot, Query Lab, and internal/admin workflows.",
         ],
       },
@@ -306,12 +306,12 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
     leadParagraphs: [
       "AiBS is not designed as a single mega-dashboard. The product layer is routed so the user can start from the question they actually have: what is happening right now, how is a team using ABS, what kind of review profile does an umpire have, or what changed in one specific game.",
       "That structure keeps the interface from collapsing under its own ambition. A product about ABS can get noisy fast. The route design is there to keep the experience opinionated and readable.",
-      "The launch cycle also forced the product layer to become more explicit. Public AI was narrowed, the About desk was reframed as a permanent dossier, and walkthrough planning was aligned to the routes that are actually stable and public.",
+      "The product layer also makes scope explicit. Public AI is bounded to selected explanatory surfaces, the About desk functions as a permanent dossier, and the route hierarchy is meant to match the stable public product instead of an internal wishlist.",
     ],
     quickFacts: [
       { label: "Design principle", value: "One route, one clear job" },
-      { label: "Public AI usage", value: "Visualizer surfaces only" },
-      { label: "Launch bias", value: "Stable core product over maximum surface area" },
+      { label: "Public AI usage", value: "Bounded explanatory surfaces on selected pages" },
+      { label: "Product bias", value: "Stable core product over maximum surface area" },
     ],
     sections: [
       {
@@ -323,10 +323,10 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         ],
       },
       {
-        eyebrow: "Launch discipline",
+        eyebrow: "Scope discipline",
         heading: "Gating is part of product quality.",
         paragraphs: [
-          "During launch prep, several features were intentionally gated or deferred rather than exposed half-ready. That includes global Copilot, Query Lab, and public daily AI editorial automation. The product layer is stronger because launch scope was treated as a first-class decision instead of a temporary hack.",
+          "Several features remain intentionally gated rather than exposed half-ready. That includes global Copilot, Query Lab, and internal admin workflows. The product layer is stronger because scope is treated as a first-class decision instead of a temporary hack.",
         ],
         pullQuote: "A smaller product with coherent boundaries is stronger than a broader product with fuzzy ones.",
       },
@@ -349,11 +349,11 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
     leadParagraphs: [
       "AiBS does not rely on one giant model. The product uses a stack of baseball-specific logic: challenge event normalization, zone geometry, overturn estimation, run and win expectancy deltas, leverage framing, decision value logic, and summary rubrics for teams and umpires.",
       "Some of those outputs are strongly model-driven. Others are heuristic or rules-based. Part of the job of this page is to make that distinction explicit instead of pretending everything is the same kind of intelligence.",
-      "The current launch cycle included major work on the ABS geometry path, calibration, and audit flow so that the production logic and the evaluation scripts agree with each other.",
+      "The model layer is built so the ABS geometry path, calibration, and audit flow agree with each other. Production logic and evaluation scripts are supposed to tell the same story.",
     ],
     quickFacts: [
       { label: "Core domains", value: "Geometry, leverage, overturn, value, and report-card layers" },
-      { label: "Key launch work", value: "Direction-aware ABS geometry and calibrated overturn buckets" },
+      { label: "Key model work", value: "Direction-aware ABS geometry and calibrated overturn buckets" },
       { label: "Validation rule", value: "Production logic and audit logic should match" },
     ],
     sections: [
@@ -362,14 +362,14 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         heading: "Run and win value are part of the challenge story.",
         paragraphs: [
           "Challenge evaluation in AiBS is not limited to overturn rate. The product also carries count-state deltas, run expectancy, win expectancy, and decision-value interpretations so a user can reason about when a challenge mattered and not just whether it succeeded.",
-          "Those value layers are not forced into every public surface equally. Fan-mode routes now skip some of the heavier value joins when the page is not actually showing those numbers, which was part of the recent launch optimization pass.",
+          "Those value layers are not forced into every public surface equally. Fan-mode routes skip some of the heavier value joins when the page is not actually showing those numbers, which keeps the public product faster and clearer.",
         ],
       },
       {
         eyebrow: "ABS geometry",
         heading: "The product now uses direction-aware challenge geometry.",
         paragraphs: [
-          "A major launch change was correcting the geometry so called strikes that should become balls and called balls that should become strikes are not bucketed symmetrically by mistake. The logic is now direction-aware and calibrated with audit scripts so the same geometry interpretation is used in runtime and evaluation.",
+          "The geometry was corrected so called strikes that should become balls and called balls that should become strikes are not bucketed symmetrically by mistake. The logic is now direction-aware and calibrated with audit scripts so the same geometry interpretation is used in runtime and evaluation.",
           "That does not make the system perfect, but it makes it far more honest. Sparse challenge populations are now treated as a data reality instead of being confused with a geometry bug.",
         ],
       },
@@ -389,22 +389,22 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
     heroEyebrow: "AI Systems",
     heroHeading: "AI in AiBS is scoped as explanation and editorial support, not a free-form baseball oracle.",
     leadParagraphs: [
-      "The public AI surface in the current launch is the visualizer. On selected team and umpire pages, a user can ask for a chart brief or baseball explanation and get a response grounded in AiBS data instead of a generic chat answer.",
+      "The public AI layer is intentionally bounded. On selected team, umpire, and game surfaces, a user can ask for a chart brief or baseball explanation and get a response grounded in AiBS data instead of a generic chat answer.",
       "Behind that, the app also has a larger internal AI layer: prompt registry support, feedback capture, usage and token tracking, daily editorial generation, game-report generation, and admin analytics around AI behavior.",
       "That is why the AI story here matters. The system is not just a text box pasted onto a dashboard. It is an operational layer with scope, feedback, and cost/performance visibility.",
     ],
     quickFacts: [
-      { label: "Public AI", value: "Visualizer only for launch" },
+      { label: "Public AI", value: "Bounded explanation on selected analytics and game-context surfaces" },
       { label: "Internal AI", value: "Editorial generation, reports, classification, and analytics" },
       { label: "Feedback path", value: "Backend-wired likes/dislikes and usage tracking" },
     ],
     sections: [
       {
         eyebrow: "Public scope",
-        heading: "The launch AI experience is intentionally narrow.",
+        heading: "The public AI experience is intentionally bounded.",
         paragraphs: [
-          "AiBS explicitly gated broader public AI surfaces for launch. The visualizer stays public because it fits the product's explanatory role on analytics pages. Copilot and Query Lab remain gated because they require a different support, safety, and product bar.",
-          "That narrowing is part of the product discipline, not a sign that the AI layer is shallow. It is the opposite: the system is being scoped to the part that is most defensible on day one.",
+          "AiBS keeps broader AI interfaces gated. The public layer stays attached to specific analytics and game-context surfaces because that is where the answer can remain inspectable. Copilot and Query Lab remain gated because they require a different support, safety, and product bar.",
+          "That boundary is part of the product discipline, not a sign that the AI layer is shallow. It is the opposite: the system is being scoped to the part that is most defensible in public use.",
         ],
       },
       {
@@ -429,33 +429,33 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
     readTime: "6 min read",
     accentClass: "text-[#8b0000]",
     heroEyebrow: "Validation Workflow",
-    heroHeading: "The product is supposed to earn trust through recurring checks, not launch-day confidence alone.",
+    heroHeading: "The product is supposed to earn trust through recurring checks, not one-time confidence alone.",
     leadParagraphs: [
       "AiBS now has a real audit workflow around the core model layers. That includes zone-edge checks, overturn calibration, benchmark comparisons, current-state audits, QA passes, alert thresholds, and admin trend views for repeated issues.",
-      "The important part is that these are not just docs. The launch cycle wired them into scripts, persisted artifacts, alert tables, and admin visibility so model drift and data failures can be reviewed operationally.",
+      "The important part is that these are not just docs. The system wires them into scripts, persisted artifacts, alert tables, and admin visibility so model drift and data failures can be reviewed operationally.",
       "This matters because a baseball product can look polished while still drifting quietly underneath. The audit layer exists so changes are evidence-driven and recoverable.",
     ],
     quickFacts: [
       { label: "Recurring checks", value: "QA, benchmark audits, calibration, and alert evaluation" },
       { label: "Operational surface", value: "Admin AI/model analytics with trend visibility" },
-      { label: "Launch guardrails", value: "Smoke checks, build gates, and repo-integrity preflight" },
+      { label: "Release guardrails", value: "Smoke checks, build gates, and preflight verification" },
     ],
     sections: [
       {
         eyebrow: "Audit flow",
         heading: "Model validation is part of the release process.",
         paragraphs: [
-          "The launch cycle added a one-command audit suite, audit runtime helpers, ABS QA scripts, threshold-based alerting, and admin-facing trend history. That means model review is no longer just a local notebook exercise or a one-off script run.",
-          "It also means launch decisions can be narrower and more honest. Public AI, public editorial automation, and launch scope were all shaped partly by what the audit and QA workflow was prepared to support reliably.",
+          "The system includes a one-command audit suite, audit runtime helpers, ABS QA scripts, threshold-based alerting, and admin-facing trend history. That means model review is no longer just a local notebook exercise or a one-off script run.",
+          "It also means product scope can stay narrower and more honest. Public AI and other gated surfaces are shaped partly by what the audit and QA workflow is prepared to support reliably.",
         ],
       },
       {
-        eyebrow: "Recovery",
-        heading: "Operational trust also means surviving bad environments.",
+        eyebrow: "Monitoring",
+        heading: "Operational trust also means catching drift early.",
         paragraphs: [
-          "During launch prep, the repo hit a serious local corruption problem. The recovery path included repo-integrity checks, Node pinning, cleaner build verification, and a remote-backed recovery branch. That experience is now part of the trust story too: the product should be able to recover from environment failures without losing the branch or confusing local corruption with model bugs.",
+          "Operational trust is not just about a passing build. It also depends on whether the product can detect data drift, model drift, and repeated workflow failures before they turn into public-facing mistakes. That is why the audit layer includes thresholds, alerts, and admin visibility instead of stopping at static documentation.",
         ],
-        pullQuote: "Trust is not only about the models. It is also about whether the build and recovery workflow are disciplined enough to survive failure.",
+        pullQuote: "Trust is not only about the models. It is also about whether drift gets caught before it becomes product truth.",
       },
     ],
     relatedSlugs: ["model-layer", "how-aibs-works", "sources-and-credits"],
@@ -487,7 +487,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         eyebrow: "Data",
         heading: "Public inputs, product-specific transforms.",
         paragraphs: [
-          "The underlying baseball information comes from public-facing sources such as MLB and related APIs. AiBS then restructures, stores, and models that data in its own database, views, and runtime loaders. The transformed product outputs are not a copy of a public endpoint; they are the result of the application's own processing, aggregation, and presentation layers.",
+          "The underlying baseball information comes from public-facing sources such as MLB and related APIs. AiBS then restructures, stores, and models that data in its own database, views, and runtime loaders. The transformed product outputs are not a copy of a public endpoint. They are the result of the application's own processing, aggregation, and presentation layers.",
         ],
       },
       {

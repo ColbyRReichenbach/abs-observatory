@@ -37,6 +37,7 @@ coverage-final.json
 /.runtime
 /.runlogs
 /.tools/
+/docs/archive/
 /tmp
 /temp
 *.tmp

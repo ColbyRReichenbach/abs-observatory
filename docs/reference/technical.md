@@ -1,461 +1,259 @@
-<div align="center">
-
 # Technical Overview
 
-[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![PostgreSQL](https://img.shields.io/badge/Postgres-Serving%20and%20Product%20Data-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Python](https://img.shields.io/badge/Python-ETL%20and%20Ingestion-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![OpenAI](https://img.shields.io/badge/OpenAI-Live%20AI%20Runtime-412991?logo=openai&logoColor=white)](https://openai.com/)
-[![Clerk](https://img.shields.io/badge/Clerk-Identity%20and%20Auth-6C47FF)](https://clerk.com/)
-[![Playwright](https://img.shields.io/badge/Playwright-Product%20Validation-2EAD33?logo=playwright&logoColor=white)](https://playwright.dev/)
+This document describes AiBS as it exists in the repository today.
 
-</div>
+Use it for:
 
-This document describes the AiBS implementation as it exists in the codebase today. It is intended to be auditable against the repository rather than aspirational.
+- current stack and runtime boundaries
+- current route and API surface
+- current data domains
+- current AI, editorial, and worker architecture
 
-Related documents:
+Related docs:
 
 - [README.md](../../README.md)
-- [security.md](./security.md)
 - [product-source-of-truth.md](../product/product-source-of-truth.md)
-- [stack-selection.md](../architecture/stack-selection.md)
-- [gazette-backend-spec.md](../editorial/gazette-backend-spec.md)
+- [page-route-coverage.md](../product/page-route-coverage.md)
+- [security.md](./security.md)
 - [gap-list.md](./gap-list.md)
+- [stack-selection.md](../architecture/stack-selection.md)
 
 ## 1. System Summary
 
-AiBS is a Next.js application backed by Postgres, with a Python ETL layer for MLB ABS ingestion and a server-side AI subsystem for bounded baseball analysis.
+AiBS is a Next.js application backed by Postgres, with Python ETL for MLB ABS ingestion and a bounded server-side AI layer.
 
-At a high level, the platform is composed of:
+The current system has five primary parts:
 
 - `Web product`
-  - Next.js app router pages
-  - server-side data loading
-  - authenticated API routes
-  - admin surfaces
+  - App Router pages
+  - server-rendered analytics pages
+  - authenticated profile, community, and admin surfaces
 
-- `Primary database`
-  - Postgres
-  - product schemas, analytics read models, editorial workflow state, AI telemetry, moderation state
+- `Serving and product database`
+  - baseball serving data
+  - user, profile, moderation, and editorial state
+  - AI usage, telemetry, and job metadata
 
 - `ETL and enrichment`
-  - Python ingestion from MLB data sources
-  - postgame debrief generation entrypoints
-  - standings and enrichment sync jobs
+  - ABS ingest
+  - live polling
+  - standings sync
+  - report generation helpers
 
 - `AI subsystem`
-  - typed-tool chat
-  - chart AI and visualization artifacts
-  - game debrief generation
-  - The Absolute Observer authoring step
-  - feedback telemetry and classification
+  - baseball-scoped chat
+  - artifact generation
+  - feedback capture
+  - editorial generation telemetry
 
-- `Worker layer`
-  - queued heavy chat
-  - feedback classification
-  - daily article generation
-  - enrichment jobs
+- `Internal job layer`
+  - cron entrypoints
+  - worker-protected processing route
+  - queued AI and editorial work
 
-## 2. Stack
+## 2. Current Stack
 
-### Frontend and application runtime
+Application runtime:
 
 - `Next.js 16.1.6`
 - `React 19.2.3`
 - `TypeScript 5.9.3`
 - `Tailwind CSS 4`
+
+UI and charting:
+
 - `Recharts`
 - `framer-motion`
-- `Radix UI` primitives where needed
+- `Radix UI` primitives
 
-Why this stack fits AiBS:
-
-- server-rendered pages and server-side data access are a strong fit for public analytics pages and authenticated product routes
-- App Router allows one codebase to serve public pages, admin pages, and API handlers
-- the charting and motion stack is sufficient for product-grade analytics UI without adding a second frontend runtime
-
-### Backend and storage
+Backend and storage:
 
 - `Postgres`
-- `pg` driver from the Next.js server layer
+- `pg`
 
-Why Postgres:
+AI and identity:
 
-- the app is SQL-first and analytics-heavy
-- the data model spans product state, AI telemetry, editorial workflows, and challenge analytics
-- advanced SQL and materialized analytics views are a better fit than abstracting everything behind an ORM
+- `OpenAI` Node SDK
+- `Clerk`
 
-### AI and auth
+Testing:
 
-- `OpenAI` Node SDK for current live generation paths
-- `Clerk` for auth and identity
-
-Important nuance:
-
-- provider-aware pricing exists for OpenAI and Anthropic models
-- current live runtime generation in this codebase is OpenAI-backed
-- The Absolute Observer author configuration is provider-aware, but Anthropic is not wired as an active runtime client in the application code today
-
-### ETL and testing
-
-- `Python 3` ETL scripts
 - `Vitest`
 - `Playwright`
 - Python `unittest`
 
+ETL:
+
+- `Python 3`
+
 ## 3. Repository Shape
 
-Primary areas:
+Primary code areas:
 
 - `src/app`
-  - app router pages and API routes
+  - pages and API routes
 
 - `src/components`
-  - product UI, analytics components, AI surfaces, admin components
+  - product UI, analytics components, admin UI, and shared controls
 
 - `src/lib`
-  - data access, page models, rubrics, challenge-value logic, frontend/server shared logic
+  - page models, data access, rubrics, challenge context, shared product logic
 
 - `src/lib/server`
-  - auth, AI orchestration, editorial workflows, audit, job queue, policy enforcement
+  - auth, AI orchestration, community, editorial, jobs, and policy enforcement
 
 - `db/schema.sql`
-  - canonical schema and view definitions
+  - canonical database schema and indexes
 
 - `etl/`
-  - ingestion, polling, enrichment, and report generation scripts
+  - ingest, polling, enrichment, and reporting scripts
 
-- `tests/` and `src/**/*.test.ts[x]`
-  - unit, integration, AI eval, and e2e coverage
+## 4. Route Surface
 
-## 4. Data Model and Schemas
-
-AiBS uses a single Postgres database with several logical domains:
-
-- `core baseball tables`
-  - `teams`
-  - `games`
-  - `officials`
-  - `at_bats`
-  - `play_events`
-  - `pitches`
-  - `abs_challenges`
-  - `game_state_snapshots`
-
-- `serving summaries`
-  - `team_abs_game_summary`
-  - `umpire_abs_game_summary`
-  - serving views defined in `db/schema.sql`
-
-- `product`
-  - `product.users`
-  - `product.user_profiles`
-  - `product.user_roles`
-
-- `community`
-  - threads
-  - comments
-  - moderation actions
-
-- `editorial`
-  - articles
-  - article sections
-  - evidence blobs
-  - revisions
-  - generation runs
-  - generation steps
-  - contributors
-
-- `ai`
-  - conversations
-  - messages
-  - tool calls
-  - safety events
-  - cost events
-  - usage ledger
-  - generation events
-  - feedback
-
-- `ops`
-  - audit log
-  - job runs
-  - rate limit events
-  - webhook deliveries
-
-This matters technically because AiBS does not treat AI or editorial features as sidecar experiments. They are persisted, queryable first-class subsystems.
-
-## 5. Frontend Product Architecture
-
-The product currently exposes these primary surfaces:
+Current page families:
 
 - `/`
-  - live home feed
-  - fan/org mode
-
+- `/about`, `/about/[slug]`
+- `/articles`, `/articles/[slug]`
 - `/game/[gamePk]`
-  - pregame, live, and final game hubs
+- `/teams`, `/teams/[teamId]`
+- `/umpires`, `/umpires/[umpireId]`
+- `/reports/[gamePk]`
+- `/v/[vizId]`
+- `/u/[username]`
+- `/login`
+- `/profile`
+- `/welcome`
+- `/dev-auth`
+- `/query`
+- `/admin`, `/admin/access`, `/admin/ai`, `/admin/ai/review`, `/admin/community`, `/admin/editorial`
 
-- `/teams`
-  - team leaderboard and scatter/table views
+Current API groups:
 
-- `/teams/[teamId]`
-  - team detail analytics
+- product-serving routes under `/api/games`, `/api/live`, `/api/teams`, `/api/umpires`, `/api/reports`, `/api/v2`
+- AI routes under `/api/ai`
+- profile, follow, comment, and public-profile routes
+- internal job and cron routes
+- Clerk webhook route
 
-- `/umpires`
-  - umpire leaderboard and distributions
+The route inventory is maintained in [page-route-coverage.md](../product/page-route-coverage.md).
 
-- `/umpires/[umpireId]`
-  - umpire detail analytics
+## 5. Data Domains
 
-- `/articles`
-  - The Absolute Observer and editorial surfaces
+AiBS uses a single Postgres database with several logical domains.
 
-- `/about`
-  - product/editorial-style about system
+Baseball and serving data:
 
-- `/admin/*`
-  - owner-only operational surfaces
+- `teams`
+- `games`
+- `officials`
+- `at_bats`
+- `play_events`
+- `pitches`
+- `abs_challenges`
+- `game_state_snapshots`
+- team and umpire serving summaries defined in `db/schema.sql`
 
-Fan/org mode is a real application concern, not just a UI toggle. The current implementation centralizes mode framing in `src/lib/view-mode-contract.ts` and uses that contract to change:
+Product and identity:
 
-- hero copy
-- section order
-- summary emphasis
-- module priority
+- `product.users`
+- `product.user_profiles`
+- `product.user_roles`
 
-The two modes still share one design system and one route structure.
+Community:
 
-## 6. Data Access Pattern
+- community threads, comments, reactions, moderation state
 
-AiBS is intentionally SQL-first.
+Editorial:
 
-The `src/lib/data.ts` layer and related server modules are the primary read model for:
+- `editorial.articles`
+- `editorial.article_sections`
+- `editorial.article_revisions`
+- `editorial.article_evidence_blobs`
+- `editorial.generation_runs`
+- `editorial.generation_steps`
+- `editorial.article_contributors`
+- `editorial.standings_snapshots`
 
-- live games
-- home page moments
-- team summaries
-- umpire summaries
-- game timelines
-- chart datasets
+AI and operations:
 
-The application uses direct SQL via `pg`, wrapped by small helpers in `src/lib/db.ts`:
+- AI conversations, tool calls, usage, feedback, and safety state
+- ops audit and job-run tables
 
-- `sql`
-- `sqlOne`
-- `sqlExec`
-- `withTransaction`
+## 6. App and Data Loading Pattern
 
-This keeps analytical reads and workflow writes explicit. It also makes the system easier to audit than a large ORM abstraction would.
+The current product is SQL-first.
 
-## 7. AI Architecture
+Key implementation rules:
 
-### 7.1 Interactive AI
+- server components and route handlers load data from shared helpers in `src/lib`
+- analytics pages are rendered from page-model helpers, not page-local math
+- API handlers are thin wrappers over server-side data functions where possible
+- the browser is not treated as a trusted data or authorization layer
 
-The main AI entrypoint is `POST /api/ai/chat`.
+## 7. Auth, AI, and Worker Boundaries
 
-Current properties:
+Identity:
 
-- authenticated
-- verified-user gated
-- CSRF-checked
-- refusal-capable before model execution
-- typed-tool only
-- heavy requests can be queued
+- `Clerk` is the primary auth provider
+- auth state is synced into application tables
+- owner-admin enforcement is stricter than a generic admin role
 
-The copilot does not execute public NL-to-SQL. The old `/api/query` path is explicitly disabled and returns `410 Gone`.
+AI:
 
-### 7.2 Typed tool model
+- live runtime is OpenAI-backed
+- tool access is bounded and baseball-scoped
+- `/api/query` is deprecated and not a public NL-to-SQL workflow
 
-The model receives bounded server-side tool outputs from `src/lib/server/ai-tools.ts`.
+Workers:
 
-Current tool families:
+- internal processing is protected by `INTERNAL_WORKER_TOKEN`
+- cron and internal job routes exist in the web app
+- heavy processing is designed to run behind the internal job boundary, not directly from public routes
 
-- game summary / live status / game challenges
-- team summary / team trend
-- umpire summary / umpire profile
-- live games / home challenge moments
+## 8. Editorial System
 
-Tool access is scoped by page context and filtered through `getAllowedToolNames()`.
+The Absolute Observer is a persisted editorial subsystem, not a loose content experiment.
 
-### 7.3 AI telemetry
+Current persisted editorial state includes:
 
-AiBS records AI generation activity into `ai.generation_events`.
+- article records
+- section records
+- evidence blobs
+- revision history
+- generation runs
+- generation steps
+- contributor metadata
+- standings snapshots used by editorial workflows
 
-Tracked fields include:
+The current backend reference is [gazette-backend-spec.md](../editorial/gazette-backend-spec.md).
 
-- surface key
-- provider
-- model name
-- token counts
-- estimated cost
-- latency
-- status
-- route scope
-- target entity
+## 9. Environment Truth
 
-This is what powers the owner admin analytics and review surfaces.
+Current required server environment variables are enforced in `src/lib/server/env.ts`.
 
-### 7.4 AI feedback
+Always required:
 
-Every major AI surface can emit feedback into `ai.feedback`.
+- `DATABASE_URL`
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+- `CLERK_SECRET_KEY`
 
-Current system features:
+Required in production:
 
-- thumbs up/down
-- optional freeform note
-- linked generation id when available
-- automatic classification
-- review queue in `/admin/ai/review`
+- `CLERK_WEBHOOK_SIGNING_SECRET`
+- `OPENAI_API_KEY`
+- `INTERNAL_WORKER_TOKEN`
+- `OWNER_CLERK_USER_ID`
 
-### 7.5 Game debriefs
+## 10. Documentation Rule
 
-Game debrief generation is not a generic “summarize the game” prompt. It is backed by challenge-level evidence packets assembled from stored game context and challenge data.
+When technical docs mention infrastructure or runtime behavior, they should match one of these sources:
 
-The runtime path lives in `src/lib/server/game-reports.ts`, and the ETL-side entrypoint remains in `etl/generate_game_report.py`.
+- `src/app`
+- `src/lib/server`
+- `db/schema.sql`
+- `etl/`
+- `package.json`
+- `src/lib/server/env.ts`
 
-### 7.6 The Absolute Observer authoring
-
-The daily The Absolute Observer pipeline persists generation runs and step-level telemetry.
-
-Current step model:
-
-- `scout_brief`: deterministic
-- `telemetry_research`: deterministic
-- `author_draft`: model-backed
-- `editor_validation`: deterministic
-- `persist_article`: deterministic
-
-The step registry is implemented in `src/lib/server/gazette-step-registry.ts`.
-
-The internal module and telemetry names still use `gazette_*`. The user-facing editorial brand is now The Absolute Observer.
-
-## 8. Auth and Identity Model
-
-AiBS uses Clerk as the identity provider when configured.
-
-The app-level identity flow is:
-
-1. resolve Clerk identity
-2. sync identity into `product.users`
-3. provision/update `product.user_profiles`
-4. assign roles in `product.user_roles`
-5. enforce verified identity on protected flows
-
-Development fallback headers exist when Clerk is not active locally:
-
-- `x-dev-user-id`
-- `x-dev-user-email`
-- `x-dev-user-name`
-- related dev auth headers
-
-Admin access is not role-only. It is owner-locked through:
-
-- verified user
-- `admin` role
-- Clerk provider
-- `OWNER_CLERK_USER_ID` allowlist match
-
-## 9. Community and Product Writes
-
-The community system is implemented as product infrastructure, not a placeholder.
-
-Current features:
-
-- comment creation and listing
-- per-thread discussion
-- moderation endpoints
-- authenticated write enforcement
-- verified identity checks
-- comment body validation and anti-link policy
-
-This is important because the product vision is not only analytics consumption. It is analytics plus on-platform conversation tied to the same entities and events.
-
-## 10. Job and Worker System
-
-AiBS includes a persisted job queue backed by `ops.job_runs`.
-
-Current job types:
-
-- `ai_heavy_chat`
-- `ai_feedback_classification`
-- `article_daily_auto`
-- `enrichment_sync_standings`
-- `enrichment_sync_savant_weekly`
-
-Processing is exposed through:
-
-- `/api/internal/jobs/process`
-
-That endpoint is guarded by `INTERNAL_WORKER_TOKEN`.
-
-The worker processor currently handles:
-
-- queued AI chat
-- AI feedback classification
-- The Absolute Observer daily article generation
-- standings sync
-- Savant weekly sync
-
-## 11. ETL and Baseball Data Pipeline
-
-The ETL layer is Python-based and persists real baseball data into Postgres.
-
-Important jobs and scripts include:
-
-- `etl/ingest_mlb_abs.py`
-- `etl/poll_active_games.py`
-- `etl/poll_local_window.py`
-- `etl/sync_standings_snapshots.py`
-- `etl/generate_game_report.py`
-
-The ingestion pipeline stores:
-
-- game state
-- at-bats
-- play events
-- pitch-level records
-- ABS challenge rows
-- postgame reports
-
-This is why the frontend can operate on persisted challenge data instead of purely on transient client-side API calls.
-
-## 12. Testing and Verification
-
-The repository currently supports:
-
-- `npm run build`
-- `npm run test`
-- `npm run test:e2e`
-- `npm run test:ai-evals`
-- `npm run etl:test`
-- `npm run lint`
-- `npm run smoke:release`
-
-That test matrix matters because AiBS is already beyond prototype stage. The app, AI layer, ETL layer, and browser flows are validated separately.
-
-## 13. Why The Architecture Matters
-
-This codebase demonstrates breadth in several areas at once:
-
-- product analytics UI
-- SQL-first backend design
-- bounded AI orchestration
-- editorial workflow persistence
-- identity and moderation infrastructure
-- admin analytics and observability
-- ETL and baseball-domain data modeling
-
-The interesting signal is not any one framework choice. It is that the platform is built as a real product system where analytics, AI, editorial, and community layers all share one coherent backend model.
-
-## 14. Honest Boundaries
-
-These statements are intentionally true but limited:
-
-- AiBS is Postgres-first, not Redis-first or event-bus-first
-- live AI generation is OpenAI-backed today
-- Anthropic is represented in pricing/config abstractions, not yet as an active runtime client
-- the app has production-oriented docs and checks, but not every planned managed dependency is fully wired
-- advanced challenge value is still estimated in parts of the product and is not presented as true WPA/CLS
-
-See [gap-list.md](./gap-list.md) for the missing pieces that should be finished before those claims are expanded.
+If a claim cannot be traced to code or enforced configuration, it should be documented as deferred rather than current.

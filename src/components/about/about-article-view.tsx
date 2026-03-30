@@ -1,4 +1,5 @@
 import { FlipCard } from "@/components/about/flip-card";
+import { EditorialParagraphStack } from "@/components/editorial/editorial-copy";
 import { BackPill } from "@/components/ui/back-pill";
 import { ModeAwareLink } from "@/components/ui/mode-aware-link";
 import { ABOUT_ARTICLES, getAboutIssueMeta, type AboutArticle } from "@/lib/about-articles";
@@ -51,8 +52,8 @@ export function AboutArticleView({ article }: { article: AboutArticle }) {
           </div>
         </header>
 
-        <div className="mt-10 grid gap-10 lg:grid-cols-12">
-          <div className="lg:col-span-8 lg:border-r lg:border-black/15 lg:pr-10">
+        <div className="mt-10 grid gap-12 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
+          <div className="min-w-0">
             <section>
               <p className={`text-[11px] font-black uppercase tracking-[0.28em] ${article.accentClass}`}>
                 Overview
@@ -60,13 +61,7 @@ export function AboutArticleView({ article }: { article: AboutArticle }) {
               <h2 className="mt-3 text-3xl font-display uppercase tracking-tight md:text-5xl">
                 {article.heroHeading}
               </h2>
-              <div className="mt-6 columns-1 gap-8 text-base font-serif leading-8 text-[#3d3d3d] md:columns-2">
-                {article.leadParagraphs.map((paragraph) => (
-                  <p key={paragraph} className="mb-5 break-inside-avoid">
-                    {paragraph}
-                  </p>
-                ))}
-              </div>
+              <EditorialParagraphStack paragraphs={article.leadParagraphs} className="mt-6" emphasizeLead />
             </section>
 
             {article.featureCards?.length ? (
@@ -93,16 +88,10 @@ export function AboutArticleView({ article }: { article: AboutArticle }) {
                   <h3 className="mt-3 text-2xl font-display uppercase tracking-tight md:text-4xl">
                     {section.heading}
                   </h3>
-                  <div className="mt-5 columns-1 gap-8 text-base font-serif leading-8 text-[#3d3d3d] md:columns-2">
-                    {section.paragraphs.map((paragraph) => (
-                      <p key={paragraph} className="mb-5 break-inside-avoid">
-                        {paragraph}
-                      </p>
-                    ))}
-                  </div>
+                  <EditorialParagraphStack paragraphs={section.paragraphs} className="mt-5" />
 
                   {section.bullets?.length ? (
-                    <ul className="mt-6 space-y-3 border-t border-black/10 pt-6 text-sm leading-7 text-[#4b463f]">
+                    <ul className="mt-6 max-w-3xl space-y-3 border-t border-black/10 pt-6 text-sm leading-7 text-[#4b463f]">
                       {section.bullets.map((bullet) => (
                         <li key={bullet} className="flex gap-3">
                           <span className={article.accentClass}>•</span>
@@ -133,7 +122,7 @@ export function AboutArticleView({ article }: { article: AboutArticle }) {
             </section>
           </div>
 
-          <aside className="space-y-10 lg:col-span-4">
+          <aside className="space-y-10 lg:sticky lg:top-28 lg:self-start">
             <section className="border-t-4 border-double border-[#2c2c2c] pt-5">
               <h3 className="text-[11px] font-black uppercase tracking-[0.28em] text-[#7d6c54]">
                 Quick Facts

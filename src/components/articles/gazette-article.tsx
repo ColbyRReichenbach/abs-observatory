@@ -7,6 +7,7 @@ import { FlipCard } from "@/components/about/flip-card";
 import { ArticleRelatedRail } from "@/components/articles/article-related-rail";
 import { StandingsPulse } from "@/components/articles/standings-pulse";
 import { DynamicChart } from "@/components/articles/dynamic-chart";
+import { EditorialProse } from "@/components/editorial/editorial-copy";
 import { BackPill } from "@/components/ui/back-pill";
 import { getArticleDeskMeta, getArticleDisplayAuthor } from "@/lib/articles-desk";
 
@@ -92,20 +93,21 @@ export function GazetteArticle({ article, relatedArticles = [] }: GazetteArticle
                 )}
             </header>
 
-            <main className="max-w-6xl mx-auto px-6 pt-16 grid grid-cols-1 lg:grid-cols-12 gap-12">
-                {/* Left Content Area */}
-                <div className="lg:col-span-8 border-r border-black/10 pr-12">
+            <main className="max-w-6xl mx-auto px-6 pt-16 grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,1fr)_21rem] xl:grid-cols-[minmax(0,1fr)_23rem]">
+                <div className="min-w-0">
                     {sortedSections.map((section) => {
                         // Desktop Slot: Lead Story
                         if (section.sectionKey === "lead_recap" || section.sectionKey === "lead_story") {
                             return (
                                 <section key={section.sectionId} className="mb-16">
-                                    <span className="block text-xs font-black uppercase tracking-widest text-[#8b0000] mb-4">Main Page One</span>
-                                    <h2 className="text-5xl font-display uppercase tracking-tight leading-[0.9] mb-8">
-                                        {section.heading}
-                                    </h2>
-                                    <div className="columns-1 md:columns-2 gap-8 text-sm leading-relaxed font-serif text-justify prose prose-sm max-w-none">
-                                        <ReactMarkdown>{section.bodyMd}</ReactMarkdown>
+                                    <div className="max-w-[78ch]">
+                                        <span className="block text-xs font-black uppercase tracking-widest text-[#8b0000] mb-4">Main Page One</span>
+                                        <h2 className="text-5xl font-display uppercase tracking-tight leading-[0.9] mb-8">
+                                            {section.heading}
+                                        </h2>
+                                        <EditorialProse className="max-w-[78ch] text-pretty">
+                                            <ReactMarkdown>{section.bodyMd}</ReactMarkdown>
+                                        </EditorialProse>
                                     </div>
                                 </section>
                             );
@@ -120,9 +122,9 @@ export function GazetteArticle({ article, relatedArticles = [] }: GazetteArticle
                                     <h2 className="text-4xl font-display uppercase tracking-tight leading-none mb-6 text-center italic">
                                         {section.heading}
                                     </h2>
-                                    <div className="prose prose-sm font-serif leading-relaxed italic text-gray-700 max-w-2xl mx-auto text-center mb-10">
+                                    <EditorialProse className="mx-auto mb-10 max-w-2xl text-center italic prose-p:text-gray-700">
                                         <ReactMarkdown>{section.bodyMd}</ReactMarkdown>
-                                    </div>
+                                    </EditorialProse>
 
                                     <div className="flex flex-wrap justify-center gap-8">
                                         <FlipCard
@@ -156,14 +158,16 @@ export function GazetteArticle({ article, relatedArticles = [] }: GazetteArticle
                             const evidence = (isRecord(section.evidencePayload) ? section.evidencePayload : null) as GazetteChartEvidence | null;
                             return (
                                 <section key={section.sectionId} className="mb-16 border-l-8 border-black pl-8">
-                                    <span className="block text-xs font-black uppercase tracking-widest text-blue-900 mb-4">The Data Lab</span>
-                                    <h2 className="text-4xl font-display uppercase tracking-tight mb-6">
-                                        {section.heading}
-                                    </h2>
-                                    <div className="prose prose-sm font-serif mb-8 text-justify">
-                                        <ReactMarkdown>{section.bodyMd}</ReactMarkdown>
+                                    <div className="max-w-[78ch]">
+                                        <span className="block text-xs font-black uppercase tracking-widest text-blue-900 mb-4">The Data Lab</span>
+                                        <h2 className="text-4xl font-display uppercase tracking-tight mb-6">
+                                            {section.heading}
+                                        </h2>
+                                        <EditorialProse className="mb-8 max-w-[78ch]">
+                                            <ReactMarkdown>{section.bodyMd}</ReactMarkdown>
+                                        </EditorialProse>
                                     </div>
-                                    <div className="bg-black/5 rounded-xl aspect-[16/9] flex items-center justify-center border border-black/10 overflow-hidden p-6">
+                                    <div className="mx-auto max-w-5xl bg-black/5 rounded-xl aspect-[16/9] flex items-center justify-center border border-black/10 overflow-hidden p-6">
                                         {evidence?.chartType ? (
                                             <DynamicChart
                                                 type={evidence.chartType}
@@ -194,9 +198,9 @@ export function GazetteArticle({ article, relatedArticles = [] }: GazetteArticle
                                     <h3 className="text-center text-[10px] font-black uppercase tracking-[0.5em] mb-8 text-gray-400">
                                         DAILY PERFORMANCE SUMMARY
                                     </h3>
-                                    <div className="prose prose-sm font-serif text-sm max-w-none mb-8">
+                                    <EditorialProse className="mb-8 mx-auto max-w-[70ch]">
                                         <ReactMarkdown>{section.bodyMd}</ReactMarkdown>
-                                    </div>
+                                    </EditorialProse>
                                 </section>
                             );
                         }
@@ -204,17 +208,18 @@ export function GazetteArticle({ article, relatedArticles = [] }: GazetteArticle
                         // Generic Fallback
                         return (
                             <section key={section.sectionId} className="mb-12">
-                                <h3 className="text-2xl font-display uppercase tracking-tight mb-4">{section.heading}</h3>
-                                <div className="prose prose-sm font-serif">
-                                    <ReactMarkdown>{section.bodyMd}</ReactMarkdown>
+                                <div className="max-w-[78ch]">
+                                    <h3 className="text-2xl font-display uppercase tracking-tight mb-4">{section.heading}</h3>
+                                    <EditorialProse className="max-w-[78ch]">
+                                        <ReactMarkdown>{section.bodyMd}</ReactMarkdown>
+                                    </EditorialProse>
                                 </div>
                             </section>
                         );
                     })}
                 </div>
 
-                {/* Right Sidebar Area */}
-                <div className="lg:col-span-4 space-y-12">
+                <aside className="space-y-12 lg:sticky lg:top-28 lg:self-start">
                     <div className="border border-black p-6 bg-yellow-50/30">
                         <h3 className="text-xl font-display uppercase border-b border-black pb-2 mb-4 text-center">
                             Editor&apos;s Note
@@ -279,9 +284,9 @@ export function GazetteArticle({ article, relatedArticles = [] }: GazetteArticle
                         <h3 className="text-xs font-black uppercase tracking-widest border-b border-black/10 pb-2 mb-4">SCOUT&apos;S NOTES</h3>
                         <div className="space-y-4">
                             {article.sections.filter(s => s.sectionKey === "scout_notes").map(s => (
-                                <div key={s.sectionId} className="prose prose-xs font-serif italic text-gray-700">
+                                <EditorialProse key={s.sectionId} className="italic prose-p:text-gray-700">
                                     <ReactMarkdown>{s.bodyMd}</ReactMarkdown>
-                                </div>
+                                </EditorialProse>
                             ))}
                         </div>
                     </section>
@@ -296,7 +301,7 @@ export function GazetteArticle({ article, relatedArticles = [] }: GazetteArticle
                             </p>
                         </div>
                     </section>
-                </div>
+                </aside>
             </main>
 
             <div className="max-w-6xl mx-auto px-6 pt-16">

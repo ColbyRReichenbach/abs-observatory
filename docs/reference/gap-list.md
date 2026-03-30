@@ -1,120 +1,77 @@
-<div align="center">
-
 # Documentation Gap List
 
-[![Infrastructure](https://img.shields.io/badge/Infrastructure-Needs%20Completion-F59E0B)](#1-infrastructure-and-deployment)
-[![AI Runtime](https://img.shields.io/badge/AI%20Runtime-Truth%20Boundaries-8B5CF6)](#2-ai-runtime-scope)
-[![Analytics](https://img.shields.io/badge/Analytics-Modeling%20Gaps-2563EB)](#3-analytics-and-baseball-modeling)
-[![Security](https://img.shields.io/badge/Security-Hardening%20Remaining-DC2626)](#4-security-and-platform-hardening)
-[![Product](https://img.shields.io/badge/Product-UX%20Gaps-0F766E)](#5-product-and-ux-gaps)
+This file tracks the main truth boundaries that current docs should continue to respect.
 
-</div>
+It is intentionally short. If an item is no longer a real current gap, it should be removed.
 
-This file tracks the gaps that prevent AiBS documentation from making broader claims than the codebase can currently support.
+Related docs:
 
-Related documents:
-
-- [README.md](../../README.md)
 - [technical.md](./technical.md)
 - [security.md](./security.md)
 - [product-source-of-truth.md](../product/product-source-of-truth.md)
 - [stack-selection.md](../architecture/stack-selection.md)
-- [docs/launch/provider-setup-checklist.md](../launch/provider-setup-checklist.md)
-- [docs/launch/private-alpha-checklist.md](../launch/private-alpha-checklist.md)
-- [docs/launch/alpha-success-scorecard.md](../launch/alpha-success-scorecard.md)
-- [docs/launch/challenge-context-analytics-plan.md](../launch/challenge-context-analytics-plan.md)
 
-## 1. Infrastructure and Deployment
+## 1. Infrastructure
 
-These items are referenced in stack and launch docs but are not fully implemented end-to-end in the current codebase:
+These platform seams exist, but they are not fully shipped as current runtime requirements:
 
-- `Upstash Redis`
-  - stack docs and launch docs still describe Redis-backed caching/rate limits as the chosen direction
-  - the current app still uses database-backed usage and queue state rather than a shipped Redis layer
+- `Redis / Upstash`
+  - the codebase remains Postgres-first for most current queue, entitlement, and usage state
 
-- `Cloudflare R2`
-  - launch docs describe an object-storage path
-  - current evidence, workflow, and product persistence are still Postgres-first
+- `Object storage / R2`
+  - evidence and editorial persistence are still primarily Postgres-backed
 
-- `Cloud Run worker deployment wiring`
-  - the internal worker route and token auth exist
-  - production deployment wiring is still a launch/process task, not a fully committed infrastructure module in the repo
+- `Separate worker deployment wiring`
+  - internal job routes and worker-token protection exist
+  - deployment and hosting specifics remain environment-level operations, not fully automated platform code
 
-- `Managed environment completeness`
-  - env validation exists
-  - provider/deploy setup is still checklist-driven rather than fully automated in the repository
+## 2. AI Runtime
 
-## 2. AI Runtime Scope
+These are the current AI truth boundaries:
 
-These are important truth boundaries for the AI docs:
+- live runtime generation is `OpenAI`-backed
+- provider-aware abstractions exist in places, but `Anthropic` is not a current live runtime client
+- saved public AI visualization sharing is not a fully shipped product surface
 
-- `Anthropic runtime support`
-  - provider-aware pricing and The Absolute Observer step provider types exist
-  - live model-backed runtime code is currently OpenAI-based
-  - do not describe Anthropic as an active production provider until a real runtime client path exists
+## 3. Baseball Modeling
 
-- `Redis-backed AI concurrency and quota enforcement`
-  - AI entitlements, usage ledger, queueing, and concurrency gates exist
-  - the stack plan still calls out Redis-backed controls as future work
+These are the current analytical boundaries:
 
-- `Saved visualization sharing`
-  - AI visualizer and artifact tracking exist
-  - durable user-facing saved visualization sharing is not complete enough to document as a product feature
+- estimated leverage is not true public WPA or CLS
+- expected review value is modeled, not certain
+- live overturn and challenge-support reads should stay qualified when sample is thin
+- optimization-grade challenge strategy modeling remains directionally supported, not fully complete
 
-## 3. Analytics and Baseball Modeling
+## 4. Security And Platform Hardening
 
-These are the main product-truth limits:
-
-- `True WPA / CLS modeling`
-  - estimated leverage logic exists
-  - the product should not claim real win probability or CLS until a real model is implemented
-
-- `Live overturn probability`
-  - not implemented and should remain undocumented as a live product capability
-
-- `Advanced strategic modeling`
-  - the README can describe the strategic direction of the product
-  - it should not claim the app already computes player-level challenge delegation, full scenario-based win value, or complete challenge optimization models
-
-## 4. Security and Platform Hardening
-
-The current security posture is credible, but these claims should remain out of scope until implemented:
+These should remain out of current-reference docs unless implemented:
 
 - full row-level security across product tables
 - field-level encryption for stored user/profile data
 - centralized security alerting / SIEM integration
-- production-grade secret rotation workflows captured in code
-- complete object-store isolation for large evidence payloads
+- automated secret rotation workflows captured in code
 
-## 5. Product and UX Gaps
+## 5. Product Scope
 
-These are real product gaps that affect how far the documentation should go:
+These product truths should stay qualified:
 
-- `Fan/org divergence`
-  - materially improved
-  - still one product with shared routes and shared design system, not two fully separate experiences
-
-- `Matchup backdrop asset rollout`
-  - system scaffold exists
-  - curated production asset library is deferred
-
-- `Editorial expansion`
-  - daily The Absolute Observer authoring is implemented with persisted workflow telemetry
-  - broader editorial studio / multi-editor workflow is still out of scope
+- fan and org views are materially differentiated, but they still share routes and a common design system
+- editorial generation is implemented and persisted, but a broader newsroom/editor workspace is not complete
+- admin and operational surfaces exist, but they are still internal system tools rather than a multi-tenant operations platform
 
 ## 6. Documentation Rule
 
-Until these gaps are closed, documentation should continue to use language like:
+Current-reference docs should prefer these words:
 
+- `current`
 - `implemented`
-- `currently`
-- `planned`
 - `deferred`
-- `directionally supports`
+- `qualified`
+- `directionally supported`
 
-And avoid language like:
+And avoid these unless the code clearly justifies them:
 
-- `fully productionized` for every managed service dependency
-- `multi-provider AI runtime` as a shipped fact
+- `fully productionized`
+- `multi-provider runtime`
 - `true WPA/CLS`
-- `enterprise-grade security` without qualification
+- `enterprise-grade` without qualification

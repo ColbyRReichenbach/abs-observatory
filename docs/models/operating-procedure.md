@@ -1,16 +1,12 @@
 # Model Operating Procedure
 
-Last updated: March 23, 2026
+This is the default audit workflow after ABS data refreshes.
 
-This is the default analyst workflow after ABS data refreshes. The goal is to make model review repeatable, evidence-based, and easy to hand off.
+The goal is to make model review repeatable, evidence-backed, and auditable.
 
-## Core Principle
+## 1. Standard Audit Sequence
 
-Do not tune models from a screenshot or one ugly chart. Refresh data, run the QA and audit suite, read the dated artifacts, then decide whether the evidence warrants a change.
-
-## Standard Post-Ingest Run
-
-After ingest completes and final games are available:
+After ingest and refresh work completes:
 
 ```bash
 npm run qa:abs
@@ -18,84 +14,68 @@ npm run model:audit:all
 npm run model:audit:evaluate-alerts
 ```
 
-This writes a full dated package into:
+These commands write dated outputs into:
 
 - `docs/models/audits/`
 - `docs/models/audits/artifacts/`
 
-## What `qa:abs` Checks
+## 2. What Each Step Covers
 
-- player profile coverage for challenged batters
-- official ABS top/bottom profile coverage
-- unresolved strike-zone resolver gaps
-- missing pitch-location geometry on challenges
+`qa:abs`
 
-This is the fast gate that answers: “Can the ABS-sensitive visuals and model logic be trusted before we even read the deeper audit outputs?”
+- player profile coverage
+- official coverage
+- strike-zone resolver gaps
+- missing challenge geometry inputs
 
-## What `model:audit:all` Runs
+`model:audit:all`
 
-- ABS product QA
 - current-state audit
 - RE benchmark
 - MLB WE benchmark
 - overturn calibration
-- rubric audit
+- decision-value audit
 - leverage audit
 - controversy audit
-- decision-value audit
+- rubric audit
 - zone-edge audit
 
-The suite also writes a dated audit summary that shows pass/fail status and links to the per-model artifacts.
+`model:audit:evaluate-alerts`
 
-## What `model:audit:evaluate-alerts` Does
+- reads the latest audit outputs
+- evaluates threshold breaches
+- writes model-audit alert state
 
-- reads the latest dated audit artifacts
-- compares the highest-signal benchmark and QA metrics against thresholds
-- writes alert rows into `ops.model_audit_runs` and `ops.model_audit_alerts`
-- resolves older open alerts automatically when the latest run no longer breaches
+## 3. Default Review Cadence
 
-The same evaluation can also be queued from `/admin/ai` so the threshold review runs through the existing async job system.
+After a meaningful ingest refresh:
 
-## Review Cadence
+- run the full audit sequence
+- read the latest summary first
+- then read only the audits that moved materially
 
-### Daily or post-refresh
+Weekly review:
 
-- run `qa:abs`
-- run `model:audit:all`
-- scan the latest summary plus any audit that moved materially
+- compare the latest audit package against the prior week
+- classify each meaningful change as:
+  - `no change`
+  - `monitor`
+  - `recalibrate`
+  - `rebuild`
 
-### Weekly analyst review
+## 4. Manual Product Spot Check
 
-- compare the latest audit package to the prior week
-- summarize:
-  - no change
-  - monitor
-  - recalibrate
-  - rebuild
-
-## Override Date
-
-By default, the suite writes artifacts for the current New York date.
-
-To backfill or rerun a specific day:
-
-```bash
-MODEL_AUDIT_DATE=2026-03-23 npm run model:audit:all
-```
-
-Optional audit-end override:
-
-```bash
-MODEL_AUDIT_DATE=2026-03-23 MODEL_AUDIT_END=2026-03-23 npm run model:audit:all
-```
-
-## Manual Product Spot Check
-
-Even with the automated suite, major ABS logic changes should still be visually checked on:
+Automated audits protect the model layer, but major model changes should still be checked on real product surfaces:
 
 - one game page
-- one umpire page
 - one team page
+- one umpire page
 - one strike-zone-heavy surface
 
-The automated suite protects the model layer. The manual check protects the story the product is telling with that model.
+## 5. Documentation Rule
+
+If a model change is kept, the retained audit trail should show:
+
+- what changed
+- why it changed
+- what audit or benchmark justified it

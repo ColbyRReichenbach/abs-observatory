@@ -1,5 +1,6 @@
 import ReactMarkdown from "react-markdown";
 
+import { EditorialProse } from "@/components/editorial/editorial-copy";
 import type { ArticleDetail } from "@/lib/server/articles";
 import { WeeklyArticleChart, type WeeklyArticleChartEvidence } from "@/components/articles/weekly-article-chart";
 
@@ -22,12 +23,14 @@ export function WeeklyArticleSection({
 
   return (
     <div>
-      <p className="text-[11px] font-black uppercase tracking-[0.28em] text-[#7d6c54]">
-        {section.sectionKind.replace("_", " ")}
-      </p>
-      <h2 className="mt-2 text-2xl font-display uppercase tracking-tight">{section.heading}</h2>
-      <div className="prose mt-3 max-w-none prose-p:text-[#3d3d3d]">
-        <ReactMarkdown>{section.bodyMd}</ReactMarkdown>
+      <div className="mx-auto max-w-[70ch]">
+        <p className="text-[11px] font-black uppercase tracking-[0.28em] text-[#7d6c54]">
+          {section.sectionKind.replace("_", " ")}
+        </p>
+        <h2 className="mt-2 text-2xl font-display uppercase tracking-tight">{section.heading}</h2>
+        <EditorialProse className="mt-3 max-w-[70ch]">
+          <ReactMarkdown>{section.bodyMd}</ReactMarkdown>
+        </EditorialProse>
       </div>
       {chartEvidence ? <WeeklyArticleChart evidence={chartEvidence} /> : null}
     </div>

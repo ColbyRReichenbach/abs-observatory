@@ -4,272 +4,94 @@
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![PostgreSQL](https://img.shields.io/badge/Postgres-Primary%20Database-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![PostgreSQL](https://img.shields.io/badge/Postgres-Serving%20and%20Product%20Data-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Python](https://img.shields.io/badge/Python-ETL-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4.1--mini-412991?logo=openai&logoColor=white)](https://openai.com/)
+[![OpenAI](https://img.shields.io/badge/OpenAI-Live%20AI-412991?logo=openai&logoColor=white)](https://openai.com/)
 [![Clerk](https://img.shields.io/badge/Clerk-Auth-6C47FF)](https://clerk.com/)
-[![Playwright](https://img.shields.io/badge/Playwright-E2E-2EAD33?logo=playwright&logoColor=white)](https://playwright.dev/)
 
 by **Colby Reichenbach**
 
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0077B5?style=flat-square&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/colby-reichenbach/)
-[![Portfolio](https://img.shields.io/badge/Portfolio-Check%20Out%20My%20Work-4B9CD3?style=flat-square&logo=githubpages&logoColor=white)](https://colbyrreichenbach.github.io/)
-[![GitHub](https://img.shields.io/badge/GitHub-Follow-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/ColbyRReichenbach)
-
 </div>
 
-AiBS is an MLB Automated Ball-Strike analytics product built around one idea: if ABS challenges make umpires auditable, they also create a new layer of baseball strategy that deserves its own product.
+AiBS is a baseball analytics product built around MLB's ABS challenge era.
 
-My name is Colby Reichenbach. I built AiBS as a baseball fan who grew up playing the game from childhood through high school and later found myself drawn just as much to AI systems and product engineering as to sports itself. Baseball was a major part of my life for 13 years, but MLB as a viewing product never fully clicked for me in the way live baseball did. I loved being at games, and I watched a lot of college baseball in person at UNC, but I often missed the day-to-day MLB conversation and relied on social feeds to understand what mattered. ABS changed that for me. The challenge system adds structure, accountability, and strategic tension to parts of the game that were previously hard to audit in a disciplined way.
+The core idea is simple: once challenged ball-strike calls become reviewable, they stop being isolated controversies and start becoming a real layer of game strategy. AiBS is built to make that layer visible for both fans and more operational users.
 
-AiBS started as a fan product for people who want to understand what happened without living inside Twitter, spreadsheets, or broadcast noise. It has since grown into something closer to a shippable analytics platform: live game views, team and umpire profiles, editorial workflows, authenticated community features, and AI-assisted interpretation layered on top of real ABS data. The same system also points toward an operations use case for teams and analysts, where challenge behavior, umpire tendencies, and game context can support preparation and in-game decision-making.
+I built the product as someone who has always loved baseball as a game first. The goal was never to build a generic sports dashboard. The goal was to create something that helps people understand what happened, why it mattered, and how challenge behavior changes the way baseball is discussed.
 
-## What AiBS Does Today
+## What The Product Covers
 
-AiBS currently ships four product layers:
+AiBS currently ships four connected product layers:
 
-1. `Game views`
-   - Scheduled, live, and final game hubs
-   - Challenge explorer, live status, review timelines, and postgame debriefs
+1. `Game pages`
+   - pregame, live, and final game hubs
+   - review timelines, strike-zone drilldowns, game-state context, and postgame recap
 
 2. `League, team, and umpire analytics`
-   - Team leaderboard and team detail pages
-   - Umpire leaderboard and umpire detail pages
-   - Org/fan mode framing over the same source data
+   - team leaderboard and team detail pages
+   - umpire leaderboard and umpire detail pages
+   - fan and org framing over the same underlying facts
 
 3. `AI-assisted interpretation`
-   - Contextual copilot
-   - Chart-level AI summaries
-   - AI visualizer / “visualize your own way” workflow
-   - Postgame game debrief generation
-   - Unified AI feedback collection and admin review
+   - bounded baseball-only copilot
+   - chart-level summaries
+   - AI artifact and debrief workflows
 
 4. `Editorial and community`
-   - The Absolute Observer article system
-   - Daily auto-generation workflow with persisted generation runs and steps
-   - Comments tied to articles and challenge-related discussion surfaces
-
-## Why The Product Exists
-
-ABS creates a layer of baseball discourse that is measurable but still poorly served by existing fan tools. The interesting questions are no longer limited to whether a pitch missed. They now include:
-
-- why a team challenged in a particular moment
-- whether a club should have held a challenge for later
-- whether certain players appear better or worse at challenge decisions
-- whether an umpire’s challenge profile shifts by inning, game state, pitch type, or context
-- how challenge behavior differs team to team
-
-AiBS exists to make that layer visible.
-
-For fans, that means a product where the context, charts, recaps, and conversation all live in one place. For operators or analysts, it means a consolidated view of ABS data that can support prep, monitoring, and future strategy work.
+   - article publishing and daily automated editorial flow
+   - comments, moderation, profiles, and public profile pages
 
 ## Audience Model
 
-AiBS already supports two public viewing modes:
+AiBS supports two public viewing modes:
 
 - `fan`
   - story-first framing
   - cleaner narrative emphasis
-  - fewer dense operational signals
+  - more matchup and review storytelling
 
 - `org`
-  - prep- and monitoring-oriented framing
-  - more operational metrics
-  - decision-support emphasis where the current data supports it
+  - prep and monitoring emphasis
+  - denser analytical framing
+  - more explicit challenge-management language
 
-The source facts do not change across modes. The framing, ordering, and emphasis do.
+The facts do not change across modes. The ordering, emphasis, and supporting language do.
 
-## AI In The Product
+## AI In AiBS
 
-AI in AiBS is not one generic chatbot bolted onto the UI. The current product includes:
+AI is part of the product, but it is not an unbounded chatbot.
 
-- `Contextual copilot`
-  - authenticated chat over bounded server-side tools
+The current AI system is built around:
 
-- `Chart AI`
-  - chart-specific summaries tied to the surface the user is viewing
+- authenticated use
+- bounded server-side tools
+- baseball-scoped policy checks
+- stored generation, feedback, and review telemetry
 
-- `Visualizer`
-  - a guided AI layer for exploring alternate views of the available data
+Public AI does not get arbitrary database access.
 
-- `Game debriefs`
-  - postgame recap generation backed by challenge-level evidence packets
+## Current Stack
 
-- `AI feedback analytics`
-  - thumbs up/down, optional notes, classification buckets, and owner review tooling
+- `Next.js 16`
+- `React 19`
+- `TypeScript`
+- `Postgres`
+- `Python ETL`
+- `OpenAI`
+- `Clerk`
+- `Vitest`, `Playwright`, and Python `unittest`
 
-The model layer is deliberately constrained. Public AI does not get arbitrary SQL access.
+## Documentation
 
-## Stack
+Current docs live in [docs/README.md](./docs/README.md).
 
-Primary runtime and data stack:
+The main retained docs are:
 
-- `Next.js 16` + React 19 + TypeScript
-- `Postgres` as the primary application and serving database
-- `Python ETL` for MLB data ingestion and enrichment
-- `OpenAI` for current live model-backed features
-- `Clerk` for auth and verified identity
-- `Vitest` + `Playwright` + Python `unittest` for validation
+- [Product Source Of Truth](./docs/product/product-source-of-truth.md)
+- [Page Route Coverage](./docs/product/page-route-coverage.md)
+- [Technical Overview](./docs/reference/technical.md)
+- [Security Overview](./docs/reference/security.md)
+- [Documentation Gap List](./docs/reference/gap-list.md)
+- [Model Audit Framework](./docs/models/README.md)
 
-More detail: [technical.md](./docs/reference/technical.md)
-
-## Security Posture
-
-AiBS is built with explicit boundaries between user input, model access, and data access:
-
-- verified identity required for protected writes and AI use
-- CSRF enforcement on write routes
-- typed-tool AI access instead of arbitrary NL-to-SQL
-- webhook verification for Clerk sync
-- owner-only admin access via Clerk user allowlist
-- worker-token protection for internal job processing
-- log redaction for sensitive metadata
-
-More detail: [security.md](./docs/reference/security.md)
-
-## Local Setup
-
-Use the pinned runtime before install/build work:
-
-```bash
-nvm use
-```
-
-1. Create a Postgres database.
-2. Configure env vars in `.env` or `.env.local`.
-
-Minimum local env:
-
-- `DATABASE_URL`
-- `DATABASE_SSL=false`
-
-Optional but recommended:
-
-- `OPENAI_API_KEY`
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-- `CLERK_SECRET_KEY`
-- `CLERK_WEBHOOK_SIGNING_SECRET`
-- `INTERNAL_WORKER_TOKEN`
-- `CRON_SECRET`
-- `OWNER_CLERK_USER_ID`
-
-Apply schema and verify:
-
-```bash
-npm run verify:repo
-npm run db:schema
-npm run db:smoke
-```
-
-Start the app:
-
-```bash
-npm run dev
-```
-
-## Scheduled Editorial Automation
-
-The daily AI recap is wired for a Vercel cron trigger at `/api/cron/editorial-daily`.
-
-Current production behavior:
-
-- authenticates with `CRON_SECRET`
-- derives the prior `America/New_York` calendar day by default
-- runs `qa:abs`
-- runs `model:audit:all`
-- runs `model:audit:evaluate-alerts`
-- generates the daily ABS recap only after those checks complete
-
-For manual reruns:
-
-```bash
-curl -H "Authorization: Bearer $CRON_SECRET" "http://localhost:3000/api/cron/editorial-daily?sourceDate=2026-03-23"
-```
-
-## Data Load
-
-Install ETL dependencies:
-
-```bash
-pip3 install -r etl/requirements.txt
-```
-
-Load a window:
-
-```bash
-python3 etl/ingest_mlb_abs.py --start-date 2026-03-01 --end-date 2026-03-08 --game-type S,R
-```
-
-Backfill all currently available 2026 spring training ABS data from the official spring-training opening day, February 20, 2026, through today:
-
-```bash
-npm run etl:spring-training
-```
-
-That backfill skips per-game report generation so the data load can complete quickly.
-
-Other useful ETL commands:
-
-```bash
-python3 etl/poll_active_games.py
-npm run etl:poll:local
-python3 etl/sync_standings_snapshots.py
-python3 etl/generate_game_report.py --game-pk 831638 --force
-```
-
-Polling commands now skip games already stored with a final status, while still re-polling live `gamePk`s safely. Repeated polling of the same live game updates the existing game rows instead of creating duplicate games.
-
-## Validation
-
-Core validation commands:
-
-```bash
-npm run verify:repo
-npm run build
-npm run test
-npm run test:e2e
-npm run test:ai-evals
-npm run etl:test
-npm run lint
-```
-
-Release smoke:
-
-```bash
-npm run smoke:release
-```
-
-`npm run verify:repo` is the preflight guard for release work. It fails on:
-
-- stale git lock files
-- zero-byte tracked source/config files
-- missing or blank critical `next` runtime files in `node_modules`
-- wrong Node major relative to `.nvmrc`
-
-## Documentation Map
-
-- Docs index: [docs/README.md](./docs/README.md)
-- Product truth: [product-source-of-truth.md](./docs/product/product-source-of-truth.md)
-- Stack decisions: [stack-selection.md](./docs/architecture/stack-selection.md)
-- Launch stack decision matrix: [docs/launch/hosting-decision-matrix.md](./docs/launch/hosting-decision-matrix.md)
-- Technical implementation: [technical.md](./docs/reference/technical.md)
-- Security controls: [security.md](./docs/reference/security.md)
-- Documentation and product gaps: [gap-list.md](./docs/reference/gap-list.md)
-- The Absolute Observer backend: [gazette-backend-spec.md](./docs/editorial/gazette-backend-spec.md)
-- AI backend: [ai-backend-plan.md](./docs/architecture/ai-backend-plan.md)
-- Launch and provider setup: [docs/launch/provider-setup-checklist.md](./docs/launch/provider-setup-checklist.md)
-- Vercel + Neon runbook: [docs/launch/vercel-neon-runbook.md](./docs/launch/vercel-neon-runbook.md)
-- Private alpha checklist: [docs/launch/private-alpha-checklist.md](./docs/launch/private-alpha-checklist.md)
-- Alpha success scorecard: [docs/launch/alpha-success-scorecard.md](./docs/launch/alpha-success-scorecard.md)
-
-## Current Boundaries
-
-What AiBS does not claim today:
-
-- true WPA / CLS modeling for ABS challenge value
-- unrestricted natural-language SQL access in the public product
-- completed production infrastructure for every planned managed dependency
-- finished matchup backdrop asset rollout
-- fully separate fan and org products beyond the current shared-design, different-framing model
-
-Those gaps are tracked explicitly in [gap-list.md](./docs/reference/gap-list.md).
+Historical planning material is intentionally kept out of the retained current-reference set and should not be treated as current implementation truth.
