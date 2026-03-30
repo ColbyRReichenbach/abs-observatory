@@ -1560,7 +1560,8 @@ function buildTelemetryResearch(
   }
 
   const topTeamStyle = [...teamLeaderboard].sort((left, right) => right.overturnRate - left.overturnRate)[0] ?? null;
-  const watchUmpire = [...umpireLeaderboard].sort((left, right) => left.reportCardScore - right.reportCardScore)[0] ?? null;
+  const watchUmpire =
+    [...umpireLeaderboard].sort((left, right) => getEditorialWatchPriority(right) - getEditorialWatchPriority(left))[0] ?? null;
 
   return {
     trendSummary: summary
@@ -1601,6 +1602,17 @@ function buildTelemetryResearch(
     standingsPulse,
     evidenceRefs,
   };
+}
+
+function getEditorialWatchPriority(umpire: UmpireLeaderboardEntry) {
+  const drift =
+    typeof umpire.recentOverturnRate === "number" ? Math.abs(umpire.recentOverturnRate - umpire.overturnRate) : 0;
+  return (
+    Math.abs(umpire.averageWinExpectancyDelta ?? 0) * 100 +
+    Math.abs(umpire.averageRunExpectancyDelta ?? 0) * 10 +
+    umpire.overturnRateVariance * 100 +
+    drift * 100
+  );
 }
 
 function buildDailyGazetteDraft(
@@ -1670,7 +1682,7 @@ function buildDailyGazetteDraft(
           sectionKind: "fact",
           heading: "The Audit Desk",
           bodyMd: telemetry.watchUmpire
-            ? `The desk's most notable current-season watch remains **${telemetry.watchUmpire.umpireName}**, graded **${telemetry.watchUmpire.grade}** with a **${telemetry.watchUmpire.orgDescriptor.toLowerCase()}** profile.`
+            ? `The desk's most notable current-season watch remains **${telemetry.watchUmpire.umpireName}**, carrying a **${(telemetry.watchUmpire.overturnRate * 100).toFixed(1)}% overturn rate** with a **${telemetry.watchUmpire.orgDescriptor.toLowerCase()}** profile.`
             : "No umpire profile carried enough evidence to anchor the Audit Desk today.",
           sectionOrder: 4,
           evidencePayload: telemetry.watchUmpire
@@ -1679,7 +1691,7 @@ function buildDailyGazetteDraft(
                 stability: telemetry.watchUmpire.orgDescriptor,
                 accuracy: `${((1 - telemetry.watchUmpire.overturnRate) * 100).toFixed(1)}%`,
                 reversed: `${telemetry.watchUmpire.overturnedCalls}/${telemetry.watchUmpire.challengedCalls}`,
-                context: `Current-season report card ${telemetry.watchUmpire.grade} with ${telemetry.watchUmpire.confidence} confidence and ${telemetry.watchUmpire.riskTier.toLowerCase()} watch-tier framing.`,
+                context: `Current-season overturn rate ${(telemetry.watchUmpire.overturnRate * 100).toFixed(1)}% with ${telemetry.watchUmpire.confidence} confidence and ${telemetry.watchUmpire.riskTier.toLowerCase()} watch-tier framing.`,
               }
             : { context: "No audit subject available." },
         },

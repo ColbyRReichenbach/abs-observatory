@@ -63,6 +63,8 @@ vi.mock("@/lib/data", () => ({
       orgDescriptor: "Monitor",
       confidence: "medium",
       riskTier: "Moderate",
+      averageRunExpectancyDelta: 0.011,
+      averageWinExpectancyDelta: 0.0021,
     },
     {
       umpireId: 99,
@@ -78,6 +80,8 @@ vi.mock("@/lib/data", () => ({
       orgDescriptor: "Stable profile",
       confidence: "high",
       riskTier: "Low",
+      averageRunExpectancyDelta: -0.004,
+      averageWinExpectancyDelta: -0.0012,
     },
   ]),
   getUmpirePitchTypeBreakdown: vi.fn(async () => []),
@@ -95,7 +99,7 @@ describe("umpire detail page", () => {
     const html = renderToStaticMarkup(page);
 
     expect(html).toContain("Test Umpire");
-    expect(html).toContain("Report Card");
+    expect(html).toContain("Overturn Rate");
     expect(html).toContain("mx-auto max-w-7xl");
     expect(html).toContain("min-h-[220px]");
   });

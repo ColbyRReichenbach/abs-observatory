@@ -74,6 +74,8 @@ describe("editorial article generation", () => {
         orgDescriptor: "Elevated risk",
         confidence: "medium",
         riskTier: "Elevated",
+        averageRunExpectancyDelta: 0.009,
+        averageWinExpectancyDelta: 0.0016,
       },
     ]);
   });

@@ -84,8 +84,10 @@ export default async function UmpirePage({
 
   if (!summary) return notFound();
   const currentUmpire = allUmpires.find((umpire) => umpire.umpireId === summary.umpireId) ?? null;
-  const rankedByScore = [...allUmpires].sort((left, right) => right.reportCardScore - left.reportCardScore);
-  const rankIndex = rankedByScore.findIndex((umpire) => umpire.umpireId === summary.umpireId);
+  const rankedUmpires = [...allUmpires].sort((left, right) =>
+    viewMode === "org" ? compareOrgUmpires(left, right) : compareFanUmpires(left, right),
+  );
+  const rankIndex = rankedUmpires.findIndex((umpire) => umpire.umpireId === summary.umpireId);
   const displayRank = rankIndex >= 0 ? rankIndex + 1 : null;
   const copy = getUmpireDetailViewCopy(viewMode);
   return (
@@ -112,7 +114,7 @@ export default async function UmpirePage({
             {currentUmpire && (
               <div className="mt-6 flex flex-wrap items-center gap-3">
                 <span className="rounded-full bg-blue-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
-                  Report Card {currentUmpire.grade}
+                  {(summary.overturnRate * 100).toFixed(1)}% OT
                 </span>
                 <span className="rounded-full bg-gray-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-gray-600">
                   {viewMode === "org" ? currentUmpire.orgDescriptor : currentUmpire.fanDescriptor}
@@ -139,15 +141,29 @@ export default async function UmpirePage({
           <StatCard label={viewMode === "org" ? "Challenged Calls" : "Challenges"} value={summary.challengedCalls.toString()} />
           <StatCard label={viewMode === "org" ? "Overturned Calls" : "Overturned"} value={summary.overturnedCalls.toString()} highlight />
           <StatCard
-            label={viewMode === "org" ? "Report Card" : "Grade"}
-            value={currentUmpire?.grade ?? "C"}
+            label={viewMode === "org" ? "Overturn Rate" : "Success Rate"}
+            value={`${(summary.overturnRate * 100).toFixed(1)}%`}
             subLabel={currentUmpire ? (viewMode === "org" ? currentUmpire.orgDescriptor : currentUmpire.fanDescriptor) : "Monitor"}
           />
           <StatCard
-              label={viewMode === "org" ? "Risk Tier" : "League Rank"}
-              value={viewMode === "org" ? currentUmpire?.riskTier ?? "Moderate" : displayRank ? `#${displayRank}` : "—"}
+              label={viewMode === "org" ? "Avg WE Δ" : "League Rank"}
+              value={
+                viewMode === "org"
+                  ? currentUmpire?.averageWinExpectancyDelta === null || currentUmpire?.averageWinExpectancyDelta === undefined
+                    ? "N/A"
+                    : `${currentUmpire.averageWinExpectancyDelta >= 0 ? "+" : ""}${(currentUmpire.averageWinExpectancyDelta * 100).toFixed(2)}%`
+                  : displayRank
+                    ? `#${displayRank}`
+                    : "—"
+              }
               highlight={viewMode === "org"}
-              subLabel={viewMode === "org" ? `${currentUmpire?.confidence ?? "medium"} confidence` : `Overturn ${(summary.overturnRate * 100).toFixed(1)}%`}
+              subLabel={
+                viewMode === "org"
+                  ? currentUmpire?.averageRunExpectancyDelta === null || currentUmpire?.averageRunExpectancyDelta === undefined
+                    ? `${currentUmpire?.confidence ?? "medium"} confidence`
+                    : `Avg RE Δ ${currentUmpire.averageRunExpectancyDelta >= 0 ? "+" : ""}${currentUmpire.averageRunExpectancyDelta.toFixed(3)}`
+                  : `${(summary.overturnRate * 100).toFixed(1)}% OT`
+              }
             />
           {viewMode === "org" ? (
             <Suspense fallback={<StatCard label="High-Leverage Share" value="…" subLabel="ELI 65+ share" highlight />}>
@@ -166,7 +182,7 @@ export default async function UmpirePage({
           viewMode={viewMode}
           currentUmpire={currentUmpire}
           displayRank={displayRank}
-          rankedByScoreLength={rankedByScore.length}
+          rankedByScoreLength={rankedUmpires.length}
           overturnRate={summary.overturnRate}
           copy={copy}
         />
@@ -844,4 +860,31 @@ function getNineZoneColor(overturnRate: number, sampleSize: number) {
   if (overturnRate >= 0.4) return "rgba(245, 158, 11, 0.22)";
   if (overturnRate >= 0.2) return "rgba(59, 130, 246, 0.18)";
   return "rgba(16, 185, 129, 0.14)";
+}
+
+function getOrgRankingValue(umpire: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number]) {
+  if (typeof umpire.averageWinExpectancyDelta === "number") return umpire.averageWinExpectancyDelta;
+  if (typeof umpire.averageRunExpectancyDelta === "number") return umpire.averageRunExpectancyDelta;
+  return umpire.overturnRate;
+}
+
+function compareFanUmpires(
+  left: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
+  right: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
+) {
+  if (right.overturnRate !== left.overturnRate) return right.overturnRate - left.overturnRate;
+  if (right.challengedCalls !== left.challengedCalls) return right.challengedCalls - left.challengedCalls;
+  return right.gamesWorked - left.gamesWorked;
+}
+
+function compareOrgUmpires(
+  left: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
+  right: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
+) {
+  const valueGap = getOrgRankingValue(right) - getOrgRankingValue(left);
+  if (valueGap !== 0) return valueGap;
+  if (right.overturnRateVariance !== left.overturnRateVariance) {
+    return right.overturnRateVariance - left.overturnRateVariance;
+  }
+  return right.challengedCalls - left.challengedCalls;
 }

@@ -104,7 +104,7 @@ const UMPIRE_DETAIL_COPY = {
   },
   org: {
     heroSubtitle:
-      "Operational ABS profile, centered on grade stability, directional bias, and pregame review prep.",
+      "Operational ABS profile, centered on overturn trends, directional bias, and pregame review prep.",
     historyEyebrow: "Historical Assignments",
     historyTitle: "Recent Gameday Feed",
     historyPlacement: "early",

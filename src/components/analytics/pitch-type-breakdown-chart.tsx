@@ -1,7 +1,19 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useMemo, useState } from "react";
+import {
+  Legend,
+  PolarAngleAxis,
+  PolarGrid,
+  PolarRadiusAxis,
+  Radar,
+  RadarChart,
+  ResponsiveContainer,
+  Tooltip,
+} from "recharts";
 
+import { ChartTooltip } from "@/components/ui/chart-tooltip";
+import { ClientOnly } from "@/components/ui/client-only";
 import type { UmpirePitchTypeBreakdown } from "@/lib/types";
 
 const PITCH_COLORS: Record<string, string> = {
@@ -18,25 +30,55 @@ const PITCH_COLORS: Record<string, string> = {
   UN: "#9ca3af",
 };
 
+const AXES = [
+  { key: "reviewShare", label: "Review Share" },
+  { key: "overturnRate", label: "OT Rate" },
+  { key: "volumeIndex", label: "Volume Index" },
+  { key: "overturnedShare", label: "Overturned Share" },
+  { key: "pressureIndex", label: "Pressure Index" },
+] as const;
+
 function getColor(code: string): string {
   return PITCH_COLORS[code] ?? "#6b7280";
 }
 
-type PositionedPitch = {
-  code: string;
-  name: string;
-  challenged: number;
-  overturned: number;
-  overturnRate: number;
-  color: string;
-  left: string;
-  top: string;
-  radiusPx: number;
-  angleDeg: number;
-  distancePx: number;
-};
-
 export function PitchTypeBreakdownChart({ data }: { data: UmpirePitchTypeBreakdown[] }) {
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  const featuredPitches = useMemo(() => {
+    const sorted = [...data]
+      .sort((left, right) => right.challengedCount - left.challengedCount)
+      .slice(0, Math.min(5, data.length));
+
+    const totalChallenges = Math.max(1, sorted.reduce((sum, entry) => sum + entry.challengedCount, 0));
+    const totalOverturned = Math.max(1, sorted.reduce((sum, entry) => sum + entry.overturnedCount, 0));
+    const maxChallenges = Math.max(...sorted.map((entry) => entry.challengedCount), 1);
+
+    return sorted.map((entry) => {
+      const reviewShare = (entry.challengedCount / totalChallenges) * 100;
+      const overturnRate = entry.overturnRate * 100;
+      const volumeIndex = (entry.challengedCount / maxChallenges) * 100;
+      const overturnedShare = (entry.overturnedCount / totalOverturned) * 100;
+      const pressureIndex = Math.min(100, reviewShare * 0.45 + overturnRate * 0.55);
+
+      return {
+        code: entry.pitchTypeCode,
+        name: entry.pitchTypeName,
+        color: getColor(entry.pitchTypeCode),
+        challenged: entry.challengedCount,
+        overturned: entry.overturnedCount,
+        overturnRate: entry.overturnRate,
+        metrics: {
+          reviewShare,
+          overturnRate,
+          volumeIndex,
+          overturnedShare,
+          pressureIndex,
+        },
+      };
+    });
+  }, [data]);
+
   if (data.length === 0) {
     return (
       <div className="panel bg-white p-8 text-center text-sm font-medium text-gray-400">
@@ -45,36 +87,14 @@ export function PitchTypeBreakdownChart({ data }: { data: UmpirePitchTypeBreakdo
     );
   }
 
-  const chartData = [...data]
-    .sort((left, right) => right.challengedCount - left.challengedCount)
-    .map((entry) => ({
-      code: entry.pitchTypeCode,
-      name: entry.pitchTypeName,
-      challenged: entry.challengedCount,
-      overturned: entry.overturnedCount,
-      overturnRate: entry.overturnRate,
-      color: getColor(entry.pitchTypeCode),
-    }));
-
-  const featuredPitches = chartData.slice(0, Math.min(6, chartData.length));
-  const totalChallenges = chartData.reduce((sum, entry) => sum + entry.challenged, 0);
-  const totalOverturned = chartData.reduce((sum, entry) => sum + entry.overturned, 0);
-  const maxChallenges = Math.max(...featuredPitches.map((entry) => entry.challenged), 1);
-  const maxRate = Math.max(...featuredPitches.map((entry) => entry.overturnRate), 0.01);
-
-  const positionedPitches: PositionedPitch[] = featuredPitches.map((entry, index, source) => {
-    const angle = (-Math.PI / 2) + (index / source.length) * Math.PI * 2;
-    const distancePx = 92 + (entry.challenged / maxChallenges) * 46;
-    const radiusPx = 16 + (entry.overturnRate / maxRate) * 14;
-
-    return {
-      ...entry,
-      left: `calc(50% + ${Math.cos(angle) * distancePx}px)`,
-      top: `calc(50% + ${Math.sin(angle) * distancePx}px)`,
-      radiusPx,
-      angleDeg: (angle * 180) / Math.PI,
-      distancePx,
+  const chartData = AXES.map((axis) => {
+    const row: Record<string, number | string> = {
+      axis: axis.label,
     };
+    for (const pitch of featuredPitches) {
+      row[pitch.code] = pitch.metrics[axis.key];
+    }
+    return row;
   });
 
   return (
@@ -84,107 +104,109 @@ export function PitchTypeBreakdownChart({ data }: { data: UmpirePitchTypeBreakdo
           Pitch Review Shape
         </h4>
         <p className="text-2xl font-display leading-none text-gray-900">
-          Review <span className="text-gray-400 italic">Pressure by Pitch Family</span>
+          Pitch-Family <span className="text-gray-400 italic">Radar</span>
         </p>
-        <p className="mt-3 max-w-xl text-sm leading-6 text-gray-500">
-          Spoke length tracks review volume. Node size grows with overturn rate so the highest-pressure pitch families
-          stand out immediately.
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500">
+          Each polygon is a pitch family. The radar compares review share, overturn rate, normalized volume, and
+          how much of the umpire&apos;s overturned sample is tied to that pitch shape.
         </p>
       </div>
 
-      <div className="rounded-[2rem] border border-gray-100 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.07),transparent_55%)] p-6">
-        <div className="relative mx-auto aspect-square max-w-[360px]">
-          <svg className="absolute inset-0 h-full w-full" viewBox="0 0 360 360" aria-hidden="true">
-            <circle cx="180" cy="180" r="118" fill="none" stroke="#eef2f7" strokeDasharray="4 8" />
-            <circle cx="180" cy="180" r="82" fill="none" stroke="#f5f7fb" />
-            {positionedPitches.map((pitch) => {
-              const angle = (pitch.angleDeg * Math.PI) / 180;
-              const x = 180 + Math.cos(angle) * pitch.distancePx;
-              const y = 180 + Math.sin(angle) * pitch.distancePx;
-              return (
-                <line
-                  key={`${pitch.code}-line`}
-                  x1="180"
-                  y1="180"
-                  x2={x}
-                  y2={y}
-                  stroke={pitch.color}
-                  strokeOpacity="0.26"
-                  strokeWidth="2"
+      <div
+        className="rounded-[2rem] border border-gray-100 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.05),transparent_58%)] p-4 sm:p-6"
+        onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}
+      >
+        <div className="h-[420px]">
+          <ClientOnly fallback={<div className="h-full w-full" />}>
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={chartData} outerRadius="68%">
+                <PolarGrid stroke="rgba(17,24,39,0.14)" />
+                <PolarAngleAxis
+                  dataKey="axis"
+                  tick={{ fill: "#6b7280", fontSize: 11, fontWeight: 800 }}
                 />
-              );
-            })}
-          </svg>
-
-          <div className="absolute left-1/2 top-1/2 z-10 flex h-28 w-28 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border border-gray-200 bg-white shadow-xl shadow-black/[0.05]">
-            <span className="text-[9px] font-black uppercase tracking-[0.18em] text-gray-400">Review Hub</span>
-            <span className="mt-2 text-3xl font-display leading-none text-gray-900">{totalChallenges}</span>
-            <span className="mt-1 text-[10px] font-bold uppercase tracking-widest text-gray-500">
-              {totalOverturned} overturned
-            </span>
-          </div>
-
-          {positionedPitches.map((pitch) => {
-            const style = {
-              width: `${pitch.radiusPx * 2}px`,
-              height: `${pitch.radiusPx * 2}px`,
-              marginLeft: `-${pitch.radiusPx}px`,
-              marginTop: `-${pitch.radiusPx}px`,
-              backgroundColor: pitch.color,
-              boxShadow: `0 10px 22px -12px ${pitch.color}`,
-            } satisfies CSSProperties;
-
-            return (
-              <div key={pitch.code} className="absolute" style={{ left: pitch.left, top: pitch.top }}>
-                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white" style={style} />
-                <div
-                  className={`absolute top-1/2 w-max -translate-y-1/2 rounded-2xl border border-gray-100 bg-white/95 px-3 py-2 shadow-lg shadow-black/[0.04] ${
-                    pitch.angleDeg > 90 || pitch.angleDeg < -90 ? "right-8 text-right" : "left-8 text-left"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-black text-gray-900">{pitch.code}</span>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{pitch.name}</span>
-                  </div>
-                  <p className="mt-1 text-[11px] font-medium text-gray-500">
-                    {pitch.challenged} reviews • {(pitch.overturnRate * 100).toFixed(1)}% overturned
-                  </p>
-                </div>
-              </div>
-            );
-          })}
+                <PolarRadiusAxis
+                  angle={18}
+                  domain={[0, 100]}
+                  tick={{ fill: "#9ca3af", fontSize: 10, fontWeight: 700 }}
+                  tickCount={6}
+                />
+                <Tooltip
+                  wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
+                  content={({ active, payload, label }) => {
+                    if (!active || !payload || payload.length === 0) return null;
+                    return (
+                      <ChartTooltip
+                        usePortal
+                        portalProps={mousePos}
+                        title={String(label ?? "")}
+                        extra={payload.map((entry) => ({
+                          label: String(entry.name ?? ""),
+                          value: `${Number(entry.value ?? 0).toFixed(1)}%`,
+                          color: String(entry.color ?? ""),
+                        }))}
+                      />
+                    );
+                  }}
+                />
+                <Legend
+                  wrapperStyle={{
+                    fontSize: "10px",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    fontWeight: 800,
+                    paddingTop: "8px",
+                  }}
+                />
+                {featuredPitches.map((pitch) => (
+                  <Radar
+                    key={pitch.code}
+                    name={`${pitch.code} · ${pitch.name}`}
+                    dataKey={pitch.code}
+                    stroke={pitch.color}
+                    fill={pitch.color}
+                    fillOpacity={0.16}
+                    strokeWidth={2}
+                    dot={{ r: 3, fill: pitch.color, strokeWidth: 0 }}
+                  />
+                ))}
+              </RadarChart>
+            </ResponsiveContainer>
+          </ClientOnly>
         </div>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {featuredPitches.map((pitch) => {
-            const share = totalChallenges > 0 ? pitch.challenged / totalChallenges : 0;
-            return (
-              <div
-                key={`${pitch.code}-summary`}
-                className="rounded-[1.25rem] border border-gray-100 bg-white/90 px-4 py-4"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: pitch.color }} />
-                    <span className="text-sm font-semibold text-gray-900">{pitch.name}</span>
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{pitch.code}</span>
+          {featuredPitches.map((pitch) => (
+            <div
+              key={`${pitch.code}-summary`}
+              className="rounded-[1.25rem] border border-gray-100 bg-white/90 px-4 py-4"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full" style={{ backgroundColor: pitch.color }} />
+                  <span className="text-sm font-semibold text-gray-900">{pitch.name}</span>
                 </div>
-                <div className="mt-3 flex items-end justify-between gap-4">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Review Share</p>
-                    <p className="mt-1 text-lg font-display text-gray-900">{(share * 100).toFixed(0)}%</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">OT Rate</p>
-                    <p className="mt-1 text-lg font-display text-gray-900">{(pitch.overturnRate * 100).toFixed(1)}%</p>
-                  </div>
-                </div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{pitch.code}</span>
               </div>
-            );
-          })}
+              <div className="mt-3 grid grid-cols-2 gap-4">
+                <Metric label="Reviews" value={`${pitch.challenged}`} />
+                <Metric label="OT Rate" value={`${(pitch.overturnRate * 100).toFixed(1)}%`} />
+                <Metric label="Review Share" value={`${pitch.metrics.reviewShare.toFixed(0)}%`} />
+                <Metric label="Pressure" value={`${pitch.metrics.pressureIndex.toFixed(0)}`} />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{label}</p>
+      <p className="mt-1 text-lg font-display text-gray-900">{value}</p>
+    </div>
   );
 }

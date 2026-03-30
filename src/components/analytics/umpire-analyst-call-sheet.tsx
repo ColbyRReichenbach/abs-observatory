@@ -52,7 +52,7 @@ export function UmpireAnalystCallSheet({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {currentUmpire ? <Tag label={`${currentUmpire.grade} grade`} /> : null}
+            <Tag label={`${(overturnRate * 100).toFixed(1)}% OT`} />
             {currentUmpire ? <Tag label={`${currentUmpire.riskTier} risk`} /> : null}
             {currentUmpire ? <Tag label={`${currentUmpire.confidence} confidence`} /> : null}
           </div>

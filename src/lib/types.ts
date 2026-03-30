@@ -892,4 +892,6 @@ export type UmpireLeaderboardEntry = UmpireSummary & {
   riskTier: OrgRiskTier;
   overturnRateVariance: number;
   recentOverturnRate: number | null;
+  averageRunExpectancyDelta: number | null;
+  averageWinExpectancyDelta: number | null;
 };

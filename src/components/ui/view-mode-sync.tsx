@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 
 import { readCookieViewMode, writeCookieViewMode } from "@/lib/view-mode-client";
@@ -8,14 +8,13 @@ import { readCookieViewMode, writeCookieViewMode } from "@/lib/view-mode-client"
 export function ViewModeSync() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
     const current = params.get("view");
     if (current === "fan" || current === "org") {
-      if (readCookieViewMode() !== current) {
-        writeCookieViewMode(current);
-      }
+      writeCookieViewMode(current);
       return;
     }
 
@@ -24,7 +23,7 @@ export function ViewModeSync() {
 
     params.set("view", cookieMode);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [pathname, router]);
+  }, [pathname, router, searchParams]);
 
   return null;
 }
