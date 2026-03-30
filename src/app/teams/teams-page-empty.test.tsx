@@ -15,10 +15,12 @@ vi.mock("@/lib/data", () => ({
 import TeamsPage from "@/app/teams/page";
 
 describe("teams page empty state", () => {
-  it("renders retry hint when no team rows exist", async () => {
+  it("renders the route shell while the leaderboard body is still suspended", async () => {
     const page = await TeamsPage({ searchParams: Promise.resolve({ range: "season" }) });
     const html = renderToStaticMarkup(page);
-    expect(html).toContain("No data points match the selected criteria.");
+
     expect(html).toContain("Leaderboard");
+    expect(html).toContain("min-h-[420px]");
+    expect(html).toContain("min-h-[720px]");
   });
 });

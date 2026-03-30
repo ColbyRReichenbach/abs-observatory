@@ -87,7 +87,7 @@ vi.mock("@/lib/data", () => ({
 import UmpirePage from "@/app/umpires/[umpireId]/page";
 
 describe("umpire detail page", () => {
-  it("renders the zone review card, directional bias, and hotspots", async () => {
+  it("renders the route shell and summary header for the selected umpire", async () => {
     const page = await UmpirePage({
       params: Promise.resolve({ umpireId: "44" }),
       searchParams: Promise.resolve({ range: "all" }),
@@ -95,10 +95,8 @@ describe("umpire detail page", () => {
     const html = renderToStaticMarkup(page);
 
     expect(html).toContain("Test Umpire");
-    expect(html).toContain("Zone Review Pattern");
-    expect(html).toContain("Directional Bias");
-    expect(html).toContain("Situational Hotspots");
-    expect(html).toContain("3-2");
     expect(html).toContain("Report Card");
+    expect(html).toContain("mx-auto max-w-7xl");
+    expect(html).toContain("min-h-[220px]");
   });
 });

@@ -14,7 +14,11 @@ try:
     import requests
 except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
     requests = None
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test import paths
+    def load_dotenv(*_args: Any, **_kwargs: Any) -> bool:
+        return False
 try:
     import psycopg2
     from psycopg2.extras import Json, execute_batch

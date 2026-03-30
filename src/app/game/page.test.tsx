@@ -79,6 +79,19 @@ vi.mock("@/lib/data", () => ({
     updatedAt: "2026-03-05T19:02:15Z",
     recentChallengeEvents: [],
   })),
+  getGameScoreboardData: vi.fn(async () => ({
+    statusAbstract: "Live",
+    linescoreByInning: [
+      { inning: 1, away: 1, home: 0 },
+      { inning: 2, away: 0, home: 2 },
+    ],
+    awayRuns: 1,
+    homeRuns: 2,
+    awayHits: 4,
+    homeHits: 5,
+    awayErrors: 0,
+    homeErrors: 0,
+  })),
   getLiveChallengeWindow: vi.fn(async () => ({
     inning: 4,
     halfInning: "Top",
