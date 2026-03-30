@@ -182,15 +182,19 @@ export function resolveMatchupAccentColors(input: {
   homeTeamId?: number | null;
   awayTeamId?: number | null;
   homePrimaryColor?: string | null;
+  homeSecondaryColor?: string | null;
   awayPrimaryColor?: string | null;
+  awaySecondaryColor?: string | null;
 }) {
   const homeBrand = resolveTeamBranding({
     teamId: input.homeTeamId ?? 141,
     primaryColor: input.homePrimaryColor,
+    secondaryColor: input.homeSecondaryColor,
   });
   const awayBrand = resolveTeamBranding({
     teamId: input.awayTeamId ?? 147,
     primaryColor: input.awayPrimaryColor,
+    secondaryColor: input.awaySecondaryColor,
   });
 
   const homeColor = homeBrand.tokens.teamPrimary;

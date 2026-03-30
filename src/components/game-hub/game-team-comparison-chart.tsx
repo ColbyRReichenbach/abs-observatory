@@ -30,7 +30,9 @@ export function GameTeamComparisonChart({
     homeTeamId: comparison.home.teamId,
     awayTeamId: comparison.away.teamId,
     homePrimaryColor: comparison.home.primaryColor,
+    homeSecondaryColor: comparison.home.secondaryColor,
     awayPrimaryColor: comparison.away.primaryColor,
+    awaySecondaryColor: comparison.away.secondaryColor,
   });
   const metrics = getMetrics(comparison, state, viewMode);
 

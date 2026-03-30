@@ -126,8 +126,6 @@ export function PitchTypeBreakdownChart({ data }: { data: UmpirePitchTypeBreakdo
 
           {positionedPitches.map((pitch) => {
             const style = {
-              left: pitch.left,
-              top: pitch.top,
               width: `${pitch.radiusPx * 2}px`,
               height: `${pitch.radiusPx * 2}px`,
               marginLeft: `-${pitch.radiusPx}px`,

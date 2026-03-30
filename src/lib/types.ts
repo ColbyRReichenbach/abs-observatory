@@ -418,7 +418,9 @@ export type GameChallengeOpportunityBoard = {
   homeAbbreviation: string | null;
   awayAbbreviation: string | null;
   homePrimaryColor: string | null;
+  homeSecondaryColor: string | null;
   awayPrimaryColor: string | null;
+  awaySecondaryColor: string | null;
   cells: GameChallengeOpportunityCell[];
 };
 
@@ -574,6 +576,7 @@ export type GameTeamChallengeComparisonSide = {
   teamId: number | null;
   abbreviation: string | null;
   primaryColor: string | null;
+  secondaryColor?: string | null;
   totalChallenges: number;
   overturnRate: number | null;
   averageLeverage: number | null;
@@ -690,7 +693,9 @@ export type GameHubGame = {
   homeabbreviation: string | null;
   awayabbreviation: string | null;
   homeprimarycolor: string | null;
+  homesecondarycolor: string | null;
   awayprimarycolor: string | null;
+  awaysecondarycolor: string | null;
 };
 
 export type GameLiveStatus = {

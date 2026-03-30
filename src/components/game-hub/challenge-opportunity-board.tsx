@@ -27,9 +27,18 @@ export function ChallengeOpportunityBoard({
         homeTeamId: board.homeTeamId,
         awayTeamId: board.awayTeamId,
         homePrimaryColor: board.homePrimaryColor,
+        homeSecondaryColor: board.homeSecondaryColor,
         awayPrimaryColor: board.awayPrimaryColor,
+        awaySecondaryColor: board.awaySecondaryColor,
       }),
-    [board.awayPrimaryColor, board.awayTeamId, board.homePrimaryColor, board.homeTeamId],
+    [
+      board.awayPrimaryColor,
+      board.awaySecondaryColor,
+      board.awayTeamId,
+      board.homePrimaryColor,
+      board.homeSecondaryColor,
+      board.homeTeamId,
+    ],
   );
 
   const rowLabels = useMemo(() => Array.from(new Set(board.cells.map((cell) => cell.rowLabel))), [board.cells]);

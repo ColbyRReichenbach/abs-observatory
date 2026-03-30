@@ -23,7 +23,9 @@ export async function PregameScoutingReport({ game, viewMode }: { game: GameHubG
         homeTeamId: game.hometeamid,
         awayTeamId: game.awayteamid,
         homePrimaryColor: game.homeprimarycolor,
+        homeSecondaryColor: game.homesecondarycolor,
         awayPrimaryColor: game.awayprimarycolor,
+        awaySecondaryColor: game.awaysecondarycolor,
     });
 
     return (
