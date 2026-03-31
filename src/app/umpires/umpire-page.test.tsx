@@ -99,7 +99,8 @@ describe("umpire detail page", () => {
     const html = renderToStaticMarkup(page);
 
     expect(html).toContain("Test Umpire");
-    expect(html).toContain("Overturn Rate");
+    expect(html).toContain("Success Rate");
+    expect(html).toContain("League Rank");
     expect(html).toContain("mx-auto max-w-7xl");
     expect(html).toContain("min-h-[220px]");
   });
