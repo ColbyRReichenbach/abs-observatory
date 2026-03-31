@@ -4,8 +4,11 @@ import type { AuthIdentity } from "./auth";
 import type { ViewerProfile } from "./profiles";
 
 type OwnerIdentityLike =
-  | Pick<AuthIdentity, "provider" | "externalAuthId">
-  | Pick<ViewerProfile, "authProvider" | "externalAuthId">
+  | (Pick<AuthIdentity, "provider" | "externalAuthId"> & { email?: string | null; primaryEmail?: string | null })
+  | (Pick<ViewerProfile, "authProvider" | "externalAuthId"> & {
+      email?: string | null;
+      primaryEmail?: string | null;
+    })
   | null
   | undefined;
 
