@@ -22,6 +22,7 @@ const links = [
   { href: "/teams", label: "Team Stats", match: "/teams" },
   { href: "/articles", label: "Articles", match: "/articles" },
   { href: "/about", label: "About", match: "/about" },
+  { href: "/profile", label: "Profile", match: "/profile" },
 ];
 
 export function Nav({ initialMode, canAccessAdmin = false }: { initialMode?: ViewMode; canAccessAdmin?: boolean }) {

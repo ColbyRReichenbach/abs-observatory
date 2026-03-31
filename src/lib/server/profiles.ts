@@ -22,6 +22,7 @@ export type ViewerProfile = {
   favoriteTeamId: number | null;
   isPublic: boolean;
   postingEnabled: boolean;
+  aiAccessEnabled: boolean;
   aiHistoryEnabled: boolean;
   aiStrikeCount: number;
   aiSuspendedUntil: string | null;
@@ -136,6 +137,7 @@ export async function syncUserFromIdentity(identity: NonNullable<Awaited<ReturnT
       userId,
       authProvider: identity.provider,
       externalAuthId: identity.externalAuthId,
+      primaryEmail: identity.email,
     });
 
     return userId;
@@ -163,6 +165,7 @@ export async function getViewerProfile(request?: Request): Promise<ViewerProfile
     favoriteteamid: number | null;
     ispublic: boolean;
     postingenabled: boolean;
+    aiaccessenabled: boolean;
     aihistoryenabled: boolean;
     aistrikecount: number;
     aisuspendeduntil: string | null;
@@ -187,6 +190,7 @@ export async function getViewerProfile(request?: Request): Promise<ViewerProfile
       p.favorite_team_id AS favoriteTeamId,
       p.is_public AS isPublic,
       p.posting_enabled AS postingEnabled,
+      p.ai_access_enabled AS aiAccessEnabled,
       p.ai_history_enabled AS aiHistoryEnabled,
       p.ai_strike_count AS aiStrikeCount,
       p.ai_suspended_until AS aiSuspendedUntil,
@@ -216,6 +220,7 @@ export async function getViewerProfile(request?: Request): Promise<ViewerProfile
       p.favorite_team_id,
       p.is_public,
       p.posting_enabled,
+      p.ai_access_enabled,
       p.ai_history_enabled,
       p.ai_strike_count,
       p.ai_suspended_until,
@@ -238,6 +243,7 @@ export async function getViewerProfile(request?: Request): Promise<ViewerProfile
           favoriteTeamId: row.favoriteteamid,
           isPublic: row.ispublic,
           postingEnabled: row.postingenabled,
+          aiAccessEnabled: row.aiaccessenabled,
           aiHistoryEnabled: row.aihistoryenabled,
           aiStrikeCount: Number(row.aistrikecount),
           aiSuspendedUntil: row.aisuspendeduntil,

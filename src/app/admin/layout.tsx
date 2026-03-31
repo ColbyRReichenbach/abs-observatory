@@ -1,13 +1,13 @@
 import { notFound } from "next/navigation";
 
 import { AdminTabs } from "@/components/admin/admin-tabs";
-import { requireOwnerAdmin } from "@/lib/server/admin";
+import { requireAdmin } from "@/lib/server/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   try {
-    await requireOwnerAdmin();
+    await requireAdmin();
   } catch {
     notFound();
   }

@@ -24,6 +24,7 @@ import {
   validateChatMessage,
 } from "./ai-policy";
 import { assertAiUsageAllowed, type AiPlanCode, type AiUsageFeature } from "./entitlements";
+import { canUsePrivateAi } from "./admin";
 import { getViewerProfile, type ViewerProfile } from "./profiles";
 import { ConcurrencyLimitError, consumeRateLimit, getCacheKey, getCachedValue, setCachedValue, withConcurrencyGate } from "./scale";
 
@@ -440,10 +441,14 @@ function getAnonymousRateLimitSubject(request: Request) {
   return forwarded || realIp || cloudflareIp || "anonymous";
 }
 
-async function getAiViewerState(userId: string): Promise<Pick<ViewerProfile, "userId" | "isVerified" | "aiBannedAt" | "aiSuspendedUntil"> | null> {
+async function getAiViewerState(
+  userId: string,
+): Promise<Pick<ViewerProfile, "userId" | "isVerified" | "aiBannedAt" | "aiSuspendedUntil" | "roles" | "aiAccessEnabled"> | null> {
   const row = await sqlOne<{
     userid: string;
     isverified: boolean;
+    roles: string[] | null;
+    aiaccessenabled: boolean;
     aibannedat: string | null;
     aisuspendeduntil: string | null;
   }>(
@@ -451,11 +456,15 @@ async function getAiViewerState(userId: string): Promise<Pick<ViewerProfile, "us
     SELECT
       u.user_id AS userId,
       u.is_verified AS isVerified,
+      ARRAY_REMOVE(ARRAY_AGG(DISTINCT r.role), NULL) AS roles,
+      COALESCE(p.ai_access_enabled, FALSE) AS aiAccessEnabled,
       p.ai_banned_at AS aiBannedAt,
       p.ai_suspended_until AS aiSuspendedUntil
     FROM product.users u
     LEFT JOIN product.user_profiles p ON p.user_id = u.user_id
+    LEFT JOIN product.user_roles r ON r.user_id = u.user_id
     WHERE u.user_id = $1
+    GROUP BY u.user_id, u.is_verified, p.ai_access_enabled, p.ai_banned_at, p.ai_suspended_until
     `,
     [userId],
   );
@@ -465,14 +474,16 @@ async function getAiViewerState(userId: string): Promise<Pick<ViewerProfile, "us
   return {
     userId: row.userid,
     isVerified: row.isverified,
+    roles: row.roles ?? [],
+    aiAccessEnabled: row.aiaccessenabled,
     aiBannedAt: row.aibannedat,
     aiSuspendedUntil: row.aisuspendeduntil,
   };
 }
 
 function assertViewerCanUseAi(
-  viewer: Pick<ViewerProfile, "userId" | "isVerified" | "aiBannedAt" | "aiSuspendedUntil"> | null,
-): asserts viewer is Pick<ViewerProfile, "userId" | "isVerified" | "aiBannedAt" | "aiSuspendedUntil"> {
+  viewer: Pick<ViewerProfile, "userId" | "isVerified" | "aiBannedAt" | "aiSuspendedUntil" | "roles" | "aiAccessEnabled"> | null,
+): asserts viewer is Pick<ViewerProfile, "userId" | "isVerified" | "aiBannedAt" | "aiSuspendedUntil" | "roles" | "aiAccessEnabled"> {
   if (!viewer) {
     throw new AiPolicyError("Authentication required", AI_ERROR_CODES.AUTH_REQUIRED, 401);
   }
@@ -484,6 +495,9 @@ function assertViewerCanUseAi(
   }
   if (viewer.aiSuspendedUntil && Date.parse(viewer.aiSuspendedUntil) > Date.now()) {
     throw new AiPolicyError("AI access temporarily suspended", AI_ERROR_CODES.SUSPENDED, 403);
+  }
+  if (!canUsePrivateAi(viewer)) {
+    throw new AiPolicyError("Private AI access not enabled for this account", AI_ERROR_CODES.PLAN_RESTRICTED, 403);
   }
 }
 

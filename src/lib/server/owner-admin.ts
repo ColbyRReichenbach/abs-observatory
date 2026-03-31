@@ -16,12 +16,25 @@ export function getOwnerClerkUserId(): string | null {
   return value ? value : null;
 }
 
+export function getOwnerEmails(): string[] {
+  const raw = [process.env.OWNER_EMAIL, process.env.OWNER_EMAILS].filter(Boolean).join(",");
+  return raw
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 export function isOwnerIdentity(identity: OwnerIdentityLike): boolean {
-  const ownerClerkUserId = getOwnerClerkUserId();
-  if (!ownerClerkUserId || !identity) return false;
+  if (!identity) return false;
 
   const provider = "authProvider" in identity ? identity.authProvider : identity.provider;
-  return provider === "clerk" && identity.externalAuthId === ownerClerkUserId;
+  const ownerClerkUserId = getOwnerClerkUserId();
+  if (provider === "clerk" && ownerClerkUserId && identity.externalAuthId === ownerClerkUserId) {
+    return true;
+  }
+
+  const email = "primaryEmail" in identity ? identity.primaryEmail : identity.email;
+  return Boolean(email && getOwnerEmails().includes(email.trim().toLowerCase()));
 }
 
 export async function syncOwnerAdminRole(
@@ -30,18 +43,33 @@ export async function syncOwnerAdminRole(
     userId: string;
     authProvider: string;
     externalAuthId: string;
+    primaryEmail: string | null;
   },
 ) {
   if (input.authProvider !== "clerk") {
     return;
   }
 
-  if (isOwnerIdentity({ provider: input.authProvider, externalAuthId: input.externalAuthId })) {
+  if (
+    isOwnerIdentity({
+      provider: input.authProvider,
+      externalAuthId: input.externalAuthId,
+      email: input.primaryEmail,
+    })
+  ) {
     await query(
       `
       INSERT INTO product.user_roles (user_id, role)
       VALUES ($1, 'admin')
       ON CONFLICT (user_id, role) DO NOTHING
+      `,
+      [input.userId],
+    );
+    await query(
+      `
+      UPDATE product.user_profiles
+      SET ai_access_enabled = TRUE
+      WHERE user_id = $1
       `,
       [input.userId],
     );

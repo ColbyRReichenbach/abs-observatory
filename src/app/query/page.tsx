@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { QueryExplorerClient } from "@/components/query/query-explorer-client";
 import { launchConfig } from "@/lib/launch-config";
-import { canAccessAdmin } from "@/lib/server/admin";
+import { canAccessPrivateAi } from "@/lib/server/admin";
 import { resolveViewMode } from "@/lib/view-mode";
 
 export default async function QueryPage({
@@ -12,9 +12,9 @@ export default async function QueryPage({
   searchParams: Promise<{ view?: string }>;
 }) {
   const sp = await searchParams;
-  const isAdmin = await canAccessAdmin();
+  const canUsePrivateAi = await canAccessPrivateAi();
 
-  if (!launchConfig.publicQueryLabEnabled && !isAdmin) {
+  if (!launchConfig.publicQueryLabEnabled && !canUsePrivateAi) {
     redirect("/about/how-aibs-works");
   }
 

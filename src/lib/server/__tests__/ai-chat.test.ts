@@ -81,6 +81,8 @@ describe("ai-chat", () => {
     getViewerProfileMock.mockResolvedValueOnce({
       userId: "user-1",
       isVerified: true,
+      roles: [],
+      aiAccessEnabled: true,
       aiBannedAt: null,
       aiSuspendedUntil: new Date(Date.now() + 60_000).toISOString(),
     });
@@ -96,11 +98,35 @@ describe("ai-chat", () => {
     ).rejects.toMatchObject<AiPolicyError>({ code: "AI_SUSPENDED_USER", status: 403 });
   });
 
+  it("rejects verified users without private AI access", async () => {
+    const { AiPolicyError, runChat } = await import("@/lib/server/ai-chat");
+    getViewerProfileMock.mockResolvedValueOnce({
+      userId: "user-1",
+      isVerified: true,
+      roles: [],
+      aiAccessEnabled: false,
+      aiBannedAt: null,
+      aiSuspendedUntil: null,
+    });
+
+    await expect(
+      runChat(
+        new Request("http://localhost/api/ai/chat", {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-dev-user-id": "user-1" },
+          body: JSON.stringify({ message: "What happened in today's games?" }),
+        }),
+      ),
+    ).rejects.toMatchObject<AiPolicyError>({ code: "AI_PLAN_RESTRICTED", status: 403 });
+  });
+
   it("applies an AI strike for prompt injection attempts", async () => {
     const { AiPolicyError, runChat } = await import("@/lib/server/ai-chat");
     getViewerProfileMock.mockResolvedValueOnce({
       userId: "user-1",
       isVerified: true,
+      roles: [],
+      aiAccessEnabled: true,
       aiBannedAt: null,
       aiSuspendedUntil: null,
     });
@@ -129,6 +155,8 @@ describe("ai-chat", () => {
     getViewerProfileMock.mockResolvedValueOnce({
       userId: "user-1",
       isVerified: true,
+      roles: [],
+      aiAccessEnabled: true,
       aiBannedAt: null,
       aiSuspendedUntil: null,
     });
@@ -166,6 +194,8 @@ describe("ai-chat", () => {
     getViewerProfileMock.mockResolvedValueOnce({
       userId: "user-1",
       isVerified: true,
+      roles: [],
+      aiAccessEnabled: true,
       aiBannedAt: null,
       aiSuspendedUntil: null,
     });
@@ -201,6 +231,8 @@ describe("ai-chat", () => {
     getViewerProfileMock.mockResolvedValueOnce({
       userId: "user-1",
       isVerified: true,
+      roles: [],
+      aiAccessEnabled: true,
       aiBannedAt: null,
       aiSuspendedUntil: null,
     });
@@ -235,6 +267,8 @@ describe("ai-chat", () => {
     getViewerProfileMock.mockResolvedValueOnce({
       userId: "user-1",
       isVerified: true,
+      roles: [],
+      aiAccessEnabled: true,
       aiBannedAt: null,
       aiSuspendedUntil: null,
     });
@@ -255,6 +289,8 @@ describe("ai-chat", () => {
     getViewerProfileMock.mockResolvedValueOnce({
       userId: "user-1",
       isVerified: true,
+      roles: [],
+      aiAccessEnabled: true,
       aiBannedAt: null,
       aiSuspendedUntil: null,
     });

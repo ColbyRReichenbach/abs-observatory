@@ -10,7 +10,6 @@ const ENV_REQUIREMENTS: EnvRequirement[] = [
   { name: "CLERK_WEBHOOK_SIGNING_SECRET", requiredIn: "production" },
   { name: "OPENAI_API_KEY", requiredIn: "production" },
   { name: "INTERNAL_WORKER_TOKEN", requiredIn: "production" },
-  { name: "OWNER_CLERK_USER_ID", requiredIn: "production" },
 ] as const;
 
 type EnvValidationIssue = {
@@ -52,6 +51,13 @@ export function validateServerEnv(strict = process.env.NODE_ENV === "production"
     name: requirement.name,
     requiredIn: requirement.requiredIn,
   }));
+
+  if (strict) {
+    const ownerConfigured = readEnv("OWNER_CLERK_USER_ID") || readEnv("OWNER_EMAIL") || readEnv("OWNER_EMAILS");
+    if (!ownerConfigured) {
+      issues.push({ name: "OWNER_CLERK_USER_ID | OWNER_EMAIL | OWNER_EMAILS", requiredIn: "production" });
+    }
+  }
 
   globalForEnvValidation.__aibsEnvValidation = { strict, issues };
 

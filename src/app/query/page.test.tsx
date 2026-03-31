@@ -5,14 +5,14 @@ const redirectMock = vi.fn(() => {
   throw new Error("NEXT_REDIRECT");
 });
 const resolveViewModeMock = vi.fn();
-const canAccessAdminMock = vi.fn();
+const canAccessPrivateAiMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   redirect: redirectMock,
 }));
 
 vi.mock("@/lib/server/admin", () => ({
-  canAccessAdmin: canAccessAdminMock,
+  canAccessPrivateAi: canAccessPrivateAiMock,
 }));
 
 vi.mock("@/lib/view-mode", () => ({
@@ -25,7 +25,7 @@ vi.mock("@/components/query/query-explorer-client", () => ({
 
 describe("/query page", () => {
   it("redirects public users while query lab is launch-gated", async () => {
-    canAccessAdminMock.mockResolvedValueOnce(false);
+    canAccessPrivateAiMock.mockResolvedValueOnce(false);
 
     const { default: QueryPage } = await import("./page");
     await expect(
@@ -37,7 +37,7 @@ describe("/query page", () => {
   });
 
   it("passes the resolved view mode into the query explorer for admins", async () => {
-    canAccessAdminMock.mockResolvedValueOnce(true);
+    canAccessPrivateAiMock.mockResolvedValueOnce(true);
     resolveViewModeMock.mockResolvedValueOnce("org");
 
     const { default: QueryPage } = await import("./page");

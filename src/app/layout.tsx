@@ -7,7 +7,7 @@ import { ContextualCopilotFAB } from "@/components/contextual-copilot-fab";
 import { Nav } from "@/components/nav";
 import { ViewModeSync } from "@/components/ui/view-mode-sync";
 import { launchConfig } from "@/lib/launch-config";
-import { canAccessAdmin } from "@/lib/server/admin";
+import { canAccessAdmin, canAccessPrivateAi } from "@/lib/server/admin";
 import { validateServerEnv } from "@/lib/server/env";
 import { resolveViewMode } from "@/lib/view-mode";
 
@@ -38,7 +38,11 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   validateServerEnv(false);
-  const [initialMode, adminVisible] = await Promise.all([resolveViewMode(), canAccessAdmin()]);
+  const [initialMode, adminVisible, privateAiVisible] = await Promise.all([
+    resolveViewMode(),
+    canAccessAdmin(),
+    canAccessPrivateAi(),
+  ]);
 
   return (
     <html lang="en">
@@ -54,7 +58,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           <main id="main-content">
             {children}
           </main>
-          {launchConfig.publicCopilotEnabled ? (
+          {launchConfig.publicCopilotEnabled || privateAiVisible ? (
             <Suspense fallback={null}>
               <ContextualCopilotFAB />
             </Suspense>

@@ -340,6 +340,7 @@ CREATE TABLE IF NOT EXISTS product.user_profiles (
   favorite_umpire_id BIGINT,
   is_public BOOLEAN NOT NULL DEFAULT TRUE,
   posting_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  ai_access_enabled BOOLEAN NOT NULL DEFAULT FALSE,
   ai_history_enabled BOOLEAN NOT NULL DEFAULT TRUE,
   ai_strike_count INTEGER NOT NULL DEFAULT 0,
   ai_suspended_until TIMESTAMPTZ,
@@ -353,6 +354,7 @@ CREATE TABLE IF NOT EXISTS product.user_profiles (
 ALTER TABLE product.users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE product.users ADD COLUMN IF NOT EXISTS verified_at TIMESTAMPTZ;
 ALTER TABLE product.user_profiles ADD COLUMN IF NOT EXISTS avatar_preset TEXT;
+ALTER TABLE product.user_profiles ADD COLUMN IF NOT EXISTS ai_access_enabled BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE product.user_profiles ADD COLUMN IF NOT EXISTS ai_strike_count INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE product.user_profiles ADD COLUMN IF NOT EXISTS ai_suspended_until TIMESTAMPTZ;
 ALTER TABLE product.user_profiles ADD COLUMN IF NOT EXISTS ai_banned_at TIMESTAMPTZ;
