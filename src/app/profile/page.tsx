@@ -86,6 +86,10 @@ export default async function ProfilePage() {
     );
   }
 
+  if (!viewer) {
+    return null;
+  }
+
   const canUsePrivateAi = viewer.aiAccessEnabled || viewer.roles.includes("admin");
 
   return (
