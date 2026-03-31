@@ -9,6 +9,7 @@ import { resolveTeamBranding } from "@/lib/team-branding";
 import { InningIcon } from "@/components/inning-icon";
 import { TeamIcon } from "@/components/team-icon";
 import { GameTypeBadge } from "@/components/ui/game-type-badge";
+import { resolveClientViewMode } from "@/lib/view-mode-client";
 import { withViewModeHref } from "@/lib/view-mode-href";
 
 type InningLine = {
@@ -194,10 +195,7 @@ function ScoreRow({
   brand: TeamBranding;
 }) {
   const searchParams = useSearchParams();
-  const requestedMode = searchParams?.get("view");
-  const activeMode = requestedMode === "org" || requestedMode === "fan"
-    ? requestedMode
-    : null;
+  const activeMode = resolveClientViewMode(searchParams);
   const abbreviation = team.abbreviation?.trim() || team.name;
   const accentColor = brand.tokens.teamPrimary;
 
@@ -205,7 +203,7 @@ function ScoreRow({
     <tr className="bg-white/5 rounded-lg overflow-hidden transition-all hover:bg-white/[0.08]">
       <th className="px-4 py-4 text-left rounded-l-lg">
         <Link
-          href={withViewModeHref(`/teams/${team.id}`, activeMode === "org" || activeMode === "fan" ? activeMode : null)}
+          href={withViewModeHref(`/teams/${team.id}`, activeMode)}
           className="flex items-center gap-4 group/teamlink"
         >
           <TeamIcon

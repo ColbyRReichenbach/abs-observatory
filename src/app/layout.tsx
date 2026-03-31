@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { AuthProvider } from "@/components/auth-provider";
 import { ContextualCopilotFAB } from "@/components/contextual-copilot-fab";
 import { Nav } from "@/components/nav";
+import { ViewModeSync } from "@/components/ui/view-mode-sync";
 import { launchConfig } from "@/lib/launch-config";
 import { canAccessAdmin } from "@/lib/server/admin";
 import { validateServerEnv } from "@/lib/server/env";
@@ -46,6 +47,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           <a href="#main-content" className="skip-link">
             Skip to main content
           </a>
+          <Suspense fallback={null}>
+            <ViewModeSync />
+          </Suspense>
           <Nav initialMode={initialMode} canAccessAdmin={adminVisible} />
           <main id="main-content">
             {children}

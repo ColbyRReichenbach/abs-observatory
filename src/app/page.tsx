@@ -72,7 +72,7 @@ async function HomePageBody({
   const seasonAvgRate = allTeamChallenges > 0 ? (allTeamSuccessful / allTeamChallenges) * 100 : 0;
   const topMoment = moments[0] ?? null;
   const highestRiskUmpire = umpires.length > 0
-    ? [...umpires].sort((a, b) => a.reportCardScore - b.reportCardScore)[0]
+    ? [...umpires].sort((left, right) => getHomeUmpireWatchPriority(right) - getHomeUmpireWatchPriority(left))[0]
     : null;
 
   const topTeams =
@@ -105,7 +105,9 @@ async function HomePageBody({
           .filter((team) => hasTrustedModelConfidenceBand(team.decisionValueConfidence))
           .sort((left, right) => right.lateCloseExpectedValueShare - left.lateCloseExpectedValueShare)[0] ?? null
       : null;
-  const spotlightUmps = [...umpires].sort((a, b) => a.reportCardScore - b.reportCardScore).slice(0, 3);
+  const spotlightUmps = [...umpires]
+    .sort((left, right) => getHomeUmpireWatchPriority(right) - getHomeUmpireWatchPriority(left))
+    .slice(0, 3);
   const mostSelectiveTeam =
     [...teams].sort((a, b) => (b.avgRemaining * b.overturnRate) - (a.avgRemaining * a.overturnRate))[0] ?? null;
   return (
@@ -227,7 +229,7 @@ async function HomePageBody({
                         <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{u.umpireName}</p>
                         <div className="mt-1 flex flex-wrap items-center gap-2">
                           <ProfileBadge
-                            label={`${u.grade} ${u.fanDescriptor}`}
+                            label={`${(u.overturnRate * 100).toFixed(1)}% OT · ${u.fanDescriptor}`}
                             variant="blue"
                             className="min-w-0 flex-1 py-1"
                           />
@@ -390,6 +392,19 @@ async function HomePageBody({
         </div>
       </main>
     </>
+  );
+}
+
+function getHomeUmpireWatchPriority(
+  umpire: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
+) {
+  const drift =
+    typeof umpire.recentOverturnRate === "number" ? Math.abs(umpire.recentOverturnRate - umpire.overturnRate) : 0;
+  return (
+    Math.abs(umpire.averageWinExpectancyDelta ?? 0) * 100 +
+    Math.abs(umpire.averageRunExpectancyDelta ?? 0) * 10 +
+    umpire.overturnRateVariance * 100 +
+    drift * 100
   );
 }
 

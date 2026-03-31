@@ -2,6 +2,7 @@
 
 import type { GameTeamChallengeComparison } from "@/lib/types";
 import type { ViewMode } from "@/lib/view-mode";
+import { resolveMatchupAccentColors } from "@/lib/team-branding";
 
 type MetricConfig = {
   key: string;
@@ -25,8 +26,14 @@ export function GameTeamComparisonChart({
 }: GameTeamComparisonChartProps) {
   const homeLabel = comparison.home.abbreviation ?? "HOME";
   const awayLabel = comparison.away.abbreviation ?? "AWAY";
-  const homeColor = comparison.home.primaryColor ?? "#2563eb";
-  const awayColor = comparison.away.primaryColor ?? "#ef4444";
+  const { homeColor, awayColor } = resolveMatchupAccentColors({
+    homeTeamId: comparison.home.teamId,
+    awayTeamId: comparison.away.teamId,
+    homePrimaryColor: comparison.home.primaryColor,
+    homeSecondaryColor: comparison.home.secondaryColor,
+    awayPrimaryColor: comparison.away.primaryColor,
+    awaySecondaryColor: comparison.away.secondaryColor,
+  });
   const metrics = getMetrics(comparison, state, viewMode);
 
   return (

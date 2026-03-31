@@ -8,11 +8,9 @@ import {
   ResponsiveContainer,
   Scatter,
   ScatterChart,
-  Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import type { TooltipContentProps } from "recharts";
 
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
 import { buildLinearAxis, formatNumberTick, formatRatioPercentTick } from "@/components/analytics/chart-axis";
@@ -24,6 +22,13 @@ type UmpireRiskPoint = {
   overturnRateVariance: number;
   riskTier: "Low" | "Moderate" | "Elevated" | "High";
 };
+
+function getActiveScatterUmpireId(state: unknown): number | null {
+  if (!state || typeof state !== "object" || !("activePayload" in state)) return null;
+  const activePayload = (state as { activePayload?: Array<{ payload?: { umpireId?: unknown } }> }).activePayload;
+  const umpireId = activePayload?.[0]?.payload?.umpireId;
+  return typeof umpireId === "number" ? umpireId : null;
+}
 
 function riskColor(riskTier: UmpireRiskPoint["riskTier"]) {
   switch (riskTier) {
@@ -59,30 +64,6 @@ const RiskDot = memo((props: { cx?: number; cy?: number; payload?: UmpireRiskPoi
 });
 RiskDot.displayName = "RiskDot";
 
-type UmpireRiskTooltipProps = TooltipContentProps<number, string> & {
-  mousePos: { x: number; y: number };
-};
-
-function UmpireRiskTooltip({ active, payload, mousePos }: UmpireRiskTooltipProps) {
-  if (!active || !payload?.length) return null;
-  const point = payload[0]?.payload as UmpireRiskPoint | undefined;
-  if (!point) return null;
-
-  return (
-    <ChartTooltip
-      usePortal
-      portalProps={mousePos}
-      title={point.umpireName}
-      value={`${(point.overturnRate * 100).toFixed(2)}%`}
-      subValueLabel="Overturn Rate"
-      extra={[
-        { label: "Variance", value: point.overturnRateVariance.toFixed(2) },
-        { label: "Risk Tier", value: point.riskTier, mono: false, color: riskColor(point.riskTier) },
-      ]}
-    />
-  );
-}
-
 function VarianceAxisLabel({
   viewBox,
 }: {
@@ -116,6 +97,7 @@ function VarianceAxisLabel({
 
 export function UmpireRiskScatter({ data }: { data: UmpireRiskPoint[] }) {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [hoveredUmpireId, setHoveredUmpireId] = useState<number | null>(null);
   const { avgRate, avgVariance, xAxis, yAxis, yTickDigits } = useMemo(() => {
     if (data.length === 0) {
       return {
@@ -139,6 +121,10 @@ export function UmpireRiskScatter({ data }: { data: UmpireRiskPoint[] }) {
       yTickDigits: yStep < 0.1 ? 2 : 1,
     };
   }, [data]);
+  const hoveredPoint = useMemo(
+    () => data.find((point) => point.umpireId === hoveredUmpireId) ?? null,
+    [data, hoveredUmpireId],
+  );
 
   if (data.length === 0) return null;
 
@@ -170,7 +156,13 @@ export function UmpireRiskScatter({ data }: { data: UmpireRiskPoint[] }) {
         </div>
 
         <ResponsiveContainer width="100%" height={300} minWidth={0}>
-          <ScatterChart margin={{ top: 28, right: 30, bottom: 50, left: 72 }}>
+          <ScatterChart
+            margin={{ top: 28, right: 30, bottom: 50, left: 72 }}
+            onMouseMove={(state: unknown) => {
+              setHoveredUmpireId(getActiveScatterUmpireId(state));
+            }}
+            onMouseLeave={() => setHoveredUmpireId(null)}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
             <XAxis
               type="number"
@@ -226,17 +218,21 @@ export function UmpireRiskScatter({ data }: { data: UmpireRiskPoint[] }) {
               }}
             />
             <Scatter data={data} shape={<RiskDot />} isAnimationActive={false} />
-            <Tooltip
-              content={(props) => <UmpireRiskTooltip {...(props as TooltipContentProps<number, string>)} mousePos={mousePos} />}
-              cursor={false}
-              offset={0}
-              allowEscapeViewBox={{ x: true, y: true }}
-              wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
-              isAnimationActive={false}
-              animationDuration={0}
-            />
           </ScatterChart>
         </ResponsiveContainer>
+        {hoveredPoint ? (
+          <ChartTooltip
+            usePortal
+            portalProps={mousePos}
+            title={hoveredPoint.umpireName}
+            value={`${(hoveredPoint.overturnRate * 100).toFixed(2)}%`}
+            subValueLabel="Overturn Rate"
+            extra={[
+              { label: "Variance", value: hoveredPoint.overturnRateVariance.toFixed(2) },
+              { label: "Risk Tier", value: hoveredPoint.riskTier, mono: false, color: riskColor(hoveredPoint.riskTier) },
+            ]}
+          />
+        ) : null}
       </div>
     </div>
   );

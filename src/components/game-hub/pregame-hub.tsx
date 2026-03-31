@@ -9,6 +9,7 @@ import { PregameZoneBriefChart } from "@/components/game-hub/pregame-zone-brief-
 import type { GameHubGame } from "@/lib/types";
 import type { ViewMode } from "@/lib/view-mode";
 import { getGameViewCopy } from "@/lib/view-mode-contract";
+import { resolveMatchupAccentColors } from "@/lib/team-branding";
 
 export async function PregameScoutingReport({ game, viewMode }: { game: GameHubGame; viewMode: ViewMode }) {
     const [intel, opportunityBoard] = await Promise.all([
@@ -18,6 +19,14 @@ export async function PregameScoutingReport({ game, viewMode }: { game: GameHubG
     const copy = getGameViewCopy(viewMode, "pregame");
     const homeLabel = game.homeabbreviation || "HOME";
     const awayLabel = game.awayabbreviation || "AWAY";
+    const { homeColor, awayColor } = resolveMatchupAccentColors({
+        homeTeamId: game.hometeamid,
+        awayTeamId: game.awayteamid,
+        homePrimaryColor: game.homeprimarycolor,
+        homeSecondaryColor: game.homesecondarycolor,
+        awayPrimaryColor: game.awayprimarycolor,
+        awaySecondaryColor: game.awaysecondarycolor,
+    });
 
     return (
         <div className="py-8">
@@ -49,16 +58,16 @@ export async function PregameScoutingReport({ game, viewMode }: { game: GameHubG
                             opportunityBoard={opportunityBoard}
                             homeLabel={homeLabel}
                             awayLabel={awayLabel}
-                            homeColor={game.homeprimarycolor ?? "#2563eb"}
-                            awayColor={game.awayprimarycolor ?? "#ef4444"}
+                            homeColor={homeColor}
+                            awayColor={awayColor}
                             viewMode={viewMode}
                         />
                         <PregameTimingComparisonChart
                             intel={intel}
                             homeLabel={homeLabel}
                             awayLabel={awayLabel}
-                            homeColor={game.homeprimarycolor ?? "#2563eb"}
-                            awayColor={game.awayprimarycolor ?? "#ef4444"}
+                            homeColor={homeColor}
+                            awayColor={awayColor}
                             viewMode={viewMode}
                         />
                     </section>

@@ -8,12 +8,9 @@ import {
   ResponsiveContainer,
   Scatter,
   ScatterChart,
-  Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import type { TooltipContentProps } from "recharts";
-
 import { buildLinearAxis, formatNumberTick, formatPercentTick } from "@/components/analytics/chart-axis";
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
 
@@ -24,29 +21,28 @@ export type SpringUmpireExposurePoint = {
   overturnRate: number;
 };
 
-type UmpireTooltipProps = TooltipContentProps<number, string> & {
-  mousePos: { x: number; y: number };
-};
+function getScatterMousePosition(state: unknown) {
+  if (!state || typeof state !== "object" || !("chartX" in state) || !("chartY" in state)) return null;
+  const chartX = (state as { chartX?: unknown }).chartX;
+  const chartY = (state as { chartY?: unknown }).chartY;
+  if (typeof chartX !== "number" || typeof chartY !== "number") return null;
+  return { x: chartX, y: chartY };
+}
 
-function UmpireTooltip({ active, payload, mousePos }: UmpireTooltipProps) {
-  if (!active || !payload?.length) return null;
-  const point = payload[0]?.payload as SpringUmpireExposurePoint | undefined;
-  if (!point) return null;
-
-  return (
-    <ChartTooltip
-      usePortal
-      portalProps={mousePos}
-      title={point.umpireName}
-      value={`${point.challengedCalls}`}
-      subValueLabel="Challenged Calls"
-      extra={[{ label: "Overturn Rate", value: `${(point.overturnRate * 100).toFixed(1)}%` }]}
-    />
-  );
+function getActiveUmpirePoint(state: unknown): SpringUmpireExposurePoint | null {
+  if (!state || typeof state !== "object" || !("activePayload" in state)) return null;
+  const activePayload = (state as { activePayload?: Array<{ payload?: unknown }> }).activePayload;
+  const payload = activePayload?.[0]?.payload;
+  if (!payload || typeof payload !== "object") return null;
+  const point = payload as Partial<SpringUmpireExposurePoint>;
+  return typeof point.umpireId === "number" || typeof point.umpireId === "string"
+    ? (point as SpringUmpireExposurePoint)
+    : null;
 }
 
 export function SpringUmpireExposureScatter({ data }: { data: SpringUmpireExposurePoint[] }) {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [hoveredPoint, setHoveredPoint] = useState<SpringUmpireExposurePoint | null>(null);
   const { avgExposure, avgRate, xAxis, yAxis } = useMemo(() => {
     if (!data.length) {
       return {
@@ -68,7 +64,7 @@ export function SpringUmpireExposureScatter({ data }: { data: SpringUmpireExposu
   if (!data.length) return null;
 
   return (
-    <div className="relative h-[360px] w-full" onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}>
+    <div className="relative h-[360px] w-full">
       <div className="pointer-events-none absolute inset-0 z-10">
         <span className="absolute left-12 top-2 text-[9px] font-black uppercase tracking-[0.14em] text-emerald-500/50">
           High Rate, Low Exposure
@@ -85,7 +81,17 @@ export function SpringUmpireExposureScatter({ data }: { data: SpringUmpireExposu
       </div>
 
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={360}>
-        <ScatterChart margin={{ top: 34, right: 36, bottom: 50, left: 72 }}>
+        <ScatterChart
+          margin={{ top: 34, right: 36, bottom: 50, left: 72 }}
+          onMouseMove={(state: unknown) => {
+            const nextMousePos = getScatterMousePosition(state);
+            if (nextMousePos) {
+              setMousePos(nextMousePos);
+            }
+            setHoveredPoint(getActiveUmpirePoint(state));
+          }}
+          onMouseLeave={() => setHoveredPoint(null)}
+        >
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
           <XAxis
             type="number"
@@ -143,17 +149,18 @@ export function SpringUmpireExposureScatter({ data }: { data: SpringUmpireExposu
             }}
           />
           <Scatter data={data} fill="#0f766e" isAnimationActive={false} />
-          <Tooltip
-            content={(props) => <UmpireTooltip {...(props as TooltipContentProps<number, string>)} mousePos={mousePos} />}
-            cursor={false}
-            offset={0}
-            allowEscapeViewBox={{ x: true, y: true }}
-            wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
-            isAnimationActive={false}
-            animationDuration={0}
-          />
         </ScatterChart>
       </ResponsiveContainer>
+      {hoveredPoint ? (
+        <ChartTooltip
+          usePortal
+          portalProps={mousePos}
+          title={hoveredPoint.umpireName}
+          value={`${hoveredPoint.challengedCalls}`}
+          subValueLabel="Challenged Calls"
+          extra={[{ label: "Overturn Rate", value: `${(hoveredPoint.overturnRate * 100).toFixed(1)}%` }]}
+        />
+      ) : null}
     </div>
   );
 }

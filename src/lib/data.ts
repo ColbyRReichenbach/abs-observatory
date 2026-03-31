@@ -2206,7 +2206,9 @@ export async function getGameChallengeOpportunityBoard(gamePk: number): Promise<
       homeAbbreviation: game.homeabbreviation,
       awayAbbreviation: game.awayabbreviation,
       homePrimaryColor: game.homeprimarycolor,
+      homeSecondaryColor: game.homesecondarycolor,
       awayPrimaryColor: game.awayprimarycolor,
+      awaySecondaryColor: game.awaysecondarycolor,
       cells,
     };
   });
@@ -2727,12 +2729,13 @@ export async function getUmpireLeaderboard(range: RangeKey = "season"): Promise<
 
 async function getUmpireRubricMetrics(range: RangeKey = "season") {
   const window = rangeWhere(range, "g.game_date");
-  const rows = await sql<{
-    umpireid: number;
-    overturnratevariance: number | null;
-    recentoverturnrate: number | null;
-  }>(
-    `
+  const [rows, challengeRows, runExpectancyRows, winExpectancyRows] = await Promise.all([
+    sql<{
+      umpireid: number;
+      overturnratevariance: number | null;
+      recentoverturnrate: number | null;
+    }>(
+      `
     WITH filtered AS (
       SELECT
         s.umpire_id AS umpireId,
@@ -2763,8 +2766,92 @@ async function getUmpireRubricMetrics(range: RangeKey = "season") {
     FROM filtered
     GROUP BY umpireId
     `,
-    window.params,
-  );
+      window.params,
+    ),
+    sql<{
+      umpireid: number;
+      inning: number | null;
+      halfinning: string | null;
+      outs: number | null;
+      basesstate: string | null;
+      homescore: number | null;
+      awayscore: number | null;
+      ballsbefore: number | null;
+      strikesbefore: number | null;
+      ballsafter: number | null;
+      strikesafter: number | null;
+      isoverturned: boolean;
+    }>(
+      `
+      SELECT DISTINCT ON (o.official_id, c.challenge_id)
+        o.official_id AS umpireId,
+        c.inning,
+        c.half_inning AS halfInning,
+        c.outs,
+        c.bases_state AS basesState,
+        c.home_score AS homeScore,
+        c.away_score AS awayScore,
+        c.balls_before AS ballsBefore,
+        c.strikes_before AS strikesBefore,
+        c.balls_after AS ballsAfter,
+        c.strikes_after AS strikesAfter,
+        c.is_overturned AS isOverturned
+      FROM abs_challenges c
+      JOIN games g ON g.game_pk = c.game_pk
+      JOIN officials o ON o.game_pk = c.game_pk AND o.official_type = 'Home Plate'
+      WHERE ${window.clause}
+      ORDER BY o.official_id, c.challenge_id
+      `,
+      window.params,
+    ),
+    getRunExpectancyFallbackRows(),
+    getWinExpectancyFallbackRows(),
+  ]);
+
+  const valueMetrics = new Map<
+    number,
+    { runDeltaSum: number; runDeltaCount: number; winDeltaSum: number; winDeltaCount: number }
+  >();
+
+  for (const row of challengeRows) {
+    const umpireCount = resolveUmpireCountState(
+      row.ballsbefore,
+      row.strikesbefore,
+      row.ballsafter,
+      row.strikesafter,
+      row.isoverturned,
+    );
+    const countAfter =
+      row.ballsafter === null || row.strikesafter === null ? null : `${row.ballsafter}-${row.strikesafter}`;
+    const challengeState = {
+      inning: row.inning === null ? null : Number(row.inning),
+      halfInning: row.halfinning,
+      outs: row.outs === null ? null : Number(row.outs),
+      basesState: row.basesstate,
+      homeScore: row.homescore === null ? null : Number(row.homescore),
+      awayScore: row.awayscore === null ? null : Number(row.awayscore),
+      umpireCount,
+      countAfter,
+    };
+    const runDelta = getChallengeRunExpectancyDelta(challengeState, runExpectancyRows).runExpectancyDelta;
+    const winDelta = getChallengeWinExpectancyDelta(challengeState, winExpectancyRows).winExpectancyDelta;
+    const bucket = valueMetrics.get(Number(row.umpireid)) ?? {
+      runDeltaSum: 0,
+      runDeltaCount: 0,
+      winDeltaSum: 0,
+      winDeltaCount: 0,
+    };
+
+    if (runDelta !== null) {
+      bucket.runDeltaSum += runDelta;
+      bucket.runDeltaCount += 1;
+    }
+    if (winDelta !== null) {
+      bucket.winDeltaSum += winDelta;
+      bucket.winDeltaCount += 1;
+    }
+    valueMetrics.set(Number(row.umpireid), bucket);
+  }
 
   return new Map(
     rows.map((row) => [
@@ -2773,6 +2860,14 @@ async function getUmpireRubricMetrics(range: RangeKey = "season") {
         umpireId: Number(row.umpireid),
         overturnRateVariance: Number(row.overturnratevariance ?? 0),
         recentOverturnRate: row.recentoverturnrate === null ? null : Number(row.recentoverturnrate),
+        averageRunExpectancyDelta: (() => {
+          const metric = valueMetrics.get(Number(row.umpireid));
+          return metric && metric.runDeltaCount > 0 ? roundMetric(metric.runDeltaSum / metric.runDeltaCount) : null;
+        })(),
+        averageWinExpectancyDelta: (() => {
+          const metric = valueMetrics.get(Number(row.umpireid));
+          return metric && metric.winDeltaCount > 0 ? roundMetric(metric.winDeltaSum / metric.winDeltaCount, 4) : null;
+        })(),
       },
     ]),
   );

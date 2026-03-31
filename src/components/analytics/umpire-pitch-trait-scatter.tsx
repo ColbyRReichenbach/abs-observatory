@@ -133,8 +133,8 @@ export function UmpirePitchTraitScatter({ challenges }: { challenges: ChallengeE
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <MiniStat label="Challenges" value={`${selected.sample}`} />
                   <MiniStat label="Overturn Rate" value={`${selected.overturnRate.toFixed(1)}%`} />
-                  <MiniStat label="Abs WE / WPA" value={formatPercent(selected.avgAbsWin)} muted={selected.sample < 3} />
-                  <MiniStat label="Expected WE" value={formatPercent(selected.avgExpected)} muted={selected.sample < 3} />
+                  <MiniStat label="Abs WE" value={formatPercent(selected.avgAbsWin)} muted={selected.sample < 3} />
+                  <MiniStat label="Exp. WE" value={formatPercent(selected.avgExpected)} muted={selected.sample < 3} />
                 </div>
                 <p className="mt-4 text-sm leading-7 text-[var(--ink-2)]">
                   {selected.pitchFamily} is sitting at {selected.avgVelocity ? `${selected.avgVelocity.toFixed(1)} mph` : "unknown velocity"} and{" "}
