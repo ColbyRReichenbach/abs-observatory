@@ -1,5 +1,5 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
-import type { NextRequest } from "next/server";
+import type { NextFetchEvent, NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 import { getCsrfCookieName, issueCsrfToken } from "@/lib/server/csrf";
@@ -38,6 +38,6 @@ export const config = {
   ],
 };
 
-export function proxy(request: NextRequest) {
-  return hasClerkCredentials ? authProxy(request) : withSecurityHeaders(NextResponse.next());
+export function proxy(request: NextRequest, event: NextFetchEvent) {
+  return hasClerkCredentials ? authProxy(request, event) : withSecurityHeaders(NextResponse.next());
 }

@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, type NextFetchEvent } from "next/server";
 import { afterEach, describe, expect, it } from "vitest";
 
 describe("proxy security headers", () => {
@@ -15,7 +15,7 @@ describe("proxy security headers", () => {
     delete process.env.CLERK_SECRET_KEY;
 
     const { proxy } = await import("./src/proxy");
-    const response = proxy(new NextRequest("http://localhost/teams"));
+    const response = proxy(new NextRequest("http://localhost/teams"), {} as NextFetchEvent);
 
     expect(response.headers.get("x-frame-options")).toBe("DENY");
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
