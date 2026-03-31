@@ -1,5 +1,7 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+
 import { getCsrfCookieName, issueCsrfToken } from "@/lib/server/csrf";
 
 const hasClerkCredentials =
@@ -27,7 +29,6 @@ function withSecurityHeaders(response: NextResponse) {
   return response;
 }
 
-const fallbackProxy = () => withSecurityHeaders(NextResponse.next());
 const authProxy = clerkMiddleware(() => withSecurityHeaders(NextResponse.next()));
 
 export const config = {
@@ -37,6 +38,6 @@ export const config = {
   ],
 };
 
-export function proxy(...args: Parameters<typeof authProxy>) {
-  return hasClerkCredentials ? authProxy(...args) : fallbackProxy();
+export function proxy(request: NextRequest) {
+  return hasClerkCredentials ? authProxy(request) : withSecurityHeaders(NextResponse.next());
 }

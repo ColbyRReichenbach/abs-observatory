@@ -11,16 +11,18 @@ import { withViewModeHref } from "@/lib/view-mode-href";
 import { ProfileBadge } from "@/components/ui/profile-badge";
 import { getHomePageViewCopy } from "@/lib/view-mode-contract";
 import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
+import type { HomeChallengeMoment } from "@/lib/types";
 
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const sp = await searchParams;
   const viewMode = await resolveViewMode(sp);
   const copy = getHomePageViewCopy(viewMode);
+  const momentsPromise = getHomeChallengeMoments(12);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.03),transparent)] pt-36">
       <Suspense fallback={null}>
-        <HomeBroadcastSection />
+        <HomeBroadcastSection momentsPromise={momentsPromise} />
       </Suspense>
 
       <div className="px-6 py-8 text-center">
@@ -33,14 +35,14 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       </div>
 
       <Suspense fallback={<HomePageFallback viewMode={viewMode} copy={copy} />}>
-        <HomePageBody viewMode={viewMode} copy={copy} />
+        <HomePageBody viewMode={viewMode} copy={copy} momentsPromise={momentsPromise} />
       </Suspense>
     </div>
   );
 }
 
-async function HomeBroadcastSection() {
-  const moments = await getHomeChallengeMoments(12);
+async function HomeBroadcastSection({ momentsPromise }: { momentsPromise: Promise<HomeChallengeMoment[]> }) {
+  const moments = await momentsPromise;
   return (
     <div className="relative z-40 bg-white/50 border-b border-gray-100">
       <BroadcastStrip moments={moments} />
@@ -54,10 +56,11 @@ async function HomePageBody({
 }: {
   viewMode: "fan" | "org";
   copy: ReturnType<typeof getHomePageViewCopy>;
+  momentsPromise: Promise<HomeChallengeMoment[]>;
 }) {
   const [games, moments, teams, umpires] = await Promise.all([
     getLiveGames(),
-    getHomeChallengeMoments(12),
+    momentsPromise,
     getTeamLeaderboardModel("season", {
       includeDecisionMetrics: viewMode === "org",
       includeValueMetrics: viewMode === "org",
