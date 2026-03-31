@@ -53,6 +53,7 @@ async function HomeBroadcastSection({ momentsPromise }: { momentsPromise: Promis
 async function HomePageBody({
   viewMode,
   copy,
+  momentsPromise,
 }: {
   viewMode: "fan" | "org";
   copy: ReturnType<typeof getHomePageViewCopy>;
