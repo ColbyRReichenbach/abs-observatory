@@ -7,8 +7,9 @@ import { ContextualCopilotFAB } from "@/components/contextual-copilot-fab";
 import { Nav } from "@/components/nav";
 import { ViewModeSync } from "@/components/ui/view-mode-sync";
 import { launchConfig } from "@/lib/launch-config";
-import { canAccessAdmin, canAccessPrivateAi } from "@/lib/server/admin";
+import { getAuthIdentity } from "@/lib/server/auth";
 import { validateServerEnv } from "@/lib/server/env";
+import { getViewerProfileFromIdentity } from "@/lib/server/profiles";
 import { resolveViewMode } from "@/lib/view-mode";
 
 import "./globals.css";
@@ -38,11 +39,20 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   validateServerEnv(false);
-  const [initialMode, adminVisible, privateAiVisible] = await Promise.all([
+  const [initialMode, identity] = await Promise.all([
     resolveViewMode(),
-    canAccessAdmin(),
-    canAccessPrivateAi(),
+    getAuthIdentity(),
   ]);
+  let viewer = null;
+  if (identity) {
+    try {
+      viewer = await getViewerProfileFromIdentity(identity);
+    } catch {
+      viewer = null;
+    }
+  }
+  const adminVisible = Boolean(viewer?.isVerified && viewer.roles.includes("admin"));
+  const privateAiVisible = Boolean(viewer?.isVerified && (viewer.aiAccessEnabled || viewer.roles.includes("admin")));
 
   return (
     <html lang="en">
@@ -54,7 +64,12 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           <Suspense fallback={null}>
             <ViewModeSync />
           </Suspense>
-          <Nav initialMode={initialMode} canAccessAdmin={adminVisible} />
+          <Nav
+            initialMode={initialMode}
+            canAccessAdmin={adminVisible}
+            isSignedIn={Boolean(identity)}
+            profileLabel={viewer?.displayName ?? viewer?.username ?? viewer?.primaryEmail ?? identity?.displayName ?? identity?.email ?? null}
+          />
           <main id="main-content">
             {children}
           </main>

@@ -1,14 +1,25 @@
 import Link from "next/link";
 
 import { LoginEntryPanel } from "@/components/auth/login-entry-panel";
-import { isClerkConfigured } from "@/lib/server/auth";
-import { getViewerProfile } from "@/lib/server/profiles";
+import { getAuthIdentity, isClerkConfigured } from "@/lib/server/auth";
+import { getViewerProfileFromIdentity } from "@/lib/server/profiles";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProfilePage() {
-  const viewer = await getViewerProfile();
-  if (!viewer) {
+  const identity = await getAuthIdentity();
+  let viewer = null;
+  let provisioningError = false;
+
+  if (identity) {
+    try {
+      viewer = await getViewerProfileFromIdentity(identity);
+    } catch {
+      provisioningError = true;
+    }
+  }
+
+  if (!identity && !viewer) {
     return (
       <main className="mx-auto max-w-5xl px-6 pb-24 pt-32">
         <div className="mb-10">
@@ -19,6 +30,58 @@ export default async function ProfilePage() {
           </p>
         </div>
         <LoginEntryPanel authEnabled={isClerkConfigured()} nextHref="/profile" />
+      </main>
+    );
+  }
+
+  if (!viewer && identity) {
+    return (
+      <main className="mx-auto max-w-5xl px-6 pb-24 pt-32">
+        <div className="mb-10">
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-500">Account</p>
+          <h1 className="mt-3 text-5xl font-display uppercase tracking-[-0.04em] text-[var(--ink-0)]">Profile</h1>
+          <p className="mt-3 max-w-2xl text-sm text-[var(--ink-2)]">
+            You are signed in as <span className="font-semibold text-[var(--ink-1)]">{identity.email ?? identity.displayName ?? "your account"}</span>.
+            {" "}
+            AiBS is still finalizing your profile record and access flags.
+          </p>
+        </div>
+
+        <section className="panel max-w-3xl border-gray-100 bg-white p-8 shadow-2xl shadow-black/[0.03]">
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-500">Provisioning</p>
+          <h2 className="mt-2 text-3xl font-display uppercase tracking-[0.04em] text-[var(--ink-0)]">
+            Account Setup In Progress
+          </h2>
+          <div className="mt-6 space-y-4 text-sm text-[var(--ink-1)]">
+            <p>
+              Signed-in identity:
+              <span className="ml-2 font-semibold">{identity.email ?? identity.displayName ?? identity.externalAuthId}</span>
+            </p>
+            <p>
+              Email verified:
+              <span className="ml-2 font-semibold">{identity.isVerified ? "Yes" : "No"}</span>
+            </p>
+            <p className="rounded-2xl border border-black/10 bg-[var(--surface-infield)] p-4 text-xs leading-6 text-[var(--ink-2)]">
+              {provisioningError
+                ? "The Clerk session is present, but AiBS could not finish profile provisioning on this request. Refresh once after sign-in; if it still persists, the server-side auth sync still needs attention."
+                : "The Clerk session is present, but your profile record has not been materialized in the app database yet. Refresh once after sign-in to re-run the sync."}
+            </p>
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Link
+                href="/profile"
+                className="inline-flex h-11 items-center justify-center rounded-full bg-black px-5 text-[10px] font-black uppercase tracking-[0.14em] text-white transition hover:scale-105 active:scale-95"
+              >
+                Refresh Profile
+              </Link>
+              <Link
+                href="/query?view=org"
+                className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-5 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-1)] transition hover:border-black/20"
+              >
+                Open Query Lab
+              </Link>
+            </div>
+          </div>
+        </section>
       </main>
     );
   }

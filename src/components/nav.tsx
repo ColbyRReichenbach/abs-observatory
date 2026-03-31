@@ -25,7 +25,17 @@ const links = [
   { href: "/profile", label: "Profile", match: "/profile" },
 ];
 
-export function Nav({ initialMode, canAccessAdmin = false }: { initialMode?: ViewMode; canAccessAdmin?: boolean }) {
+export function Nav({
+  initialMode,
+  canAccessAdmin = false,
+  isSignedIn = false,
+  profileLabel = null,
+}: {
+  initialMode?: ViewMode;
+  canAccessAdmin?: boolean;
+  isSignedIn?: boolean;
+  profileLabel?: string | null;
+}) {
   const pathname = usePathname();
   const activeMode = useSyncExternalStore(
     (onStoreChange) => {
@@ -46,6 +56,10 @@ export function Nav({ initialMode, canAccessAdmin = false }: { initialMode?: Vie
   const navLinks = canAccessAdmin
     ? [...links, { href: "/admin/ai", label: "Admin", match: "/admin" }]
     : links;
+  const profileHref = withViewModeHref("/profile", activeMode);
+  const authLabel = isSignedIn
+    ? (profileLabel?.split(" ")[0]?.trim() || "Profile")
+    : "Sign In";
 
   return (
     <header className="fixed top-8 left-0 right-0 z-50 px-6 pointer-events-none">
@@ -86,7 +100,17 @@ export function Nav({ initialMode, canAccessAdmin = false }: { initialMode?: Vie
           </nav>
         </div>
 
-        <div className="flex items-center gap-4 pr-1">
+        <div className="flex items-center gap-3 pr-1">
+          <Link
+            href={profileHref}
+            className={`inline-flex h-10 items-center justify-center rounded-full px-4 text-[10px] font-black uppercase tracking-[0.14em] transition ${
+              isSignedIn
+                ? "border border-black/10 bg-[var(--surface-infield)] text-[var(--ink-1)] hover:border-black/20"
+                : "bg-black text-white hover:opacity-90"
+            }`}
+          >
+            {authLabel}
+          </Link>
           <Suspense fallback={<div className="w-20 h-8 bg-gray-100 animate-pulse rounded-full" />}>
             <ViewModeToggle initialMode={activeMode} />
           </Suspense>

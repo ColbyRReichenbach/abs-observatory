@@ -146,8 +146,9 @@ export async function syncUserFromIdentity(identity: NonNullable<Awaited<ReturnT
   return result;
 }
 
-export async function getViewerProfile(request?: Request): Promise<ViewerProfile | null> {
-  const identity = await getAuthIdentity(request);
+export async function getViewerProfileFromIdentity(
+  identity: Awaited<ReturnType<typeof getAuthIdentity>>,
+): Promise<ViewerProfile | null> {
   if (!identity) return null;
 
   const userId = await syncUserFromIdentity(identity);
@@ -256,6 +257,11 @@ export async function getViewerProfile(request?: Request): Promise<ViewerProfile
         }
       : null,
   );
+}
+
+export async function getViewerProfile(request?: Request): Promise<ViewerProfile | null> {
+  const identity = await getAuthIdentity(request);
+  return getViewerProfileFromIdentity(identity);
 }
 
 export async function updateViewerProfile(
