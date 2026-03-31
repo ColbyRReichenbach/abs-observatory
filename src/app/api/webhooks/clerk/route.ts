@@ -161,6 +161,7 @@ export async function POST(request: NextRequest) {
             userId: user.userid,
             authProvider: "clerk",
             externalAuthId: getString(payload, "id") ?? "",
+            primaryEmail: emailAddress,
           },
         );
       }
