@@ -1,4 +1,4 @@
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
 
 export type AuthIdentity = {
   provider: string;
@@ -19,7 +19,19 @@ function parseBooleanHeader(value: string | null, fallback: boolean): boolean {
   return !["0", "false", "no"].includes(value.trim().toLowerCase());
 }
 
-function isVerifiedClerkUser(user: Awaited<ReturnType<typeof currentUser>>): boolean {
+function getStringClaim(
+  claims: Record<string, unknown> | null | undefined,
+  keys: string[],
+): string | null {
+  if (!claims) return null;
+  for (const key of keys) {
+    const value = claims[key];
+    if (typeof value === "string" && value.trim()) return value;
+  }
+  return null;
+}
+
+function isVerifiedClerkUser(user: Awaited<ReturnType<typeof currentUser>> | Awaited<ReturnType<Awaited<ReturnType<typeof clerkClient>>["users"]["getUser"]>>): boolean {
   return Boolean(
     user?.primaryEmailAddress?.verification?.status === "verified" ||
       user?.primaryPhoneNumber?.verification?.status === "verified",
@@ -28,22 +40,64 @@ function isVerifiedClerkUser(user: Awaited<ReturnType<typeof currentUser>>): boo
 
 export async function getAuthIdentity(request?: Request): Promise<AuthIdentity | null> {
   if (isClerkConfigured()) {
+    let session: Awaited<ReturnType<typeof auth>> | null = null;
     try {
-      const session = await auth();
-      if (session.userId) {
-        const user = await currentUser();
-        return {
-          provider: "clerk",
-          externalAuthId: session.userId,
-          externalOrgId: session.orgId ?? null,
-          email: user?.primaryEmailAddress?.emailAddress ?? null,
-          displayName: user?.fullName ?? user?.username ?? null,
-          avatarUrl: user?.imageUrl ?? null,
-          isVerified: isVerifiedClerkUser(user),
-        };
-      }
+      session = await auth();
     } catch {
-      // Fall back to explicit dev headers when middleware or Clerk is not active.
+      session = null;
+    }
+
+    if (session?.userId) {
+      const claims =
+        ((session as unknown as { sessionClaims?: Record<string, unknown> | null }).sessionClaims ?? null) || null;
+
+      let user: Awaited<ReturnType<typeof currentUser>> | null = null;
+      try {
+        user = await currentUser();
+      } catch {
+        user = null;
+      }
+
+      if (!user) {
+        try {
+          const client = await clerkClient();
+          user = await client.users.getUser(session.userId);
+        } catch {
+          user = null;
+        }
+      }
+
+      const email =
+        user?.primaryEmailAddress?.emailAddress ??
+        getStringClaim(claims, ["email", "email_address"]) ??
+        null;
+      const displayName =
+        user?.fullName ??
+        user?.username ??
+        getStringClaim(claims, ["name", "full_name", "preferred_username"]) ??
+        null;
+      const avatarUrl =
+        user?.imageUrl ??
+        getStringClaim(claims, ["image_url", "picture"]) ??
+        null;
+      const isVerified =
+        user !== null
+          ? isVerifiedClerkUser(user)
+          : parseBooleanHeader(
+              getStringClaim(claims, ["email_verified", "verified"]) ??
+                (typeof claims?.email_verified === "boolean" ? String(claims.email_verified) : null),
+              false,
+            );
+
+      return {
+        provider: "clerk",
+        externalAuthId: session.userId,
+        externalOrgId: session.orgId ?? null,
+        email,
+        displayName,
+        avatarUrl,
+        isVerified,
+      };
     }
   }
 
