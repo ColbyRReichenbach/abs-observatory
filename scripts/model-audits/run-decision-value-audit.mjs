@@ -2,6 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { Client } from "pg";
 import {
+  describeAuditDatabaseTarget,
+  loadAuditEnv,
+  resolveAuditDatabaseUrl,
+} from "./audit-runtime.mjs";
+import {
   AUDIT_DATE,
   AUDIT_END,
   ROOT,
@@ -35,12 +40,9 @@ const HEURISTIC_LATE_CLOSE_PER_LI_BOOST = 0.0015;
 const HEURISTIC_RUNNER_PRESSURE_PER_LI_BOOST = 0.0005;
 const HEURISTIC_COUNT_PRESSURE_PER_LI_BOOST = 0.0005;
 
-loadEnvFile(".env");
-loadEnvFile(".env.local");
-
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is required");
-}
+loadAuditEnv();
+const DATABASE_URL = resolveAuditDatabaseUrl();
+const DATABASE_TARGET = describeAuditDatabaseTarget(DATABASE_URL);
 
 function leverageApprox(req) {
   const inningFactor = clamp(req.inning / 9, 0.1, 1.7);
@@ -255,7 +257,10 @@ ${toMarkdownTable(report.topUnderestimates, [
 }
 
 async function main() {
-  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  console.info(
+    `[decision-value-audit] database_role=${DATABASE_TARGET.role} host=${DATABASE_TARGET.host} db=${DATABASE_TARGET.database}`,
+  );
+  const client = new Client({ connectionString: DATABASE_URL });
   await client.connect();
 
   try {

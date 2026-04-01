@@ -71,12 +71,22 @@ The hosted serving database should be refreshed from the warehouse database thro
 Use:
 
 ```bash
-SOURCE_DATABASE_URL=postgresql://colbyreichenbach@localhost:5432/abs_observatory \
-TARGET_DATABASE_URL="$DATABASE_URL" \
+WAREHOUSE_DATABASE_URL=postgresql://colbyreichenbach@localhost:5432/abs_observatory \
+SERVING_DATABASE_URL="$DATABASE_URL" \
 npm run db:publish:serving
 ```
 
 The publish script intentionally excludes data for the large warehouse-only tables above while preserving the page-facing schemas, tables, and views used by the app.
+
+The exact per-table slicing contract lives in:
+
+- [serving-publish-contract.md](./serving-publish-contract.md)
+
+Environment contract:
+
+- `WAREHOUSE_DATABASE_URL` for ETL, backfills, audits, and model builds
+- `SERVING_DATABASE_URL` for hosted app serving and publish targets
+- `DATABASE_URL` should resolve to `SERVING_DATABASE_URL` in app runtimes
 
 ## Model Policy
 

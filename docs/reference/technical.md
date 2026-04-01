@@ -140,9 +140,19 @@ The route inventory is maintained in [page-route-coverage.md](../product/page-ro
 
 ## 5. Data Domains
 
-AiBS uses a single Postgres database with several logical domains.
+AiBS uses two database roles:
 
-Baseball and serving data:
+- `Warehouse database`
+  - raw baseball ingest
+  - historical backfills
+  - model-development and audit tables
+
+- `Serving database`
+  - page-facing baseball tables
+  - product/editorial/community/auth state
+  - compact model outputs
+
+Serving baseball data:
 
 - `teams`
 - `games`
@@ -179,6 +189,15 @@ AI and operations:
 
 - AI conversations, tool calls, usage, feedback, and safety state
 - ops audit and job-run tables
+
+Warehouse-only baseball domains include:
+
+- `raw.statcast_games`
+- `raw.statcast_pitches`
+- `raw.savant_gamefeed_games`
+- `raw.savant_abs_events`
+- `historical_pitch_states`
+- future `modeling.called_pitch_decisions`
 
 ## 6. App and Data Loading Pattern
 

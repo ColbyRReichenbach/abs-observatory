@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 
 export const ROOT = process.cwd();
@@ -32,4 +33,45 @@ export function auditDocPath(slug, root = ROOT, auditDate = AUDIT_DATE) {
 
 export function auditArtifactPath(slug, root = ROOT, auditDate = AUDIT_DATE) {
   return path.join(root, "docs", "models", "audits", "artifacts", `${auditDate}-${slug}.json`);
+}
+
+export function loadAuditEnv() {
+  for (const filename of [".env", ".env.local"]) {
+    const filePath = path.join(ROOT, filename);
+    if (!fs.existsSync(filePath)) continue;
+    const raw = fs.readFileSync(filePath, "utf8");
+    for (const line of raw.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eq = trimmed.indexOf("=");
+      if (eq === -1) continue;
+      const key = trimmed.slice(0, eq).trim();
+      if (process.env[key]) continue;
+      let value = trimmed.slice(eq + 1).trim();
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+      process.env[key] = value;
+    }
+  }
+}
+
+export function resolveAuditDatabaseUrl() {
+  const databaseUrl = process.env.WAREHOUSE_DATABASE_URL || process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    throw new Error("WAREHOUSE_DATABASE_URL or DATABASE_URL is required");
+  }
+  return databaseUrl;
+}
+
+export function describeAuditDatabaseTarget(connectionString) {
+  const parsed = new URL(connectionString);
+  return {
+    role: process.env.WAREHOUSE_DATABASE_URL ? "warehouse" : "fallback_database_url",
+    host: parsed.hostname || "local_socket",
+    database: parsed.pathname.replace(/^\//, "") || "postgres",
+  };
 }

@@ -40,6 +40,8 @@ except ImportError:  # pragma: no cover - exercised through CLI behavior, not un
     pybaseball_cache = None
     statcast = None
 
+from db_target import log_database_target, resolve_database_target
+
 
 API_BASE = "https://statsapi.mlb.com/api/v1"
 DEFAULT_CHECKPOINT_PATH = Path(__file__).resolve().parent / ".statcast_backfill_checkpoint.json"
@@ -482,6 +484,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--start-date", help="YYYY-MM-DD")
     parser.add_argument("--end-date", help="YYYY-MM-DD")
     parser.add_argument("--season", type=int, help="Convenience flag to backfill an entire regular-season year")
+    parser.add_argument("--database-url", help="Postgres connection string; defaults to WAREHOUSE_DATABASE_URL")
     parser.add_argument("--resume", action="store_true", help="Resume from the checkpoint file if present")
     parser.add_argument("--checkpoint-file", default=str(DEFAULT_CHECKPOINT_PATH))
     parser.add_argument("--dry-run", action="store_true")
@@ -514,14 +517,18 @@ def main() -> None:
         if completed:
             start_date = max(start_date, date.fromisoformat(completed) + timedelta(days=1))
 
-    connection_string = os.environ.get("DATABASE_URL")
-    if not connection_string and not args.dry_run:
-        raise SystemExit("DATABASE_URL is required unless --dry-run is used.")
+    target = resolve_database_target(
+        cli_database_url=args.database_url,
+        role="warehouse",
+        required=not args.dry_run,
+    )
+    if target is not None:
+        log_database_target("[statcast_backfill]", target)
 
     if pybaseball_cache is not None and not args.disable_cache:
         pybaseball_cache.enable()
 
-    conn = psycopg2.connect(connection_string) if connection_string and not args.dry_run else None
+    conn = psycopg2.connect(target.connection_string) if target is not None and not args.dry_run else None
     session = requests.Session()
     session.headers.update(
         {

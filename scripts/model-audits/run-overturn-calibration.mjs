@@ -5,6 +5,9 @@ import {
   AUDIT_DATE,
   ROOT,
   formatAuditDateLabel,
+  loadAuditEnv,
+  resolveAuditDatabaseUrl,
+  describeAuditDatabaseTarget,
 } from "./audit-runtime.mjs";
 
 const DOC_PATH = path.join(ROOT, `docs/models/audits/${AUDIT_DATE}-overturn-calibration.md`);
@@ -13,34 +16,10 @@ const ARTIFACT_PATH = path.join(
   `docs/models/audits/artifacts/${AUDIT_DATE}-overturn-calibration.json`,
 );
 
-function loadEnvFile(filename) {
-  const filePath = path.join(ROOT, filename);
-  if (!fs.existsSync(filePath)) return;
-  const raw = fs.readFileSync(filePath, "utf8");
-  for (const line of raw.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eq = trimmed.indexOf("=");
-    if (eq === -1) continue;
-    const key = trimmed.slice(0, eq).trim();
-    if (process.env[key]) continue;
-    let value = trimmed.slice(eq + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    process.env[key] = value;
-  }
-}
-
-loadEnvFile(".env");
-loadEnvFile(".env.local");
-
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is required");
-}
+loadAuditEnv();
+const DATABASE_URL = resolveAuditDatabaseUrl();
+const DATABASE_TARGET = describeAuditDatabaseTarget(DATABASE_URL);
+console.log(`[audit:overturn-calibration] role=${DATABASE_TARGET.role} host=${DATABASE_TARGET.host} db=${DATABASE_TARGET.database}`);
 
 function mean(values) {
   if (!values.length) return null;
@@ -180,7 +159,7 @@ ${toMarkdownTable(report.topGapGroups, [
 }
 
 async function main() {
-  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  const client = new Client({ connectionString: DATABASE_URL });
   await client.connect();
 
   try {

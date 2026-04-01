@@ -7,6 +7,8 @@ import os
 import psycopg2
 from dotenv import load_dotenv
 
+from db_target import log_database_target, resolve_database_target
+
 
 BUILD_SQL = """
 WITH filtered AS (
@@ -151,17 +153,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--season", type=int)
     parser.add_argument("--start-date")
     parser.add_argument("--end-date")
+    parser.add_argument("--database-url", help="Postgres connection string; defaults to WAREHOUSE_DATABASE_URL")
     return parser.parse_args()
 
 
 def main() -> None:
     load_dotenv()
-    connection_string = os.environ.get("DATABASE_URL")
-    if not connection_string:
-        raise SystemExit("DATABASE_URL is required.")
-
     args = parse_args()
-    conn = psycopg2.connect(connection_string)
+    target = resolve_database_target(cli_database_url=args.database_url, role="warehouse")
+    log_database_target("[build_historical_pitch_states]", target)
+    conn = psycopg2.connect(target.connection_string)
     try:
         with conn:
             with conn.cursor() as cur:

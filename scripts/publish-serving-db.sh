@@ -18,12 +18,15 @@ if [[ -f "$ROOT_DIR/.env.local" ]]; then
   set +a
 fi
 
-: "${SOURCE_DATABASE_URL:=postgresql://colbyreichenbach@localhost:5432/abs_observatory}"
-: "${TARGET_DATABASE_URL:?TARGET_DATABASE_URL is required. Set it to the hosted serving database URL.}"
+: "${SOURCE_DATABASE_URL:=${WAREHOUSE_DATABASE_URL:-postgresql://colbyreichenbach@localhost:5432/abs_observatory}}"
+: "${TARGET_DATABASE_URL:=${SERVING_DATABASE_URL:-}}"
+: "${TARGET_DATABASE_URL:?TARGET_DATABASE_URL or SERVING_DATABASE_URL is required. Set it to the hosted serving database URL.}"
 
 DUMP_PATH="${SERVING_DUMP_PATH:-$ROOT_DIR/.runtime/serving-db.dump}"
 DUMP_DIR="$(dirname "$DUMP_PATH")"
+MANIFEST_DIR="${PUBLISH_MANIFEST_DIR:-$ROOT_DIR/.runtime/publish-manifests}"
 mkdir -p "$DUMP_DIR"
+mkdir -p "$MANIFEST_DIR"
 RUN_FALLBACK_CSV="$(mktemp)"
 WIN_FALLBACK_CSV="$(mktemp)"
 COUNT_BASELINE_CSV="$(mktemp)"
@@ -54,6 +57,9 @@ for table in "${exclude_table_data[@]}"; do
 done
 
 echo "Creating serving dump at $DUMP_PATH"
+echo "Publishing Warehouse -> Serving"
+echo "  source=$SOURCE_DATABASE_URL"
+echo "  target=$TARGET_DATABASE_URL"
 pg_dump "${dump_args[@]}"
 
 echo "Exporting serving-safe fallback lookup tables from source views"
@@ -149,5 +155,46 @@ SELECT
   'serving_count_state_outcome_baselines=' || COUNT(*)
 FROM public.serving_count_state_outcome_baselines;
 SQL
+
+publish_timestamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+manifest_path="$MANIFEST_DIR/publish-${publish_timestamp//:/-}.json"
+git_sha="$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+source_games_count="$(psql "$SOURCE_DATABASE_URL" -Atqc "SELECT COUNT(*) FROM public.games")"
+source_abs_count="$(psql "$SOURCE_DATABASE_URL" -Atqc "SELECT COUNT(*) FROM public.abs_challenges")"
+source_games_max_date="$(psql "$SOURCE_DATABASE_URL" -Atqc "SELECT COALESCE(MAX(game_date)::text, '') FROM public.games")"
+source_abs_max_ts="$(psql "$SOURCE_DATABASE_URL" -Atqc "SELECT COALESCE(MAX(challenged_at)::text, '') FROM public.abs_challenges")"
+target_games_count="$(psql "$TARGET_DATABASE_URL" -Atqc "SELECT COUNT(*) FROM public.games")"
+target_abs_count="$(psql "$TARGET_DATABASE_URL" -Atqc "SELECT COUNT(*) FROM public.abs_challenges")"
+target_run_fallbacks="$(psql "$TARGET_DATABASE_URL" -Atqc "SELECT COUNT(*) FROM public.serving_run_expectancy_fallbacks")"
+target_win_fallbacks="$(psql "$TARGET_DATABASE_URL" -Atqc "SELECT COUNT(*) FROM public.serving_win_expectancy_fallbacks")"
+target_count_baselines="$(psql "$TARGET_DATABASE_URL" -Atqc "SELECT COUNT(*) FROM public.serving_count_state_outcome_baselines")"
+
+cat > "$manifest_path" <<JSON
+{
+  "publishedAt": "$publish_timestamp",
+  "gitSha": "$git_sha",
+  "sourceDatabaseUrl": "$SOURCE_DATABASE_URL",
+  "targetDatabaseUrl": "$TARGET_DATABASE_URL",
+  "sourceCutoffs": {
+    "gamesMaxDate": "$source_games_max_date",
+    "absChallengesMaxTimestamp": "$source_abs_max_ts"
+  },
+  "rowCounts": {
+    "source": {
+      "games": $source_games_count,
+      "absChallenges": $source_abs_count
+    },
+    "target": {
+      "games": $target_games_count,
+      "absChallenges": $target_abs_count,
+      "servingRunExpectancyFallbacks": $target_run_fallbacks,
+      "servingWinExpectancyFallbacks": $target_win_fallbacks,
+      "servingCountStateOutcomeBaselines": $target_count_baselines
+    }
+  }
+}
+JSON
+
+echo "Publish manifest written to $manifest_path"
 
 echo "Serving database publish completed."

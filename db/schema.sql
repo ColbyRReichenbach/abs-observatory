@@ -11,6 +11,20 @@ CREATE TABLE IF NOT EXISTS teams (
   division_name TEXT
 );
 
+CREATE TABLE IF NOT EXISTS players (
+  player_id BIGINT PRIMARY KEY,
+  full_name TEXT NOT NULL,
+  height_text TEXT,
+  height_inches NUMERIC,
+  abs_strike_zone_top NUMERIC,
+  abs_strike_zone_bottom NUMERIC,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  source_payload JSONB,
+  source_updated_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS games (
   game_pk BIGINT PRIMARY KEY,
   game_date TIMESTAMPTZ NOT NULL,
@@ -289,6 +303,7 @@ CREATE INDEX IF NOT EXISTS idx_abs_challenges_umpire_context ON abs_challenges (
 CREATE INDEX IF NOT EXISTS idx_pitches_game_atbat ON pitches (game_pk, at_bat_index);
 CREATE INDEX IF NOT EXISTS idx_pitches_game_context ON pitches (game_pk, inning, half_inning, at_bat_index, pitch_number);
 CREATE INDEX IF NOT EXISTS idx_pitches_game_matchup ON pitches (game_pk, batter_id, pitcher_id);
+CREATE INDEX IF NOT EXISTS idx_players_active ON players (active, player_id);
 CREATE INDEX IF NOT EXISTS idx_play_events_game_atbat ON play_events (game_pk, at_bat_index, play_event_index);
 CREATE INDEX IF NOT EXISTS idx_play_events_game_pitch ON play_events (game_pk, pitch_number);
 CREATE INDEX IF NOT EXISTS idx_team_summary_team ON team_abs_game_summary (team_id, game_pk);
@@ -1065,6 +1080,94 @@ CREATE TABLE IF NOT EXISTS raw.savant_abs_events (
   PRIMARY KEY (game_pk, play_id, pitch_number),
   FOREIGN KEY (game_pk) REFERENCES raw.savant_gamefeed_games(game_pk) ON DELETE CASCADE
 );
+
+CREATE SCHEMA IF NOT EXISTS modeling;
+
+CREATE TABLE IF NOT EXISTS modeling.called_pitch_decisions (
+  game_pk BIGINT NOT NULL,
+  game_date DATE NOT NULL,
+  season INTEGER NOT NULL,
+  game_type TEXT,
+  competition_phase TEXT,
+  is_spring_training BOOLEAN NOT NULL DEFAULT FALSE,
+  is_regular_season BOOLEAN NOT NULL DEFAULT FALSE,
+  is_postseason BOOLEAN NOT NULL DEFAULT FALSE,
+  is_abs_enabled_game BOOLEAN,
+  inning INTEGER NOT NULL,
+  half_inning TEXT NOT NULL,
+  at_bat_number INTEGER NOT NULL,
+  pitch_number INTEGER NOT NULL,
+  balls INTEGER,
+  strikes INTEGER,
+  outs INTEGER,
+  bases_state TEXT,
+  home_score INTEGER,
+  away_score INTEGER,
+  score_diff_batting INTEGER,
+  batter_id BIGINT,
+  pitcher_id BIGINT,
+  catcher_id BIGINT,
+  stand TEXT,
+  p_throws TEXT,
+  pitch_type TEXT,
+  pitch_name TEXT,
+  start_speed NUMERIC,
+  end_speed NUMERIC,
+  spin_rate NUMERIC,
+  plate_x NUMERIC,
+  plate_z NUMERIC,
+  px NUMERIC,
+  pz NUMERIC,
+  strike_zone_top NUMERIC,
+  strike_zone_bottom NUMERIC,
+  zone INTEGER,
+  called_code TEXT,
+  called_description TEXT,
+  observed_call TEXT,
+  is_called_ball BOOLEAN,
+  is_called_strike BOOLEAN,
+  geometry_version TEXT NOT NULL,
+  zone_rule_version TEXT NOT NULL,
+  coordinate_interpretation TEXT,
+  ball_radius_feet NUMERIC,
+  abs_zone_outcome_center_only TEXT,
+  abs_zone_outcome_radius_adjusted TEXT,
+  is_model_strike_center_only BOOLEAN,
+  is_model_strike_radius_adjusted BOOLEAN,
+  horizontal_edge_distance_center_only NUMERIC,
+  vertical_edge_distance_center_only NUMERIC,
+  min_edge_distance_center_only NUMERIC,
+  horizontal_edge_distance_radius_adjusted NUMERIC,
+  vertical_edge_distance_radius_adjusted NUMERIC,
+  min_edge_distance_radius_adjusted NUMERIC,
+  inside_shadow_band BOOLEAN,
+  absolute_center_distance NUMERIC,
+  is_challenge_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+  was_challenged BOOLEAN NOT NULL DEFAULT FALSE,
+  challenge_source TEXT,
+  challenge_dedupe_key TEXT,
+  challenge_outcome TEXT,
+  is_overturned BOOLEAN,
+  challenge_result_confirmed_source BOOLEAN NOT NULL DEFAULT FALSE,
+  source_system TEXT NOT NULL,
+  source_row_hash TEXT,
+  data_snapshot_id TEXT,
+  split_set TEXT,
+  split_policy_version TEXT,
+  feature_freeze_ts TIMESTAMPTZ,
+  built_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (game_pk, at_bat_number, pitch_number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_modeling_called_pitch_decisions_phase
+  ON modeling.called_pitch_decisions (season, competition_phase, game_type);
+
+CREATE INDEX IF NOT EXISTS idx_modeling_called_pitch_decisions_batter
+  ON modeling.called_pitch_decisions (batter_id, game_date);
+
+CREATE INDEX IF NOT EXISTS idx_modeling_called_pitch_decisions_challenge
+  ON modeling.called_pitch_decisions (was_challenged, challenge_outcome, challenge_dedupe_key);
 
 CREATE TABLE IF NOT EXISTS historical_pitch_states (
   game_pk BIGINT NOT NULL,

@@ -6,7 +6,10 @@ import {
   AUDIT_END,
   ROOT,
   SPRING_START,
+  describeAuditDatabaseTarget,
   formatAuditDateLabel,
+  loadAuditEnv,
+  resolveAuditDatabaseUrl,
 } from "./audit-runtime.mjs";
 
 const DOC_PATH = path.join(ROOT, `docs/models/audits/${AUDIT_DATE}-leverage-audit.md`);
@@ -17,34 +20,9 @@ const ARTIFACT_PATH = path.join(
 const MIN_EXACT_WIN_EXPECTANCY_SAMPLE_SIZE = 20;
 const WIN_EXPECTANCY_LOW_CONFIDENCE_BLEND_PRIOR_WEIGHT = 100;
 
-function loadEnvFile(filename) {
-  const filePath = path.join(ROOT, filename);
-  if (!fs.existsSync(filePath)) return;
-  const raw = fs.readFileSync(filePath, "utf8");
-  for (const line of raw.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eq = trimmed.indexOf("=");
-    if (eq === -1) continue;
-    const key = trimmed.slice(0, eq).trim();
-    if (process.env[key]) continue;
-    let value = trimmed.slice(eq + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    process.env[key] = value;
-  }
-}
-
-loadEnvFile(".env");
-loadEnvFile(".env.local");
-
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is required");
-}
+loadAuditEnv();
+const DATABASE_URL = resolveAuditDatabaseUrl();
+const DATABASE_TARGET = describeAuditDatabaseTarget(DATABASE_URL);
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -466,7 +444,10 @@ ${toMarkdownTable(report.topUnderstatements, [
 }
 
 async function main() {
-  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  console.info(
+    `[leverage-audit] database_role=${DATABASE_TARGET.role} host=${DATABASE_TARGET.host} db=${DATABASE_TARGET.database}`,
+  );
+  const client = new Client({ connectionString: DATABASE_URL });
   await client.connect();
 
   try {

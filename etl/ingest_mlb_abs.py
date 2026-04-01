@@ -29,6 +29,7 @@ except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test impo
         raise RuntimeError("psycopg2 is required for ETL database writes")
 
 from generate_game_report import generate_and_store_report
+from db_target import log_database_target, resolve_database_target
 
 load_dotenv()
 
@@ -975,13 +976,13 @@ def main() -> None:
     parser.add_argument("--start-date", required=True, help="YYYY-MM-DD")
     parser.add_argument("--end-date", required=True, help="YYYY-MM-DD")
     parser.add_argument("--game-type", default="S,R", help="Comma separated game types")
+    parser.add_argument("--database-url", help="Postgres connection string; defaults to WAREHOUSE_DATABASE_URL")
     args = parser.parse_args()
 
-    database_url = os.getenv("DATABASE_URL")
-    if not database_url:
-        raise SystemExit("DATABASE_URL is required")
+    target = resolve_database_target(cli_database_url=args.database_url, role="warehouse")
+    log_database_target("[ingest_mlb_abs]", target)
 
-    run(database_url, args.start_date, args.end_date, args.game_type)
+    run(target.connection_string, args.start_date, args.end_date, args.game_type)
 
 
 if __name__ == "__main__":
