@@ -67,6 +67,7 @@ export function Nav({
         <div className="flex items-center gap-8">
           <Link
             href={withViewModeHref("/", activeMode)}
+            prefetch={false}
             className="flex items-center gap-4 px-3 py-2 text-[var(--ink-0)] transition-all hover:opacity-70"
           >
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black text-white shadow-xl shadow-black/10 -ml-1">
@@ -88,6 +89,7 @@ export function Nav({
                 <Link
                   key={link.href}
                   href={withViewModeHref(link.href, activeMode)}
+                  prefetch={false}
                   className={`relative px-4 py-2 text-[10px] uppercase tracking-[0.1em] transition-all rounded-lg ${isActive
                     ? "text-black font-black"
                     : "text-gray-400 hover:text-black font-bold"
@@ -103,6 +105,7 @@ export function Nav({
         <div className="flex items-center gap-3 pr-1">
           <Link
             href={profileHref}
+            prefetch={false}
             className={`inline-flex h-10 items-center justify-center rounded-full px-4 text-[10px] font-black uppercase tracking-[0.14em] transition ${
               isSignedIn
                 ? "border border-black/10 bg-[var(--surface-infield)] text-[var(--ink-1)] hover:border-black/20"
