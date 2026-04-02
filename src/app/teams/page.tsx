@@ -301,7 +301,7 @@ async function TeamsPageBody({
                           name={t.teamName}
                           size={32}
                           variant="flat"
-                          className="group-hover/row:scale-110"
+                          className="shrink-0 group-hover/row:scale-110"
                         />
                         <span className="font-black text-gray-900 tracking-tight group-hover/row:text-blue-600 transition-colors">
                           {t.teamName}

@@ -195,7 +195,7 @@ async function HomePageBody({
                 <div className="flex flex-wrap gap-4">
                   {topTeams.map((team, idx) => (
                     <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
-                      <TeamIcon teamId={team.teamId} name={team.teamName} size={28} />
+                      <TeamIcon teamId={team.teamId} name={team.teamName} size={28} variant="flat" className="shrink-0" />
                       <div className="min-w-0">
                         <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{team.teamName}</p>
                         <div className="mt-2 flex items-center justify-between gap-2">
@@ -328,7 +328,7 @@ async function HomePageBody({
                   <div className="flex flex-wrap gap-4">
                     {topTeams.map((team, idx) => (
                       <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
-                        <TeamIcon teamId={team.teamId} name={team.teamName} size={28} />
+                        <TeamIcon teamId={team.teamId} name={team.teamName} size={28} variant="flat" className="shrink-0" />
                         <div className="min-w-0">
                           <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{team.teamName}</p>
                               <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-3)]">
@@ -345,7 +345,7 @@ async function HomePageBody({
                         const rank = teams.length - bottomTeams.length + idx + 1;
                         return (
                           <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
-                            <TeamIcon teamId={team.teamId} name={team.teamName} size={28} />
+                            <TeamIcon teamId={team.teamId} name={team.teamName} size={28} variant="flat" className="shrink-0" />
                             <div className="min-w-0">
                               <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{team.teamName}</p>
                               <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-3)]">
