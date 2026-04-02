@@ -6,6 +6,7 @@ import {
   getChallengeCountState,
   getChallengeScenarioTags,
   formatScoreStateLabel,
+  normalizeHalfInning,
 } from "@/lib/challenge-context";
 import { buildChallengeValueSnapshot, buildCountStateBaselineMap, type CountStateBaseline } from "@/lib/challenge-value";
 import { summarizeEstimatedLeverage } from "@/lib/estimated-leverage";
@@ -519,8 +520,9 @@ function countOccupiedBases(basesState: string | null | undefined) {
 
 function getScoreDiffBattingTeam(halfInning: string | null, homeScore: number | null, awayScore: number | null) {
   if (homeScore === null || awayScore === null) return 0;
-  if (halfInning === "Top") return awayScore - homeScore;
-  if (halfInning === "Bottom") return homeScore - awayScore;
+  const normalized = normalizeHalfInning(halfInning);
+  if (normalized === "Top") return awayScore - homeScore;
+  if (normalized === "Bottom") return homeScore - awayScore;
   return 0;
 }
 
