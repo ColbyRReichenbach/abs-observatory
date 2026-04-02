@@ -18,6 +18,7 @@ import type {
     LiveChallengeWindow,
 } from "@/lib/types";
 import type { ViewMode } from "@/lib/view-mode";
+import { resolveMatchupAccentColors } from "@/lib/team-branding";
 
 type GameAbsCounters = {
     homeRemaining: number;
@@ -41,6 +42,14 @@ export function LiveWarRoom({ game, challenges, liveStatus, counters, liveChalle
     const isLateInning = currentInning >= 7;
     const currentBalls = liveStatus?.balls ?? latestChallenge?.balls ?? 0;
     const currentStrikes = liveStatus?.strikes ?? latestChallenge?.strikes ?? 0;
+    const matchupColors = resolveMatchupAccentColors({
+        homeTeamId: game.homeTeamId ?? game.hometeamid ?? null,
+        awayTeamId: game.awayTeamId ?? game.awayteamid ?? null,
+        homePrimaryColor: game.homeprimarycolor,
+        homeSecondaryColor: game.homesecondarycolor,
+        awayPrimaryColor: game.awayprimarycolor,
+        awaySecondaryColor: game.awaysecondarycolor,
+    });
     const sameCountChallenges = challenges.filter(
         (challenge) => challenge.balls === currentBalls && challenge.strikes === currentStrikes,
     ).length;
@@ -56,7 +65,7 @@ export function LiveWarRoom({ game, challenges, liveStatus, counters, liveChalle
                         </span>
                         Live Review Pulse • {game.statusabstract}
                     </h4>
-                    <div className="h-72 w-full relative pt-12">
+                    <div className="relative h-[28rem] w-full pt-12">
                         <DynamicLeverageMeter
                             homeScore={game.homescore ?? 0}
                             awayScore={game.awayscore ?? 0}
@@ -65,8 +74,8 @@ export function LiveWarRoom({ game, challenges, liveStatus, counters, liveChalle
                             strikes={currentStrikes}
                             outs={liveStatus?.outs ?? latestChallenge?.outs ?? 0}
                             basesState={latestChallenge?.basesState ?? null}
-                            homeColor={game.homeprimarycolor || "#3b82f6"}
-                            awayColor={game.awayprimarycolor || "#8b5cf6"}
+                            homeColor={matchupColors.homeColor}
+                            awayColor={matchupColors.awayColor}
                         />
                     </div>
                 </div>

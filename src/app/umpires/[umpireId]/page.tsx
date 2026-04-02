@@ -286,7 +286,7 @@ async function UmpireAnalyticsSections({
       ) : (
         <>
           <MotionIn delay={0.15}>
-            <section className="mb-12">
+            <section className="grid gap-8 lg:grid-cols-2 mb-12">
               <div className="panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col">
                 <div className="flex items-center justify-between gap-4 mb-4">
                   <div>
@@ -331,12 +331,6 @@ async function UmpireAnalyticsSections({
                   return null;
                 })()}
               </div>
-            </section>
-          </MotionIn>
-
-          <MotionIn delay={0.18}>
-            <section className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] mb-12">
-              <PitchTypeBreakdownChart data={pitchTypes} />
 
               <div className="panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col">
                 <div>
@@ -351,6 +345,12 @@ async function UmpireAnalyticsSections({
                   <UmpireAccuracyChart data={trend} />
                 </div>
               </div>
+            </section>
+          </MotionIn>
+
+          <MotionIn delay={0.18}>
+            <section className="mb-12">
+              <PitchTypeBreakdownChart data={pitchTypes} />
             </section>
           </MotionIn>
         </>
@@ -872,7 +872,7 @@ function compareFanUmpires(
   left: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
   right: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
 ) {
-  if (right.overturnRate !== left.overturnRate) return right.overturnRate - left.overturnRate;
+  if (left.overturnRate !== right.overturnRate) return left.overturnRate - right.overturnRate;
   if (right.challengedCalls !== left.challengedCalls) return right.challengedCalls - left.challengedCalls;
   return right.gamesWorked - left.gamesWorked;
 }
