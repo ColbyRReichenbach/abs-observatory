@@ -53,22 +53,22 @@ export function DynamicLeverageMeter({
     }, [homeColor, leverage.estimatedLeverageIndex]);
 
     return (
-        <div className="relative w-full h-full flex flex-col items-center justify-center">
+        <div className="relative flex h-full w-full flex-col items-center justify-between px-4 pb-6 pt-4">
 
             <motion.div
                 animate={{ opacity: [0.3, 0.6, 0.3], scale: [0.98, 1.02, 0.98] }}
                 transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute inset-x-8 inset-y-8 rounded-full border border-blue-500/20 blur-sm"
+                className="absolute inset-x-8 top-8 h-56 rounded-full border border-blue-500/20 blur-sm"
             />
 
-            <div className="w-full h-full pb-8">
+            <div className="relative w-full max-w-[34rem] flex-1 min-h-[260px]">
                 <ResponsiveContainer width="100%" height="100%">
                     <RadialBarChart
                         cx="50%"
                         cy="100%"
-                        innerRadius="70%"
-                        outerRadius="100%"
-                        barSize={20}
+                        innerRadius="64%"
+                        outerRadius="98%"
+                        barSize={24}
                         data={data}
                         startAngle={180}
                         endAngle={0}
@@ -83,7 +83,7 @@ export function DynamicLeverageMeter({
                             background={{ fill: "#f8fafc" }}
                             dataKey="value"
                             angleAxisId={0}
-                            cornerRadius={10}
+                            cornerRadius={12}
                             isAnimationActive={true}
                             animationDuration={1500}
                         />
@@ -91,8 +91,8 @@ export function DynamicLeverageMeter({
                 </ResponsiveContainer>
             </div>
 
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center justify-center text-center">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">
+            <div className="relative z-10 -mt-3 flex w-full max-w-[28rem] flex-col items-center justify-center rounded-[1.75rem] border border-gray-100 bg-white/92 px-6 py-5 text-center shadow-xl shadow-black/[0.04] backdrop-blur">
+                <span className="mb-1 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
                     Estimated Leverage
                 </span>
                 <div className="flex items-baseline gap-1">
@@ -106,14 +106,14 @@ export function DynamicLeverageMeter({
                     </motion.span>
                     <span className="text-xl font-bold text-gray-400">ELI</span>
                 </div>
-                <p className="mt-2 text-[11px] font-semibold text-gray-500">
+                <p className="mt-2 text-[12px] font-semibold text-gray-500">
                     {formatLeverageBucketLabel(leverage.leverageBucket)} through inning {inning}
                 </p>
-                <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-gray-400">
                     {leaderLabel} • Count {balls}-{strikes} • {outs} out{outs === 1 ? "" : "s"}
                 </p>
 
-                <div className="flex items-center gap-4 mt-6">
+                <div className="mt-5 flex flex-wrap items-center justify-center gap-4">
                     <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: awayColor }} />
                         <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Away ({awayScore})</span>

@@ -366,10 +366,10 @@ async function HomePageBody({
         <HomeExpandableGrid games={games} />
 
         {/* S2-5: Reduced gap (mt-16 instead of mt-32) */}
-        <section className="mt-16">
-          <div className="mb-20 flex flex-col items-center text-center">
-            <div className="h-12 w-px bg-blue-200 mb-8" />
-            <h2 className="w-full text-5xl md:text-7xl font-display uppercase tracking-tight text-gray-900 mb-6 leading-[1.2] py-4 px-12 overflow-visible">
+        <section className="mt-10">
+          <div className="mb-14 flex flex-col items-center text-center">
+            <div className="mb-6 h-10 w-px bg-blue-200" />
+            <h2 className="w-full overflow-visible px-12 py-2 text-5xl font-display uppercase tracking-tight text-gray-900 md:text-7xl leading-[1.2] mb-5">
               Most <span className="opacity-20 italic px-2 pr-5">Consequential</span> Calls
             </h2>
             <p className="text-gray-500 text-lg max-w-xl font-medium text-balance">
