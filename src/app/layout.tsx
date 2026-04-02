@@ -36,9 +36,17 @@ export const metadata: Metadata = {
   description: "High-fidelity live and historical MLB ABS challenge monitoring",
 };
 
+async function getSafeAdminVisibility() {
+  try {
+    return await canAccessAdmin();
+  } catch {
+    return false;
+  }
+}
+
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   validateServerEnv(false);
-  const [initialMode, adminVisible] = await Promise.all([resolveViewMode(), canAccessAdmin()]);
+  const [initialMode, adminVisible] = await Promise.all([resolveViewMode(), getSafeAdminVisibility()]);
 
   return (
     <html lang="en">
