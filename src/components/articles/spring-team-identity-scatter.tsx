@@ -184,8 +184,9 @@ export function SpringTeamIdentityScatter({ data }: { data: SpringTeamIdentityPo
             strokeDasharray="4 4"
             label={{
               value: `AVG ${(avgOverturnRate * 100).toFixed(0)}%`,
-              position: "right",
-              style: { fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em" },
+              position: "insideTopRight",
+              offset: 8,
+              style: { fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em", textAnchor: "end" },
             }}
           />
           <Scatter

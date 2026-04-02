@@ -82,7 +82,7 @@ export function SpringUmpireExposureScatter({ data }: { data: SpringUmpireExposu
 
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={360}>
         <ScatterChart
-          margin={{ top: 34, right: 36, bottom: 50, left: 72 }}
+          margin={{ top: 34, right: 88, bottom: 50, left: 72 }}
           onMouseMove={(state: unknown) => {
             const nextMousePos = getScatterMousePosition(state);
             if (nextMousePos) {
@@ -144,8 +144,9 @@ export function SpringUmpireExposureScatter({ data }: { data: SpringUmpireExposu
             strokeDasharray="4 4"
             label={{
               value: `AVG ${(avgRate * 100).toFixed(0)}%`,
-              position: "right",
-              style: { fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em" },
+              position: "insideTopRight",
+              offset: 8,
+              style: { fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em", textAnchor: "end" },
             }}
           />
           <Scatter data={data} fill="#0f766e" isAnimationActive={false} />
