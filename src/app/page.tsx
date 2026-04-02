@@ -1,9 +1,9 @@
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { Suspense } from "react";
 import { BroadcastStrip } from "@/components/broadcast-strip";
 import { ChallengeMomentCards } from "@/components/challenge-moment-cards";
 import { GameStrip } from "@/components/game-strip";
+import { HomeExpandableGridShell } from "@/components/home-expandable-grid-shell";
 import { TeamIcon } from "@/components/team-icon";
 import { getHomeChallengeMoments, getLiveGames, getTeamLeaderboardModel, getUmpireLeaderboardModel } from "@/lib/data";
 import { resolveViewMode } from "@/lib/view-mode";
@@ -12,11 +12,6 @@ import { ProfileBadge } from "@/components/ui/profile-badge";
 import { getHomePageViewCopy } from "@/lib/view-mode-contract";
 import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
 import type { HomeChallengeMoment } from "@/lib/types";
-
-const HomeExpandableGrid = dynamic(
-  () => import("@/components/home-expandable-grid").then((mod) => mod.HomeExpandableGrid),
-  { ssr: false },
-);
 
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const sp = await searchParams;
@@ -372,7 +367,7 @@ async function HomePageBody({
           </div>
         )}
 
-        <HomeExpandableGrid games={games} />
+        <HomeExpandableGridShell games={games} />
 
         {/* S2-5: Reduced gap (mt-16 instead of mt-32) */}
         <section className="mt-16">
