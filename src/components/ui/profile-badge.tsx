@@ -1,14 +1,10 @@
-"use client";
-
-import { memo } from "react";
-
 type ProfileBadgeProps = {
     label: string;
     variant?: "blue" | "emerald" | "amber" | "red" | "gray" | "indigo";
     className?: string;
 };
 
-export const ProfileBadge = memo(({ label, variant = "blue", className = "" }: ProfileBadgeProps) => {
+export function ProfileBadge({ label, variant = "blue", className = "" }: ProfileBadgeProps) {
     // Split by common delimiters to handle wrapping gracefully
     const words = label.split(/[\s·-]/).filter(Boolean);
 
@@ -38,6 +34,4 @@ export const ProfileBadge = memo(({ label, variant = "blue", className = "" }: P
             ))}
         </div>
     );
-});
-
-ProfileBadge.displayName = "ProfileBadge";
+}
