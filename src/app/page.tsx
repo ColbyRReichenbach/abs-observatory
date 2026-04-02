@@ -193,7 +193,7 @@ async function HomePageBody({
                   <h2 className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">
                     {copy.teamsSectionTitle}
                   </h2>
-                  <Link href={withViewModeHref("/teams", viewMode)} className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-primary)] hover:underline">
+                  <Link href={withViewModeHref("/teams", viewMode)} prefetch={false} className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-primary)] hover:underline">
                     See All Teams →
                   </Link>
                 </div>
@@ -222,13 +222,13 @@ async function HomePageBody({
                   <h2 className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">
                     {copy.umpiresSectionTitle}
                   </h2>
-                  <Link href={withViewModeHref("/umpires", viewMode)} className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-primary)] hover:underline">
+                  <Link href={withViewModeHref("/umpires", viewMode)} prefetch={false} className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-primary)] hover:underline">
                     See All Umpires →
                   </Link>
                 </div>
                 <div className="flex flex-wrap gap-4">
                   {spotlightUmps.map((u) => (
-                    <Link key={u.umpireId} href={withViewModeHref(`/umpires/${u.umpireId}`, viewMode)} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
+                    <Link key={u.umpireId} href={withViewModeHref(`/umpires/${u.umpireId}`, viewMode)} prefetch={false} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
                       <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--accent-primary-soft)] text-[10px] font-bold text-[var(--accent-primary)]">U</div>
                       <div className="min-w-0">
                         <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{u.umpireName}</p>
@@ -303,7 +303,7 @@ async function HomePageBody({
                   <h2 className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">
                     Umpire Watch List
                   </h2>
-                  <Link href={withViewModeHref("/umpires", viewMode)} className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-primary)] hover:underline">
+                  <Link href={withViewModeHref("/umpires", viewMode)} prefetch={false} className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-primary)] hover:underline">
                     See All Umpires →
                   </Link>
                 </div>
@@ -325,7 +325,7 @@ async function HomePageBody({
                   <h2 className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">
                     Team Review Patterns
                   </h2>
-                  <Link href={withViewModeHref("/teams", viewMode)} className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-primary)] hover:underline">
+                  <Link href={withViewModeHref("/teams", viewMode)} prefetch={false} className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--accent-primary)] hover:underline">
                     See All Teams →
                   </Link>
                 </div>
@@ -388,6 +388,7 @@ async function HomePageBody({
         <div className="mt-24">
           <Link
             href={withViewModeHref("/articles", viewMode)}
+            prefetch={false}
             className="block w-full rounded-2xl bg-[var(--ink-0)] px-8 py-4 text-center transition-all hover:opacity-90"
           >
             <span className="text-[11px] font-black uppercase tracking-widest text-white">
