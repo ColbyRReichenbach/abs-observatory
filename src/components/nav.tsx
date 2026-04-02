@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
 import { AiBSIcon } from "@/components/ui/aibs-icon";
+import { DataFreshnessBadge } from "@/components/data-freshness-badge";
 import { ViewModeToggle } from "@/components/ui/view-mode-toggle";
 import type { ViewMode } from "@/lib/view-mode";
 import { resolveClientViewMode } from "@/lib/view-mode-client";
@@ -86,6 +87,7 @@ export function Nav({ initialMode, canAccessAdmin = false }: { initialMode?: Vie
         </div>
 
         <div className="flex items-center gap-4 pr-1">
+          <DataFreshnessBadge />
           <Suspense fallback={<div className="w-20 h-8 bg-gray-100 animate-pulse rounded-full" />}>
             <ViewModeToggle initialMode={activeMode} />
           </Suspense>

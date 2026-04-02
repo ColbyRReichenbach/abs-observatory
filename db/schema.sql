@@ -223,6 +223,32 @@ CREATE TABLE IF NOT EXISTS game_state_snapshots (
   PRIMARY KEY (game_pk, snapshot_time)
 );
 
+CREATE TABLE IF NOT EXISTS ops.game_linescores (
+  game_pk BIGINT PRIMARY KEY REFERENCES games(game_pk) ON DELETE CASCADE,
+  source_name TEXT NOT NULL DEFAULT 'mlb_statsapi.feed_live',
+  source_updated_at TIMESTAMPTZ,
+  status_abstract TEXT,
+  current_inning INTEGER,
+  current_inning_ordinal TEXT,
+  inning_state TEXT,
+  inning_half TEXT,
+  is_top_inning BOOLEAN,
+  scheduled_innings INTEGER,
+  balls INTEGER,
+  strikes INTEGER,
+  outs INTEGER,
+  away_runs INTEGER,
+  home_runs INTEGER,
+  away_hits INTEGER,
+  home_hits INTEGER,
+  away_errors INTEGER,
+  home_errors INTEGER,
+  innings_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+  raw_linescore JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS team_abs_game_summary (
   game_pk BIGINT NOT NULL REFERENCES games(game_pk) ON DELETE CASCADE,
   team_id INTEGER NOT NULL,
@@ -293,6 +319,7 @@ CREATE INDEX IF NOT EXISTS idx_play_events_game_atbat ON play_events (game_pk, a
 CREATE INDEX IF NOT EXISTS idx_play_events_game_pitch ON play_events (game_pk, pitch_number);
 CREATE INDEX IF NOT EXISTS idx_team_summary_team ON team_abs_game_summary (team_id, game_pk);
 CREATE INDEX IF NOT EXISTS idx_umpire_summary_umpire ON umpire_abs_game_summary (umpire_id, game_pk);
+CREATE INDEX IF NOT EXISTS idx_ops_game_linescores_updated_at ON ops.game_linescores (updated_at DESC);
 
 CREATE OR REPLACE FUNCTION touch_updated_at() RETURNS TRIGGER AS $$
 BEGIN
@@ -309,6 +336,9 @@ CREATE TRIGGER trg_team_summary_touch BEFORE UPDATE ON team_abs_game_summary FOR
 
 DROP TRIGGER IF EXISTS trg_umpire_summary_touch ON umpire_abs_game_summary;
 CREATE TRIGGER trg_umpire_summary_touch BEFORE UPDATE ON umpire_abs_game_summary FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+
+DROP TRIGGER IF EXISTS trg_ops_game_linescores_touch ON ops.game_linescores;
+CREATE TRIGGER trg_ops_game_linescores_touch BEFORE UPDATE ON ops.game_linescores FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
 
 CREATE SCHEMA IF NOT EXISTS product;
 CREATE SCHEMA IF NOT EXISTS community;

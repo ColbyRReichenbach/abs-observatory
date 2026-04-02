@@ -1,6 +1,7 @@
 import sys
 import unittest
 from datetime import timezone
+import os
 from pathlib import Path
 
 
@@ -8,7 +9,16 @@ ETL_DIR = Path(__file__).resolve().parents[1]
 if str(ETL_DIR) not in sys.path:
     sys.path.insert(0, str(ETL_DIR))
 
-from ingest_mlb_abs import _bases_state, _challenge_from_review, _extract_game_rows, _parse_iso, store_source_snapshot  # noqa: E402
+from ingest_mlb_abs import (  # noqa: E402
+    _bases_state,
+    _challenge_from_review,
+    _extract_game_rows,
+    _extract_linescore_innings,
+    _parse_iso,
+    _parse_mlb_timestamp,
+    should_write_raw_source_snapshot,
+    store_source_snapshot,
+)
 
 
 class IngestSmokeTests(unittest.TestCase):
@@ -31,6 +41,58 @@ class IngestSmokeTests(unittest.TestCase):
         self.assertIsNotNone(parsed)
         self.assertEqual(parsed.tzinfo, timezone.utc)
         self.assertEqual(parsed.isoformat(), "2026-03-05T23:15:00+00:00")
+
+    def test_parse_mlb_timestamp_accepts_statsapi_metadata_format(self) -> None:
+        parsed = _parse_mlb_timestamp("20260402_224638")
+
+        self.assertIsNotNone(parsed)
+        assert parsed is not None
+        self.assertEqual(parsed.tzinfo, timezone.utc)
+        self.assertEqual(parsed.isoformat(), "2026-04-02T22:46:38+00:00")
+
+    def test_extract_linescore_innings_shapes_minimal_scoreboard_payload(self) -> None:
+        innings = _extract_linescore_innings(
+            {
+                "innings": [
+                    {
+                        "num": 1,
+                        "away": {"runs": 1, "hits": 2, "errors": 0},
+                        "home": {"runs": 0, "hits": 1, "errors": 1},
+                    }
+                ]
+            }
+        )
+
+        self.assertEqual(
+            innings,
+            [
+                {
+                    "inning": 1,
+                    "awayRuns": 1,
+                    "homeRuns": 0,
+                    "awayHits": 2,
+                    "homeHits": 1,
+                    "awayErrors": 0,
+                    "homeErrors": 1,
+                }
+            ],
+        )
+
+    def test_should_write_raw_source_snapshot_obeys_source_specific_flags(self) -> None:
+        previous = {
+            "WRITE_RAW_SNAPSHOTS": os.environ.get("WRITE_RAW_SNAPSHOTS"),
+            "WRITE_RAW_FEED_LIVE": os.environ.get("WRITE_RAW_FEED_LIVE"),
+        }
+        try:
+            os.environ["WRITE_RAW_SNAPSHOTS"] = "true"
+            os.environ["WRITE_RAW_FEED_LIVE"] = "false"
+            self.assertFalse(should_write_raw_source_snapshot("mlb_statsapi.feed_live"))
+        finally:
+            for key, value in previous.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
 
     def test_challenge_from_review_uses_pitch_review_context(self) -> None:
         play = {

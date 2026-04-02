@@ -18,6 +18,7 @@ import {
 } from "@/lib/page-models";
 import { estimateChallengeDecisionValue, getOverturnProbabilityFallbackRows, type CalledPitch } from "@/lib/server/challenge-decision-value";
 import { withServerTiming } from "@/lib/server/performance";
+import { getGameDataVersion, getGlobalLiveDataVersion, getLatestSuccessfulEtlDataVersion } from "@/lib/server/data-version";
 import { confidenceBandFromRank, getDecisionValueConfidenceBand, hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
 import { getChallengeRunExpectancyDelta, getRunExpectancyFallbackRows, resolveRunExpectancyWithFallback } from "@/lib/server/run-expectancy";
 import { getChallengeWinExpectancyDelta, getWinExpectancyFallbackRows, resolveWinExpectancyWithFallback } from "@/lib/server/win-expectancy";
@@ -133,6 +134,33 @@ type ModeledTeamDecisionRow = {
   highPressurePositive: boolean;
   lateClosePositive: boolean;
 };
+
+async function withVersionedCache<T>(
+  keyParts: Array<string | number | boolean | null | undefined>,
+  versionPromise: Promise<string>,
+  ttlMs: number,
+  loader: () => Promise<T>,
+) {
+  const dataVersion = await versionPromise;
+  return withCachedValue(getCacheKey([...keyParts, dataVersion]), ttlMs, loader);
+}
+
+async function withGameVersionedCache<T>(
+  scope: string,
+  gamePk: number,
+  ttlMs: number,
+  loader: () => Promise<T>,
+) {
+  return withVersionedCache([scope, gamePk], getGameDataVersion(gamePk), ttlMs, loader);
+}
+
+async function withGlobalLiveVersionedCache<T>(
+  scope: string,
+  ttlMs: number,
+  loader: () => Promise<T>,
+) {
+  return withVersionedCache([scope], getGlobalLiveDataVersion(), ttlMs, loader);
+}
 
 function rangeWhere(range: RangeKey, dateField = "g.game_date"): { clause: string; params: unknown[] } {
   if (range === "7d") {
@@ -1121,7 +1149,7 @@ export async function getTeamDecisionValueReport(
 
 export async function getLiveGames(): Promise<LiveGameCard[]> {
   return withServerTiming("data.getLiveGames", () =>
-    withCachedValue(getCacheKey(["live-games"]), 5_000, async () => {
+    withGlobalLiveVersionedCache("live-games", 5_000, async () => {
     const rows = await sql<{
       gamepk: number;
       gamedate: string;
@@ -1233,7 +1261,7 @@ export async function getLiveGames(): Promise<LiveGameCard[]> {
 export async function getHomeChallengeMoments(limit = 8): Promise<HomeChallengeMoment[]> {
   return withServerTiming(
     "data.getHomeChallengeMoments",
-    () => withCachedValue(getCacheKey(["home-challenge-moments", limit]), 15_000, async () => {
+    () => withVersionedCache(["home-challenge-moments", limit], getLatestSuccessfulEtlDataVersion(), 15_000, async () => {
       const rows = await sql<{
     challengeid: string;
     gamepk: number;
@@ -1340,7 +1368,7 @@ export async function getHomeChallengeMoments(limit = 8): Promise<HomeChallengeM
 export async function getGame(gamePk: number) {
   return withServerTiming(
     "data.getGame",
-    () => withCachedValue(getCacheKey(["game", gamePk]), 15_000, async () => {
+    () => withGameVersionedCache("game", gamePk, 15_000, async () => {
     const rows = await sql<{
       gamepk: number;
       gamedate: string;
@@ -1399,7 +1427,36 @@ export async function getGame(gamePk: number) {
 }
 
 export async function getGameScoreboardData(gamePk: number): Promise<GameScoreboardData | null> {
-  return withCachedValue(getCacheKey(["game-scoreboard", gamePk]), 15_000, async () => {
+  return withGameVersionedCache("game-scoreboard", gamePk, 15_000, async () => {
+    const linescoreRows = await sql<{
+      inningsjson: unknown;
+      awayruns: number | null;
+      homeruns: number | null;
+      awayhits: number | null;
+      homehits: number | null;
+      awayerrors: number | null;
+      homeerrors: number | null;
+    }>(
+      `
+      SELECT
+        innings_json AS inningsJson,
+        away_runs AS awayRuns,
+        home_runs AS homeRuns,
+        away_hits AS awayHits,
+        home_hits AS homeHits,
+        away_errors AS awayErrors,
+        home_errors AS homeErrors
+      FROM ops.game_linescores
+      WHERE game_pk = $1
+      `,
+      [gamePk],
+    );
+
+    const structuredLinescore = mapStoredLinescoreToScoreboardData(linescoreRows[0] ?? null);
+    if (structuredLinescore) {
+      return structuredLinescore;
+    }
+
     const rows = await sql<{ payload: unknown }>(
       `
       SELECT payload
@@ -1472,6 +1529,65 @@ function mapLinescoreToScoreboardData(linescore: MlbStatsApiLinescore): GameScor
   };
 }
 
+function mapStoredLinescoreToScoreboardData(row: {
+  inningsjson: unknown;
+  awayruns: number | null;
+  homeruns: number | null;
+  awayhits: number | null;
+  homehits: number | null;
+  awayerrors: number | null;
+  homeerrors: number | null;
+} | null): GameScoreboardData | null {
+  if (!row) return null;
+
+  const innings = Array.isArray(row.inningsjson)
+    ? row.inningsjson
+        .map((entry, index) => {
+          if (!entry || typeof entry !== "object") {
+            return null;
+          }
+          const inningEntry = entry as {
+            inning?: unknown;
+            awayRuns?: unknown;
+            homeRuns?: unknown;
+          };
+          const inningValue = Number(inningEntry.inning ?? index + 1);
+          if (!Number.isFinite(inningValue)) {
+            return null;
+          }
+          return {
+            inning: inningValue,
+            awayRuns: typeof inningEntry.awayRuns === "number" ? inningEntry.awayRuns : null,
+            homeRuns: typeof inningEntry.homeRuns === "number" ? inningEntry.homeRuns : null,
+          };
+        })
+        .filter((entry): entry is GameScoreboardData["innings"][number] => entry !== null)
+    : [];
+
+  const hasAnyValue =
+    innings.length > 0 ||
+    row.awayruns !== null ||
+    row.homeruns !== null ||
+    row.awayhits !== null ||
+    row.homehits !== null ||
+    row.awayerrors !== null ||
+    row.homeerrors !== null;
+
+  if (!hasAnyValue) {
+    return null;
+  }
+
+  return {
+    innings,
+    awayRuns: row.awayruns,
+    homeRuns: row.homeruns,
+    awayHits: row.awayhits,
+    homeHits: row.homehits,
+    awayErrors: row.awayerrors,
+    homeErrors: row.homeerrors,
+  };
+}
+
 async function fetchMlbStatsApiLinescore(gamePk: number): Promise<MlbStatsApiLinescore | null> {
   try {
     const response = await fetch(`https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live`, {
@@ -1533,7 +1649,7 @@ export async function getGameAbsCounters(gamePk: number): Promise<{
 export async function getGameLiveStatus(gamePk: number): Promise<GameLiveStatus | null> {
   return withServerTiming(
     "data.getGameLiveStatus",
-    () => withCachedValue(getCacheKey(["game-live-status", gamePk]), 3_000, async () => {
+    () => withGameVersionedCache("game-live-status", gamePk, 3_000, async () => {
     const rows = await sql<{
       gamepk: number;
       statusabstract: string | null;
@@ -1621,7 +1737,7 @@ async function getRecentGameChallenges(
 export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[]> {
   return withServerTiming(
     "data.getGameChallenges",
-    () => withCachedValue(getCacheKey(["game-challenges", gamePk]), 10_000, async () => {
+    () => withGameVersionedCache("game-challenges", gamePk, 10_000, async () => {
     const [rows, baselines, pitchTypeBaselines, runExpectancyRows, winExpectancyRows, overturnProbabilityRows] = await Promise.all([
       sql<{
       challenge_id: string;
@@ -1887,7 +2003,7 @@ export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[
 }
 
 export async function getGameChallengeValueTimeline(gamePk: number): Promise<ChallengeValueTimelineEntry[]> {
-  return withCachedValue(getCacheKey(["game-challenge-value-timeline", gamePk]), 10_000, async () => {
+  return withGameVersionedCache("game-challenge-value-timeline", gamePk, 10_000, async () => {
     const [challenges, baselines] = await Promise.all([getGameChallenges(gamePk), getCountStateBaselines()]);
     const baselineMap = buildCountStateBaselineMap(baselines);
 
@@ -1967,7 +2083,7 @@ function isLateCloseChallenge(challenge: ChallengeEvent) {
 }
 
 export async function getGameChallengeImpactSummary(gamePk: number): Promise<GameChallengeImpactSummary> {
-  return withCachedValue(getCacheKey(["game-challenge-impact-summary", gamePk]), 10_000, async () => {
+  return withGameVersionedCache("game-challenge-impact-summary", gamePk, 10_000, async () => {
     const entries = await getGameChallengeValueTimeline(gamePk);
     const biggestSwing =
       [...entries].sort((left, right) => Math.abs(right.estimatedChallengeSwing) - Math.abs(left.estimatedChallengeSwing))[0] ??
@@ -1996,7 +2112,7 @@ export async function getGameChallengeImpactSummary(gamePk: number): Promise<Gam
 }
 
 export async function getGameTeamChallengeComparison(gamePk: number): Promise<GameTeamChallengeComparison | null> {
-  return withCachedValue(getCacheKey(["game-team-challenge-comparison", gamePk]), 10_000, async () => {
+  return withGameVersionedCache("game-team-challenge-comparison", gamePk, 10_000, async () => {
     const [game, challenges] = await Promise.all([getGame(gamePk), getGameChallenges(gamePk)]);
     if (!game) return null;
 
@@ -2061,7 +2177,7 @@ export async function getGameTeamChallengeComparison(gamePk: number): Promise<Ga
 }
 
 export async function getGameUmpireInGameSummary(gamePk: number): Promise<GameUmpireInGameSummary | null> {
-  return withCachedValue(getCacheKey(["game-umpire-in-game-summary", gamePk]), 10_000, async () => {
+  return withGameVersionedCache("game-umpire-in-game-summary", gamePk, 10_000, async () => {
     const challenges = await getGameChallenges(gamePk);
     if (!challenges.length) return null;
 
@@ -2157,7 +2273,7 @@ export async function getGameUmpireInGameSummary(gamePk: number): Promise<GameUm
 }
 
 export async function getGameChallengeOpportunityBoard(gamePk: number): Promise<GameChallengeOpportunityBoard | null> {
-  return withCachedValue(getCacheKey(["game-challenge-opportunity-board", gamePk]), 30_000, async () => {
+  return withGameVersionedCache("game-challenge-opportunity-board", gamePk, 30_000, async () => {
     const game = await getGame(gamePk);
     if (!game) return null;
 
@@ -2217,7 +2333,7 @@ export async function getGameChallengeOpportunityBoard(gamePk: number): Promise<
 }
 
 export async function getLiveChallengeWindow(gamePk: number): Promise<LiveChallengeWindow | null> {
-  return withCachedValue(getCacheKey(["live-challenge-window", gamePk]), 5_000, async () => {
+  return withGameVersionedCache("live-challenge-window", gamePk, 5_000, async () => {
     const [liveStatus, challenges, baselines, runExpectancyRows, winExpectancyRows, overturnProbabilityRows] = await Promise.all([
       getGameLiveStatus(gamePk),
       getGameChallenges(gamePk),
