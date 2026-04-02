@@ -57,6 +57,7 @@ export function BroadcastStrip({ moments }: BroadcastStripProps) {
           <Link
             key={`${item.key}-${idx}`}
             href={item.href}
+            prefetch={false}
             className="flex items-center gap-6 group/item"
           >
             <div className="flex items-center gap-3">

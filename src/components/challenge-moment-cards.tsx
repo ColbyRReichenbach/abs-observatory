@@ -24,6 +24,7 @@ export function ChallengeMomentCards({ moments, viewMode }: { moments: HomeChall
           <Link
             key={moment.challengeId}
             href={withViewModeHref(`/game/${moment.gamePk}?challengeId=${moment.challengeId}#abs-explorer`, viewMode)}
+            prefetch={false}
             className="panel panel-interactive group relative overflow-hidden p-4 transition-all duration-[var(--motion-mid)]"
           >
             {/* Leverage indicator bar */}

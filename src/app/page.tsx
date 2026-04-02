@@ -162,6 +162,7 @@ async function HomePageBody({
                 {topMoment ? (
                   <Link
                     href={withViewModeHref(`/game/${topMoment.gamePk}?challengeId=${topMoment.challengeId}#abs-explorer`, viewMode)}
+                    prefetch={false}
                     className="block rounded-2xl border border-gray-100 bg-[var(--surface-infield)] p-5 transition hover:border-blue-100 hover:bg-white"
                   >
                     <div className="flex flex-wrap items-center gap-2">
@@ -198,7 +199,7 @@ async function HomePageBody({
                 </div>
                 <div className="flex flex-wrap gap-4">
                   {topTeams.map((team, idx) => (
-                    <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
+                    <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} prefetch={false} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
                       <TeamIcon teamId={team.teamId} name={team.teamName} size={28} />
                       <div className="min-w-0">
                         <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{team.teamName}</p>
@@ -308,7 +309,7 @@ async function HomePageBody({
                 </div>
                 <div className="space-y-3">
                   {spotlightUmps.map((u) => (
-                    <Link key={u.umpireId} href={withViewModeHref(`/umpires/${u.umpireId}`, viewMode)} className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white/50 p-4 transition hover:border-blue-100 hover:bg-white hover:shadow-xl">
+                    <Link key={u.umpireId} href={withViewModeHref(`/umpires/${u.umpireId}`, viewMode)} prefetch={false} className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white/50 p-4 transition hover:border-blue-100 hover:bg-white hover:shadow-xl">
                       <div>
                         <p className="text-sm font-semibold text-[var(--ink-0)]">{u.umpireName}</p>
                         <p className="mt-1 text-xs text-[var(--ink-3)]">{u.orgDescriptor} · {(u.overturnRate * 100).toFixed(1)}% OT</p>
@@ -331,7 +332,7 @@ async function HomePageBody({
                 <div className="space-y-4">
                   <div className="flex flex-wrap gap-4">
                     {topTeams.map((team, idx) => (
-                      <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
+                      <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} prefetch={false} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
                         <TeamIcon teamId={team.teamId} name={team.teamName} size={28} />
                         <div className="min-w-0">
                           <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{team.teamName}</p>
@@ -348,7 +349,7 @@ async function HomePageBody({
                       {bottomTeams.map((team, idx) => {
                         const rank = teams.length - bottomTeams.length + idx + 1;
                         return (
-                          <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
+                          <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} prefetch={false} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
                             <TeamIcon teamId={team.teamId} name={team.teamName} size={28} />
                             <div className="min-w-0">
                               <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{team.teamName}</p>

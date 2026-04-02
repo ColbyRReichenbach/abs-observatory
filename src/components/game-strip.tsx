@@ -95,6 +95,7 @@ export function GameStrip({ games }: GameStripProps) {
                             <Link
                                 key={game.gamePk}
                                 href={withViewModeHref(`/game/${game.gamePk}`, activeMode)}
+                                prefetch={false}
                                 className="flex-shrink-0 w-[220px] h-16 bg-white/50 border border-gray-100 rounded-xl px-4 flex items-center justify-between hover:bg-white hover:shadow-2xl hover:border-blue-100 transition-all group/item hover:scale-105 active:scale-95"
                             >
                                 <div className="flex flex-col gap-0.5">
