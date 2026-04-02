@@ -2780,6 +2780,8 @@ async function getUmpireRubricMetrics(range: RangeKey = "season") {
       strikesbefore: number | null;
       ballsafter: number | null;
       strikesafter: number | null;
+      heldcountkey: string | null;
+      correctedcountkey: string | null;
       isoverturned: boolean;
     }>(
       `
@@ -2795,6 +2797,8 @@ async function getUmpireRubricMetrics(range: RangeKey = "season") {
         p.strikes_before AS strikesBefore,
         p.balls_after AS ballsAfter,
         p.strikes_after AS strikesAfter,
+        hist.held_count_key AS heldCountKey,
+        hist.corrected_count_key AS correctedCountKey,
         c.is_overturned AS isOverturned
       FROM abs_challenges c
       JOIN games g ON g.game_pk = c.game_pk
@@ -2803,6 +2807,26 @@ async function getUmpireRubricMetrics(range: RangeKey = "season") {
         ON p.game_pk = c.game_pk
         AND p.at_bat_index = c.at_bat_index
         AND p.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
+      LEFT JOIN LATERAL (
+        SELECT
+          hist.held_count_key,
+          hist.corrected_count_key
+        FROM mart_historical_abs_overturn_inputs hist
+        WHERE hist.game_pk = c.game_pk
+          AND hist.at_bat_number = c.at_bat_index + 1
+          AND (
+            COALESCE(c.pitch_number, c.inferred_pitch_number) IS NULL
+            OR hist.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
+            OR ABS(COALESCE(hist.pitch_number, COALESCE(c.pitch_number, c.inferred_pitch_number)) - COALESCE(c.pitch_number, c.inferred_pitch_number)) <= 1
+          )
+        ORDER BY
+          CASE WHEN hist.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number) THEN 0 ELSE 1 END,
+          CASE WHEN hist.batter_id = c.batter_id THEN 0 ELSE 1 END,
+          CASE WHEN hist.pitcher_id = c.pitcher_id THEN 0 ELSE 1 END,
+          ABS(COALESCE(hist.pitch_number, COALESCE(c.pitch_number, c.inferred_pitch_number)) - COALESCE(c.pitch_number, c.inferred_pitch_number)),
+          hist.imported_at DESC
+        LIMIT 1
+      ) hist ON TRUE
       WHERE ${window.clause}
       ORDER BY o.official_id, c.challenge_id
       `,
@@ -2818,15 +2842,18 @@ async function getUmpireRubricMetrics(range: RangeKey = "season") {
   >();
 
   for (const row of challengeRows) {
-    const umpireCount = resolveUmpireCountState(
-      row.ballsbefore,
-      row.strikesbefore,
-      row.ballsafter,
-      row.strikesafter,
-      row.isoverturned,
-    );
+    const umpireCount =
+      resolveUmpireCountState(
+        row.ballsbefore,
+        row.strikesbefore,
+        row.ballsafter,
+        row.strikesafter,
+        row.isoverturned,
+      ) ?? row.heldcountkey ?? null;
     const countAfter =
-      row.ballsafter === null || row.strikesafter === null ? null : `${row.ballsafter}-${row.strikesafter}`;
+      row.ballsafter === null || row.strikesafter === null
+        ? row.correctedcountkey ?? null
+        : `${row.ballsafter}-${row.strikesafter}`;
     const challengeState = {
       inning: row.inning === null ? null : Number(row.inning),
       halfInning: row.halfinning,

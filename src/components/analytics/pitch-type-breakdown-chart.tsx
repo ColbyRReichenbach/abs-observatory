@@ -31,11 +31,10 @@ const PITCH_COLORS: Record<string, string> = {
 };
 
 const AXES = [
-  { key: "reviewShare", label: "Review Share" },
+  { key: "reviewShare", label: "Review Mix" },
   { key: "overturnRate", label: "OT Rate" },
-  { key: "volumeIndex", label: "Volume Index" },
-  { key: "overturnedShare", label: "Overturned Share" },
-  { key: "pressureIndex", label: "Pressure Index" },
+  { key: "volumeIndex", label: "Volume" },
+  { key: "overturnedShare", label: "OT Share" },
 ] as const;
 
 function getColor(code: string): string {
@@ -59,7 +58,6 @@ export function PitchTypeBreakdownChart({ data }: { data: UmpirePitchTypeBreakdo
       const overturnRate = entry.overturnRate * 100;
       const volumeIndex = (entry.challengedCount / maxChallenges) * 100;
       const overturnedShare = (entry.overturnedCount / totalOverturned) * 100;
-      const pressureIndex = Math.min(100, reviewShare * 0.45 + overturnRate * 0.55);
 
       return {
         code: entry.pitchTypeCode,
@@ -73,7 +71,6 @@ export function PitchTypeBreakdownChart({ data }: { data: UmpirePitchTypeBreakdo
           overturnRate,
           volumeIndex,
           overturnedShare,
-          pressureIndex,
         },
       };
     });
@@ -104,11 +101,12 @@ export function PitchTypeBreakdownChart({ data }: { data: UmpirePitchTypeBreakdo
           Pitch Review Shape
         </h4>
         <p className="text-2xl font-display leading-none text-gray-900">
-          Pitch-Family <span className="text-gray-400 italic">Radar</span>
+          Pitch Review <span className="text-gray-400 italic">Profile</span>
         </p>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500">
-          Each polygon is a pitch family. The radar compares review share, overturn rate, normalized volume, and
-          how much of the umpire&apos;s overturned sample is tied to that pitch shape.
+          Each polygon is a pitch family. The chart compares how often each pitch gets reviewed, how often it overturns,
+          how large the sample is relative to the umpire&apos;s most-reviewed pitch, and how much of the umpire&apos;s overturned
+          sample comes from that shape.
         </p>
       </div>
 
@@ -192,7 +190,7 @@ export function PitchTypeBreakdownChart({ data }: { data: UmpirePitchTypeBreakdo
                 <Metric label="Reviews" value={`${pitch.challenged}`} />
                 <Metric label="OT Rate" value={`${(pitch.overturnRate * 100).toFixed(1)}%`} />
                 <Metric label="Review Share" value={`${pitch.metrics.reviewShare.toFixed(0)}%`} />
-                <Metric label="Pressure" value={`${pitch.metrics.pressureIndex.toFixed(0)}`} />
+                <Metric label="OT Share" value={`${pitch.metrics.overturnedShare.toFixed(0)}%`} />
               </div>
             </div>
           ))}

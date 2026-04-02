@@ -36,7 +36,7 @@ export default async function UmpiresPage({ searchParams }: { searchParams: Prom
 
   // S4-2: Find insert position for floating avg row
   const avgInsertIdx = sorted.findIndex((umpire) =>
-    viewMode === "org" ? getOrgRankingValue(umpire) < avgOrgValue : umpire.overturnRate < avgFanValue,
+    viewMode === "org" ? getOrgRankingValue(umpire) < avgOrgValue : umpire.overturnRate > avgFanValue,
   );
   const insertAt = avgInsertIdx === -1 ? sorted.length : avgInsertIdx;
 
@@ -140,7 +140,7 @@ function compareFanUmpires(
   left: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
   right: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
 ) {
-  if (right.overturnRate !== left.overturnRate) return right.overturnRate - left.overturnRate;
+  if (left.overturnRate !== right.overturnRate) return left.overturnRate - right.overturnRate;
   if (right.challengedCalls !== left.challengedCalls) return right.challengedCalls - left.challengedCalls;
   return right.gamesWorked - left.gamesWorked;
 }

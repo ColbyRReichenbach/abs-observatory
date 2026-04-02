@@ -72,20 +72,6 @@ export function DynamicLeverageMeter({
                         </linearGradient>
                     </defs>
                     <path
-                        d={describeArc(size / 2, size / 2, radius, 180, 90)}
-                        fill="none"
-                        stroke={withAlpha(awayColor, 0.16)}
-                        strokeWidth="30"
-                        strokeLinecap="round"
-                    />
-                    <path
-                        d={describeArc(size / 2, size / 2, radius, 90, 0)}
-                        fill="none"
-                        stroke={withAlpha(homeColor, 0.16)}
-                        strokeWidth="30"
-                        strokeLinecap="round"
-                    />
-                    <path
                         d={describeArc(size / 2, size / 2, radius, 180, 0)}
                         fill="none"
                         stroke="#f8fafc"
@@ -103,6 +89,8 @@ export function DynamicLeverageMeter({
                         animate={{ strokeDashoffset: dashOffset }}
                         transition={{ duration: 1.2, ease: "easeOut" }}
                     />
+                    <circle cx={52} cy={size / 2} r={7} fill={awayColor} />
+                    <circle cx={size - 52} cy={size / 2} r={7} fill={homeColor} />
                 </svg>
             </div>
 
@@ -156,13 +144,4 @@ function describeArc(x: number, y: number, radius: number, startAngle: number, e
     const end = polarToCartesian(x, y, radius, startAngle);
     const largeArcFlag = startAngle - endAngle <= 180 ? "0" : "1";
     return ["M", start.x, start.y, "A", radius, radius, 0, largeArcFlag, 0, end.x, end.y].join(" ");
-}
-
-function withAlpha(hex: string, alpha: number) {
-    const normalized = hex.trim();
-    if (!normalized.startsWith("#") || normalized.length !== 7) return `rgba(59,130,246,${alpha})`;
-    const r = Number.parseInt(normalized.slice(1, 3), 16);
-    const g = Number.parseInt(normalized.slice(3, 5), 16);
-    const b = Number.parseInt(normalized.slice(5, 7), 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
