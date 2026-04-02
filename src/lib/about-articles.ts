@@ -31,6 +31,11 @@ export type AboutArticleSource = {
   href: string;
 };
 
+export type AboutArticleActionLink = {
+  label: string;
+  href: string;
+};
+
 export type AboutArticle = {
   slug: string;
   aliases?: string[];
@@ -49,6 +54,7 @@ export type AboutArticle = {
   quickFacts: AboutArticleFact[];
   featureCards?: AboutFeatureCard[];
   sources?: AboutArticleSource[];
+  actionLinks?: AboutArticleActionLink[];
   relatedSlugs: string[];
 };
 
@@ -132,6 +138,11 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
       { label: "Role", value: "Founder, engineer, analyst, and writer" },
       { label: "Working style", value: "End-to-end product ownership with direct technical accountability" },
       { label: "Default standard", value: "Clarity, auditability, and baseball logic before style" },
+    ],
+    actionLinks: [
+      { label: "Portfolio", href: "https://colbyrreichenbach.github.io/" },
+      { label: "LinkedIn", href: "https://www.linkedin.com/in/colby-reichenbach/" },
+      { label: "Email", href: "mailto:colbyrreichenbach@gmail.com" },
     ],
     sections: [
       {
