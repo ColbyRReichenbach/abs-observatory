@@ -1,7 +1,8 @@
 "use client";
 
 import { memo, useMemo, useState } from "react";
-import { CartesianGrid, Label, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Label, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from "recharts";
+import type { TooltipContentProps } from "recharts";
 import { buildLinearAxis, formatNumberTick, formatPercentTick } from "@/components/analytics/chart-axis";
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
 import { resolveTeamBranding } from "@/lib/team-branding";
@@ -17,14 +18,6 @@ export type SpringTeamIdentityPoint = {
 type ChartPoint = SpringTeamIdentityPoint & {
   overturnPct: number;
 };
-
-function getScatterMousePosition(state: unknown) {
-  if (!state || typeof state !== "object" || !("chartX" in state) || !("chartY" in state)) return null;
-  const chartX = (state as { chartX?: unknown }).chartX;
-  const chartY = (state as { chartY?: unknown }).chartY;
-  if (typeof chartX !== "number" || typeof chartY !== "number") return null;
-  return { x: chartX, y: chartY };
-}
 
 function getActiveTeamPoint(state: unknown): ChartPoint | null {
   if (!state || typeof state !== "object" || !("activePayload" in state)) return null;
@@ -78,8 +71,43 @@ const TeamLogoDot = memo((props: { cx?: number; cy?: number; payload?: ChartPoin
 });
 TeamLogoDot.displayName = "TeamLogoDot";
 
+type SpringTeamIdentityTooltipProps = TooltipContentProps<number, string> & {
+  viewBox?: {
+    height?: number;
+  };
+};
+
+function SpringTeamIdentityTooltip({ active, payload, coordinate, viewBox }: SpringTeamIdentityTooltipProps) {
+  if (!active || !payload?.length || !coordinate) return null;
+  const point = payload[0]?.payload as ChartPoint | undefined;
+  if (!point) return null;
+
+  const isBottomHalf = (coordinate.y || 0) > (viewBox?.height || 420) / 2;
+
+  return (
+    <div
+      className="transition-transform duration-300 ease-out"
+      style={{
+        transform: isBottomHalf
+          ? "translateX(-50%) translateY(-100%) translateY(-28px)"
+          : "translateX(-50%) translateY(28px)",
+        pointerEvents: "none",
+      }}
+    >
+      <ChartTooltip
+        title={point.teamName}
+        value={`${point.challenges}`}
+        subValueLabel="Challenges"
+        extra={[
+          { label: "Overturn Rate", value: `${(point.overturnRate * 100).toFixed(1)}%` },
+          ...(point.lateShare != null ? [{ label: "Late Share", value: `${(point.lateShare * 100).toFixed(1)}%` }] : []),
+        ]}
+      />
+    </div>
+  );
+}
+
 export function SpringTeamIdentityScatter({ data }: { data: SpringTeamIdentityPoint[] }) {
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [hoveredPoint, setHoveredPoint] = useState<ChartPoint | null>(null);
   const chartData = useMemo(() => data.map((point) => ({ ...point, overturnPct: point.overturnRate * 100 })), [data]);
 
@@ -124,10 +152,6 @@ export function SpringTeamIdentityScatter({ data }: { data: SpringTeamIdentityPo
         <ScatterChart
           margin={{ top: 34, right: 96, bottom: 56, left: 78 }}
           onMouseMove={(state: unknown) => {
-            const nextMousePos = getScatterMousePosition(state);
-            if (nextMousePos) {
-              setMousePos(nextMousePos);
-            }
             setHoveredPoint(getActiveTeamPoint(state));
           }}
           onMouseLeave={() => setHoveredPoint(null)}
@@ -199,21 +223,17 @@ export function SpringTeamIdentityScatter({ data }: { data: SpringTeamIdentityPo
             )}
             isAnimationActive={false}
           />
+          <Tooltip
+            content={(props) => <SpringTeamIdentityTooltip {...(props as SpringTeamIdentityTooltipProps)} />}
+            cursor={false}
+            offset={0}
+            allowEscapeViewBox={{ x: true, y: true }}
+            wrapperStyle={{ zIndex: 10001, outline: "none", pointerEvents: "none" }}
+            isAnimationActive={false}
+            animationDuration={0}
+          />
         </ScatterChart>
       </ResponsiveContainer>
-      {hoveredPoint ? (
-        <ChartTooltip
-          usePortal
-          portalProps={mousePos}
-          title={hoveredPoint.teamName}
-          value={`${hoveredPoint.challenges}`}
-          subValueLabel="Challenges"
-          extra={[
-            { label: "Overturn Rate", value: `${(hoveredPoint.overturnRate * 100).toFixed(1)}%` },
-            ...(hoveredPoint.lateShare != null ? [{ label: "Late Share", value: `${(hoveredPoint.lateShare * 100).toFixed(1)}%` }] : []),
-          ]}
-        />
-      ) : null}
     </div>
   );
 }
