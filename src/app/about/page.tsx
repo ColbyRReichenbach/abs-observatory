@@ -9,8 +9,8 @@ export default function AboutPage() {
           <p className="text-[11px] font-black uppercase tracking-[0.28em] text-[#7d6c54]">AiBS Product Dossier</p>
           <h1 className="mt-3 text-5xl font-display uppercase tracking-tight md:text-7xl">About</h1>
           <p className="mt-4 max-w-3xl text-sm leading-relaxed text-[#5a554d]">
-            The permanent record for the project itself: what AiBS is, how ABS works, how the product is built,
-            how the models and AI behave, and what standards the system is willing to defend.
+            The permanent record for the project itself: what AiBS is, how ABS works, how I built the product,
+            how the models and AI behave, and the standards I use to keep the system honest.
           </p>
         </header>
 

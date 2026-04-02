@@ -87,14 +87,8 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         eyebrow: "What I built",
         heading: "I built AiBS as a front door to ABS, not as another generic baseball dashboard.",
         paragraphs: [
-          "I organized the product around routes that answer different baseball questions cleanly. The home page frames the current league picture. Team pages focus on club-level challenge behavior. Umpire pages focus on review pressure, overturn patterns, and consequence. Game pages reduce one game into the specific events and state changes that shaped it. The Articles desk holds my analysis. The About desk documents how the system works.",
-          "I made that routing choice because I do not think one giant dashboard is a serious answer to every baseball question. If a page exists, it should have a clear job, a clear audience, and a clear explanation for why its metrics are there.",
-        ],
-        bullets: [
-          "Home: current ABS landscape, live states, and the highest-signal league snapshots.",
-          "Teams: how clubs spend challenges, where they gain value, and what style they show.",
-          "Umpires: overturn profile, pressure exposure, consequence, and directional reads.",
-          "Games: event-level context, count-state changes, leverage, and challenge impact.",
+          "I built AiBS as one place where a user can move from live context, to team behavior, to umpire exposure, to game-level events, to longer written analysis without leaving the product. I wanted the data, the explanation, and the baseball logic to live together.",
+          "I also wanted the product to be useful to more than one kind of reader. Some people want a clean visual front door into the subject. Some want deeper baseball logic. Some want technical details. I built the system so those readers can start in different places without needing different products.",
         ],
       },
       {
@@ -111,7 +105,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         heading: "I chose ABS because it forces baseball logic, technical logic, and public dialogue into the same place.",
         paragraphs: [
           "ABS is one of the few current baseball topics where rules, geometry, strategy, officiating, and fan reaction all collide in public view. That makes it a strong product subject and a strong modeling subject. It also means I have to build for more than one kind of reader at once: fans who want understandable visuals, baseball people who care about tactics, and technical readers who want to know whether the numbers hold up.",
-          "I embedded AI into that system because the data becomes more useful when more people can actually read it. That is the practical reason chart insight, copilot, and the visualizer exist. They are there to make the product legible, not to replace the underlying evidence.",
+          "I also embedded AI into that system because the data becomes more useful when more people can actually read it. I use it to make the product more legible, not to replace the underlying evidence.",
         ],
       },
     ],
@@ -152,7 +146,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         paragraphs: [
           "Truthfully, I am still figuring that out.",
           "I am well versed across the broader data stack, and I still do not know exactly what I like best or where I fit best. At times, it feels a little like an identity crisis, but in a productive way. I enjoy building machine learning models. I enjoy designing polished, visually compelling frontends. I enjoy engineering backends and analytical pipelines that move data from raw systems into something useful for real people.",
-          "That is one of the reasons AiBS means a lot to me. It is a product that genuinely reflects the range of how I like to work. It showcases my ability to build across the stack, from using AI in an agentic development workflow, to building user-facing AI tools, to engineering analytical pipelines that monitor those systems, to automating data ingestion and model auditing in a stable way.",
+          "That is one of the reasons AiBS means a lot to me. It is a product that genuinely reflects the range of how I like to work. It showcases my ability to build across the stack, from using AI throughout my development workflow, to building user-facing AI tools, to engineering analytical pipelines that monitor those systems, to automating data ingestion and model auditing in a stable way.",
         ],
       },
       {
@@ -233,8 +227,8 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         eyebrow: "How I model it",
         heading: "I model ABS as a baseball event, not just as a location check.",
         paragraphs: [
-          "I do not stop at whether the pitch should have been a strike or a ball. I also track who challenged, what count changed, whether the challenge was retained, what the leverage context was, and how the corrected count changed the modeled run and win environment. That lets AiBS talk about review timing, challenge value, and review pressure instead of only talking about zone accuracy.",
-          "That also explains why some pages lean more into baseball context than raw geometry. ABS is a rules-and-decision system built around pitch calls. The geometry matters, but so do the count, the inning, the score, the base state, and the number of challenges remaining.",
+          "I do not stop at whether the pitch should have been a strike or a ball. I also track who challenged, what count changed, whether the challenge was retained, and what baseball state followed from the corrected call.",
+          "That design choice is why the rest of the product can move from simple call correction into timing, value, and pressure. ABS is a rules-and-decision system built around pitch calls, so the geometry matters, but so do the count, the inning, the score, the base state, and the number of challenges remaining.",
         ],
       },
     ],
@@ -396,7 +390,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
     leadParagraphs: [
       "I use AI in AiBS to make the data easier to use. That means chart-specific explanation, product-aware follow-up questions, and guided interfaces that help a user understand the baseball signal without needing to speak in technical terms first.",
       "The AI layer is not one thing. It includes chart insight, the contextual copilot, the visualizer surface, Query Lab, editorial and report generation, feedback capture, generation logging, and admin analytics around how the prompts and responses are performing.",
-      "What matters here is not just that AI exists in the product. What matters is that prompts, context windows, feedback loops, and usage telemetry are all part of one inspectable system.",
+      "What matters here is not just that AI exists in the product. What matters is that each surface has defined context, tracked generations, stored feedback, and a review path when something goes wrong.",
     ],
     quickFacts: [
       { label: "Public AI surfaces", value: "Chart insight, visualizer, and selected follow-up/copilot paths" },
@@ -409,7 +403,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         heading: "I use AI for accessibility, not abstraction for its own sake.",
         paragraphs: [
           "ABS data is only useful if a user can actually interpret it. That is the practical reason I put AI into this product. A chart insight surface can explain what a visual is showing, what the baseball signal is, and what the user should be careful not to overclaim. A guided AI surface can also help a nontechnical user get to the question they were trying to ask in the first place.",
-          "That does not mean every AI surface should be public at once. I keep public-facing surfaces tied to inspectable context. Broader query and copilot interfaces need a higher support and monitoring bar, which is why some of them remain gated or staged.",
+          "That does not mean every AI surface should be public at once. I keep public-facing surfaces tied to inspectable context. Broader query and copilot interfaces need a higher support and monitoring bar, so some of them remain gated or staged.",
         ],
       },
       {
@@ -432,7 +426,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         paragraphs: [
           "I wire the AI layer around explicit surface types, context payloads, CSRF checks, usage entitlements, generation logging, and feedback capture. Context sharing is deliberate rather than magical. Chart insight receives a chart payload. Copilot receives a route-aware context window. Feedback is tied back to generation records so prompt and model behavior can be reviewed later.",
           "That is the difference between dropping a model endpoint into a UI and actually engineering an AI surface. Prompts, allowed tools, response shaping, and the audit path have to work together if the system is going to stay product-specific.",
-          "This is where the prompt-registry idea matters even when it is not exposed as one branded page. I already track surface, generation, model, and feedback metadata in a way that supports prompt-level review and iteration.",
+          "This is where prompt versioning and generation metadata matter. I already track surface, generation, model, and feedback metadata in a way that lets me review failures, compare responses, and iterate on the prompts behind each surface.",
         ],
         pullQuote: "The AI layer is strongest when the model knows exactly what kind of surface it is speaking for.",
       },
@@ -518,7 +512,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
     leadParagraphs: [
       "I do not want AiBS to rely on one-time confidence. I use recurring audit workflows around the core model and AI layers so drift, regressions, and repeated failure modes can be caught and reviewed instead of silently becoming product truth.",
       "That includes model audits, QA scripts, alert thresholds, AI feedback capture, generation tracking, and admin analytics that preserve the context around what the system did, where it did it, and how users responded.",
-      "A baseball product can look polished while being technically wrong underneath. I built this layer so the system stays recoverable and tunable when that happens.",
+      "A baseball product can look polished while being technically wrong underneath. I built this layer so I can trace failures, review them, and correct the system when something drifts.",
     ],
     quickFacts: [
       { label: "Audit scope", value: "Models, AI generations, workflow failures, and repeated negative feedback" },
@@ -539,7 +533,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         heading: "The same rule applies to AI: if I put it in the product, it has to be reviewable.",
         paragraphs: [
           "AI surfaces in AiBS are wired to feedback storage, generation events, classification, and admin review because prompt and model quality should be monitored like any other product behavior. Negative feedback, failure patterns, and repeated misunderstandings are useful signals only if they are attached to the generation and surface that produced them.",
-          "That is also why model drift and workflow failures need alerting and trend visibility. A passing build is not enough. Operational trust depends on whether the system can detect when reality has moved away from the assumptions it is serving.",
+          "Model drift and workflow failures need the same treatment. A passing build is not enough. Operational trust depends on whether the system can detect when reality has moved away from the assumptions it is serving.",
         ],
         pullQuote: "Trust is not only about getting a number once. It is about whether the system can tell when it should stop trusting itself.",
       },
@@ -573,7 +567,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         eyebrow: "Data sources",
         heading: "Public inputs become product-specific outputs only after transformation.",
         paragraphs: [
-          "The underlying baseball information comes from public-facing league materials, public baseball APIs, and related historical baseball data sources. I restructure, store, model, and present that data through AiBS's relational schema, serving views, fallback tables, route loaders, and editorial surfaces. The resulting outputs are not just a raw copy of a public endpoint. They are the output of the system's own transforms and interpretation layers.",
+          "The underlying baseball information comes from public-facing league materials, public baseball APIs, and related historical baseball data sources. I restructure, store, model, and present that data through AiBS's relational schema and product surfaces. The resulting outputs are not just a raw copy of a public endpoint.",
         ],
       },
       {

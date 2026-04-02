@@ -55,9 +55,6 @@ export function AboutArticleView({ article }: { article: AboutArticle }) {
         <div className="mt-10 grid gap-12 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
           <div className="min-w-0">
             <section>
-              <p className={`text-[11px] font-black uppercase tracking-[0.28em] ${article.accentClass}`}>
-                Overview
-              </p>
               <h2 className="mt-3 text-3xl font-display uppercase tracking-tight md:text-5xl">
                 {article.heroHeading}
               </h2>
