@@ -7,6 +7,23 @@ import { getCsrfCookieName, issueCsrfToken } from "@/lib/server/csrf";
 const hasClerkCredentials =
   Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) && Boolean(process.env.CLERK_SECRET_KEY);
 
+const clerkProtectedPrefixes = [
+  "/admin",
+  "/profile",
+  "/query",
+  "/sign-in",
+  "/sign-up",
+  "/api/me",
+  "/api/profile",
+  "/api/jobs",
+  "/api/ai",
+  "/api/community",
+];
+
+function shouldRunClerkProxy(pathname: string) {
+  return clerkProtectedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
 function withSecurityHeaders(response: NextResponse) {
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");
@@ -39,5 +56,13 @@ export const config = {
 };
 
 export function proxy(request: NextRequest, event: NextFetchEvent) {
-  return hasClerkCredentials ? authProxy(request, event) : withSecurityHeaders(NextResponse.next());
+  if (!hasClerkCredentials) {
+    return withSecurityHeaders(NextResponse.next());
+  }
+
+  if (!shouldRunClerkProxy(request.nextUrl.pathname)) {
+    return withSecurityHeaders(NextResponse.next());
+  }
+
+  return authProxy(request, event);
 }
