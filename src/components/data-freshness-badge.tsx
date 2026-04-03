@@ -93,31 +93,25 @@ export function DataFreshnessBadge() {
 
   const content = useMemo(() => {
     if (!snapshot) return null;
+    const activelyPolling = snapshot.liveGameCount > 0;
+    const isFailed = snapshot.lastStatus === "failed";
     return {
-      primary: formatRelative(snapshot.lastFinishedAt, nowTick),
-      secondary: formatNextUpdate(snapshot.liveGameCount, snapshot.pollIntervalMinutes, nowTick),
-      tone:
-        snapshot.lastStatus === "failed"
-          ? "bg-amber-500"
-          : snapshot.liveGameCount > 0
-            ? "bg-emerald-500"
-            : "bg-slate-400",
+      label: activelyPolling ? "Polling live" : "Idle",
+      detail: activelyPolling
+        ? `${formatRelative(snapshot.lastFinishedAt, nowTick)} · ${formatNextUpdate(snapshot.liveGameCount, snapshot.pollIntervalMinutes, nowTick)}`
+        : formatRelative(snapshot.lastFinishedAt, nowTick),
+      tone: isFailed ? "text-red-700" : activelyPolling ? "text-emerald-700" : "text-red-600",
     };
   }, [nowTick, snapshot]);
 
   if (!enabled || !content) return null;
 
   return (
-    <div className="hidden xl:flex items-center gap-3 rounded-full border border-gray-200/80 bg-white/80 px-3 py-2 shadow-sm">
-      <span className={`h-2 w-2 rounded-full ${content.tone}`} />
-      <div className="flex flex-col leading-tight">
-        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-700">
-          {content.primary}
-        </span>
-        <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-gray-400">
-          {content.secondary}
-        </span>
-      </div>
+    <div className="pointer-events-none fixed right-4 top-3 z-40 text-right md:right-6 md:top-4">
+      <p className={`font-mono text-[10px] font-medium tracking-[0.08em] ${content.tone}`}>
+        <span className="uppercase">{content.label}</span>
+        <span className="text-[rgba(17,24,39,0.62)]"> · {content.detail}</span>
+      </p>
     </div>
   );
 }

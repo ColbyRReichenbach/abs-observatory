@@ -30,6 +30,8 @@
     "db:backup": "bash scripts/db-backup.sh",
     "db:restore": "bash scripts/db-restore.sh",
     "etl:test": "python3 -m unittest discover -s etl/tests -p 'test_*.py'",
+    "test:polling": "npm run etl:test && node ./node_modules/vitest/vitest.mjs run src/lib/server/__tests__/data-version.test.ts src/lib/server/__tests__/data-freshness.test.ts src/lib/server/__tests__/ai-chat.test.ts src/components/__tests__/live-status-strip.test.ts",
+    "test:polling:quick": "node ./node_modules/vitest/vitest.mjs run src/lib/server/__tests__/data-version.test.ts src/lib/server/__tests__/data-freshness.test.ts src/components/__tests__/live-status-strip.test.ts",
     "etl:window": "python3 etl/ingest_mlb_abs.py --start-date 2026-03-01 --end-date 2026-03-04 --game-type S,R",
     "etl:spring-training": "python3 etl/ingest_mlb_abs.py --spring-training-2026-to-date --game-type S,R --skip-reports",
     "etl:sync-player-profiles": "python3 etl/player_abs_profiles.py",
