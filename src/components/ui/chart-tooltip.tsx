@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 type ChartTooltipRowProps = {
@@ -41,30 +41,6 @@ export function ChartTooltip({ title, value, subValueLabel, extra, children, use
         () => true,
         () => false,
     );
-    const [suppressedPortalKey, setSuppressedPortalKey] = useState<string | null>(null);
-    const portalKey =
-        usePortal && portalProps ? `${Math.round(portalProps.x)}:${Math.round(portalProps.y)}` : null;
-    const suppressed = portalKey !== null && suppressedPortalKey === portalKey;
-
-    useEffect(() => {
-        if (!usePortal || !mounted) return;
-
-        const suppress = () => {
-            if (portalKey) {
-                setSuppressedPortalKey(portalKey);
-            }
-        };
-
-        window.addEventListener("scroll", suppress, true);
-        window.addEventListener("wheel", suppress, { passive: true });
-        window.addEventListener("touchmove", suppress, { passive: true });
-
-        return () => {
-            window.removeEventListener("scroll", suppress, true);
-            window.removeEventListener("wheel", suppress);
-            window.removeEventListener("touchmove", suppress);
-        };
-    }, [mounted, portalKey, usePortal]);
 
     let portalStyle: React.CSSProperties | undefined;
     if (usePortal && portalProps && typeof window !== "undefined") {
@@ -130,7 +106,6 @@ export function ChartTooltip({ title, value, subValueLabel, extra, children, use
     );
 
     if (usePortal && mounted) {
-        if (suppressed) return null;
         return createPortal(content, document.body);
     }
 

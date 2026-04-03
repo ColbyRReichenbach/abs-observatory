@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo } from "react";
 import {
   CartesianGrid,
   Label,
@@ -60,26 +60,38 @@ const RiskDot = memo((props: { cx?: number; cy?: number; payload?: UmpireRiskPoi
 RiskDot.displayName = "RiskDot";
 
 type UmpireRiskTooltipProps = TooltipContentProps<number, string> & {
-  mousePos: { x: number; y: number };
+  viewBox?: {
+    height?: number;
+  };
 };
 
-function UmpireRiskTooltip({ active, payload, mousePos }: UmpireRiskTooltipProps) {
-  if (!active || !payload?.length) return null;
+function UmpireRiskTooltip({ active, payload, coordinate, viewBox }: UmpireRiskTooltipProps) {
+  if (!active || !payload?.length || !coordinate) return null;
   const point = payload[0]?.payload as UmpireRiskPoint | undefined;
   if (!point) return null;
 
+  const isBottomHalf = (coordinate.y || 0) > (viewBox?.height || 300) / 2;
+
   return (
-    <ChartTooltip
-      usePortal
-      portalProps={mousePos}
-      title={point.umpireName}
-      value={`${(point.overturnRate * 100).toFixed(2)}%`}
-      subValueLabel="Overturn Rate"
-      extra={[
-        { label: "Variance", value: point.overturnRateVariance.toFixed(2) },
-        { label: "Risk Tier", value: point.riskTier, mono: false, color: riskColor(point.riskTier) },
-      ]}
-    />
+    <div
+      className="transition-transform duration-300 ease-out"
+      style={{
+        transform: isBottomHalf
+          ? "translateX(-50%) translateY(-100%) translateY(-20px)"
+          : "translateX(-50%) translateY(20px)",
+        pointerEvents: "none",
+      }}
+    >
+      <ChartTooltip
+        title={point.umpireName}
+        value={`${(point.overturnRate * 100).toFixed(2)}%`}
+        subValueLabel="Overturn Rate"
+        extra={[
+          { label: "Variance", value: point.overturnRateVariance.toFixed(2) },
+          { label: "Risk Tier", value: point.riskTier, mono: false, color: riskColor(point.riskTier) },
+        ]}
+      />
+    </div>
   );
 }
 
@@ -115,7 +127,6 @@ function VarianceAxisLabel({
 }
 
 export function UmpireRiskScatter({ data }: { data: UmpireRiskPoint[] }) {
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const { avgRate, avgVariance, xAxis, yAxis, yTickDigits } = useMemo(() => {
     if (data.length === 0) {
       return {
@@ -139,7 +150,6 @@ export function UmpireRiskScatter({ data }: { data: UmpireRiskPoint[] }) {
       yTickDigits: yStep < 0.1 ? 2 : 1,
     };
   }, [data]);
-
   if (data.length === 0) return null;
 
   return (
@@ -153,7 +163,7 @@ export function UmpireRiskScatter({ data }: { data: UmpireRiskPoint[] }) {
         </p>
       </div>
 
-      <div className="relative h-[300px] w-full" onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}>
+      <div className="relative h-[300px] w-full">
         <div className="pointer-events-none absolute inset-0 z-10">
           <span className="absolute top-2 left-12 text-[9px] font-black uppercase tracking-[0.14em] text-emerald-500/50">
             Low Overturn / Volatile
@@ -170,7 +180,9 @@ export function UmpireRiskScatter({ data }: { data: UmpireRiskPoint[] }) {
         </div>
 
         <ResponsiveContainer width="100%" height={300} minWidth={0}>
-          <ScatterChart margin={{ top: 28, right: 30, bottom: 50, left: 72 }}>
+          <ScatterChart
+            margin={{ top: 28, right: 30, bottom: 50, left: 72 }}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
             <XAxis
               type="number"
@@ -227,11 +239,11 @@ export function UmpireRiskScatter({ data }: { data: UmpireRiskPoint[] }) {
             />
             <Scatter data={data} shape={<RiskDot />} isAnimationActive={false} />
             <Tooltip
-              content={(props) => <UmpireRiskTooltip {...(props as TooltipContentProps<number, string>)} mousePos={mousePos} />}
+              content={(props) => <UmpireRiskTooltip {...(props as UmpireRiskTooltipProps)} />}
               cursor={false}
               offset={0}
               allowEscapeViewBox={{ x: true, y: true }}
-              wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
+              wrapperStyle={{ zIndex: 10001, outline: "none", pointerEvents: "none" }}
               isAnimationActive={false}
               animationDuration={0}
             />

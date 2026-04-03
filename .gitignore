@@ -83,6 +83,7 @@ env/
 .env.test.local
 .env.production.local
 .env.preview
+.env.poll
 .env.*.bak
 .env.*.backup
 .envrc

@@ -6,20 +6,14 @@ import { Suspense } from "react";
 import { AiBSIcon } from "@/components/ui/aibs-icon";
 import { ViewModeToggle } from "@/components/ui/view-mode-toggle";
 import type { ViewMode } from "@/lib/view-mode";
+import { resolveClientViewMode } from "@/lib/view-mode-client";
 import { withViewModeHref } from "@/lib/view-mode-href";
 
 const VIEW_MODE_EVENT = "aibs:view-mode-change";
 
 function readClientMode(): ViewMode | undefined {
   if (typeof window === "undefined") return undefined;
-
-  const params = new URLSearchParams(window.location.search);
-  const queryMode = params.get("view");
-  if (queryMode === "fan" || queryMode === "org") return queryMode;
-
-  const match = document.cookie.match(/(?:^|;\\s*)aibs_view_mode=(fan|org)(?:;|$)/);
-  const cookieMode = match?.[1];
-  return cookieMode === "fan" || cookieMode === "org" ? cookieMode : undefined;
+  return resolveClientViewMode(new URLSearchParams(window.location.search)) ?? undefined;
 }
 
 const links = [

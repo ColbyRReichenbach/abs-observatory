@@ -1,25 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { motion } from "framer-motion";
 
-import { formatLeverageBucketLabel, summarizeEstimatedLeverage } from "@/lib/estimated-leverage";
-
-function polarToCartesian(cx: number, cy: number, radius: number, angleInDegrees: number) {
-  const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
-  return {
-    x: cx + radius * Math.cos(angleInRadians),
-    y: cy + radius * Math.sin(angleInRadians),
-  };
-}
-
-function describeArc(cx: number, cy: number, radius: number, startAngle: number, endAngle: number) {
-  const start = polarToCartesian(cx, cy, radius, endAngle);
-  const end = polarToCartesian(cx, cy, radius, startAngle);
-  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
-
-  return ["M", start.x, start.y, "A", radius, radius, 0, largeArcFlag, 0, end.x, end.y].join(" ");
-}
+import { formatBasesStateLabel } from "@/lib/challenge-context";
+import { summarizeEstimatedLeverage } from "@/lib/estimated-leverage";
 
 export function DynamicLeverageMeter({
   homeScore = 0,
@@ -58,63 +42,101 @@ export function DynamicLeverageMeter({
     [awayScore, balls, basesState, homeScore, inning, outs, strikes],
   );
 
-  const runDifferential = homeScore - awayScore;
-  const leaderLabel = runDifferential === 0 ? "Game tied" : runDifferential > 0 ? "Home leads" : "Away leads";
-  const progressAngle = 180 * Math.max(0, Math.min(leverage.estimatedLeverageIndex, 100)) / 100;
-  const trackPath = describeArc(180, 176, 118, 180, 0);
-  const valuePath = describeArc(180, 176, 118, 180, 180 - progressAngle);
+  const percentage = Math.max(0, Math.min(100, leverage.estimatedLeverageIndex));
+  const pressureTone =
+    leverage.leverageBucket === "high"
+      ? "High pressure"
+      : leverage.leverageBucket === "medium"
+        ? "Medium pressure"
+        : "Lower pressure";
+  const gameStateLabel =
+    homeScore === awayScore ? "Game tied" : homeScore > awayScore ? "Home leads" : "Away leads";
 
   return (
-    <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-[2rem] bg-gradient-to-br from-blue-50/20 via-white to-red-50/10">
-      <motion.div
-        animate={{ opacity: [0.2, 0.45, 0.2], scale: [0.98, 1.02, 0.98] }}
-        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute inset-6 rounded-[2rem] border border-blue-500/10 blur-sm"
-      />
+    <div className="flex h-full w-full flex-col justify-between px-2 py-3">
+      <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="rounded-[1.75rem] border border-gray-100 bg-white/95 px-6 py-6 shadow-lg shadow-black/[0.04]">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-gray-400">Estimated Leverage</p>
+          <div className="mt-3 flex items-end gap-2">
+            <span className="text-6xl font-display leading-none text-gray-900">{leverage.estimatedLeverageIndex}</span>
+            <span className="pb-1 text-2xl font-black uppercase tracking-[0.12em] text-gray-300">ELI</span>
+          </div>
+          <p className="mt-3 text-sm font-semibold text-gray-600">{pressureTone} for inning {inning}</p>
+          <p className="mt-1 text-[11px] font-black uppercase tracking-[0.14em] text-gray-400">
+            {gameStateLabel} • Count {balls}-{strikes} • {outs} out{outs === 1 ? "" : "s"}
+          </p>
 
-      <div className="relative flex h-full w-full max-w-[34rem] flex-col items-center justify-center px-6 pb-8 pt-10">
-        <div className="relative w-full max-w-[30rem]">
-          <svg viewBox="0 0 360 230" className="h-auto w-full overflow-visible">
-            <path d={trackPath} fill="none" stroke="#eef2ff" strokeWidth="24" strokeLinecap="round" />
-            <path d={valuePath} fill="none" stroke={homeColor} strokeWidth="24" strokeLinecap="round" />
-          </svg>
-
-          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pt-10 text-center">
-            <span className="text-[10px] font-black uppercase tracking-[0.24em] text-gray-400">Estimated Leverage</span>
-            <div className="mt-2 flex items-baseline gap-2">
-              <motion.span
-                key={leverage.estimatedLeverageIndex}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-7xl font-display leading-none text-gray-900"
-              >
-                {leverage.estimatedLeverageIndex}
-              </motion.span>
-              <span className="text-2xl font-black uppercase tracking-[0.12em] text-gray-300">ELI</span>
+          <div className="mt-6">
+            <div className="mb-2 flex items-center justify-between text-[9px] font-black uppercase tracking-[0.18em] text-gray-400">
+              <span>Low</span>
+              <span>Medium</span>
+              <span>High</span>
             </div>
-            <p className="mt-3 text-sm font-semibold text-gray-500">
-              {formatLeverageBucketLabel(leverage.leverageBucket)} through inning {inning}
-            </p>
-            <p className="mt-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
-              {leaderLabel} • Count {balls}-{strikes} • {outs} out{outs === 1 ? "" : "s"}
-            </p>
+            <div className="relative h-3 overflow-hidden rounded-full bg-gray-100">
+              <div className="absolute inset-y-0 left-0 w-1/3 bg-emerald-100" />
+              <div className="absolute inset-y-0 left-1/3 w-1/3 bg-amber-100" />
+              <div className="absolute inset-y-0 right-0 w-1/3 bg-rose-100" />
+              <div
+                className="absolute inset-y-[2px] left-[2px] rounded-full"
+                style={{
+                  width: `calc(${percentage}% - 4px)`,
+                  background: `linear-gradient(90deg, ${awayColor} 0%, ${homeColor} 100%)`,
+                }}
+              />
+              <div
+                className="absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full border-4 border-white shadow-md"
+                style={{
+                  left: `calc(${percentage}% - 10px)`,
+                  background: homeScore >= awayScore ? homeColor : awayColor,
+                }}
+              />
+            </div>
           </div>
         </div>
 
-        <div className="mt-1 flex flex-wrap items-center justify-center gap-5">
-          <LegendDot color={awayColor} label={`Away (${awayScore})`} />
-          <LegendDot color={homeColor} label={`Home (${homeScore})`} />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+          <ScoreCard label="Away" score={awayScore} color={awayColor} />
+          <ScoreCard label="Home" score={homeScore} color={homeColor} />
+          <div className="rounded-[1.5rem] border border-gray-100 bg-[var(--surface-infield)] px-5 py-4 sm:col-span-2 lg:col-span-1">
+            <p className="text-[9px] font-black uppercase tracking-[0.18em] text-gray-400">Current State</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <SnapshotMetric label="Bases" value={formatBasesStateLabel(basesState)} />
+              <SnapshotMetric label="Count" value={`${balls}-${strikes}`} />
+              <SnapshotMetric label="Outs" value={`${outs}`} />
+              <SnapshotMetric label="Bucket" value={leverage.leverageBucket.toUpperCase()} />
+            </div>
+          </div>
         </div>
+      </div>
+
+      <div className="mt-5 rounded-[1.5rem] border border-gray-100 bg-white/90 px-5 py-4 shadow-md shadow-black/[0.03]">
+        <p className="text-[9px] font-black uppercase tracking-[0.18em] text-gray-400">Decision Read</p>
+        <p className="mt-2 text-sm font-medium leading-6 text-gray-600">
+          {pressureTone} in a {homeScore === awayScore ? "tied" : "live-score"} spot with {formatBasesStateLabel(basesState).toLowerCase()} and a{" "}
+          {balls}-{strikes} count. This card is here to orient the moment, not to compete with the actual recommendation panel.
+        </p>
       </div>
     </div>
   );
 }
 
-function LegendDot({ color, label }: { color: string; label: string }) {
+function ScoreCard({ label, score, color }: { label: string; score: number; color: string }) {
   return (
-    <div className="flex items-center gap-2">
-      <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
-      <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">{label}</span>
+    <div className="rounded-[1.5rem] border border-gray-100 bg-white px-5 py-5 shadow-md shadow-black/[0.03]">
+      <div className="flex items-center gap-3">
+        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
+        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">{label}</p>
+      </div>
+      <p className="mt-3 text-4xl font-display leading-none text-gray-900">{score}</p>
+    </div>
+  );
+}
+
+function SnapshotMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[1rem] border border-gray-100 bg-white px-3 py-3">
+      <p className="text-[9px] font-black uppercase tracking-[0.14em] text-gray-400">{label}</p>
+      <p className="mt-2 text-base font-display text-gray-900">{value}</p>
     </div>
   );
 }

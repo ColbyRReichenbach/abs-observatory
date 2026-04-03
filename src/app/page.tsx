@@ -72,7 +72,7 @@ async function HomePageBody({
   const seasonAvgRate = allTeamChallenges > 0 ? (allTeamSuccessful / allTeamChallenges) * 100 : 0;
   const topMoment = moments[0] ?? null;
   const highestRiskUmpire = umpires.length > 0
-    ? [...umpires].sort((a, b) => a.reportCardScore - b.reportCardScore)[0]
+    ? [...umpires].sort((left, right) => getHomeUmpireWatchPriority(right) - getHomeUmpireWatchPriority(left))[0]
     : null;
 
   const topTeams =
@@ -105,7 +105,9 @@ async function HomePageBody({
           .filter((team) => hasTrustedModelConfidenceBand(team.decisionValueConfidence))
           .sort((left, right) => right.lateCloseExpectedValueShare - left.lateCloseExpectedValueShare)[0] ?? null
       : null;
-  const spotlightUmps = [...umpires].sort((a, b) => a.reportCardScore - b.reportCardScore).slice(0, 3);
+  const spotlightUmps = [...umpires]
+    .sort((left, right) => getHomeUmpireWatchPriority(right) - getHomeUmpireWatchPriority(left))
+    .slice(0, 3);
   const mostSelectiveTeam =
     [...teams].sort((a, b) => (b.avgRemaining * b.overturnRate) - (a.avgRemaining * a.overturnRate))[0] ?? null;
   return (
@@ -193,7 +195,7 @@ async function HomePageBody({
                 <div className="flex flex-wrap gap-4">
                   {topTeams.map((team, idx) => (
                     <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
-                      <TeamIcon teamId={team.teamId} name={team.teamName} size={28} />
+                      <TeamIcon teamId={team.teamId} name={team.teamName} size={28} variant="flat" className="shrink-0" />
                       <div className="min-w-0">
                         <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{team.teamName}</p>
                         <div className="mt-2 flex items-center justify-between gap-2">
@@ -227,7 +229,7 @@ async function HomePageBody({
                         <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{u.umpireName}</p>
                         <div className="mt-1 flex flex-wrap items-center gap-2">
                           <ProfileBadge
-                            label={`${u.grade} ${u.fanDescriptor}`}
+                            label={`${(u.overturnRate * 100).toFixed(1)}% OT · ${u.fanDescriptor}`}
                             variant="blue"
                             className="min-w-0 flex-1 py-1"
                           />
@@ -326,7 +328,7 @@ async function HomePageBody({
                   <div className="flex flex-wrap gap-4">
                     {topTeams.map((team, idx) => (
                       <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
-                        <TeamIcon teamId={team.teamId} name={team.teamName} size={28} />
+                        <TeamIcon teamId={team.teamId} name={team.teamName} size={28} variant="flat" className="shrink-0" />
                         <div className="min-w-0">
                           <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{team.teamName}</p>
                               <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-3)]">
@@ -343,7 +345,7 @@ async function HomePageBody({
                         const rank = teams.length - bottomTeams.length + idx + 1;
                         return (
                           <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
-                            <TeamIcon teamId={team.teamId} name={team.teamName} size={28} />
+                            <TeamIcon teamId={team.teamId} name={team.teamName} size={28} variant="flat" className="shrink-0" />
                             <div className="min-w-0">
                               <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{team.teamName}</p>
                               <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-3)]">
@@ -364,10 +366,10 @@ async function HomePageBody({
         <HomeExpandableGrid games={games} />
 
         {/* S2-5: Reduced gap (mt-16 instead of mt-32) */}
-        <section className="mt-16">
-          <div className="mb-20 flex flex-col items-center text-center">
-            <div className="h-12 w-px bg-blue-200 mb-8" />
-            <h2 className="w-full text-5xl md:text-7xl font-display uppercase tracking-tight text-gray-900 mb-6 leading-[1.2] py-4 px-12 overflow-visible">
+        <section className="mt-10">
+          <div className="mb-14 flex flex-col items-center text-center">
+            <div className="mb-6 h-10 w-px bg-blue-200" />
+            <h2 className="w-full overflow-visible px-12 py-2 text-5xl font-display uppercase tracking-tight text-gray-900 md:text-7xl leading-[1.2] mb-5">
               Most <span className="opacity-20 italic px-2 pr-5">Consequential</span> Calls
             </h2>
             <p className="text-gray-500 text-lg max-w-xl font-medium text-balance">
@@ -390,6 +392,19 @@ async function HomePageBody({
         </div>
       </main>
     </>
+  );
+}
+
+function getHomeUmpireWatchPriority(
+  umpire: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
+) {
+  const drift =
+    typeof umpire.recentOverturnRate === "number" ? Math.abs(umpire.recentOverturnRate - umpire.overturnRate) : 0;
+  return (
+    Math.abs(umpire.averageWinExpectancyDelta ?? 0) * 100 +
+    Math.abs(umpire.averageRunExpectancyDelta ?? 0) * 10 +
+    umpire.overturnRateVariance * 100 +
+    drift * 100
   );
 }
 

@@ -1,129 +1,210 @@
 "use client";
 
-import { useState } from "react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import type { UmpirePitchTypeBreakdown } from "@/lib/types";
+import { useMemo, useState } from "react";
+import {
+  Legend,
+  PolarAngleAxis,
+  PolarGrid,
+  PolarRadiusAxis,
+  Radar,
+  RadarChart,
+  ResponsiveContainer,
+  Tooltip,
+} from "recharts";
+
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
-import { buildLinearAxis, formatPercentTick } from "@/components/analytics/chart-axis";
+import { ClientOnly } from "@/components/ui/client-only";
+import type { UmpirePitchTypeBreakdown } from "@/lib/types";
 
 const PITCH_COLORS: Record<string, string> = {
-    FF: "#ef4444", // 4-Seam Fastball
-    SI: "#f97316", // Sinker
-    FC: "#f59e0b", // Cutter
-    SL: "#3b82f6", // Slider
-    CU: "#8b5cf6", // Curveball
-    CH: "#10b981", // Changeup
-    FS: "#06b6d4", // Splitter
-    KC: "#a855f7", // Knuckle Curve
-    ST: "#ec4899", // Sweeper
-    SV: "#6366f1", // Slurve
-    UN: "#9ca3af", // Unknown
+  FF: "#ef4444",
+  SI: "#f97316",
+  FC: "#f59e0b",
+  SL: "#3b82f6",
+  CU: "#8b5cf6",
+  CH: "#10b981",
+  FS: "#06b6d4",
+  KC: "#a855f7",
+  ST: "#ec4899",
+  SV: "#6366f1",
+  UN: "#9ca3af",
 };
 
+const AXES = [
+  { key: "reviewShare", label: "Review Mix" },
+  { key: "overturnRate", label: "OT Rate" },
+  { key: "volumeIndex", label: "Volume" },
+  { key: "overturnedShare", label: "OT Share" },
+] as const;
+
 function getColor(code: string): string {
-    return PITCH_COLORS[code] ?? "#6b7280";
+  return PITCH_COLORS[code] ?? "#6b7280";
 }
 
-/**
- * D-8: Horizontal bar chart showing overturn rate per pitch type.
- */
 export function PitchTypeBreakdownChart({ data }: { data: UmpirePitchTypeBreakdown[] }) {
-    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-    if (data.length === 0) {
-        return (
-            <div className="panel bg-white p-8 text-center text-gray-400 text-sm font-medium">
-                No pitch type data available for the selected range.
-            </div>
-        );
-    }
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
-    const chartData = data.map((d) => ({
-        name: d.pitchTypeName,
-        code: d.pitchTypeCode,
-        overturnRate: d.overturnRate * 100,
-        challenged: d.challengedCount,
-        overturned: d.overturnedCount,
-    }));
-    const xAxis = buildLinearAxis(chartData.map((d) => d.overturnRate), {
-        step: 10,
-        padding: 5,
-        min: 0,
-        max: 100,
-        minSpan: 20,
+  const featuredPitches = useMemo(() => {
+    const sorted = [...data]
+      .sort((left, right) => right.challengedCount - left.challengedCount)
+      .slice(0, Math.min(5, data.length));
+
+    const totalChallenges = Math.max(1, sorted.reduce((sum, entry) => sum + entry.challengedCount, 0));
+    const totalOverturned = Math.max(1, sorted.reduce((sum, entry) => sum + entry.overturnedCount, 0));
+    const maxChallenges = Math.max(...sorted.map((entry) => entry.challengedCount), 1);
+
+    return sorted.map((entry) => {
+      const reviewShare = (entry.challengedCount / totalChallenges) * 100;
+      const overturnRate = entry.overturnRate * 100;
+      const volumeIndex = (entry.challengedCount / maxChallenges) * 100;
+      const overturnedShare = (entry.overturnedCount / totalOverturned) * 100;
+
+      return {
+        code: entry.pitchTypeCode,
+        name: entry.pitchTypeName,
+        color: getColor(entry.pitchTypeCode),
+        challenged: entry.challengedCount,
+        overturned: entry.overturnedCount,
+        overturnRate: entry.overturnRate,
+        metrics: {
+          reviewShare,
+          overturnRate,
+          volumeIndex,
+          overturnedShare,
+        },
+      };
     });
+  }, [data]);
 
+  if (data.length === 0) {
     return (
-        <section className="panel bg-white p-8">
-            <div className="mb-6">
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
-                    Pitch Breakdown
-                </h4>
-                <p className="text-2xl font-display leading-none text-gray-900">
-                    Overturn Rate <span className="text-gray-400 italic">by Pitch Type</span>
-                </p>
-            </div>
-
-            <div onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}>
-                <ResponsiveContainer width="100%" height={Math.max(180, chartData.length * 44)}>
-                <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 40, top: 4, bottom: 4 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
-                    <XAxis
-                        type="number"
-                        domain={xAxis.domain}
-                        ticks={xAxis.ticks}
-                        tickFormatter={(v: number) => formatPercentTick(v)}
-                        tick={{ fontSize: 10, fill: "#9ca3af" }}
-                        axisLine={false}
-                        tickLine={false}
-                    />
-                    <YAxis
-                        type="category"
-                        dataKey="name"
-                        width={100}
-                        tick={{ fontSize: 11, fill: "#374151", fontWeight: 700 }}
-                        axisLine={false}
-                        tickLine={false}
-                    />
-                    <Tooltip
-                        wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
-                        allowEscapeViewBox={{ x: true, y: true }}
-                        cursor={{ fill: "rgba(59,130,246,0.04)" }}
-                        content={({ active, payload }) => {
-                            if (!active || !payload?.[0]) return null;
-                            const d = payload[0].payload as (typeof chartData)[number];
-                            return (
-                                <ChartTooltip
-                                    usePortal
-                                    portalProps={mousePos}
-                                    title={`${d.name} (${d.code})`}
-                                    value={`${d.overturnRate.toFixed(2)}%`}
-                                    subValueLabel="Overturn Rate"
-                                    extra={[
-                                        { label: "Challenged", value: d.challenged },
-                                        { label: "Overturned", value: d.overturned },
-                                    ]}
-                                />
-                            );
-                        }}
-                    />
-                    <Bar dataKey="overturnRate" radius={[0, 6, 6, 0]} barSize={22}>
-                        {chartData.map((entry) => (
-                            <Cell key={entry.code} fill={getColor(entry.code)} />
-                        ))}
-                    </Bar>
-                </BarChart>
-                </ResponsiveContainer>
-            </div>
-
-            {/* Legend chips */}
-            <div className="mt-4 flex flex-wrap gap-2">
-                {chartData.map((d) => (
-                    <span key={d.code} className="inline-flex items-center gap-1.5 rounded-full border border-gray-100 bg-gray-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-gray-500">
-                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: getColor(d.code) }} />
-                        {d.code} · {d.challenged}
-                    </span>
-                ))}
-            </div>
-        </section>
+      <div className="panel bg-white p-8 text-center text-sm font-medium text-gray-400">
+        No pitch type data available for the selected range.
+      </div>
     );
+  }
+
+  const chartData = AXES.map((axis) => {
+    const row: Record<string, number | string> = {
+      axis: axis.label,
+    };
+    for (const pitch of featuredPitches) {
+      row[pitch.code] = pitch.metrics[axis.key];
+    }
+    return row;
+  });
+
+  return (
+    <section className="panel bg-white p-8">
+      <div className="mb-6">
+        <h4 className="mb-1 text-[10px] font-bold uppercase tracking-widest text-blue-500">
+          Pitch Review Shape
+        </h4>
+        <p className="text-2xl font-display leading-none text-gray-900">
+          Pitch Review <span className="text-gray-400 italic">Profile</span>
+        </p>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500">
+          Each polygon is a pitch family. The chart compares how often each pitch gets reviewed, how often it overturns,
+          how large the sample is relative to the umpire&apos;s most-reviewed pitch, and how much of the umpire&apos;s overturned
+          sample comes from that shape.
+        </p>
+      </div>
+
+      <div
+        className="rounded-[2rem] border border-gray-100 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.05),transparent_58%)] p-4 sm:p-6"
+        onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}
+      >
+        <div className="h-[420px]">
+          <ClientOnly fallback={<div className="h-full w-full" />}>
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={chartData} outerRadius="68%">
+                <PolarGrid stroke="rgba(17,24,39,0.14)" />
+                <PolarAngleAxis
+                  dataKey="axis"
+                  tick={{ fill: "#6b7280", fontSize: 11, fontWeight: 800 }}
+                />
+                <PolarRadiusAxis
+                  angle={18}
+                  domain={[0, 100]}
+                  tick={{ fill: "#9ca3af", fontSize: 10, fontWeight: 700 }}
+                  tickCount={6}
+                />
+                <Tooltip
+                  wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
+                  content={({ active, payload, label }) => {
+                    if (!active || !payload || payload.length === 0) return null;
+                    return (
+                      <ChartTooltip
+                        usePortal
+                        portalProps={mousePos}
+                        title={String(label ?? "")}
+                        extra={payload.map((entry) => ({
+                          label: String(entry.name ?? ""),
+                          value: `${Number(entry.value ?? 0).toFixed(1)}%`,
+                          color: String(entry.color ?? ""),
+                        }))}
+                      />
+                    );
+                  }}
+                />
+                <Legend
+                  wrapperStyle={{
+                    fontSize: "10px",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    fontWeight: 800,
+                    paddingTop: "8px",
+                  }}
+                />
+                {featuredPitches.map((pitch) => (
+                  <Radar
+                    key={pitch.code}
+                    name={`${pitch.code} · ${pitch.name}`}
+                    dataKey={pitch.code}
+                    stroke={pitch.color}
+                    fill={pitch.color}
+                    fillOpacity={0.16}
+                    strokeWidth={2}
+                    dot={{ r: 3, fill: pitch.color, strokeWidth: 0 }}
+                  />
+                ))}
+              </RadarChart>
+            </ResponsiveContainer>
+          </ClientOnly>
+        </div>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {featuredPitches.map((pitch) => (
+            <div
+              key={`${pitch.code}-summary`}
+              className="rounded-[1.25rem] border border-gray-100 bg-white/90 px-4 py-4"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full" style={{ backgroundColor: pitch.color }} />
+                  <span className="text-sm font-semibold text-gray-900">{pitch.name}</span>
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{pitch.code}</span>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-4">
+                <Metric label="Reviews" value={`${pitch.challenged}`} />
+                <Metric label="OT Rate" value={`${(pitch.overturnRate * 100).toFixed(1)}%`} />
+                <Metric label="Review Share" value={`${pitch.metrics.reviewShare.toFixed(0)}%`} />
+                <Metric label="OT Share" value={`${pitch.metrics.overturnedShare.toFixed(0)}%`} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{label}</p>
+      <p className="mt-1 text-lg font-display text-gray-900">{value}</p>
+    </div>
+  );
 }

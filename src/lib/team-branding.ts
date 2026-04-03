@@ -108,6 +108,40 @@ function withAlpha(hex: string, alphaHex = "33") {
   return `${normalized}${alphaHex}`;
 }
 
+function normalizeHex(hex?: string | null) {
+  if (!hex) return null;
+  const normalized = hex.trim().toUpperCase();
+  if (!normalized.startsWith("#")) return null;
+  if (normalized.length === 7) return normalized;
+  if (normalized.length === 4) {
+    const [r, g, b] = normalized.slice(1).split("");
+    return `#${r}${r}${g}${g}${b}${b}`;
+  }
+  return null;
+}
+
+function hexToRgb(hex?: string | null) {
+  const normalized = normalizeHex(hex);
+  if (!normalized) return null;
+  return {
+    r: Number.parseInt(normalized.slice(1, 3), 16),
+    g: Number.parseInt(normalized.slice(3, 5), 16),
+    b: Number.parseInt(normalized.slice(5, 7), 16),
+  };
+}
+
+function areColorsTooSimilar(left?: string | null, right?: string | null) {
+  const leftRgb = hexToRgb(left);
+  const rightRgb = hexToRgb(right);
+  if (!leftRgb || !rightRgb) return false;
+  const distance = Math.sqrt(
+    (leftRgb.r - rightRgb.r) ** 2 +
+      (leftRgb.g - rightRgb.g) ** 2 +
+      (leftRgb.b - rightRgb.b) ** 2,
+  );
+  return distance < 56;
+}
+
 export function getTeamMotif(teamId: number): TeamMotif | null {
   return catalog.teams.find((team) => team.team_id === teamId) ?? null;
 }
@@ -142,4 +176,31 @@ export function resolveTeamBranding(input: TeamBrandingInput): TeamBrandingResol
       isVerified: Boolean(isVerified),
     },
   };
+}
+
+export function resolveMatchupAccentColors(input: {
+  homeTeamId?: number | null;
+  awayTeamId?: number | null;
+  homePrimaryColor?: string | null;
+  homeSecondaryColor?: string | null;
+  awayPrimaryColor?: string | null;
+  awaySecondaryColor?: string | null;
+}) {
+  const homeBrand = resolveTeamBranding({
+    teamId: input.homeTeamId ?? 141,
+    primaryColor: input.homePrimaryColor,
+    secondaryColor: input.homeSecondaryColor,
+  });
+  const awayBrand = resolveTeamBranding({
+    teamId: input.awayTeamId ?? 147,
+    primaryColor: input.awayPrimaryColor,
+    secondaryColor: input.awaySecondaryColor,
+  });
+
+  const homeColor = homeBrand.tokens.teamPrimary;
+  const awayColor = areColorsTooSimilar(homeBrand.tokens.teamPrimary, awayBrand.tokens.teamPrimary)
+    ? awayBrand.tokens.teamSecondary
+    : awayBrand.tokens.teamPrimary;
+
+  return { homeColor, awayColor };
 }

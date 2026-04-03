@@ -316,6 +316,37 @@ CREATE SCHEMA IF NOT EXISTS editorial;
 CREATE SCHEMA IF NOT EXISTS ai;
 CREATE SCHEMA IF NOT EXISTS ops;
 
+CREATE TABLE IF NOT EXISTS ops.game_linescores (
+  game_pk BIGINT PRIMARY KEY REFERENCES games(game_pk) ON DELETE CASCADE,
+  source_name TEXT NOT NULL DEFAULT 'mlb_statsapi.feed_live',
+  source_updated_at TIMESTAMPTZ,
+  status_abstract TEXT,
+  current_inning INTEGER,
+  current_inning_ordinal TEXT,
+  inning_state TEXT,
+  inning_half TEXT,
+  is_top_inning BOOLEAN,
+  scheduled_innings INTEGER,
+  balls INTEGER,
+  strikes INTEGER,
+  outs INTEGER,
+  away_runs INTEGER,
+  home_runs INTEGER,
+  away_hits INTEGER,
+  home_hits INTEGER,
+  away_errors INTEGER,
+  home_errors INTEGER,
+  innings_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+  raw_linescore JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ops_game_linescores_updated_at ON ops.game_linescores (updated_at DESC);
+
+DROP TRIGGER IF EXISTS trg_ops_game_linescores_touch ON ops.game_linescores;
+CREATE TRIGGER trg_ops_game_linescores_touch BEFORE UPDATE ON ops.game_linescores FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+
 CREATE TABLE IF NOT EXISTS product.users (
   user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   external_auth_provider TEXT NOT NULL DEFAULT 'clerk',

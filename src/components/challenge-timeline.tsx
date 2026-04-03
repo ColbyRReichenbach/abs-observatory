@@ -1,5 +1,4 @@
-import { format } from "date-fns";
-
+import { LocalTime } from "@/components/local-time";
 import type { ChallengeEvent } from "@/lib/types";
 
 export function ChallengeTimeline({ challenges }: { challenges: ChallengeEvent[] }) {
@@ -19,7 +18,7 @@ export function ChallengeTimeline({ challenges }: { challenges: ChallengeEvent[]
                 {c.challengeTeamName ?? "Team"} {c.isOverturned ? "won" : "lost"} challenge
               </strong>
               <span className="text-xs text-white/70">
-                {c.challengedAt ? format(new Date(c.challengedAt), "MMM d HH:mm") : "time n/a"}
+                {c.challengedAt ? <LocalTime dateStr={c.challengedAt} showDate={true} /> : "time n/a"}
               </span>
             </div>
             <p className="mt-1 text-xs text-white/80">

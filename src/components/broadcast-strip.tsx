@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { InningIcon } from "@/components/inning-icon";
 import { formatHalfInningLabel } from "@/lib/challenge-context";
+import { resolveClientViewMode } from "@/lib/view-mode-client";
 import { withViewModeHref } from "@/lib/view-mode-href";
 
 import type { HomeChallengeMoment, LiveGameCard } from "@/lib/types";
@@ -16,13 +17,11 @@ type BroadcastStripProps = {
 
 export function BroadcastStrip({ moments }: BroadcastStripProps) {
   const searchParams = useSearchParams();
-  const activeMode = searchParams.get("view") === "org" || searchParams.get("view") === "fan"
-    ? searchParams.get("view")
-    : null;
+  const activeMode = resolveClientViewMode(searchParams);
   const items = useMemo(() => {
     return moments.map((moment) => ({
       key: `m-${moment.challengeId}`,
-      href: withViewModeHref(`/game/${moment.gamePk}?challengeId=${moment.challengeId}#abs-explorer`, activeMode === "org" || activeMode === "fan" ? activeMode : null),
+      href: withViewModeHref(`/game/${moment.gamePk}?challengeId=${moment.challengeId}#abs-explorer`, activeMode),
       label: `${moment.playerName || "Player"} — (${moment.umpireCount || `${moment.balls ?? 0}-${moment.strikes ?? 0}`}) count in ${formatHalfInningLabel(moment.halfInning, "long")} ${moment.inning || "?"}`,
       subLabel: moment.gameLabel,
       score: `${moment.isOverturned ? "Overturned" : "Confirmed"}`,

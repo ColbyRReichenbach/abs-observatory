@@ -5,6 +5,7 @@ import { ChallengeValueTimeline } from "@/components/game-hub/challenge-value-ti
 import { GameTeamComparisonChart } from "@/components/game-hub/game-team-comparison-chart";
 import { UmpireInGameCard } from "@/components/game-hub/umpire-in-game-card";
 import { RegenerateDebriefButton } from "@/components/game-hub/regenerate-debrief-button";
+import { LocalTime } from "@/components/local-time";
 import { getGameReport } from "@/lib/game-reports";
 import { normalizeNarrativeMarkdown, REPORT_SECTION_LABELS } from "@/lib/game-report-markdown";
 import { assertCanManageGameReports, canManageGameReports, regenerateGameReport } from "@/lib/server/game-reports";
@@ -14,6 +15,7 @@ import type { ChallengeEvent, GameHubGame } from "@/lib/types";
 import type { ViewMode } from "@/lib/view-mode";
 import { revalidatePath } from "next/cache";
 import { getGameViewCopy } from "@/lib/view-mode-contract";
+import { formatDisplayTime } from "@/lib/display-time";
 
 export async function PostgameAAR({ game, challenges, initialChallengeId = null, viewMode }: { game: GameHubGame, challenges: ChallengeEvent[], initialChallengeId?: string | null, viewMode: ViewMode }) {
     const [report, challengeValueTimeline, teamComparison, umpireSummary] = await Promise.all([
@@ -25,14 +27,6 @@ export async function PostgameAAR({ game, challenges, initialChallengeId = null,
     const canRegenerateDebrief = await canManageGameReports();
     const copy = getGameViewCopy(viewMode, "final");
 
-    const reportTimestamp = report
-        ? new Intl.DateTimeFormat("en-US", {
-            month: "short",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-        }).format(new Date(report.generatedAt))
-        : null;
     async function regenerateDebriefAction() {
         "use server";
 
@@ -44,12 +38,7 @@ export async function PostgameAAR({ game, challenges, initialChallengeId = null,
 
             return {
                 status: "success" as const,
-                message: `Debrief refreshed ${new Intl.DateTimeFormat("en-US", {
-                    hour: "numeric",
-                    minute: "2-digit",
-                    month: "short",
-                    day: "numeric",
-                }).format(new Date(refreshedReport.generatedAt))}.`,
+                message: `Debrief refreshed ${formatDisplayTime(refreshedReport.generatedAt)}.`,
             };
         } catch (error) {
             return {
@@ -178,9 +167,9 @@ export async function PostgameAAR({ game, challenges, initialChallengeId = null,
                             <p className="mt-2 text-gray-500 max-w-2xl text-balance">
                                 {copy.deck}
                             </p>
-                            {reportTimestamp ? (
+                            {report ? (
                                 <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.24em] text-gray-400">
-                                    Debrief generated {reportTimestamp}
+                                    Debrief generated <LocalTime dateStr={report.generatedAt} showDate={true} />
                                 </p>
                             ) : null}
                         </div>

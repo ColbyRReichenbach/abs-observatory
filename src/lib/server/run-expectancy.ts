@@ -38,6 +38,45 @@ export type ChallengeRunExpectancyDelta = {
 const RUN_EXPECTANCY_CACHE_TTL_MS = 60_000;
 let cachedLookupRows: RunExpectancyLookupRow[] | null = null;
 let cachedAt = 0;
+const runExpectancyIndexCache = new WeakMap<RunExpectancyLookupRow[], Map<string, RunExpectancyLookupRow>>();
+
+function buildRunExpectancyLookupKey(input: {
+  tier: RunExpectancyFallbackTier;
+  inningBucket: string | null;
+  outs: number | null;
+  basesState: string | null;
+  countKey: string | null;
+}) {
+  return [
+    input.tier,
+    input.inningBucket ?? "",
+    input.outs ?? "",
+    input.basesState ?? "",
+    input.countKey ?? "",
+  ].join("|");
+}
+
+function getRunExpectancyIndex(rows: RunExpectancyLookupRow[]) {
+  const cached = runExpectancyIndexCache.get(rows);
+  if (cached) return cached;
+
+  const index = new Map<string, RunExpectancyLookupRow>();
+  for (const row of rows) {
+    index.set(
+      buildRunExpectancyLookupKey({
+        tier: row.fallbackTier,
+        inningBucket: row.inningBucket,
+        outs: row.outs,
+        basesState: row.basesState,
+        countKey: row.countKey,
+      }),
+      row,
+    );
+  }
+
+  runExpectancyIndexCache.set(rows, index);
+  return index;
+}
 
 export async function getRunExpectancyFallbackRows(forceRefresh = false) {
   const now = Date.now();
@@ -108,6 +147,8 @@ export function resolveRunExpectancyWithFallback(
 
   if (canonical.outs === null || canonical.basesState === null) return null;
 
+  const index = getRunExpectancyIndex(rows);
+
   const lookups: Array<{
     tier: RunExpectancyFallbackTier;
     inningBucket: string | null;
@@ -119,13 +160,14 @@ export function resolveRunExpectancyWithFallback(
   ];
 
   for (const lookup of lookups) {
-    const match = rows.find(
-      (row) =>
-        row.fallbackTier === lookup.tier &&
-        row.inningBucket === lookup.inningBucket &&
-        row.outs === canonical.outs &&
-        row.basesState === canonical.basesState &&
-        row.countKey === lookup.countKey,
+    const match = index.get(
+      buildRunExpectancyLookupKey({
+        tier: lookup.tier,
+        inningBucket: lookup.inningBucket,
+        outs: canonical.outs,
+        basesState: canonical.basesState,
+        countKey: lookup.countKey,
+      }),
     );
     if (match) return match;
   }

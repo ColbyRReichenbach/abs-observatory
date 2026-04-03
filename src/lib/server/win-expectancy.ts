@@ -44,6 +44,54 @@ export type WinExpectancySanityCheck = {
 const WIN_EXPECTANCY_CACHE_TTL_MS = 60_000;
 let cachedLookupRows: WinExpectancyLookupRow[] | null = null;
 let cachedAt = 0;
+const winExpectancyIndexCache = new WeakMap<WinExpectancyLookupRow[], Map<string, WinExpectancyLookupRow>>();
+
+function buildWinExpectancyLookupKey(input: {
+  tier: WinExpectancyFallbackTier;
+  inning: number | null;
+  inningBucket: string | null;
+  halfInning: string | null;
+  scoreDiffBucket: string | null;
+  outs: number | null;
+  basesState: string | null;
+  countKey: string | null;
+}) {
+  return [
+    input.tier,
+    input.inning ?? "",
+    input.inningBucket ?? "",
+    input.halfInning ?? "",
+    input.scoreDiffBucket ?? "",
+    input.outs ?? "",
+    input.basesState ?? "",
+    input.countKey ?? "",
+  ].join("|");
+}
+
+function getWinExpectancyIndex(rows: WinExpectancyLookupRow[]) {
+  const cached = winExpectancyIndexCache.get(rows);
+  if (cached) return cached;
+
+  const index = new Map<string, WinExpectancyLookupRow>();
+  for (const row of rows) {
+    index.set(
+      buildWinExpectancyLookupKey({
+        tier: row.fallbackTier,
+        inning: row.inning,
+        inningBucket: row.inningBucket,
+        halfInning: row.halfInning,
+        scoreDiffBucket: row.scoreDiffBucket,
+        outs: row.outs,
+        basesState: row.basesState,
+        countKey: row.countKey,
+      }),
+      row,
+    );
+  }
+
+  winExpectancyIndexCache.set(rows, index);
+  return index;
+}
 
 export async function getWinExpectancyFallbackRows(forceRefresh = false) {
   const now = Date.now();
@@ -131,6 +179,8 @@ export function resolveWinExpectancyWithFallback(
     return null;
   }
 
+  const index = getWinExpectancyIndex(rows);
+
   const lookups: Array<{
     tier: WinExpectancyFallbackTier;
     inning: number | null;
@@ -164,16 +214,17 @@ export function resolveWinExpectancyWithFallback(
   ];
 
   for (const lookup of lookups) {
-    const match = rows.find(
-      (row) =>
-        row.fallbackTier === lookup.tier &&
-        row.inning === lookup.inning &&
-        row.inningBucket === lookup.inningBucket &&
-        row.halfInning === canonical.halfInning &&
-        row.scoreDiffBucket === canonical.scoreDiffBucket &&
-        row.outs === canonical.outs &&
-        row.basesState === canonical.basesState &&
-        row.countKey === lookup.countKey,
+    const match = index.get(
+      buildWinExpectancyLookupKey({
+        tier: lookup.tier,
+        inning: lookup.inning,
+        inningBucket: lookup.inningBucket,
+        halfInning: canonical.halfInning,
+        scoreDiffBucket: canonical.scoreDiffBucket,
+        outs: canonical.outs,
+        basesState: canonical.basesState,
+        countKey: lookup.countKey,
+      }),
     );
     if (match) return match;
   }

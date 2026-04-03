@@ -68,6 +68,7 @@ export function TeamDecisionValueScatter({
         <div
           className="relative h-[360px] rounded-[1.75rem] border border-gray-100 bg-[var(--surface-infield)]"
           onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}
+          onMouseLeave={() => setHoveredKey(null)}
         >
           <div className="absolute inset-x-8 top-8 bottom-12">
             <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-gray-200" />

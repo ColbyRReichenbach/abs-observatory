@@ -29,7 +29,13 @@ function asDate(value: string | Date | null | undefined) {
 
 export function UmpireGamesMorph({ games }: UmpireGamesMorphProps) {
   const [expanded, setExpanded] = useState(false);
-  const previewGames = useMemo(() => games.slice(0, 5), [games]);
+  const previewGames = useMemo(
+    () =>
+      [...games]
+        .sort((left, right) => asDate(left.gameDate).getTime() - asDate(right.gameDate).getTime())
+        .slice(-5),
+    [games],
+  );
 
   return (
     <section className="mt-12 mb-20">

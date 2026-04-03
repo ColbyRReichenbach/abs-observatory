@@ -34,7 +34,6 @@ import { BackPill } from "@/components/ui/back-pill";
 import { getTeamDetailViewCopy } from "@/lib/view-mode-contract";
 import { TeamChallengeValueMatrix } from "@/components/analytics/team-challenge-value-matrix";
 import { TeamDecisionValueSummaryCard } from "@/components/analytics/team-decision-value-summary";
-import { TeamDecisionWindowBoard } from "@/components/analytics/team-decision-window-board";
 import { TeamDecisionBreakdownBoard } from "@/components/analytics/team-decision-breakdown-board";
 import { TeamOrgCommandCenter } from "@/components/analytics/team-org-command-center";
 import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
@@ -92,9 +91,7 @@ export default async function TeamPage({
   const [summary, identity, leaderboard] = await Promise.all([
     getTeamSummary(Number(teamId), range, filters),
     getTeamIdentity(Number(teamId)),
-    viewMode === "org"
-      ? getTeamLeaderboardModel(range, { includeDecisionMetrics: true })
-      : Promise.resolve([]),
+    getTeamLeaderboardModel(range, { includeDecisionMetrics: viewMode === "org" }),
   ]);
   if (!summary) return notFound();
   const currentTeam = leaderboard.find((entry) => entry.teamId === summary.teamId) ?? null;
@@ -463,12 +460,6 @@ async function TeamDecisionSections({
         <TeamDecisionValueSummaryCard summary={decisionValueReport.summary} teamColor={teamPrimary} viewMode={viewMode} />
       </MotionIn>
 
-      {viewMode === "fan" ? (
-        <MotionIn delay={0.295}>
-          <TeamDecisionWindowBoard report={decisionValueReport} teamColor={teamPrimary} viewMode={viewMode} />
-        </MotionIn>
-      ) : null}
-
       {viewMode === "org" ? (
         <MotionIn delay={0.297}>
           <TeamDecisionBreakdownBoard report={decisionValueReport} teamColor={teamPrimary} />
@@ -563,7 +554,6 @@ function TeamDecisionSectionsFallback({ viewMode }: { viewMode: "fan" | "org" })
   return (
     <>
       <SectionPanelFallback title="Decision Summary" heightClass="min-h-[200px]" className="mt-8" />
-      {viewMode === "fan" ? <SectionPanelFallback title="Decision Window Board" heightClass="min-h-[280px]" className="mt-8" /> : null}
       {viewMode === "org" ? <SectionPanelFallback title="Decision Breakdown" heightClass="min-h-[280px]" className="mt-8" /> : null}
     </>
   );

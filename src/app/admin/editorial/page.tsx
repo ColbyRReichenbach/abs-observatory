@@ -1,17 +1,12 @@
 import Link from "next/link";
 
 import { getEditorialOpsOverview, getEditorialRunDetail, listEditorialRuns } from "@/lib/server/admin-editorial";
+import { formatDisplayTime } from "@/lib/display-time";
 import { publishArticleAction, rerunDailyAutoAction, suppressArticleAction } from "./actions";
 
 function formatDateTime(value: string | null) {
   if (!value) return "Pending";
-  return new Date(value).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return formatDisplayTime(value, { year: "numeric" });
 }
 
 function formatCost(value: number) {

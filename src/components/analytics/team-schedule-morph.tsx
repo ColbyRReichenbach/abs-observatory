@@ -2,15 +2,15 @@
 
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar as CalendarIcon, ChevronRight, Play, CheckCircle2, Clock } from "lucide-react";
-import { isToday, isBefore, isAfter, startOfDay } from "date-fns";
+import { Calendar as CalendarIcon, ChevronRight, CheckCircle2, Clock } from "lucide-react";
+import { isBefore, startOfDay } from "date-fns";
 
 import { TeamIcon } from "@/components/team-icon";
 import { LeagueCalendar } from "@/components/analytics/league-calendar";
-import { ExpandableAiBSButton } from "@/components/ui/aibs-icon";
 import { GameTypeBadge } from "@/components/ui/game-type-badge";
 import { LocalTime } from "@/components/local-time";
 import { ModeAwareLink } from "@/components/ui/mode-aware-link";
+import { formatDisplayTime, getDisplayTimeZone } from "@/lib/display-time";
 
 export type ScheduleGame = {
     gamePk: number;
@@ -36,42 +36,21 @@ export function TeamScheduleMorph({
 }) {
     const [isExpanded, setIsExpanded] = useState(false);
 
-    // Compute the 5-game window
     const windowGames = useMemo(() => {
-        const today = startOfDay(new Date()); // Mocking today to be roughly mid-season for demo, or actual Date
+        const today = startOfDay(new Date());
+        const completedOrLive = schedule.filter((game) => {
+            const gameDate = new Date(game.gameDate);
+            return (
+                game.status === "Live" ||
+                game.status === "Final" ||
+                game.status === "Completed" ||
+                isBefore(gameDate, today)
+            );
+        });
 
-        // For the sake of the MVP presentation, we'll anchor "today" to a date that exists in the mock data, or just use the system Date.
-        // Let's assume the system date is valid.
-
-        const pastGames = schedule.filter(g => isBefore(new Date(g.gameDate), today) || g.status === "Final" || g.status === "Completed").reverse();
-        const liveGames = schedule.filter(g => g.status === "Live");
-        const futureGames = schedule.filter(g => isAfter(new Date(g.gameDate), today) && g.status !== "Final" && g.status !== "Live");
-
-        const selected: ScheduleGame[] = [];
-
-        // Try to get 1 live game
-        if (liveGames.length > 0) {
-            selected.push(liveGames[0]);
-        }
-
-        // Try to get up to 3 past games
-        const numPastToTake = Math.min(3, pastGames.length);
-        const selectedPast = pastGames.slice(0, numPastToTake).reverse(); // Reverse back to chronological
-        selected.unshift(...selectedPast);
-
-        // Fill the rest with future games (to make exactly 5, if possible)
-        const numNeeded = 5 - selected.length;
-        const selectedFuture = futureGames.slice(0, numNeeded);
-        selected.push(...selectedFuture);
-
-        // If we still don't have 5 and we have more past games, fill from past
-        if (selected.length < 5 && pastGames.length > numPastToTake) {
-            const extraNeeded = 5 - selected.length;
-            const extraPast = pastGames.slice(numPastToTake, numPastToTake + extraNeeded).reverse();
-            selected.unshift(...extraPast);
-        }
-
-        return selected;
+        return [...completedOrLive]
+            .sort((left, right) => new Date(left.gameDate).getTime() - new Date(right.gameDate).getTime())
+            .slice(-5);
     }, [schedule]);
 
     return (
@@ -110,8 +89,8 @@ export function TeamScheduleMorph({
                             className="p-8"
                         >
                             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 relative">
-                                {windowGames.map((g, i) => (
-                                    <GameCard key={g.gamePk} game={g} teamId={teamId} />
+                                {windowGames.map((g) => (
+                                    <GameCard key={g.gamePk} game={g} />
                                 ))}
 
                             </div>
@@ -132,7 +111,7 @@ export function TeamScheduleMorph({
     );
 }
 
-function GameCard({ game, teamId }: { game: ScheduleGame, teamId: number }) {
+function GameCard({ game }: { game: ScheduleGame }) {
     const isLive = game.status === "Live";
     const isPast = game.status === "Final" || game.status === "Completed";
     const date = new Date(game.gameDate);
@@ -151,7 +130,14 @@ function GameCard({ game, teamId }: { game: ScheduleGame, teamId: number }) {
             <div className="flex justify-between items-start mb-6">
                 <div className="flex flex-col items-start gap-2">
                     <span suppressHydrationWarning className={`text-[10px] font-bold uppercase tracking-widest whitespace-nowrap ${isLive ? 'text-red-600' : 'text-gray-400'}`}>
-                        {date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                        {formatDisplayTime(date, {
+                          locale: undefined,
+                          timeZone: getDisplayTimeZone(),
+                          showDate: true,
+                          showTime: false,
+                          month: "short",
+                          day: "numeric",
+                        })}
                     </span>
                     <GameTypeBadge gameType={game.gameType} compact />
                 </div>

@@ -70,6 +70,22 @@ The current AI system is built around:
 
 Public AI does not get arbitrary database access.
 
+## Live Polling
+
+AiBS now runs live MLB polling on a fixed `5` minute heartbeat with an ET-aware work gate.
+
+The important implementation detail is that the scheduler is simple, but the ingest path is conditional:
+
+- if no relevant ET-window games are scheduled, the poll exits quickly
+- if games are scheduled but none are live, the poll exits quickly
+- if the last successful ingest is stale, the poll can automatically backfill a bounded ET date window
+
+The hosted serving database is kept intentionally lean:
+
+- structured live state such as `ops.game_linescores` is written for page serving
+- heavy raw archive material is separated from the serving footprint
+- recent raw snapshot retention is pruned rather than treated as indefinite hosted storage
+
 ## Current Stack
 
 - `Next.js 16`
@@ -90,6 +106,7 @@ The main retained docs are:
 - [Product Source Of Truth](./docs/product/product-source-of-truth.md)
 - [Page Route Coverage](./docs/product/page-route-coverage.md)
 - [Technical Overview](./docs/reference/technical.md)
+- [Live Polling Runbook](./docs/launch/live-polling-runbook.md)
 - [Security Overview](./docs/reference/security.md)
 - [Documentation Gap List](./docs/reference/gap-list.md)
 - [Model Audit Framework](./docs/models/README.md)

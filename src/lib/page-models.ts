@@ -36,6 +36,8 @@ export type UmpireRubricMetric = {
   umpireId: number;
   overturnRateVariance: number;
   recentOverturnRate: number | null;
+  averageRunExpectancyDelta: number | null;
+  averageWinExpectancyDelta: number | null;
 };
 
 function stdDev(values: number[]) {
@@ -158,6 +160,8 @@ export function buildUmpireLeaderboardEntries(
       umpireId: umpire.umpireId,
       overturnRateVariance: 0,
       recentOverturnRate: null,
+      averageRunExpectancyDelta: null,
+      averageWinExpectancyDelta: null,
     };
     const reportCard = computeUmpireReportCard({
       challengedCalls: umpire.challengedCalls,
@@ -187,6 +191,8 @@ export function buildUmpireLeaderboardEntries(
       riskTier: risk.tier,
       overturnRateVariance: metric.overturnRateVariance,
       recentOverturnRate: metric.recentOverturnRate,
+      averageRunExpectancyDelta: metric.averageRunExpectancyDelta,
+      averageWinExpectancyDelta: metric.averageWinExpectancyDelta,
     };
   });
 }

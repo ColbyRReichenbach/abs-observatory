@@ -7,11 +7,12 @@ import {
     XAxis,
     YAxis,
     CartesianGrid,
+    Tooltip,
     ReferenceLine,
     ResponsiveContainer,
     Label,
 } from "recharts";
-import type { ScatterShapeProps } from "recharts";
+import type { ScatterShapeProps, TooltipContentProps } from "recharts";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
 import { buildLinearAxis, formatNumberTick, formatPercentTick } from "@/components/analytics/chart-axis";
@@ -30,6 +31,13 @@ type TeamScatterPoint = {
 type TeamScatterChartPoint = TeamScatterPoint & {
     overturnPct: number;
 };
+
+function getActiveScatterTeamId(state: unknown): number | null {
+    if (!state || typeof state !== "object" || !("activePayload" in state)) return null;
+    const activePayload = (state as { activePayload?: Array<{ payload?: { teamId?: unknown } }> }).activePayload;
+    const teamId = activePayload?.[0]?.payload?.teamId;
+    return typeof teamId === "number" ? teamId : null;
+}
 
 type Props = {
     data: TeamScatterPoint[];
@@ -104,10 +112,42 @@ const TeamLogoDot = memo((props: TeamLogoDotProps) => {
 });
 TeamLogoDot.displayName = "TeamLogoDot";
 
+type ScatterTooltipContentProps = TooltipContentProps<number, string> & {
+    viewBox?: {
+        height?: number;
+    };
+};
+
+function ScatterTooltipContent({ active, payload, coordinate, viewBox }: ScatterTooltipContentProps) {
+    if (!active || !payload?.length || !coordinate) return null;
+    const point = payload[0]?.payload as TeamScatterChartPoint | undefined;
+    if (!point) return null;
+
+    const isBottomHalf = (coordinate.y || 0) > (viewBox?.height || 400) / 2;
+
+    return (
+        <div
+            className="transition-transform duration-300 ease-out"
+            style={{
+                transform: isBottomHalf
+                    ? "translateX(-50%) translateY(-100%) translateY(-50px)"
+                    : "translateX(-50%) translateY(50px)",
+                pointerEvents: "none",
+            }}
+        >
+            <ChartTooltip
+                title={point.teamName}
+                value={`${(point.overturnRate * 100).toFixed(2)}%`}
+                subValueLabel="Overturn Rate"
+                extra={[{ label: "Rate / Game", value: point.challengeRatePerGame.toFixed(2) }]}
+            />
+        </div>
+    );
+}
+
 export function TeamScatterPlot({ data, mode = "fan" }: Props) {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
     const [hoveredTeamId, setHoveredTeamId] = useState<number | null>(null);
 
     const { xAxis, yAxis, avgChallengeRate, avgOverturnRate, xTickDigits } = useMemo(() => {
@@ -142,10 +182,6 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
         () => data.map((d) => ({ ...d, overturnPct: d.overturnRate * 100 })),
         [data],
     );
-    const hoveredPoint = useMemo(
-        () => chartData.find((point) => point.teamId === hoveredTeamId) ?? null,
-        [chartData, hoveredTeamId],
-    );
 
     if (data.length === 0) return null;
 
@@ -162,7 +198,6 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
 
             <div
                 className="relative h-[400px] w-full"
-                onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}
                 onMouseLeave={() => setHoveredTeamId(null)}
             >
                 {/* Quadrant labels */}
@@ -186,6 +221,10 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                         <ScatterChart
                             margin={{ top: 40, right: 100, bottom: 60, left: 80 }}
                             style={{ overflow: 'visible' }}
+                            onMouseMove={(state: unknown) => {
+                                setHoveredTeamId(getActiveScatterTeamId(state));
+                            }}
+                            onMouseLeave={() => setHoveredTeamId(null)}
                         >
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
                             <XAxis
@@ -252,10 +291,6 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                                             {...props}
                                             payload={payload}
                                             active={payload?.teamId === hoveredTeamId}
-                                            onMouseEnter={() => {
-                                                if (payload?.teamId != null) setHoveredTeamId(payload.teamId);
-                                            }}
-                                            onMouseLeave={() => setHoveredTeamId(null)}
                                             onClick={() => {
                                                 const currentMode = searchParams.get("view");
                                                 if (payload?.teamId) {
@@ -272,20 +307,18 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                                 }}
                                 isAnimationActive={false}
                             />
+                            <Tooltip
+                                content={(props) => <ScatterTooltipContent {...(props as ScatterTooltipContentProps)} />}
+                                cursor={false}
+                                offset={0}
+                                allowEscapeViewBox={{ x: true, y: true }}
+                                wrapperStyle={{ zIndex: 10001, outline: "none", pointerEvents: "none" }}
+                                isAnimationActive={false}
+                                animationDuration={0}
+                            />
                         </ScatterChart>
                     </ResponsiveContainer>
                 </ClientOnly>
-
-                {hoveredPoint ? (
-                    <ChartTooltip
-                        usePortal
-                        portalProps={mousePos}
-                        title={hoveredPoint.teamName}
-                        value={`${(hoveredPoint.overturnRate * 100).toFixed(2)}%`}
-                        subValueLabel="Overturn Rate"
-                        extra={[{ label: "Rate / Game", value: hoveredPoint.challengeRatePerGame.toFixed(2) }]}
-                    />
-                ) : null}
             </div>
         </div>
     );
