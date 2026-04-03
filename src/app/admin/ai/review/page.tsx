@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { format, subDays } from "date-fns";
+import { formatDisplayTime } from "@/lib/display-time";
 
 import {
   getAiFeedbackClusterSummary,
@@ -83,6 +84,11 @@ function buildTargetHref(detail: {
   }
 
   return null;
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) return "Pending";
+  return formatDisplayTime(value, { year: "numeric" });
 }
 
 function SentimentBadge({ sentiment }: { sentiment: "up" | "down" }) {
@@ -266,7 +272,7 @@ export default async function AdminAiReviewPage({
                     <span className={isActive ? "text-white/40" : "text-[var(--ink-3)]"}>•</span>
                     <span>{row.effectiveBucket}</span>
                     <span className={isActive ? "text-white/40" : "text-[var(--ink-3)]"}>•</span>
-                    <span>{new Date(row.createdAt).toLocaleString()}</span>
+                    <span>{formatDateTime(row.createdAt)}</span>
                   </div>
                   <p className={`mt-3 line-clamp-2 text-sm leading-6 ${isActive ? "text-white/90" : "text-[var(--ink-2)]"}`}>
                     {row.comment ?? "No freeform note. Review based on thumbs signal only."}
@@ -395,7 +401,7 @@ export default async function AdminAiReviewPage({
                     </label>
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink-3)]">
-                        Reviewed {detail.reviewedAt ? new Date(detail.reviewedAt).toLocaleString() : "never"}
+                        Reviewed {detail.reviewedAt ? formatDateTime(detail.reviewedAt) : "never"}
                       </div>
                       <button
                         type="submit"

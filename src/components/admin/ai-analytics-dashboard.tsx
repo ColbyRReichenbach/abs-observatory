@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDisplayTime } from "@/lib/display-time";
 import {
   Bar,
   BarChart,
@@ -237,7 +238,7 @@ export function AiAnalyticsDashboard({
                 </div>
                 <p className="mt-3 text-sm text-[var(--ink-1)]">{row.comment ?? "Thumbs down without a written note."}</p>
                 <p className="mt-2 text-[10px] font-mono text-[var(--ink-3)]">
-                  {new Date(row.createdAt).toLocaleString()} • {row.targetType}:{row.targetId}
+                  {formatDisplayTime(row.createdAt, { year: "numeric" })} • {row.targetType}:{row.targetId}
                 </p>
               </div>
             ))

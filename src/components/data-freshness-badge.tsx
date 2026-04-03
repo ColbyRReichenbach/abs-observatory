@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
+import { formatDisplayTime, getDisplayTimeZone } from "@/lib/display-time";
 
 type DataFreshnessSnapshot = {
   lastFinishedAt: string | null;
@@ -32,7 +33,7 @@ function formatRelative(lastFinishedAt: string | null, nowTick: number) {
   return `Updated ${diffHours}h ago`;
 }
 
-function formatNextUpdate(liveGameCount: number, pollIntervalMinutes: number, nowTick: number) {
+function formatNextUpdate(liveGameCount: number, pollIntervalMinutes: number, nowTick: number, timeZone: string) {
   if (liveGameCount < 1) return "Idle until live games";
 
   const now = new Date(nowTick);
@@ -46,11 +47,11 @@ function formatNextUpdate(liveGameCount: number, pollIntervalMinutes: number, no
     next.setMinutes(nextMinute, 0, 0);
   }
 
-  return `Next ${next.toLocaleTimeString([], {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: "America/New_York",
-    timeZoneName: "short",
+  return `Next ${formatDisplayTime(next, {
+    locale: undefined,
+    timeZone,
+    showDate: false,
+    showTime: true,
   })}`;
 }
 
@@ -58,6 +59,7 @@ export function DataFreshnessBadge() {
   const pathname = usePathname();
   const [snapshot, setSnapshot] = useState<DataFreshnessSnapshot | null>(null);
   const [nowTick, setNowTick] = useState(() => Date.now());
+  const timeZone = getDisplayTimeZone();
 
   const enabled = isDataRoute(pathname);
 
@@ -98,11 +100,11 @@ export function DataFreshnessBadge() {
     return {
       label: activelyPolling ? "Polling live" : "Idle",
       detail: activelyPolling
-        ? `${formatRelative(snapshot.lastFinishedAt, nowTick)} · ${formatNextUpdate(snapshot.liveGameCount, snapshot.pollIntervalMinutes, nowTick)}`
+        ? `${formatRelative(snapshot.lastFinishedAt, nowTick)} · ${formatNextUpdate(snapshot.liveGameCount, snapshot.pollIntervalMinutes, nowTick, timeZone)}`
         : formatRelative(snapshot.lastFinishedAt, nowTick),
       tone: isFailed ? "text-red-700" : activelyPolling ? "text-emerald-700" : "text-red-600",
     };
-  }, [nowTick, snapshot]);
+  }, [nowTick, snapshot, timeZone]);
 
   if (!enabled || !content) return null;
 
@@ -110,7 +112,7 @@ export function DataFreshnessBadge() {
     <div className="pointer-events-none fixed right-4 top-3 z-40 text-right md:right-6 md:top-4">
       <p className={`font-mono text-[10px] font-medium tracking-[0.08em] ${content.tone}`}>
         <span className="uppercase">{content.label}</span>
-        <span className="text-[rgba(17,24,39,0.62)]"> · {content.detail}</span>
+        <span suppressHydrationWarning className="text-[rgba(17,24,39,0.62)]"> · {content.detail}</span>
       </p>
     </div>
   );

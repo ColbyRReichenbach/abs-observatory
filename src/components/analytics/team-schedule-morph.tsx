@@ -10,6 +10,7 @@ import { LeagueCalendar } from "@/components/analytics/league-calendar";
 import { GameTypeBadge } from "@/components/ui/game-type-badge";
 import { LocalTime } from "@/components/local-time";
 import { ModeAwareLink } from "@/components/ui/mode-aware-link";
+import { formatDisplayTime, getDisplayTimeZone } from "@/lib/display-time";
 
 export type ScheduleGame = {
     gamePk: number;
@@ -88,8 +89,8 @@ export function TeamScheduleMorph({
                             className="p-8"
                         >
                             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 relative">
-                                {windowGames.map((g, i) => (
-                                    <GameCard key={g.gamePk} game={g} teamId={teamId} />
+                                {windowGames.map((g) => (
+                                    <GameCard key={g.gamePk} game={g} />
                                 ))}
 
                             </div>
@@ -110,7 +111,7 @@ export function TeamScheduleMorph({
     );
 }
 
-function GameCard({ game, teamId }: { game: ScheduleGame, teamId: number }) {
+function GameCard({ game }: { game: ScheduleGame }) {
     const isLive = game.status === "Live";
     const isPast = game.status === "Final" || game.status === "Completed";
     const date = new Date(game.gameDate);
@@ -129,7 +130,14 @@ function GameCard({ game, teamId }: { game: ScheduleGame, teamId: number }) {
             <div className="flex justify-between items-start mb-6">
                 <div className="flex flex-col items-start gap-2">
                     <span suppressHydrationWarning className={`text-[10px] font-bold uppercase tracking-widest whitespace-nowrap ${isLive ? 'text-red-600' : 'text-gray-400'}`}>
-                        {date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                        {formatDisplayTime(date, {
+                          locale: undefined,
+                          timeZone: getDisplayTimeZone(),
+                          showDate: true,
+                          showTime: false,
+                          month: "short",
+                          day: "numeric",
+                        })}
                     </span>
                     <GameTypeBadge gameType={game.gameType} compact />
                 </div>
