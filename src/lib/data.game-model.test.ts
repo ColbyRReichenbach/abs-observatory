@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { sqlMock } = vi.hoisted(() => ({
+const { sqlMock, sqlOneMock } = vi.hoisted(() => ({
   sqlMock: vi.fn(),
+  sqlOneMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
   sql: sqlMock,
+  sqlOne: sqlOneMock,
 }));
 
 import { getGameChallenges, getGamePitchTimeline } from "@/lib/data";
@@ -13,6 +15,8 @@ import { getGameChallenges, getGamePitchTimeline } from "@/lib/data";
 describe("game data read models", () => {
   beforeEach(() => {
     sqlMock.mockReset();
+    sqlOneMock.mockReset();
+    sqlOneMock.mockResolvedValue({ version: "test-version" });
   });
 
   it("maps challenge impact and count transitions from the full pitch model", async () => {

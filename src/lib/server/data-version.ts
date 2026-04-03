@@ -8,6 +8,13 @@ type VersionRow = {
   version: string | null;
 };
 
+function shiftIsoDate(date: string, days: number) {
+  const [year, month, day] = date.split("-").map(Number);
+  const shifted = new Date(Date.UTC(year, (month || 1) - 1, day || 1));
+  shifted.setUTCDate(shifted.getUTCDate() + days);
+  return shifted.toISOString().slice(0, 10);
+}
+
 function easternDateParts(now = new Date()) {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/New_York",
@@ -41,8 +48,7 @@ export function getCandidateEtDates(now = new Date()) {
     return [date];
   }
 
-  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  return [easternDateParts(yesterday).date, date];
+  return [shiftIsoDate(date, -1), date];
 }
 
 export async function getLatestSuccessfulEtlDataVersion() {

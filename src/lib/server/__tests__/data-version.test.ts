@@ -46,6 +46,12 @@ describe("data-version", () => {
     expect(getCandidateEtDates(new Date("2026-04-03T12:30:00Z"))).toEqual(["2026-04-03"]);
   });
 
+  it("uses calendar-day ET math across DST spring-forward boundaries", async () => {
+    const { getCandidateEtDates } = await import("@/lib/server/data-version");
+
+    expect(getCandidateEtDates(new Date("2026-03-09T04:00:00Z"))).toEqual(["2026-03-08", "2026-03-09"]);
+  });
+
   it("queries and caches per-game data versions", async () => {
     sqlOneMock.mockResolvedValueOnce({ version: "2026-04-03T01:11:58.774493+00:00" });
 
