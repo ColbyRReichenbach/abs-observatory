@@ -27,10 +27,11 @@ function easternDateParts(now = new Date()) {
 
   const parts = formatter.formatToParts(now);
   const part = (type: string) => parts.find((entry) => entry.type === type)?.value ?? "";
+  const normalizedHour = Number(part("hour") || "0") % 24;
 
   return {
     date: `${part("year")}-${part("month")}-${part("day")}`,
-    hour: Number(part("hour") || "0"),
+    hour: normalizedHour,
   };
 }
 
