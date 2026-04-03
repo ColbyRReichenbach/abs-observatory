@@ -23,11 +23,11 @@ load_env_file() {
 if [[ -n "${POLL_ENV_FILE:-}" ]]; then
   load_env_file "$POLL_ENV_FILE"
 else
-  load_env_file "$ROOT_DIR/.env.poll"
   load_env_file "$ROOT_DIR/.env.local"
   load_env_file "$ROOT_DIR/.env"
   load_env_file "/Users/colbyreichenbach/Desktop/mlb/abs-observatory/.env.local"
   load_env_file "/Users/colbyreichenbach/Desktop/mlb/abs-observatory/.env"
+  load_env_file "$ROOT_DIR/.env.poll"
 fi
 
 mkdir -p "$LOG_DIR"

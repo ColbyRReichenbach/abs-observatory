@@ -18,6 +18,7 @@ from ingest_mlb_abs import (  # noqa: E402
     _parse_mlb_timestamp,
     should_write_raw_source_snapshot,
     store_source_snapshot,
+    upsert_officials,
 )
 
 
@@ -93,6 +94,48 @@ class IngestSmokeTests(unittest.TestCase):
                     os.environ.pop(key, None)
                 else:
                     os.environ[key] = value
+
+    def test_upsert_officials_falls_back_when_mlb_omits_official_name(self) -> None:
+        statements = []
+        batches = []
+
+        class FakeCursor:
+            def execute(self, query, params=None):
+                statements.append((query, params))
+
+        original_execute_batch = sys.modules["ingest_mlb_abs"].execute_batch
+
+        def fake_execute_batch(_cur, query, rows, page_size=None):
+            batches.append((query, rows, page_size))
+
+        sys.modules["ingest_mlb_abs"].execute_batch = fake_execute_batch
+        try:
+            upsert_officials(
+                FakeCursor(),
+                831640,
+                {
+                    "liveData": {
+                        "boxscore": {
+                            "officials": [
+                                {
+                                    "official": {"id": 838911},
+                                    "officialType": "Home Plate",
+                                }
+                            ]
+                        }
+                    }
+                },
+            )
+        finally:
+            sys.modules["ingest_mlb_abs"].execute_batch = original_execute_batch
+
+        self.assertEqual(len(statements), 1)
+        self.assertEqual(statements[0][1], (831640,))
+        self.assertEqual(len(batches), 1)
+        self.assertEqual(
+            batches[0][1],
+            [(831640, 838911, "Home Plate", "Home Plate")],
+        )
 
     def test_challenge_from_review_uses_pitch_review_context(self) -> None:
         play = {

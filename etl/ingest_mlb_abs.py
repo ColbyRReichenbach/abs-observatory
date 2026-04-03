@@ -416,7 +416,10 @@ def upsert_officials(cur, game_pk: int, feed: Dict[str, Any]) -> None:
     rows = []
     for off in officials:
         official = off.get("official", {})
-        rows.append((game_pk, official.get("id"), official.get("fullName"), off.get("officialType")))
+        official_type = off.get("officialType")
+        fallback_name = official_type or "Unknown Official"
+        official_name = official.get("fullName") or official.get("lastName") or fallback_name
+        rows.append((game_pk, official.get("id"), official_name, official_type))
     if rows:
         execute_batch(
             cur,
