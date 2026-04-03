@@ -483,7 +483,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         eyebrow: "Polling and freshness",
         heading: "I keep live ingest cadence simple and the work gate strict.",
         paragraphs: [
-          "The poller wakes on a fixed five-minute heartbeat, but that does not mean it blindly ingests every time. I gate work by Eastern Time game windows, whether any games are actually live, and whether the system needs bounded stale-gap recovery after downtime.",
+          "The poller runs on a fixed five-minute local scheduler heartbeat, but that does not mean it blindly ingests every time. I gate work by Eastern Time game windows, whether any games are actually live, and whether the system needs bounded stale-gap recovery after downtime.",
           "That design keeps the scheduler understandable while still protecting freshness. It also lets me surface a small freshness indicator in the product so users can tell whether the system is actively polling or idle.",
         ],
       },

@@ -98,21 +98,20 @@ export function DataFreshnessBadge() {
     const activelyPolling = snapshot.liveGameCount > 0;
     const isFailed = snapshot.lastStatus === "failed";
     return {
-      label: activelyPolling ? "Polling live" : "Idle",
       detail: activelyPolling
         ? `${formatRelative(snapshot.lastFinishedAt, nowTick)} · ${formatNextUpdate(snapshot.liveGameCount, snapshot.pollIntervalMinutes, nowTick, timeZone)}`
         : formatRelative(snapshot.lastFinishedAt, nowTick),
-      tone: isFailed ? "text-red-700" : activelyPolling ? "text-emerald-700" : "text-red-600",
+      dotTone: isFailed ? "bg-red-600" : activelyPolling ? "bg-emerald-500" : "bg-red-500",
     };
   }, [nowTick, snapshot, timeZone]);
 
   if (!enabled || !content) return null;
 
   return (
-    <div className="pointer-events-none fixed right-4 top-3 z-40 text-right md:right-6 md:top-4">
-      <p className={`font-mono text-[10px] font-medium tracking-[0.08em] ${content.tone}`}>
-        <span className="uppercase">{content.label}</span>
-        <span suppressHydrationWarning className="text-[rgba(17,24,39,0.62)]"> · {content.detail}</span>
+    <div className="pointer-events-none fixed right-5 top-[2.75rem] z-40 hidden xl:block">
+      <p className="flex items-center gap-1.5 font-mono text-[7px] font-medium tracking-[0.05em] text-[rgba(17,24,39,0.52)]">
+        <span className={`h-1.5 w-1.5 rounded-full ${content.dotTone}`} />
+        <span suppressHydrationWarning>{content.detail}</span>
       </p>
     </div>
   );
