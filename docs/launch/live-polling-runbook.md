@@ -2,9 +2,13 @@
 
 This runbook describes the current live polling setup for AiBS as it exists in the repository today.
 
+Quick command reference:
+
+- [local-poller-commands.md](./local-poller-commands.md)
+
 Use it for:
 
-- local cron polling
+- local scheduled polling
 - serving versus archive poll configuration
 - stale-gap recovery behavior
 - snapshot pruning policy
@@ -12,15 +16,19 @@ Use it for:
 
 ## 1. Current Polling Shape
 
-AiBS currently uses a local cron heartbeat with an ET-aware poll gate.
+AiBS currently uses a local scheduled heartbeat with an ET-aware poll gate.
 
-Current cron entry:
+On macOS, that scheduler now runs through a user `launchd` LaunchAgent instead of `cron`.
 
-```cron
-*/5 * * * * /Users/colbyreichenbach/Desktop/mlb/abs-observatory-doc-update-debug/scripts/local-live-poll.sh
+Current local scheduler shape:
+
+```text
+LaunchAgent: /Users/colbyreichenbach/Library/LaunchAgents/com.colbyreichenbach.aibs-live-poll.plist
+Program: /Users/colbyreichenbach/Code/abs-observatory-polling/scripts/local-live-poll.sh
+Env file: /Users/colbyreichenbach/Code/abs-observatory-polling/.env.poll
 ```
 
-That heartbeat is intentionally simple. The cron job always wakes every five minutes, and the poll gate decides whether real ingest work should run.
+That heartbeat is intentionally simple. The scheduler always wakes on five-minute marks, and the poll gate decides whether real ingest work should run.
 
 Core scripts:
 
@@ -121,7 +129,7 @@ If the machine is offline long enough that the automatic stale-gap catch-up is n
 Example:
 
 ```bash
-cd /Users/colbyreichenbach/Desktop/mlb/abs-observatory-doc-update-debug
+cd /Users/colbyreichenbach/Code/abs-observatory-polling
 set -a
 source .env.poll
 set +a
@@ -163,7 +171,9 @@ ORDER BY source_name;
 
 ## 8. Operational Notes
 
-- the local machine can let the display sleep, but the computer itself must stay awake for cron to run on schedule
+- the local machine can let the display sleep, but the computer itself must stay awake for the scheduler to run on schedule
+- on macOS, the local scheduler is a `launchd` LaunchAgent rather than a crontab entry
+- the local machine can let the display sleep, but the computer itself must stay awake for the scheduler to run on time
 - when the machine wakes after an outage, the poller resumes automatically on the next 5-minute tick
 - stale `etl_runs` bookkeeping can be corrected separately if an interrupted local run leaves an orphaned `running` row
 

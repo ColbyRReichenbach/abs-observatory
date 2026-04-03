@@ -111,7 +111,7 @@ Primary code areas:
   - ingest, polling, enrichment, and reporting scripts
 
 - `scripts/local-live-poll.sh`
-  - local cron wrapper for serving-mode and archive-mode polling
+  - local scheduler wrapper for serving-mode and archive-mode polling
 
 ## 4. Route Surface
 
