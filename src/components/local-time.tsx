@@ -1,30 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatDisplayTime, getDisplayTimeZone, isTbdGameDate } from "@/lib/display-time";
 
 function formatLocalDateTime(dateStr: string, showDate: boolean, omitTimeZone: boolean) {
-  const d = new Date(dateStr);
-  const isTBD =
-    isNaN(d.getTime()) ||
-    (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) ||
-    (d.getUTCHours() === 7 && d.getUTCMinutes() === 33);
+  if (isTbdGameDate(dateStr)) return "TBD";
 
-  if (isTBD) return "TBD";
-
-  if (showDate) {
-    return d.toLocaleString(undefined, {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      timeZoneName: omitTimeZone ? undefined : "short",
-    });
-  }
-
-  return d.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZoneName: omitTimeZone ? undefined : "short",
+  return formatDisplayTime(dateStr, {
+    locale: undefined,
+    timeZone: getDisplayTimeZone(),
+    showDate,
+    showTime: true,
+    omitTimeZone,
   });
 }
 

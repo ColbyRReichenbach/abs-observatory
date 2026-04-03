@@ -42,6 +42,13 @@ def require_requests() -> None:
         raise RuntimeError("requests is required to fetch standings snapshots")
 
 
+def _env_bool(name: str, default: bool = True) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def fetch_standings_snapshot(snapshot_date: str, season: Optional[int] = None) -> Dict[str, Any]:
     require_requests()
     params = {
@@ -116,6 +123,9 @@ def upsert_standings_snapshot(cur, snapshot_date: str, rows: List[Tuple[Any, ...
 
 
 def store_source_snapshot(cur, snapshot_date: str, payload: Dict[str, Any]) -> None:
+    if not (_env_bool("WRITE_RAW_SNAPSHOTS", True) and _env_bool("WRITE_RAW_STANDINGS", True)):
+        return
+
     payload_text = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     payload_hash = hashlib.sha256(payload_text.encode("utf-8")).hexdigest()
     cur.execute(

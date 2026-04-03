@@ -20,6 +20,9 @@ Use these first:
 - [reference/technical.md](./reference/technical.md)
   - current runtime, data, route, and subsystem implementation overview
 
+- [launch/live-polling-runbook.md](./launch/live-polling-runbook.md)
+  - current local cron polling, ET-aware gating, prune behavior, and manual recovery workflow
+
 - [reference/security.md](./reference/security.md)
   - current security controls and enforcement boundaries
 
