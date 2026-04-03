@@ -449,6 +449,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
       "The system is only as good as the data layer underneath it. I need clean ingest, stable relational structure, auditable transforms, and a query path that can serve both live pages and heavier analytical surfaces without collapsing under its own ambition.",
       "The data does not arrive in the exact shapes the app needs. I ingest it, normalize it, key it, enrich it, and materialize it into serving tables and views that make baseball and product sense. That includes live ABS events, pitch context, historical fallback data, editorial evidence, AI feedback, and product-user state.",
       "This is where cost and operational decisions show up. I keep some data local by design because historical pitch-level material is expensive enough that it makes sense to separate heavy reference storage from what deployed environments need to serve pages quickly.",
+      "I also run live polling on a fixed heartbeat with an ET-aware gate. The scheduler stays simple, but the ingest path only does real work when games are relevant, stale gaps need recovery, or fresh structured serving state needs to be written.",
     ],
     quickFacts: [
       { label: "Primary storage", value: "Postgres with raw, product, editorial, community, AI, ops, and serving layers" },
@@ -462,6 +463,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         paragraphs: [
           "The baseball-facing inputs come from public MLB-facing sources and related historical pitch-level material. I ingest those sources into relational tables such as `games`, `pitches`, `abs_challenges`, and raw historical pitch-state tables, then build serving tables and views on top. AiBS is not a thin wrapper over one live endpoint. It is a transformation layer.",
           "That transformation work matters because product pages do not need raw feed data. They need challenge events tied to count state, score state, pitcher-batter context, umpire context, and fallback model tables. I designed the database around that need.",
+          "That is also why I moved live scoreboard serving toward structured state instead of treating raw source snapshots as the product surface. The app now prefers compact linescore state that the ingest pipeline writes directly for serving.",
         ],
       },
       {
@@ -478,11 +480,19 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         ],
       },
       {
+        eyebrow: "Polling and freshness",
+        heading: "I keep live ingest cadence simple and the work gate strict.",
+        paragraphs: [
+          "The poller wakes on a fixed five-minute heartbeat, but that does not mean it blindly ingests every time. I gate work by Eastern Time game windows, whether any games are actually live, and whether the system needs bounded stale-gap recovery after downtime.",
+          "That design keeps the scheduler understandable while still protecting freshness. It also lets me surface a small freshness indicator in the product so users can tell whether the system is actively polling or idle.",
+        ],
+      },
+      {
         eyebrow: "Why local historical data matters",
         heading: "Keeping historical pitch-level data local is partly a product decision and partly a cost decision.",
         paragraphs: [
           "I keep heavier historical material local because pitch-level reference data is expensive enough that I want to be intentional about where it lives. The deployed serving environments need the outputs and the fallback tables they actually use. They do not always need the full historical working set that supports ETL, rebuilds, and deeper local modeling work.",
-          "That separation keeps storage costs and deployment complexity under better control while still letting me train, reference, and validate against deeper historical material when I need it.",
+          "I also separate recent serving data from raw archive retention on purpose. The hosted database keeps structured page-facing state and only limited recent operational snapshots, while the deeper raw audit trail can live outside the serving footprint.",
         ],
       },
       {
