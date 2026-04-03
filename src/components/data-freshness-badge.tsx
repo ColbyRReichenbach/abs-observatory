@@ -109,11 +109,13 @@ export function DataFreshnessBadge() {
   if (!enabled || !content) return null;
 
   return (
-    <div className="pointer-events-none fixed right-4 top-3 z-40 text-right md:right-6 md:top-4">
-      <p className={`font-mono text-[10px] font-medium tracking-[0.08em] ${content.tone}`}>
+    <div className="pointer-events-none fixed inset-x-0 top-8 z-40 hidden px-6 xl:block">
+      <div className="mx-auto flex max-w-[88rem] items-start justify-end pt-4">
+        <p className={`font-mono text-[8px] font-medium tracking-[0.06em] ${content.tone}`}>
         <span className="uppercase">{content.label}</span>
-        <span suppressHydrationWarning className="text-[rgba(17,24,39,0.62)]"> · {content.detail}</span>
-      </p>
+        <span suppressHydrationWarning className="text-[rgba(17,24,39,0.52)]"> · {content.detail}</span>
+        </p>
+      </div>
     </div>
   );
 }
