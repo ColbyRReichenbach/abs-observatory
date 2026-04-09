@@ -2,6 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { Client } from "pg";
 import {
+  describeAuditDatabaseTarget,
+  loadAuditEnv,
+  resolveAuditDatabaseUrl,
+} from "./audit-runtime.mjs";
+import {
   AUDIT_DATE,
   AUDIT_END,
   ROOT,
@@ -27,6 +32,7 @@ const ARTIFACT_PATH = path.join(
   ROOT,
   `docs/models/audits/artifacts/${AUDIT_DATE}-controversy-audit.json`,
 );
+const CONTROVERSY_SCORE_VERSION = "controversy_editorial_v2";
 
 const HEURISTIC_SUCCESS_PER_LI = 0.009;
 const HEURISTIC_FAILURE_COST_PER_LI = 0.003;
@@ -34,12 +40,9 @@ const HEURISTIC_LATE_CLOSE_PER_LI_BOOST = 0.0015;
 const HEURISTIC_RUNNER_PRESSURE_PER_LI_BOOST = 0.0005;
 const HEURISTIC_COUNT_PRESSURE_PER_LI_BOOST = 0.0005;
 
-loadEnvFile(".env");
-loadEnvFile(".env.local");
-
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is required");
-}
+loadAuditEnv();
+const DATABASE_URL = resolveAuditDatabaseUrl();
+const DATABASE_TARGET = describeAuditDatabaseTarget(DATABASE_URL);
 
 function getMargin(row) {
   return Math.abs((row.homeScore ?? 0) - (row.awayScore ?? 0));
@@ -266,8 +269,9 @@ Date: ${formatAuditDateLabel()}
 ## Scope
 
 - Comparison layer: spring ABS challenge moments and their modeled / realized value context
-- Internal layer: controversy scoring in \`rubrics.ts\`
+- Internal layer: editorial controversy scoring in \`rubrics.ts\`
 - Sample: final spring-training ABS challenges from ${SPRING_START} through ${AUDIT_END}
+- Score version: \`${CONTROVERSY_SCORE_VERSION}\`
 
 ## Overview
 
@@ -281,6 +285,7 @@ Date: ${formatAuditDateLabel()}
 
 ## Key Findings
 
+- The controversy layer should be treated as an editorial composite, not a predictive model.
 - The controversy layer is healthy if top-ranked moments are being driven by overturned, late/close, direct-impact, and meaningful modeled-value spots rather than random noise.
 - This audit is not asking whether every top controversy moment is overturned; it is asking whether the score is surfacing the right types of moments for the right reasons.
 - The most important pressure point is whether modeled value is actually contributing, instead of leverage and overturn status swamping everything.
@@ -330,11 +335,15 @@ ${toMarkdownTable(report.topMoments, [
 
 - This audit intentionally uses the same controversy formula as the product layer.
 - The key analyst question is whether the surfaced controversy board tells a baseball-sensible story, not whether controversy equals pure leverage or pure value.
+- Product and publication copy should describe this as an editorial ranking layer backed by modeled inputs.
 `;
 }
 
 async function main() {
-  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  console.info(
+    `[controversy-audit] database_role=${DATABASE_TARGET.role} host=${DATABASE_TARGET.host} db=${DATABASE_TARGET.database}`,
+  );
+  const client = new Client({ connectionString: DATABASE_URL });
   await client.connect();
 
   try {
@@ -400,8 +409,8 @@ async function main() {
           timeline.impact_type,
           COALESCE(c.px, c.inferred_px) AS px,
           COALESCE(c.pz, c.inferred_pz) AS pz,
-          resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top) AS strike_zone_top,
-          resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strike_zone_bottom
+          COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) AS strike_zone_top,
+          COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strike_zone_bottom
         FROM abs_challenges c
         JOIN games g ON g.game_pk = c.game_pk
         LEFT JOIN pitches p
@@ -523,6 +532,7 @@ async function main() {
 
     const report = {
       auditDate: AUDIT_DATE,
+      scoreVersion: CONTROVERSY_SCORE_VERSION,
       springWindow: { start: SPRING_START, end: AUDIT_END },
       overall: {
         rows: scoredRows.length,

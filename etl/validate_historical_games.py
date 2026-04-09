@@ -23,6 +23,8 @@ except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test impo
     def load_dotenv(*_args, **_kwargs):  # type: ignore[no-untyped-def]
         return False
 
+from db_target import log_database_target, resolve_database_target
+
 
 API_BASE = "https://statsapi.mlb.com/api/v1"
 
@@ -92,6 +94,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Validate raw historical Statcast games against MLB schedule identity")
     parser.add_argument("--start-date", required=True)
     parser.add_argument("--end-date", required=True)
+    parser.add_argument("--database-url", help="Postgres connection string; defaults to WAREHOUSE_DATABASE_URL")
     parser.add_argument("--strict", action="store_true")
     return parser.parse_args()
 
@@ -102,13 +105,12 @@ def main() -> None:
     start_date = date.fromisoformat(args.start_date)
     end_date = date.fromisoformat(args.end_date)
 
-    connection_string = os.environ.get("DATABASE_URL")
-    if not connection_string:
-        raise SystemExit("DATABASE_URL is required.")
+    target = resolve_database_target(cli_database_url=args.database_url, role="warehouse")
+    log_database_target("[validate_historical_games]", target)
 
     schedule_index = fetch_schedule_index(start_date, end_date)
     require_psycopg2()
-    conn = psycopg2.connect(connection_string)
+    conn = psycopg2.connect(target.connection_string)
     try:
         with conn.cursor() as cur:
             cur.execute(

@@ -47,7 +47,7 @@ describe("editorial article generation", () => {
         style: "High-Impact",
         orgStyleLabel: "Timely",
         styleConfidence: "high",
-        styleScores: { "High-Impact": 82, Selective: 60, Overactive: 45, "Low-Usage": 20 },
+        styleScores: { "High-Impact": 82, Selective: 60, Overactive: 45, "Low-Usage": 20, Balanced: 38 },
         challengeRatePerGame: 1,
         lateLeverageShare: 0.4,
         earlyLowLeverageShare: 0.2,

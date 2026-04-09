@@ -117,11 +117,11 @@ function HighlightCard({
           </p>
           <p className="mt-2 text-sm leading-7 text-[var(--ink-2)]">
             {trusted
-              ? `${entry.challenges} modeled reviews. ${formatWinValue(entry.decisionSurplus)} decision surplus with ${formatShare(entry.capturedValueShare)} higher-value share.`
-              : `${entry.challenges} reviews tracked, but this window still needs a larger trusted sample before it becomes a hard decision read.`}
+              ? `${entry.challenges} trusted reviews. ${formatWinValue(entry.decisionSurplus)} decision surplus with ${formatShare(entry.capturedValueShare)} higher-value share.`
+              : `${entry.challenges} trusted reviews so far, but this window still needs a larger sample before it becomes a hard decision read.`}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Chip label={`${entry.challenges} challenges`} />
+            <Chip label={`${entry.challenges} trusted reviews`} />
             <Chip label={`${formatWinValue(entry.averageExpectedChallengeValue)} expected`} />
             <Chip label={`${formatWinValue(entry.averageRealizedChallengeValue)} realized`} />
           </div>
@@ -157,7 +157,7 @@ function WindowList({
                 <div>
                   <p className="text-sm font-semibold text-[var(--ink-0)]">{entry.label}</p>
                   <p className="mt-1 text-[11px] text-[var(--ink-3)]">
-                    {entry.challenges} challenges · {formatShare(entry.capturedValueShare)} higher-value · {formatShare(entry.wastedValueShare)} lower-value
+                    {entry.challenges} trusted reviews · {formatShare(entry.capturedValueShare)} higher-value · {formatShare(entry.wastedValueShare)} lower-value
                   </p>
                 </div>
                 <span

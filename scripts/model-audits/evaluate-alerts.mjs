@@ -1,15 +1,20 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Client } from "pg";
-import { AUDIT_DATE, ROOT, auditArtifactPath, auditDocPath, formatAuditDateLabel } from "./audit-runtime.mjs";
-import { loadEnvFile } from "./shared-audit-utils.mjs";
+import {
+  AUDIT_DATE,
+  ROOT,
+  auditArtifactPath,
+  auditDocPath,
+  describeAuditDatabaseTarget,
+  formatAuditDateLabel,
+  loadAuditEnv,
+  resolveAuditDatabaseUrl,
+} from "./audit-runtime.mjs";
 
-loadEnvFile(".env");
-loadEnvFile(".env.local");
-
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is required");
-}
+loadAuditEnv();
+const DATABASE_URL = resolveAuditDatabaseUrl();
+const DATABASE_TARGET = describeAuditDatabaseTarget(DATABASE_URL);
 
 const DOC_PATH = auditDocPath("model-alert-evaluation", ROOT, AUDIT_DATE);
 const ARTIFACT_PATH = auditArtifactPath("model-alert-evaluation", ROOT, AUDIT_DATE);
@@ -246,6 +251,9 @@ ${rows}
 }
 
 async function main() {
+  console.info(
+    `[model-alert-evaluation] database_role=${DATABASE_TARGET.role} host=${DATABASE_TARGET.host} db=${DATABASE_TARGET.database}`,
+  );
   const artifacts = {
     suite: readArtifact("audit-suite-summary"),
     qa: readArtifact("abs-product-qa"),
@@ -256,7 +264,7 @@ async function main() {
   };
 
   const breaches = buildBreaches(artifacts);
-  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  const client = new Client({ connectionString: DATABASE_URL });
   await client.connect();
 
   try {

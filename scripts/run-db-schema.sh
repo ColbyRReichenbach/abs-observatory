@@ -18,8 +18,11 @@ if [[ -f "$ROOT_DIR/.env.local" ]]; then
   set +a
 fi
 
-: "${DATABASE_URL:?DATABASE_URL is required. Copy .env.example to .env.local and set DATABASE_URL.}"
+SCHEMA_DATABASE_URL="${SCHEMA_DATABASE_URL:-${WAREHOUSE_DATABASE_URL:-${DATABASE_URL:-}}}"
+: "${SCHEMA_DATABASE_URL:?SCHEMA_DATABASE_URL, WAREHOUSE_DATABASE_URL, or DATABASE_URL is required.}"
 
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT_DIR/db/schema.sql"
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT_DIR/db/seed_teams.sql"
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT_DIR/db/views.sql"
+echo "[run-db-schema] target=${SCHEMA_DATABASE_URL}"
+
+psql "$SCHEMA_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT_DIR/db/schema.sql"
+psql "$SCHEMA_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT_DIR/db/seed_teams.sql"
+psql "$SCHEMA_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT_DIR/db/views.sql"

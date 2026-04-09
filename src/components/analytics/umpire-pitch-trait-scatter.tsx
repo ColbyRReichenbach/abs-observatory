@@ -184,7 +184,12 @@ function buildPoints(challenges: ChallengeEvent[]) {
             .filter((value): value is number => typeof value === "number")
             .map((value) => Math.abs(value)),
         ),
-        avgExpected: average(sample.map((challenge) => challenge.expectedChallengeValue).filter((value): value is number => typeof value === "number")),
+        avgExpected: average(
+          sample
+            .filter((challenge) => challenge.decisionValueMode === "win_expectancy")
+            .map((challenge) => challenge.expectedChallengeValue)
+            .filter((value): value is number => typeof value === "number"),
+        ),
       };
     })
     .filter((point) => point.sample > 0)

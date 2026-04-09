@@ -1,0 +1,791 @@
+{
+  "generatedAt": "2026-04-08T22:52:19.234Z",
+  "databaseTarget": {
+    "role": "warehouse",
+    "host": "ep-fragrant-salad-a4s62gpc-pooler.us-east-1.aws.neon.tech",
+    "database": "neondb"
+  },
+  "dataset": {
+    "challengedRows": 2564,
+    "trainRows": 2197,
+    "validationRows": 122,
+    "testRows": 245,
+    "splitPolicyVersion": "called_pitch_decisions_phase_time_v1"
+  },
+  "geometries": {
+    "center_only": {
+      "geometryLabel": "Center Only",
+      "train": {
+        "challenges": 2193,
+        "globalSampleSize": 2193,
+        "globalOverturnProbability": 0.5321477428180574,
+        "exactCells": 7,
+        "directionCells": 2
+      },
+      "validation": {
+        "challenges": 122,
+        "avgPredictedOverturn": 0.5283819338892887,
+        "realizedOverturnRate": 0.5491803278688525,
+        "meanAbsBucketGap": 0.0422025803468582,
+        "meanSignedBucketGap": 0.009037019128799728,
+        "brierScore": 0.24595057246520333,
+        "logLoss": 0.6850004068643332,
+        "byPredictedBucket": [
+          {
+            "predictedBucket": "40-49%",
+            "challenges": 44,
+            "avgPredictedOverturn": 0.487711015763513,
+            "realizedOverturnRate": 0.45454545454545453,
+            "realizedCiLow": 0.3170500778685361,
+            "realizedCiHigh": 0.599340678293465,
+            "absGap": 0.03316556121805847
+          },
+          {
+            "predictedBucket": "50-59%",
+            "challenges": 78,
+            "avgPredictedOverturn": 0.5513245030884446,
+            "realizedOverturnRate": 0.6025641025641025,
+            "realizedCiLow": 0.4916165517837074,
+            "realizedCiHigh": 0.7038830474421142,
+            "absGap": 0.051239599475657926
+          }
+        ],
+        "byFallbackTier": [
+          {
+            "fallbackTier": "exact",
+            "confidenceBand": "high",
+            "challenges": 116,
+            "avgPredictedOverturn": 0.5309472997657249,
+            "realizedOverturnRate": 0.5775862068965517,
+            "realizedCiLow": 0.4866280369998908,
+            "realizedCiHigh": 0.6635702247055604
+          },
+          {
+            "fallbackTier": "exact",
+            "confidenceBand": "medium",
+            "challenges": 6,
+            "avgPredictedOverturn": 0.4787848602781917,
+            "realizedOverturnRate": 0,
+            "realizedCiLow": 0,
+            "realizedCiHigh": 0.3903430336530645
+          }
+        ],
+        "byDirection": [
+          {
+            "challengeDirection": "strike_to_ball",
+            "challenges": 62,
+            "avgPredictedOverturn": 0.5595628357893856,
+            "realizedOverturnRate": 0.532258064516129,
+            "realizedCiLow": 0.40983817375848014,
+            "realizedCiHigh": 0.650913691323778,
+            "brierScore": 0.24460250351452126
+          },
+          {
+            "challengeDirection": "ball_to_strike",
+            "challenges": 60,
+            "avgPredictedOverturn": 0.49616166859252264,
+            "realizedOverturnRate": 0.5666666666666667,
+            "realizedCiLow": 0.44103214654694856,
+            "realizedCiHigh": 0.6842779960559936,
+            "brierScore": 0.24734357704757595
+          }
+        ],
+        "byEdgeBucket": [
+          {
+            "edgeBucket": "lean_confirm",
+            "challenges": 51,
+            "avgPredictedOverturn": 0.531128410510066,
+            "realizedOverturnRate": 0.5882352941176471,
+            "realizedCiLow": 0.4516509274741746,
+            "realizedCiHigh": 0.7124580700751311
+          },
+          {
+            "edgeBucket": "strong_confirm",
+            "challenges": 36,
+            "avgPredictedOverturn": 0.504127772105487,
+            "realizedOverturnRate": 0.6111111111111112,
+            "realizedCiLow": 0.4486417029674347,
+            "realizedCiHigh": 0.7521534458217705
+          },
+          {
+            "edgeBucket": "borderline",
+            "challenges": 20,
+            "avgPredictedOverturn": 0.5285325347388818,
+            "realizedOverturnRate": 0.25,
+            "realizedCiLow": 0.11186005278940309,
+            "realizedCiHigh": 0.4687050099580636
+          },
+          {
+            "edgeBucket": "lean_overturn",
+            "challenges": 15,
+            "avgPredictedOverturn": 0.5770531005269842,
+            "realizedOverturnRate": 0.6666666666666666,
+            "realizedCiLow": 0.41713125151212976,
+            "realizedCiHigh": 0.8482389930530876
+          }
+        ],
+        "byPhase": [
+          {
+            "competitionPhase": "regular_season",
+            "challenges": 122,
+            "avgPredictedOverturn": 0.5283819338892887,
+            "realizedOverturnRate": 0.5491803278688525,
+            "realizedCiLow": 0.46072938030349786,
+            "realizedCiHigh": 0.6346285935302741,
+            "brierScore": 0.24595057246520333
+          }
+        ],
+        "topGapGroups": [
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "strike_to_ball",
+            "edgeBucket": "borderline",
+            "challenges": 14,
+            "avgPredictedOverturn": 0.549852966650606,
+            "realizedOverturnRate": 0.35714285714285715,
+            "realizedCiLow": 0.16344490737202735,
+            "realizedCiHigh": 0.6123599531785959,
+            "absGap": 0.19271010950774886
+          },
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "ball_to_strike",
+            "edgeBucket": "strong_confirm",
+            "challenges": 26,
+            "avgPredictedOverturn": 0.5088272157260451,
+            "realizedOverturnRate": 0.6923076923076923,
+            "realizedCiLow": 0.5001138848576876,
+            "realizedCiHigh": 0.8349887906020732,
+            "absGap": 0.18348047658164723
+          },
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "strike_to_ball",
+            "edgeBucket": "strong_confirm",
+            "challenges": 10,
+            "avgPredictedOverturn": 0.49190921869203585,
+            "realizedOverturnRate": 0.4,
+            "realizedCiLow": 0.16817758120350967,
+            "realizedCiHigh": 0.6873304525498135,
+            "absGap": 0.09190921869203583
+          },
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "strike_to_ball",
+            "edgeBucket": "lean_overturn",
+            "challenges": 15,
+            "avgPredictedOverturn": 0.5770531005269842,
+            "realizedOverturnRate": 0.6666666666666666,
+            "realizedCiLow": 0.41713125151212976,
+            "realizedCiHigh": 0.8482389930530876,
+            "absGap": 0.08961356613968241
+          },
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "ball_to_strike",
+            "edgeBucket": "lean_confirm",
+            "challenges": 28,
+            "avgPredictedOverturn": 0.4881244051787524,
+            "realizedOverturnRate": 0.5714285714285714,
+            "realizedCiLow": 0.390704789856154,
+            "realizedCiHigh": 0.7349170381926877,
+            "absGap": 0.08330416624981901
+          },
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "strike_to_ball",
+            "edgeBucket": "lean_confirm",
+            "challenges": 23,
+            "avgPredictedOverturn": 0.5834811126525339,
+            "realizedOverturnRate": 0.6086956521739131,
+            "realizedCiLow": 0.4078517960374599,
+            "realizedCiHigh": 0.7784262201761787,
+            "absGap": 0.025214539521379198
+          }
+        ]
+      },
+      "test": {
+        "challenges": 245,
+        "avgPredictedOverturn": 0.5355824563976652,
+        "realizedOverturnRate": 0.5265306122448979,
+        "meanAbsBucketGap": 0.0834849549682681,
+        "meanSignedBucketGap": 0.02536440258925285,
+        "brierScore": 0.25193101639515514,
+        "logLoss": 0.6970422062858953,
+        "byPredictedBucket": [
+          {
+            "predictedBucket": "40-49%",
+            "challenges": 72,
+            "avgPredictedOverturn": 0.48837286466470126,
+            "realizedOverturnRate": 0.5972222222222222,
+            "realizedCiLow": 0.4818046137128726,
+            "realizedCiHigh": 0.702790647990467,
+            "absGap": 0.10884935755752095
+          },
+          {
+            "predictedBucket": "50-59%",
+            "challenges": 173,
+            "avgPredictedOverturn": 0.5552303789686106,
+            "realizedOverturnRate": 0.49710982658959535,
+            "realizedCiLow": 0.42347952218773144,
+            "realizedCiHigh": 0.5708656997509979,
+            "absGap": 0.058120552379015256
+          }
+        ],
+        "byFallbackTier": [
+          {
+            "fallbackTier": "exact",
+            "confidenceBand": "high",
+            "challenges": 238,
+            "avgPredictedOverturn": 0.537252973930591,
+            "realizedOverturnRate": 0.5210084033613446,
+            "realizedCiLow": 0.4577120423755249,
+            "realizedCiHigh": 0.5836373367221986
+          },
+          {
+            "fallbackTier": "exact",
+            "confidenceBand": "medium",
+            "challenges": 7,
+            "avgPredictedOverturn": 0.4787848602781918,
+            "realizedOverturnRate": 0.7142857142857143,
+            "realizedCiLow": 0.35892909014821267,
+            "realizedCiHigh": 0.9177828342909844
+          }
+        ],
+        "byDirection": [
+          {
+            "challengeDirection": "strike_to_ball",
+            "challenges": 144,
+            "avgPredictedOverturn": 0.561990766463654,
+            "realizedOverturnRate": 0.5486111111111112,
+            "realizedCiLow": 0.46712120157498654,
+            "realizedCiHigh": 0.6275747432740952,
+            "brierScore": 0.252362869188609
+          },
+          {
+            "challengeDirection": "ball_to_strike",
+            "challenges": 101,
+            "avgPredictedOverturn": 0.4979310044223952,
+            "realizedOverturnRate": 0.49504950495049505,
+            "realizedCiLow": 0.39952499274517517,
+            "realizedCiHigh": 0.590936808677161,
+            "brierScore": 0.2513153054817166
+          }
+        ],
+        "byEdgeBucket": [
+          {
+            "edgeBucket": "lean_confirm",
+            "challenges": 107,
+            "avgPredictedOverturn": 0.5451601928266222,
+            "realizedOverturnRate": 0.5233644859813084,
+            "realizedCiLow": 0.4295689431021738,
+            "realizedCiHigh": 0.6155404743006785
+          },
+          {
+            "edgeBucket": "strong_confirm",
+            "challenges": 73,
+            "avgPredictedOverturn": 0.5037286412774392,
+            "realizedOverturnRate": 0.5342465753424658,
+            "realizedCiLow": 0.42098744972394103,
+            "realizedCiHigh": 0.6440814712771833
+          },
+          {
+            "edgeBucket": "borderline",
+            "challenges": 33,
+            "avgPredictedOverturn": 0.5347779137837302,
+            "realizedOverturnRate": 0.48484848484848486,
+            "realizedCiLow": 0.32503781646924224,
+            "realizedCiHigh": 0.6478189541378976
+          },
+          {
+            "edgeBucket": "lean_overturn",
+            "challenges": 32,
+            "avgPredictedOverturn": 0.5770531005269848,
+            "realizedOverturnRate": 0.5625,
+            "realizedCiLow": 0.3932530203122613,
+            "realizedCiHigh": 0.7183491403055682
+          }
+        ],
+        "byPhase": [
+          {
+            "competitionPhase": "regular_season",
+            "challenges": 245,
+            "avgPredictedOverturn": 0.5355824563976652,
+            "realizedOverturnRate": 0.5265306122448979,
+            "realizedCiLow": 0.46408246009029236,
+            "realizedCiHigh": 0.5881596087599319,
+            "brierScore": 0.25193101639515514
+          }
+        ],
+        "topGapGroups": [
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "strike_to_ball",
+            "edgeBucket": "strong_confirm",
+            "challenges": 22,
+            "avgPredictedOverturn": 0.49190921869203597,
+            "realizedOverturnRate": 0.7272727272727273,
+            "realizedCiLow": 0.5184787630099802,
+            "realizedCiHigh": 0.8684941798418556,
+            "absGap": 0.23536350858069133
+          },
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "strike_to_ball",
+            "edgeBucket": "borderline",
+            "challenges": 26,
+            "avgPredictedOverturn": 0.5498529666506061,
+            "realizedOverturnRate": 0.4230769230769231,
+            "realizedCiLow": 0.255441899027294,
+            "realizedCiHigh": 0.6105170307888017,
+            "absGap": 0.12677604357368305
+          },
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "ball_to_strike",
+            "edgeBucket": "strong_confirm",
+            "challenges": 51,
+            "avgPredictedOverturn": 0.5088272157260444,
+            "realizedOverturnRate": 0.45098039215686275,
+            "realizedCiLow": 0.32267305011132247,
+            "realizedCiHigh": 0.5861552845835076,
+            "absGap": 0.05784682356918164
+          },
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "strike_to_ball",
+            "edgeBucket": "lean_confirm",
+            "challenges": 64,
+            "avgPredictedOverturn": 0.5834811126525346,
+            "realizedOverturnRate": 0.53125,
+            "realizedCiLow": 0.41071875000475133,
+            "realizedCiHigh": 0.6482421235595515,
+            "absGap": 0.05223111265253455
+          },
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "ball_to_strike",
+            "edgeBucket": "lean_confirm",
+            "challenges": 43,
+            "avgPredictedOverturn": 0.4881244051787522,
+            "realizedOverturnRate": 0.5116279069767442,
+            "realizedCiLow": 0.36752063766074083,
+            "realizedCiHigh": 0.6538279072224399,
+            "absGap": 0.023503501797991988
+          },
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "strike_to_ball",
+            "edgeBucket": "lean_overturn",
+            "challenges": 32,
+            "avgPredictedOverturn": 0.5770531005269848,
+            "realizedOverturnRate": 0.5625,
+            "realizedCiLow": 0.3932530203122613,
+            "realizedCiHigh": 0.7183491403055682,
+            "absGap": 0.014553100526984775
+          }
+        ]
+      }
+    },
+    "radius_adjusted": {
+      "geometryLabel": "Radius Adjusted",
+      "train": {
+        "challenges": 2193,
+        "globalSampleSize": 2193,
+        "globalOverturnProbability": 0.5321477428180574,
+        "exactCells": 7,
+        "directionCells": 2
+      },
+      "validation": {
+        "challenges": 122,
+        "avgPredictedOverturn": 0.5292190511795047,
+        "realizedOverturnRate": 0.5491803278688525,
+        "meanAbsBucketGap": 0.026994094281862308,
+        "meanSignedBucketGap": 0.026994094281862308,
+        "brierScore": 0.2465969865994955,
+        "logLoss": 0.6862915067636425,
+        "byPredictedBucket": [
+          {
+            "predictedBucket": "40-49%",
+            "challenges": 33,
+            "avgPredictedOverturn": 0.4728359254002456,
+            "realizedOverturnRate": 0.5151515151515151,
+            "realizedCiLow": 0.3521810458621024,
+            "realizedCiHigh": 0.6749621835307578,
+            "absGap": 0.04231558975126953
+          },
+          {
+            "predictedBucket": "50-59%",
+            "challenges": 89,
+            "avgPredictedOverturn": 0.5501251539965337,
+            "realizedOverturnRate": 0.5617977528089888,
+            "realizedCiLow": 0.45828020628709,
+            "realizedCiHigh": 0.6602011641330666,
+            "absGap": 0.011672598812455082
+          }
+        ],
+        "byFallbackTier": [
+          {
+            "fallbackTier": "exact",
+            "confidenceBand": "high",
+            "challenges": 117,
+            "avgPredictedOverturn": 0.5264094680762703,
+            "realizedOverturnRate": 0.5384615384615384,
+            "realizedCiLow": 0.448345288401061,
+            "realizedCiHigh": 0.6261323749201793
+          },
+          {
+            "fallbackTier": "exact",
+            "confidenceBand": "medium",
+            "challenges": 5,
+            "avgPredictedOverturn": 0.5949632957951888,
+            "realizedOverturnRate": 0.8,
+            "realizedCiLow": 0.3755282641185388,
+            "realizedCiHigh": 0.9637768390302125
+          }
+        ],
+        "byDirection": [
+          {
+            "challengeDirection": "strike_to_ball",
+            "challenges": 62,
+            "avgPredictedOverturn": 0.5579189703226938,
+            "realizedOverturnRate": 0.532258064516129,
+            "realizedCiLow": 0.40983817375848014,
+            "realizedCiHigh": 0.650913691323778,
+            "brierScore": 0.24821130376881845
+          },
+          {
+            "challengeDirection": "ball_to_strike",
+            "challenges": 60,
+            "avgPredictedOverturn": 0.4995624680648761,
+            "realizedOverturnRate": 0.5666666666666667,
+            "realizedCiLow": 0.44103214654694856,
+            "realizedCiHigh": 0.6842779960559936,
+            "brierScore": 0.24492885885786106
+          }
+        ],
+        "byEdgeBucket": [
+          {
+            "edgeBucket": "lean_confirm",
+            "challenges": 42,
+            "avgPredictedOverturn": 0.5243901581258994,
+            "realizedOverturnRate": 0.5476190476190477,
+            "realizedCiLow": 0.39948862747122693,
+            "realizedCiHigh": 0.6877683618136149
+          },
+          {
+            "edgeBucket": "strong_confirm",
+            "challenges": 41,
+            "avgPredictedOverturn": 0.5546583282555597,
+            "realizedOverturnRate": 0.5853658536585366,
+            "realizedCiLow": 0.433668353568366,
+            "realizedCiHigh": 0.7224366917466984
+          },
+          {
+            "edgeBucket": "borderline",
+            "challenges": 24,
+            "avgPredictedOverturn": 0.5347706408083214,
+            "realizedOverturnRate": 0.625,
+            "realizedCiLow": 0.42709619037907065,
+            "realizedCiHigh": 0.7884086656636855
+          },
+          {
+            "edgeBucket": "lean_overturn",
+            "challenges": 15,
+            "avgPredictedOverturn": 0.46432338431560966,
+            "realizedOverturnRate": 0.3333333333333333,
+            "realizedCiLow": 0.15176100694691236,
+            "realizedCiHigh": 0.5828687484878701
+          }
+        ],
+        "byPhase": [
+          {
+            "competitionPhase": "regular_season",
+            "challenges": 122,
+            "avgPredictedOverturn": 0.5292190511795047,
+            "realizedOverturnRate": 0.5491803278688525,
+            "realizedCiLow": 0.46072938030349786,
+            "realizedCiHigh": 0.6346285935302741,
+            "brierScore": 0.2465969865994955
+          }
+        ],
+        "topGapGroups": [
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "ball_to_strike",
+            "edgeBucket": "lean_confirm",
+            "challenges": 18,
+            "avgPredictedOverturn": 0.4799297096374423,
+            "realizedOverturnRate": 0.6666666666666666,
+            "realizedCiLow": 0.4374906934425036,
+            "realizedCiHigh": 0.8372144563633714,
+            "absGap": 0.18673695702922433
+          },
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "ball_to_strike",
+            "edgeBucket": "lean_overturn",
+            "challenges": 15,
+            "avgPredictedOverturn": 0.46432338431560966,
+            "realizedOverturnRate": 0.3333333333333333,
+            "realizedCiLow": 0.15176100694691236,
+            "realizedCiHigh": 0.5828687484878701,
+            "absGap": 0.13099005098227634
+          },
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "strike_to_ball",
+            "edgeBucket": "lean_confirm",
+            "challenges": 24,
+            "avgPredictedOverturn": 0.5577354944922424,
+            "realizedOverturnRate": 0.4583333333333333,
+            "realizedCiLow": 0.2789105835168143,
+            "realizedCiHigh": 0.6492544644689336,
+            "absGap": 0.09940216115890904
+          },
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "ball_to_strike",
+            "edgeBucket": "borderline",
+            "challenges": 19,
+            "avgPredictedOverturn": 0.5189304684433562,
+            "realizedOverturnRate": 0.5789473684210527,
+            "realizedCiLow": 0.36275551465160105,
+            "realizedCiHigh": 0.7685837960796962,
+            "absGap": 0.060016899977696436
+          },
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "strike_to_ball",
+            "edgeBucket": "strong_confirm",
+            "challenges": 33,
+            "avgPredictedOverturn": 0.5524396307035535,
+            "realizedOverturnRate": 0.5454545454545454,
+            "realizedCiLow": 0.3798565794374957,
+            "realizedCiHigh": 0.701573108741085,
+            "absGap": 0.006985085249008094
+          }
+        ]
+      },
+      "test": {
+        "challenges": 245,
+        "avgPredictedOverturn": 0.5343267072524108,
+        "realizedOverturnRate": 0.5265306122448979,
+        "meanAbsBucketGap": 0.04525032632790549,
+        "meanSignedBucketGap": 0.016029587018200897,
+        "brierScore": 0.25041080055346854,
+        "logLoss": 0.693971152612442,
+        "byPredictedBucket": [
+          {
+            "predictedBucket": "40-49%",
+            "challenges": 58,
+            "avgPredictedOverturn": 0.47320284527458323,
+            "realizedOverturnRate": 0.5344827586206896,
+            "realizedCiLow": 0.40799953310272974,
+            "realizedCiHigh": 0.6566818464217328,
+            "absGap": 0.061279913346106385
+          },
+          {
+            "predictedBucket": "50-59%",
+            "challenges": 187,
+            "avgPredictedOverturn": 0.5532849104326992,
+            "realizedOverturnRate": 0.5240641711229946,
+            "realizedCiLow": 0.45272058335511856,
+            "realizedCiHigh": 0.5944389458041422,
+            "absGap": 0.02922073930970459
+          }
+        ],
+        "byFallbackTier": [
+          {
+            "fallbackTier": "exact",
+            "confidenceBand": "high",
+            "challenges": 232,
+            "avgPredictedOverturn": 0.530928967377169,
+            "realizedOverturnRate": 0.521551724137931,
+            "realizedCiLow": 0.4574450260567367,
+            "realizedCiHigh": 0.5849563145040466
+          },
+          {
+            "fallbackTier": "exact",
+            "confidenceBand": "medium",
+            "challenges": 13,
+            "avgPredictedOverturn": 0.5949632957951889,
+            "realizedOverturnRate": 0.6153846153846154,
+            "realizedCiLow": 0.35522480972268555,
+            "realizedCiHigh": 0.8229055341876319
+          }
+        ],
+        "byDirection": [
+          {
+            "challengeDirection": "strike_to_ball",
+            "challenges": 144,
+            "avgPredictedOverturn": 0.5579335301249589,
+            "realizedOverturnRate": 0.5486111111111112,
+            "realizedCiLow": 0.46712120157498654,
+            "realizedCiHigh": 0.6275747432740952,
+            "brierScore": 0.24762424467109023
+          },
+          {
+            "challengeDirection": "ball_to_strike",
+            "challenges": 101,
+            "avgPredictedOverturn": 0.5006694548400628,
+            "realizedOverturnRate": 0.49504950495049505,
+            "realizedCiLow": 0.39952499274517517,
+            "realizedCiHigh": 0.590936808677161,
+            "brierScore": 0.25438371191052356
+          }
+        ],
+        "byEdgeBucket": [
+          {
+            "edgeBucket": "strong_confirm",
+            "challenges": 104,
+            "avgPredictedOverturn": 0.5544076580994436,
+            "realizedOverturnRate": 0.5673076923076923,
+            "realizedCiLow": 0.47136846913511526,
+            "realizedCiHigh": 0.6584515632086184
+          },
+          {
+            "edgeBucket": "lean_confirm",
+            "challenges": 78,
+            "avgPredictedOverturn": 0.5248176624382881,
+            "realizedOverturnRate": 0.44871794871794873,
+            "realizedCiLow": 0.3433419189622355,
+            "realizedCiHigh": 0.5589082814248538
+          },
+          {
+            "edgeBucket": "borderline",
+            "challenges": 38,
+            "avgPredictedOverturn": 0.5449416988531939,
+            "realizedOverturnRate": 0.47368421052631576,
+            "realizedCiLow": 0.3247877880894159,
+            "realizedCiHigh": 0.6274128925728913
+          },
+          {
+            "edgeBucket": "lean_overturn",
+            "challenges": 25,
+            "avgPredictedOverturn": 0.46432338431560943,
+            "realizedOverturnRate": 0.68,
+            "realizedCiLow": 0.48409913734576715,
+            "realizedCiHigh": 0.8279501248310887
+          }
+        ],
+        "byPhase": [
+          {
+            "competitionPhase": "regular_season",
+            "challenges": 245,
+            "avgPredictedOverturn": 0.5343267072524108,
+            "realizedOverturnRate": 0.5265306122448979,
+            "realizedCiLow": 0.46408246009029236,
+            "realizedCiHigh": 0.5881596087599319,
+            "brierScore": 0.25041080055346854
+          }
+        ],
+        "topGapGroups": [
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "ball_to_strike",
+            "edgeBucket": "lean_overturn",
+            "challenges": 25,
+            "avgPredictedOverturn": 0.46432338431560943,
+            "realizedOverturnRate": 0.68,
+            "realizedCiLow": 0.48409913734576715,
+            "realizedCiHigh": 0.8279501248310887,
+            "absGap": 0.21567661568439062
+          },
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "ball_to_strike",
+            "edgeBucket": "borderline",
+            "challenges": 25,
+            "avgPredictedOverturn": 0.5189304684433562,
+            "realizedOverturnRate": 0.4,
+            "realizedCiLow": 0.23403057664190918,
+            "realizedCiHigh": 0.5926087221487266,
+            "absGap": 0.1189304684433562
+          },
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "strike_to_ball",
+            "edgeBucket": "lean_confirm",
+            "challenges": 45,
+            "avgPredictedOverturn": 0.5577354944922421,
+            "realizedOverturnRate": 0.4666666666666667,
+            "realizedCiLow": 0.3293490394201473,
+            "realizedCiHigh": 0.6092279113758954,
+            "absGap": 0.09106882782557546
+          },
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "ball_to_strike",
+            "edgeBucket": "strong_confirm",
+            "challenges": 18,
+            "avgPredictedOverturn": 0.5638104556575863,
+            "realizedOverturnRate": 0.5,
+            "realizedCiLow": 0.2903070395897999,
+            "realizedCiHigh": 0.7096929604102,
+            "absGap": 0.06381045565758625
+          },
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "ball_to_strike",
+            "edgeBucket": "lean_confirm",
+            "challenges": 33,
+            "avgPredictedOverturn": 0.47992970963744236,
+            "realizedOverturnRate": 0.42424242424242425,
+            "realizedCiLow": 0.272353589950299,
+            "realizedCiHigh": 0.5919302630853998,
+            "absGap": 0.055687285395018105
+          },
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "strike_to_ball",
+            "edgeBucket": "strong_confirm",
+            "challenges": 86,
+            "avgPredictedOverturn": 0.5524396307035532,
+            "realizedOverturnRate": 0.5813953488372093,
+            "realizedCiLow": 0.47584264364729545,
+            "realizedCiHigh": 0.6799871723844758,
+            "absGap": 0.02895571813365616
+          },
+          {
+            "fallbackTier": "exact",
+            "challengeDirection": "strike_to_ball",
+            "edgeBucket": "borderline",
+            "challenges": 13,
+            "avgPredictedOverturn": 0.5949632957951889,
+            "realizedOverturnRate": 0.6153846153846154,
+            "realizedCiLow": 0.35522480972268555,
+            "realizedCiHigh": 0.8229055341876319,
+            "absGap": 0.0204213195894265
+          }
+        ]
+      }
+    }
+  },
+  "geometryComparison": [
+    {
+      "geometryKey": "center_only",
+      "geometryLabel": "Center Only",
+      "validationChallenges": 122,
+      "validationBrier": 0.24595057246520333,
+      "validationLogLoss": 0.6850004068643332,
+      "testChallenges": 245,
+      "testBrier": 0.25193101639515514,
+      "testLogLoss": 0.6970422062858953
+    },
+    {
+      "geometryKey": "radius_adjusted",
+      "geometryLabel": "Radius Adjusted",
+      "validationChallenges": 122,
+      "validationBrier": 0.2465969865994955,
+      "validationLogLoss": 0.6862915067636425,
+      "testChallenges": 245,
+      "testBrier": 0.25041080055346854,
+      "testLogLoss": 0.693971152612442
+    }
+  ],
+  "geometrySelection": {
+    "validationWinner": "center_only",
+    "selectionMetric": "validation_brier_score"
+  }
+}

@@ -1,47 +1,17 @@
-import fs from "fs/promises";
 import path from "path";
 import { Client } from "pg";
 import {
   AUDIT_DATE,
   ROOT as repoRoot,
   formatAuditDateLabel,
+  loadAuditEnv,
+  resolveAuditDatabaseUrl,
+  describeAuditDatabaseTarget,
 } from "./audit-runtime.mjs";
 
 const ARTIFACT_DIR = path.join(repoRoot, "docs", "models", "audits", "artifacts");
 const MARKDOWN_PATH = path.join(repoRoot, "docs", "models", "audits", `${AUDIT_DATE}-current-state-audit.md`);
 const JSON_PATH = path.join(ARTIFACT_DIR, `${AUDIT_DATE}-current-state-audit.json`);
-
-function parseEnvContent(content) {
-  const vars = {};
-  for (const rawLine of content.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith("#")) continue;
-    const eqIndex = line.indexOf("=");
-    if (eqIndex === -1) continue;
-    const key = line.slice(0, eqIndex).trim();
-    let value = line.slice(eqIndex + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-      value = value.slice(1, -1);
-    }
-    vars[key] = value;
-  }
-  return vars;
-}
-
-async function loadLocalEnv() {
-  for (const filename of [".env", ".env.local"]) {
-    const envPath = path.join(repoRoot, filename);
-    try {
-      const content = await fs.readFile(envPath, "utf8");
-      const parsed = parseEnvContent(content);
-      for (const [key, value] of Object.entries(parsed)) {
-        process.env[key] = value;
-      }
-    } catch {
-      // ignore missing local env files
-    }
-  }
-}
 
 function clamp(value, min = 0, max = 100) {
   return Math.min(max, Math.max(min, value));
@@ -308,13 +278,13 @@ function summarizeFallbackPairs(rows) {
 }
 
 async function main() {
-  await loadLocalEnv();
-  if (!process.env.DATABASE_URL) {
-    throw new Error("DATABASE_URL is required");
-  }
+  loadAuditEnv();
+  const databaseUrl = resolveAuditDatabaseUrl();
+  const databaseTarget = describeAuditDatabaseTarget(databaseUrl);
+  console.log(`[audit:current-state] role=${databaseTarget.role} host=${databaseTarget.host} db=${databaseTarget.database}`);
 
   const client = new Client({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: databaseUrl,
     ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : undefined,
   });
   await client.connect();

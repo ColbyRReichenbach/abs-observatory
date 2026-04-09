@@ -108,7 +108,7 @@ function BreakdownSectionCard({
                 <div>
                   <p className="text-sm font-semibold text-[var(--ink-0)]">{entry.label}</p>
                   <p className="mt-1 text-[11px] text-[var(--ink-3)]">
-                    {entry.challenges} challenges · {formatShare(entry.capturedValueShare)} higher-value · {formatShare(entry.wastedValueShare)} lower-value
+                    {entry.challenges} trusted reviews · {formatShare(entry.capturedValueShare)} higher-value · {formatShare(entry.wastedValueShare)} lower-value
                   </p>
                 </div>
                 <span className="rounded-full bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-[var(--ink-0)]">
@@ -146,8 +146,8 @@ function MiniHighlight({
           </p>
           <p className="mt-1 text-[11px] text-[var(--ink-2)]">
             {trusted
-              ? `${formatWinValue(entry.decisionSurplus)} surplus on ${entry.challenges} modeled reviews.`
-              : `${entry.challenges} reviews tracked, but this read still needs more trusted sample.`}
+              ? `${formatWinValue(entry.decisionSurplus)} surplus on ${entry.challenges} trusted reviews.`
+              : `${entry.challenges} trusted reviews so far, but this read still needs more sample.`}
           </p>
         </>
       ) : (

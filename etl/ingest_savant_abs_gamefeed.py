@@ -33,6 +33,8 @@ except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test impo
 
 load_dotenv()
 
+from db_target import log_database_target, resolve_database_target
+
 STATSAPI_BASE = "https://statsapi.mlb.com/api/v1"
 SAVANT_GAMEFEED_BASE = "https://baseballsavant.mlb.com/gf"
 REQUEST_TIMEOUT = 30
@@ -500,8 +502,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--database-url",
-        default=os.getenv("DATABASE_URL"),
-        help="Postgres connection string; defaults to DATABASE_URL",
+        help="Postgres connection string; defaults to WAREHOUSE_DATABASE_URL",
     )
     parser.add_argument("--sleep-seconds", type=float, default=1.5, help="Base delay between gamefeed requests")
     parser.add_argument("--jitter-seconds", type=float, default=0.75, help="Random additional delay cap")
@@ -513,13 +514,13 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
-    if not args.database_url:
-        raise SystemExit("DATABASE_URL was not set")
+    target = resolve_database_target(cli_database_url=args.database_url, role="warehouse")
+    log_database_target("[ingest_savant_abs_gamefeed]", target)
     if args.game_pk is None and (not args.start_date or not args.end_date):
         raise SystemExit("either --game-pk or both --start-date and --end-date are required")
 
     summary = run(
-        database_url=args.database_url,
+        database_url=target.connection_string,
         start_date=args.start_date,
         end_date=args.end_date,
         game_pk=args.game_pk,

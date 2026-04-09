@@ -11,6 +11,8 @@ type EstimatedLeverageInput = {
 };
 
 export type EstimatedLeverageBucket = "low" | "medium" | "high";
+export const ESTIMATED_LEVERAGE_MODEL_KIND = "heuristic_pressure_proxy";
+export const ESTIMATED_LEVERAGE_MODEL_VERSION = "estimated_leverage_heuristic_v1";
 
 function countRunnersOnBase(basesState?: string | null) {
   if (!basesState) return 0;
@@ -66,6 +68,8 @@ export function computeEstimatedChallengeSwing(input: EstimatedLeverageInput): n
 export function summarizeEstimatedLeverage(input: EstimatedLeverageInput) {
   const estimatedLeverageIndex = computeEstimatedLeverageIndex(input);
   return {
+    leverageModelKind: ESTIMATED_LEVERAGE_MODEL_KIND,
+    leverageModelVersion: ESTIMATED_LEVERAGE_MODEL_VERSION,
     estimatedLeverageIndex,
     estimatedChallengeSwing: computeEstimatedChallengeSwing(input),
     leverageBucket: getEstimatedLeverageBucket(estimatedLeverageIndex),

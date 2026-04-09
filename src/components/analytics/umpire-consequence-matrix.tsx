@@ -192,6 +192,7 @@ function buildMatrix(challenges: ChallengeEvent[]) {
     const [pitchFamily, countBucket] = key.split("::");
     const overturned = bucket.filter((challenge) => challenge.isOverturned);
     const expected = bucket
+      .filter((challenge) => challenge.decisionValueMode === "win_expectancy")
       .map((challenge) => challenge.expectedChallengeValue)
       .filter((value): value is number => typeof value === "number");
     const velocities = bucket

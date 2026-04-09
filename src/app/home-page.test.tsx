@@ -47,7 +47,7 @@ vi.mock("@/lib/data", () => ({
       style: "High-Impact",
       orgStyleLabel: "Timely",
       styleConfidence: "high",
-      styleScores: { "High-Impact": 80, Selective: 65, Overactive: 40, "Low-Usage": 25 },
+      styleScores: { "High-Impact": 80, Selective: 65, Overactive: 40, "Low-Usage": 25, Balanced: 42 },
       challengeRatePerGame: 1,
       lateLeverageShare: 0.45,
       earlyLowLeverageShare: 0.2,

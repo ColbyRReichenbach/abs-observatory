@@ -71,17 +71,25 @@ export type ControversyMomentInput = {
   missDistance?: number | null;
   slateProgress?: number | null;
   noveltyPenalty?: number | null;
+  realizedChallengeValue?: number | null;
+  expectedChallengeValue?: number | null;
+  decisionValueMode?: "win_expectancy" | "heuristic" | null;
 };
 
 export type ControversyMomentResult = {
   score: number;
+  scoreVersion: string;
   leverageScore: number;
   resultImpactScore: number;
   missSeverityScore: number;
+  modeledValueScore: number;
   recencyScore: number;
   noveltyScore: number;
   chips: ControversyReasonChip[];
 };
+
+export const CONTROVERSY_SCORE_KIND = "editorial_composite";
+export const CONTROVERSY_SCORE_VERSION = "controversy_editorial_v2";
 
 export type OrgWatchRiskInput = {
   umpireScore: number;
@@ -89,6 +97,7 @@ export type OrgWatchRiskInput = {
   zoneConcentrationSeverity: number;
   recentTrendRisk: number;
   countHotspotVolatility: number;
+  confidence?: ConfidenceBand | null;
   matchupHistoryModifier?: number;
 };
 
@@ -96,6 +105,10 @@ export type OrgWatchRiskResult = {
   riskScore: number;
   tier: OrgRiskTier;
 };
+
+export const UMPIRE_REPORT_CARD_VERSION = "umpire_report_card_v2";
+export const TEAM_STYLE_VERSION = "team_style_v2";
+export const ORG_WATCH_RISK_VERSION = "org_watch_risk_v2";
 
 const MAX_CHIPS = 4;
 
@@ -180,7 +193,23 @@ function mapOrgStyleLabel(style: TeamStyle): TeamStyleOrgLabel {
       return "High-Usage";
     case "Low-Usage":
       return "Low-Usage";
+    case "Balanced":
+      return "Mixed profile";
   }
+}
+
+function softenExtremeGradeForConfidence(grade: UmpireGrade, confidence: ConfidenceBand): UmpireGrade {
+  if (confidence === "high") return grade;
+  if (grade === "A") return "B";
+  if (grade === "F") return confidence === "medium" ? "D" : "C";
+  return grade;
+}
+
+function softenRiskTierForConfidence(riskTier: OrgRiskTier, confidence: ConfidenceBand | null | undefined): OrgRiskTier {
+  if (confidence !== "low") return riskTier;
+  if (riskTier === "High") return "Elevated";
+  if (riskTier === "Low") return "Moderate";
+  return riskTier;
 }
 
 function getMargin(input: ControversyMomentInput) {
@@ -262,6 +291,30 @@ function computeRecencyScore(progress: number | null | undefined) {
   return 40;
 }
 
+function computeModeledValueScore(
+  realizedChallengeValue: number | null | undefined,
+  expectedChallengeValue: number | null | undefined,
+  decisionValueMode: "win_expectancy" | "heuristic" | null | undefined,
+) {
+  const resolvedValue =
+    realizedChallengeValue !== null && realizedChallengeValue !== undefined
+      ? Math.abs(realizedChallengeValue)
+      : expectedChallengeValue !== null && expectedChallengeValue !== undefined
+        ? Math.abs(expectedChallengeValue)
+        : null;
+  if (resolvedValue === null || !Number.isFinite(resolvedValue) || resolvedValue <= 0) return 0;
+
+  let score = 20;
+  if (resolvedValue >= 0.03) score = 95;
+  else if (resolvedValue >= 0.02) score = 80;
+  else if (resolvedValue >= 0.01) score = 62;
+  else if (resolvedValue >= 0.005) score = 45;
+  else if (resolvedValue >= 0.0025) score = 30;
+
+  if (decisionValueMode === "heuristic") return Math.min(score, 65);
+  return score;
+}
+
 function buildReasonChips(input: ControversyMomentInput, missSeverityScore: number): ControversyReasonChip[] {
   const chips: ControversyReasonChip[] = [];
   const margin = getMargin(input);
@@ -311,12 +364,13 @@ export function computeUmpireReportCard(input: UmpireReportCardInput): UmpireRep
   );
 
   const score = clamp(0.78 * rateScore + 0.12 * consistencyScore + 0.1 * recentFormScore);
-  const grade = mapUmpireGrade(score);
+  const confidence = confidenceFromSampleSize(input.challengedCalls);
+  const grade = softenExtremeGradeForConfidence(mapUmpireGrade(score), confidence);
 
   return {
     score: Number(score.toFixed(2)),
     grade,
-    confidence: confidenceFromSampleSize(input.challengedCalls),
+    confidence,
     fanDescriptor: mapFanDescriptor(grade),
     orgDescriptor: mapOrgDescriptor(grade),
     regressedOverturnRate: Number(regressedOverturnRate.toFixed(4)),
@@ -362,11 +416,28 @@ export function computeTeamChallengeStyle(input: TeamStyleInput): TeamStyleResul
       0.3 * conservationScore +
       0.2 * (100 - lateLeverageScore) +
       0.15 * disciplineScore,
+    Balanced: 0,
   };
 
   const ranked = Object.entries(scores)
+    .filter(([style]) => style !== "Balanced")
     .map(([style, score]) => ({ style: style as TeamStyle, score }))
     .sort((a, b) => b.score - a.score);
+
+  const topScore = ranked[0]?.score ?? 0;
+  const runnerUpScore = ranked[1]?.score ?? 0;
+  const topGap = topScore - runnerUpScore;
+  const centeredAggression = 100 - Math.min(100, Math.abs(aggressionScore - 50) * 2);
+  const centeredLeverage = 100 - Math.min(100, Math.abs(lateLeverageScore - 50) * 2);
+  const centeredDiscipline = 100 - Math.min(100, Math.abs(disciplineScore - 50) * 2);
+  const efficiencyNeutrality = 100 - Math.min(100, Math.abs(efficiencyScore - 50) * 2);
+
+  scores.Balanced =
+    0.35 * clamp(100 - topGap * 10) +
+    0.2 * centeredAggression +
+    0.2 * centeredLeverage +
+    0.15 * centeredDiscipline +
+    0.1 * efficiencyNeutrality;
 
   let winner = ranked[0].style;
   if (ranked.length > 1 && ranked[0].score - ranked[1].score <= 4) {
@@ -375,6 +446,21 @@ export function computeTeamChallengeStyle(input: TeamStyleInput): TeamStyleResul
     else if (disciplineScore >= 55 && conservationScore >= 55) winner = "Selective";
     else winner = "Low-Usage";
   }
+
+  const decisiveLateIdentity = lateLeverageScore >= 60 && aggressionScore >= 50;
+  const decisiveAggressiveIdentity = aggressionScore >= 60 && conservationScore <= 45;
+  const decisiveDisciplinedIdentity = disciplineScore >= 55 && conservationScore >= 55;
+
+  const shouldUseBalanced =
+    input.sampleSize >= 12 &&
+    !decisiveLateIdentity &&
+    !decisiveAggressiveIdentity &&
+    !decisiveDisciplinedIdentity &&
+    (topGap <= 3 ||
+      (topGap <= 7 && efficiencyScore >= 45 && efficiencyScore <= 58) ||
+      (topScore < 64 && scores.Balanced >= topScore - 2));
+
+  if (shouldUseBalanced) winner = "Balanced";
 
   return {
     style: winner,
@@ -397,13 +483,19 @@ export function scoreControversyMoment(input: ControversyMomentInput): Controver
   const leverageScore = computeLeverageScore(input);
   const resultImpactScore = computeResultImpactScore(input);
   const missSeverityScore = computeMissSeverityScore(input.missDistance);
+  const modeledValueScore = computeModeledValueScore(
+    input.realizedChallengeValue,
+    input.expectedChallengeValue,
+    input.decisionValueMode,
+  );
   const recencyScore = computeRecencyScore(input.slateProgress);
   const noveltyScore = clamp(50 - (input.noveltyPenalty ?? 0));
 
   let score =
-    0.45 * leverageScore +
-    0.2 * resultImpactScore +
-    0.2 * missSeverityScore +
+    0.29 * leverageScore +
+    0.18 * resultImpactScore +
+    0.16 * missSeverityScore +
+    0.22 * modeledValueScore +
     0.1 * recencyScore +
     0.05 * noveltyScore;
 
@@ -411,9 +503,11 @@ export function scoreControversyMoment(input: ControversyMomentInput): Controver
 
   return {
     score: Number(clamp(score).toFixed(2)),
+    scoreVersion: CONTROVERSY_SCORE_VERSION,
     leverageScore,
     resultImpactScore,
     missSeverityScore,
+    modeledValueScore,
     recencyScore,
     noveltyScore,
     chips: buildReasonChips(input, missSeverityScore),
@@ -421,22 +515,41 @@ export function scoreControversyMoment(input: ControversyMomentInput): Controver
 }
 
 export function computeOrgWatchRisk(input: OrgWatchRiskInput): OrgWatchRiskResult {
+  const directionalBiasSeverity = clamp(input.directionalBiasSeverity);
+  const zoneConcentrationSeverity = clamp(input.zoneConcentrationSeverity);
+  const recentTrendRisk = clamp(input.recentTrendRisk);
+  const countHotspotVolatility = clamp(input.countHotspotVolatility);
+  const umpireScore = clamp(input.umpireScore);
+
   const baseRisk =
-    0.4 * (100 - clamp(input.umpireScore)) +
-    0.2 * clamp(input.directionalBiasSeverity) +
-    0.15 * clamp(input.zoneConcentrationSeverity) +
-    0.15 * clamp(input.recentTrendRisk) +
-    0.1 * clamp(input.countHotspotVolatility) +
+    0.4 * (100 - umpireScore) +
+    0.2 * directionalBiasSeverity +
+    0.15 * zoneConcentrationSeverity +
+    0.15 * recentTrendRisk +
+    0.1 * countHotspotVolatility +
     (input.matchupHistoryModifier ?? 0);
 
-  const riskScore = clamp(baseRisk);
+  const hotSignalCount = [
+    directionalBiasSeverity,
+    zoneConcentrationSeverity,
+    recentTrendRisk,
+    countHotspotVolatility,
+  ].filter((value) => value >= 65).length;
+
+  let stackedSignalBonus = 0;
+  if (hotSignalCount >= 2) stackedSignalBonus += 2;
+  if (hotSignalCount >= 3) stackedSignalBonus += 1;
+  if (umpireScore <= 35 && hotSignalCount >= 3) stackedSignalBonus += 1;
+
+  const riskScore = clamp(baseRisk + stackedSignalBonus);
   let tier: OrgRiskTier = "Low";
-  if (riskScore >= 75) tier = "High";
-  else if (riskScore >= 55) tier = "Elevated";
+  const qualifiesForHighRisk = riskScore >= 80 || (riskScore >= 72 && hotSignalCount >= 3 && umpireScore <= 40);
+  if (qualifiesForHighRisk) tier = "High";
+  else if (riskScore >= 56 || (riskScore >= 50 && hotSignalCount >= 2)) tier = "Elevated";
   else if (riskScore >= 35) tier = "Moderate";
 
   return {
     riskScore: Number(riskScore.toFixed(2)),
-    tier,
+    tier: softenRiskTierForConfidence(tier, input.confidence),
   };
 }

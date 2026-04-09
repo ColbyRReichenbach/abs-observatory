@@ -2,7 +2,7 @@
 
 ## Goal
 
-Deploy the AiBS web product on Vercel with Neon as the production Postgres database, while keeping heavy ETL and audit jobs outside normal Vercel request functions.
+Deploy the AiBS web product on Vercel with Neon as the production serving Postgres database, while keeping heavy ETL and audit jobs on a separate warehouse database and outside normal Vercel request functions.
 
 ## Recommended Launch Stack
 
@@ -11,8 +11,8 @@ Deploy the AiBS web product on Vercel with Neon as the production Postgres datab
   - preview and production deploys
   - lightweight cron-triggered routes only
 - `Neon`
-  - production Postgres
-  - pooled connection string for app traffic
+  - serving Postgres for app traffic
+  - separate warehouse Postgres for ETL, backfills, and audits
 - `Clerk`
   - auth + webhook sync
 - `OpenAI`
@@ -48,6 +48,7 @@ Deploy the AiBS web product on Vercel with Neon as the production Postgres datab
 These must be set for `Preview` and `Production` unless otherwise noted.
 
 - `DATABASE_URL`
+- `SERVING_DATABASE_URL`
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
 - `CLERK_SECRET_KEY`
 - `CLERK_WEBHOOK_SIGNING_SECRET`
@@ -67,14 +68,15 @@ Useful optional env vars:
 
 1. Create a Neon project.
 2. Create a production database.
-3. Copy the pooled connection string.
-4. Use that value as `DATABASE_URL` in Vercel.
+3. Copy the serving pooled connection string.
+4. Use that value as both `DATABASE_URL` and `SERVING_DATABASE_URL` in Vercel.
 5. Keep SSL enabled for Neon.
 
 Example shape:
 
 ```env
-DATABASE_URL=postgresql://<user>:<password>@<pooled-host>/<db>?sslmode=require
+DATABASE_URL=postgresql://<user>:<password>@<serving-pooled-host>/<db>?sslmode=require
+SERVING_DATABASE_URL=postgresql://<user>:<password>@<serving-pooled-host>/<db>?sslmode=require
 ```
 
 ## Vercel Setup
@@ -90,7 +92,7 @@ DATABASE_URL=postgresql://<user>:<password>@<pooled-host>/<db>?sslmode=require
 
 Before first production traffic:
 
-1. Point `DATABASE_URL` locally at the Neon database.
+1. Point `DATABASE_URL` locally at the serving Neon database.
 2. Run:
 
 ```bash
@@ -133,9 +135,67 @@ Examples:
 - GitHub Actions on a schedule
 - a small VM/container
 
+## Neon Separation Setup
+
+Yes, some manual Neon setup is still required.
+
+The codebase now assumes two remote database roles:
+
+- `Warehouse Neon`: canonical ingest, backfill, modeling, and audit authority
+- `Serving Neon`: app-facing read/write database for the product
+
+Recommended setup:
+
+1. Keep the current app database as `Serving Neon`.
+2. Create one separate Neon project for `Warehouse Neon`.
+
+Why separate projects instead of one shared giant DB:
+
+- cleaner operational separation
+- lower risk that heavy backfills affect app traffic
+- cleaner credentials and permission boundaries
+- easier to reason about warehouse versus serving ownership
+
+If you want a lighter interim setup, one Neon project with separate databases and separate roles can work, but two projects is the cleaner target architecture.
+
+### Manual Neon steps
+
+1. Create a new Neon project for Warehouse.
+2. Copy the pooled connection string for Warehouse.
+3. Keep the existing pooled connection string for Serving.
+4. Create separate credentials where possible:
+   - web app uses Serving credentials only
+   - pollers/ETL/audits use Warehouse credentials only
+5. Set environment variables:
+   - local `.env.local` or `.env`
+   - Vercel project env
+   - GitHub Actions secrets
+
+Required values:
+
+- `WAREHOUSE_DATABASE_URL=<warehouse pooled url>`
+- `SERVING_DATABASE_URL=<serving pooled url>`
+- `DATABASE_URL=<serving pooled url>`
+
+Current repo status:
+
+- the scheduled GitHub Actions poller now expects `WAREHOUSE_DATABASE_URL`
+- the scheduled GitHub Actions workflow now publishes the curated serving subset after successful warehouse polling
+- ETL scripts default to `WAREHOUSE_DATABASE_URL`
+- audit scripts default to `WAREHOUSE_DATABASE_URL`
+- the web app should keep using `DATABASE_URL`, which should equal `SERVING_DATABASE_URL`
+- the old Mac launchd poller path should remain disabled; laptop polling is no longer the intended live authority
+
+### Before running the real warehouse backfill
+
+You must set `WAREHOUSE_DATABASE_URL` locally first.
+
+Without that, the backfill commands will still target the local fallback database and will not populate Warehouse Neon.
+
 Shared env between web and worker:
 
-- `DATABASE_URL`
+- `WAREHOUSE_DATABASE_URL`
+- `SERVING_DATABASE_URL`
 - `OPENAI_API_KEY`
 - `INTERNAL_WORKER_TOKEN`
 

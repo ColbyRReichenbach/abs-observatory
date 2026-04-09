@@ -6,7 +6,10 @@ import {
   AUDIT_END,
   ROOT,
   SPRING_START,
+  describeAuditDatabaseTarget,
   formatAuditDateLabel,
+  loadAuditEnv,
+  resolveAuditDatabaseUrl,
 } from "./audit-runtime.mjs";
 
 const DOC_PATH = path.join(ROOT, `docs/models/audits/${AUDIT_DATE}-leverage-audit.md`);
@@ -17,34 +20,9 @@ const ARTIFACT_PATH = path.join(
 const MIN_EXACT_WIN_EXPECTANCY_SAMPLE_SIZE = 20;
 const WIN_EXPECTANCY_LOW_CONFIDENCE_BLEND_PRIOR_WEIGHT = 100;
 
-function loadEnvFile(filename) {
-  const filePath = path.join(ROOT, filename);
-  if (!fs.existsSync(filePath)) return;
-  const raw = fs.readFileSync(filePath, "utf8");
-  for (const line of raw.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eq = trimmed.indexOf("=");
-    if (eq === -1) continue;
-    const key = trimmed.slice(0, eq).trim();
-    if (process.env[key]) continue;
-    let value = trimmed.slice(eq + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    process.env[key] = value;
-  }
-}
-
-loadEnvFile(".env");
-loadEnvFile(".env.local");
-
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is required");
-}
+loadAuditEnv();
+const DATABASE_URL = resolveAuditDatabaseUrl();
+const DATABASE_TARGET = describeAuditDatabaseTarget(DATABASE_URL);
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -389,6 +367,7 @@ Date: ${formatAuditDateLabel()}
 - The alignment is only moderate rather than tight: leverage index and absolute WE swing correlate at ${formatMaybeNumber(report.pearsonCorrelation, 3)}, so this heuristic is useful for pressure ordering but not a substitute for WE itself.
 - The current heuristic is better at separating empty / one-run / runner-pressure states from true low-pressure spots than it is at ranking the very highest-pressure challenge windows.
 - This audit only covers WE-backed count swings; terminal count states that fall out of the WE comparison layer are intentionally excluded from this benchmark.
+- Conclusion: retain leverage as an explicitly labeled heuristic pressure proxy rather than presenting it as a calibrated probabilistic model.
 
 ## By Leverage Bucket
 
@@ -462,11 +441,15 @@ ${toMarkdownTable(report.topUnderstatements, [
 - The WE comparison layer uses internal count-swing WE because public MLB win probability is not exposed at pitch-count resolution.
 - This audit should be rerun after meaningful data refreshes because leverage usefulness is mainly about ordering pressure correctly as the challenge sample grows.
 - The correct analyst question is whether the heuristic pressure score and bucketing are telling the right story, not whether leverage literally equals WE swing.
+- Product and docs should describe this layer as an estimated pressure proxy, not as modeled WE or calibrated leverage truth.
 `;
 }
 
 async function main() {
-  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  console.info(
+    `[leverage-audit] database_role=${DATABASE_TARGET.role} host=${DATABASE_TARGET.host} db=${DATABASE_TARGET.database}`,
+  );
+  const client = new Client({ connectionString: DATABASE_URL });
   await client.connect();
 
   try {

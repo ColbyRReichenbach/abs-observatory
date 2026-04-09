@@ -1,18 +1,24 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Client } from "pg";
-import { AUDIT_DATE, ROOT, auditArtifactPath, auditDocPath, formatAuditDateLabel } from "./audit-runtime.mjs";
-import { loadEnvFile } from "./shared-audit-utils.mjs";
+import {
+  AUDIT_DATE,
+  ROOT,
+  auditArtifactPath,
+  auditDocPath,
+  formatAuditDateLabel,
+  loadAuditEnv,
+  resolveAuditDatabaseUrl,
+  describeAuditDatabaseTarget,
+} from "./audit-runtime.mjs";
 
 const DOC_PATH = auditDocPath("abs-product-qa", ROOT, AUDIT_DATE);
 const ARTIFACT_PATH = auditArtifactPath("abs-product-qa", ROOT, AUDIT_DATE);
 
-loadEnvFile(".env");
-loadEnvFile(".env.local");
-
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is required");
-}
+loadAuditEnv();
+const DATABASE_URL = resolveAuditDatabaseUrl();
+const DATABASE_TARGET = describeAuditDatabaseTarget(DATABASE_URL);
+console.log(`[audit:abs-product-qa] role=${DATABASE_TARGET.role} host=${DATABASE_TARGET.host} db=${DATABASE_TARGET.database}`);
 
 function toMarkdown(report) {
   const checks = report.checks
@@ -50,7 +56,7 @@ ${checks}
 }
 
 async function main() {
-  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  const client = new Client({ connectionString: DATABASE_URL });
   await client.connect();
 
   try {

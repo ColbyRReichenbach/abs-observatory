@@ -64,6 +64,7 @@ vi.mock("@/lib/data", () => ({
         Selective: 62,
         Overactive: 44,
         "Low-Usage": 25,
+        Balanced: 40,
       },
       challengeRatePerGame: 1,
       lateLeverageShare: 0.42,

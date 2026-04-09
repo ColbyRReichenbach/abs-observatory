@@ -249,12 +249,12 @@ async function getCountStateBaselines(): Promise<CountStateBaseline[]> {
           `
           SELECT
             count_key,
-            plate_appearances,
-            walks,
-            strikeouts,
+            sample_size AS plate_appearances,
+            ROUND(walk_rate * sample_size)::INTEGER AS walks,
+            ROUND(strikeout_rate * sample_size)::INTEGER AS strikeouts,
             batting_average,
             positive_outcome_rate
-          FROM mart_count_state_baselines_v2
+          FROM mart_count_state_outcome_baselines_train_validation
           `,
         );
       }
@@ -715,7 +715,7 @@ async function modelTeamDecisionRows(rows: TeamDecisionMetricRow[]) {
         strikes: row.strikesBefore ?? row.strikes ?? 0,
         outs: row.outs ?? 0,
         scoreDiffBattingTeam: getScoreDiffBattingTeam(row.halfInning, row.homeScore, row.awayScore),
-        runnersOnBase: countOccupiedBases(row.basesState),
+        basesState: row.basesState ?? "000",
         calledPitch,
         challengesRemaining: 1,
       },
@@ -795,33 +795,33 @@ async function buildTeamDecisionValueMetrics(rows: TeamDecisionMetricRow[], mode
     if (!aggregate) continue;
 
     aggregate.modeledChallenges += 1;
-    aggregate.totalExpected += modeled.expectedWpDelta;
-    aggregate.totalRealized += modeled.realizedWpDelta;
     if (modeled.decisionValueMode === "win_expectancy") {
       aggregate.winModeChallenges += 1;
-    }
-    if (modeled.recommendation === "challenge") {
-      aggregate.challengeRecommendations += 1;
-    } else if (modeled.recommendation === "hold") {
-      aggregate.holdRecommendations += 1;
-    }
-    if (modeled.realizedWpDelta >= modeled.expectedWpDelta) {
-      aggregate.capturedValueCount += 1;
-    }
-    if (modeled.expectedWpDelta <= 0) {
-      aggregate.wastedValueCount += 1;
-    }
-    if (modeled.highPressurePositive) {
-      aggregate.highPressureExpectedCount += 1;
-    }
-    if (modeled.lateClosePositive) {
-      aggregate.lateCloseExpectedCount += 1;
-    }
+      aggregate.totalExpected += modeled.expectedWpDelta;
+      aggregate.totalRealized += modeled.realizedWpDelta;
+      if (modeled.recommendation === "challenge") {
+        aggregate.challengeRecommendations += 1;
+      } else if (modeled.recommendation === "hold") {
+        aggregate.holdRecommendations += 1;
+      }
+      if (modeled.realizedWpDelta >= modeled.expectedWpDelta) {
+        aggregate.capturedValueCount += 1;
+      }
+      if (modeled.expectedWpDelta <= 0) {
+        aggregate.wastedValueCount += 1;
+      }
+      if (modeled.highPressurePositive) {
+        aggregate.highPressureExpectedCount += 1;
+      }
+      if (modeled.lateClosePositive) {
+        aggregate.lateCloseExpectedCount += 1;
+      }
 
-    const window = aggregate.windows.get(modeled.label) ?? { totalExpected: 0, count: 0 };
-    window.totalExpected += modeled.expectedWpDelta;
-    window.count += 1;
-    aggregate.windows.set(modeled.label, window);
+      const window = aggregate.windows.get(modeled.label) ?? { totalExpected: 0, count: 0 };
+      window.totalExpected += modeled.expectedWpDelta;
+      window.count += 1;
+      aggregate.windows.set(modeled.label, window);
+    }
   }
 
   return new Map<number, TeamDecisionMetricAggregate>(
@@ -841,9 +841,9 @@ async function buildTeamDecisionValueMetrics(rows: TeamDecisionMetricRow[], mode
             return right.count - left.count;
           })[0] ?? null;
       const averageExpectedChallengeValue =
-        aggregate.modeledChallenges > 0 ? roundMetric(aggregate.totalExpected / aggregate.modeledChallenges, 4) : null;
+        aggregate.winModeChallenges > 0 ? roundMetric(aggregate.totalExpected / aggregate.winModeChallenges, 4) : null;
       const averageRealizedChallengeValue =
-        aggregate.modeledChallenges > 0 ? roundMetric(aggregate.totalRealized / aggregate.modeledChallenges, 4) : null;
+        aggregate.winModeChallenges > 0 ? roundMetric(aggregate.totalRealized / aggregate.winModeChallenges, 4) : null;
 
       return [
         aggregate.teamId,
@@ -858,17 +858,17 @@ async function buildTeamDecisionValueMetrics(rows: TeamDecisionMetricRow[], mode
               ? null
               : roundMetric(averageRealizedChallengeValue - averageExpectedChallengeValue, 4),
           challengeRecommendationRate:
-            aggregate.modeledChallenges > 0 ? aggregate.challengeRecommendations / aggregate.modeledChallenges : 0,
+            aggregate.winModeChallenges > 0 ? aggregate.challengeRecommendations / aggregate.winModeChallenges : 0,
           holdRecommendationRate:
-            aggregate.modeledChallenges > 0 ? aggregate.holdRecommendations / aggregate.modeledChallenges : 0,
+            aggregate.winModeChallenges > 0 ? aggregate.holdRecommendations / aggregate.winModeChallenges : 0,
           capturedValueShare:
-            aggregate.modeledChallenges > 0 ? aggregate.capturedValueCount / aggregate.modeledChallenges : 0,
+            aggregate.winModeChallenges > 0 ? aggregate.capturedValueCount / aggregate.winModeChallenges : 0,
           wastedValueShare:
-            aggregate.modeledChallenges > 0 ? aggregate.wastedValueCount / aggregate.modeledChallenges : 0,
+            aggregate.winModeChallenges > 0 ? aggregate.wastedValueCount / aggregate.winModeChallenges : 0,
           highPressureExpectedValueShare:
-            aggregate.modeledChallenges > 0 ? aggregate.highPressureExpectedCount / aggregate.modeledChallenges : 0,
+            aggregate.winModeChallenges > 0 ? aggregate.highPressureExpectedCount / aggregate.winModeChallenges : 0,
           lateCloseExpectedValueShare:
-            aggregate.modeledChallenges > 0 ? aggregate.lateCloseExpectedCount / aggregate.modeledChallenges : 0,
+            aggregate.winModeChallenges > 0 ? aggregate.lateCloseExpectedCount / aggregate.winModeChallenges : 0,
           bestDecisionWindowLabel: bestWindow?.label ?? null,
           bestDecisionWindowExpectedValue:
             bestWindow?.averageExpected === null || bestWindow?.averageExpected === undefined
@@ -876,8 +876,8 @@ async function buildTeamDecisionValueMetrics(rows: TeamDecisionMetricRow[], mode
               : roundMetric(bestWindow.averageExpected, 4),
           bestDecisionWindowChallenges: bestWindow?.count ?? 0,
           modelConfidence:
-            aggregate.modeledChallenges > 0
-              ? getDecisionValueConfidenceBand(aggregate.modeledChallenges, modeledWinCoverageRate)
+            aggregate.winModeChallenges > 0
+              ? getDecisionValueConfidenceBand(aggregate.winModeChallenges, modeledWinCoverageRate)
               : null,
           modeledWinCoverageRate,
         } satisfies TeamDecisionMetricAggregate,
@@ -903,34 +903,35 @@ async function buildTeamDecisionWindowReport(modeledRows: ModeledTeamDecisionRow
       winModeChallenges: 0,
     };
 
-    aggregate.challenges += 1;
     aggregate.modeledChallenges += 1;
-    aggregate.totalExpected += modeled.expectedWpDelta;
-    aggregate.totalRealized += modeled.realizedWpDelta;
-    if (modeled.recommendation === "challenge") {
-      aggregate.challengeRecommendations += 1;
-    } else if (modeled.recommendation === "hold") {
-      aggregate.holdRecommendations += 1;
-    }
     if (modeled.decisionValueMode === "win_expectancy") {
+      aggregate.challenges += 1;
       aggregate.winModeChallenges += 1;
-    }
-    if (modeled.realizedWpDelta >= modeled.expectedWpDelta) {
-      aggregate.capturedValueCount += 1;
-    }
-    if (modeled.expectedWpDelta <= 0) {
-      aggregate.wastedValueCount += 1;
+      aggregate.totalExpected += modeled.expectedWpDelta;
+      aggregate.totalRealized += modeled.realizedWpDelta;
+      if (modeled.recommendation === "challenge") {
+        aggregate.challengeRecommendations += 1;
+      } else if (modeled.recommendation === "hold") {
+        aggregate.holdRecommendations += 1;
+      }
+      if (modeled.realizedWpDelta >= modeled.expectedWpDelta) {
+        aggregate.capturedValueCount += 1;
+      }
+      if (modeled.expectedWpDelta <= 0) {
+        aggregate.wastedValueCount += 1;
+      }
     }
 
     windows.set(modeled.label, aggregate);
   }
 
   const entries: TeamDecisionWindowEntry[] = [...windows.values()]
+    .filter((window) => window.winModeChallenges > 0)
     .map((window) => {
       const averageExpectedChallengeValue =
-        window.modeledChallenges > 0 ? roundMetric(window.totalExpected / window.modeledChallenges, 4) : null;
+        window.winModeChallenges > 0 ? roundMetric(window.totalExpected / window.winModeChallenges, 4) : null;
       const averageRealizedChallengeValue =
-        window.modeledChallenges > 0 ? roundMetric(window.totalRealized / window.modeledChallenges, 4) : null;
+        window.winModeChallenges > 0 ? roundMetric(window.totalRealized / window.winModeChallenges, 4) : null;
       const modeledWinCoverageRate = window.modeledChallenges > 0 ? window.winModeChallenges / window.modeledChallenges : 0;
 
       return {
@@ -942,14 +943,14 @@ async function buildTeamDecisionWindowReport(modeledRows: ModeledTeamDecisionRow
           averageExpectedChallengeValue === null || averageRealizedChallengeValue === null
             ? null
             : roundMetric(averageRealizedChallengeValue - averageExpectedChallengeValue, 4),
-        capturedValueShare: window.modeledChallenges > 0 ? window.capturedValueCount / window.modeledChallenges : 0,
-        wastedValueShare: window.modeledChallenges > 0 ? window.wastedValueCount / window.modeledChallenges : 0,
+        capturedValueShare: window.winModeChallenges > 0 ? window.capturedValueCount / window.winModeChallenges : 0,
+        wastedValueShare: window.winModeChallenges > 0 ? window.wastedValueCount / window.winModeChallenges : 0,
         challengeRecommendationRate:
-          window.modeledChallenges > 0 ? window.challengeRecommendations / window.modeledChallenges : 0,
+          window.winModeChallenges > 0 ? window.challengeRecommendations / window.winModeChallenges : 0,
         holdRecommendationRate:
-          window.modeledChallenges > 0 ? window.holdRecommendations / window.modeledChallenges : 0,
+          window.winModeChallenges > 0 ? window.holdRecommendations / window.winModeChallenges : 0,
         modelConfidence:
-          window.modeledChallenges > 0 ? getDecisionValueConfidenceBand(window.modeledChallenges, modeledWinCoverageRate) : null,
+          window.winModeChallenges > 0 ? getDecisionValueConfidenceBand(window.winModeChallenges, modeledWinCoverageRate) : null,
       };
     })
     .sort((left, right) => {
@@ -994,29 +995,30 @@ function buildTeamDecisionBreakdownSection(
       winModeChallenges: 0,
     };
 
-    aggregate.challenges += 1;
     aggregate.modeledChallenges += 1;
-    aggregate.totalExpected += modeled.expectedWpDelta;
-    aggregate.totalRealized += modeled.realizedWpDelta;
-    if (modeled.realizedWpDelta >= modeled.expectedWpDelta) {
-      aggregate.capturedValueCount += 1;
-    }
-    if (modeled.expectedWpDelta <= 0) {
-      aggregate.wastedValueCount += 1;
-    }
     if (modeled.decisionValueMode === "win_expectancy") {
+      aggregate.challenges += 1;
       aggregate.winModeChallenges += 1;
+      aggregate.totalExpected += modeled.expectedWpDelta;
+      aggregate.totalRealized += modeled.realizedWpDelta;
+      if (modeled.realizedWpDelta >= modeled.expectedWpDelta) {
+        aggregate.capturedValueCount += 1;
+      }
+      if (modeled.expectedWpDelta <= 0) {
+        aggregate.wastedValueCount += 1;
+      }
     }
 
     aggregates.set(label, aggregate);
   }
 
   const entries: TeamDecisionBreakdownEntry[] = [...aggregates.values()]
+    .filter((aggregate) => aggregate.winModeChallenges > 0)
     .map((aggregate) => {
       const averageExpectedChallengeValue =
-        aggregate.modeledChallenges > 0 ? roundMetric(aggregate.totalExpected / aggregate.modeledChallenges, 4) : null;
+        aggregate.winModeChallenges > 0 ? roundMetric(aggregate.totalExpected / aggregate.winModeChallenges, 4) : null;
       const averageRealizedChallengeValue =
-        aggregate.modeledChallenges > 0 ? roundMetric(aggregate.totalRealized / aggregate.modeledChallenges, 4) : null;
+        aggregate.winModeChallenges > 0 ? roundMetric(aggregate.totalRealized / aggregate.winModeChallenges, 4) : null;
       const modeledWinCoverageRate =
         aggregate.modeledChallenges > 0 ? aggregate.winModeChallenges / aggregate.modeledChallenges : 0;
 
@@ -1029,10 +1031,10 @@ function buildTeamDecisionBreakdownSection(
           averageExpectedChallengeValue === null || averageRealizedChallengeValue === null
             ? null
             : roundMetric(averageRealizedChallengeValue - averageExpectedChallengeValue, 4),
-        capturedValueShare: aggregate.modeledChallenges > 0 ? aggregate.capturedValueCount / aggregate.modeledChallenges : 0,
-        wastedValueShare: aggregate.modeledChallenges > 0 ? aggregate.wastedValueCount / aggregate.modeledChallenges : 0,
+        capturedValueShare: aggregate.winModeChallenges > 0 ? aggregate.capturedValueCount / aggregate.winModeChallenges : 0,
+        wastedValueShare: aggregate.winModeChallenges > 0 ? aggregate.wastedValueCount / aggregate.winModeChallenges : 0,
         modelConfidence:
-          aggregate.modeledChallenges > 0 ? getDecisionValueConfidenceBand(aggregate.modeledChallenges, modeledWinCoverageRate) : null,
+          aggregate.winModeChallenges > 0 ? getDecisionValueConfidenceBand(aggregate.winModeChallenges, modeledWinCoverageRate) : null,
       };
     })
     .sort((left, right) => {
@@ -1262,7 +1264,8 @@ export async function getHomeChallengeMoments(limit = 8): Promise<HomeChallengeM
   return withServerTiming(
     "data.getHomeChallengeMoments",
     () => withVersionedCache(["home-challenge-moments", limit], getLatestSuccessfulEtlDataVersion(), 15_000, async () => {
-      const rows = await sql<{
+      const [rows, overturnProbabilityRows, winExpectancyRows] = await Promise.all([
+        sql<{
     challengeid: string;
     gamepk: number;
     challengedat: string | null;
@@ -1323,9 +1326,32 @@ export async function getHomeChallengeMoments(limit = 8): Promise<HomeChallengeM
     LIMIT $1
     `,
     [limit],
-  );
+  ),
+        getOverturnProbabilityFallbackRows(),
+        getWinExpectancyFallbackRows(),
+      ]);
 
-      const moments = rows.map((r) => ({
+      const moments = await Promise.all(rows.map(async (r) => {
+        const calledPitch = resolveCalledPitchFromDescription(r.calleddescription);
+        const decisionValue =
+          calledPitch
+            ? await estimateChallengeDecisionValue(
+                {
+                  inning: r.inning ?? 1,
+                  halfInning: r.halfinning === "Bottom" ? "Bottom" : "Top",
+                  balls: r.balls ?? 0,
+                  strikes: r.strikes ?? 0,
+                  outs: r.outs ?? 0,
+                  scoreDiffBattingTeam: getScoreDiffBattingTeam(r.halfinning, r.homescore, r.awayscore),
+                  basesState: r.basesstate ?? "000",
+                  calledPitch,
+                  challengesRemaining: 1,
+                },
+                { probabilityRows: overturnProbabilityRows, winRows: winExpectancyRows },
+              )
+            : null;
+
+        return {
         challengeId: r.challengeid,
         gamePk: Number(r.gamepk),
         challengedAt: r.challengedat,
@@ -1344,10 +1370,12 @@ export async function getHomeChallengeMoments(limit = 8): Promise<HomeChallengeM
         homeScore: r.homescore,
         awayScore: r.awayscore,
         impactType: null,
-        realizedChallengeValue: null,
-        expectedChallengeValue: null,
+        realizedChallengeValue: decisionValue
+          ? (r.isoverturned ? decisionValue.wpDeltaIfSuccess : decisionValue.wpDeltaIfFail)
+          : null,
+        expectedChallengeValue: decisionValue?.expectedChallengeValue ?? null,
         overturnProbabilityConfidence: null,
-        decisionValueMode: null,
+        decisionValueMode: decisionValue?.decisionValueMode ?? null,
         umpireCount: (() => {
           if (r.balls_before === null || r.strikes_before === null) return null;
           if (!r.isoverturned) return r.balls_after === null || r.strikes_after === null ? null : `${r.balls_after}-${r.strikes_after}`;
@@ -1357,6 +1385,7 @@ export async function getHomeChallengeMoments(limit = 8): Promise<HomeChallengeM
         })(),
         playerName: r.playername,
         pitchNumber: r.pitchnumber,
+      };
       }));
 
       return buildHomeChallengeMoments(moments);
@@ -1940,7 +1969,7 @@ export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[
               strikes: r.strikes_before ?? r.strikes ?? 0,
               outs: r.outs ?? 0,
               scoreDiffBattingTeam: getScoreDiffBattingTeam(r.half_inning, r.home_score, r.away_score),
-              runnersOnBase: countOccupiedBases(r.bases_state),
+              basesState: r.bases_state ?? "000",
               calledPitch,
               challengesRemaining: 1,
             },
@@ -2158,7 +2187,10 @@ export async function getGameTeamChallengeComparison(gamePk: number): Promise<Ga
       ) ?? 0,
       expectedValueSum: sumNullable(
         bucket
-          .filter((challenge) => typeof challenge.expectedChallengeValue === "number")
+          .filter(
+            (challenge) =>
+              challenge.decisionValueMode === "win_expectancy" && typeof challenge.expectedChallengeValue === "number",
+          )
           .map((challenge) => challenge.expectedChallengeValue ?? null),
       ),
     });
@@ -2451,7 +2483,6 @@ export async function getLiveChallengeWindow(gamePk: number): Promise<LiveChalle
     const battingSide = liveStatus.halfInning === "Bottom" ? "home" : "away";
     const challengesRemaining = battingSide === "home" ? liveStatus.homeRemaining : liveStatus.awayRemaining;
     const scoreDiffBattingTeam = getScoreDiffBattingTeam(liveStatus.halfInning, homeScore, awayScore);
-    const runnersOnBase = countOccupiedBases(basesState);
     const [nextBallDecision, nextStrikeDecision] = await Promise.all([
       estimateChallengeDecisionValue(
         {
@@ -2461,7 +2492,7 @@ export async function getLiveChallengeWindow(gamePk: number): Promise<LiveChalle
           strikes: strikes ?? 0,
           outs: outs ?? 0,
           scoreDiffBattingTeam,
-          runnersOnBase,
+          basesState: basesState ?? "000",
           calledPitch: "called_strike",
           challengesRemaining,
         },
@@ -2475,7 +2506,7 @@ export async function getLiveChallengeWindow(gamePk: number): Promise<LiveChalle
           strikes: strikes ?? 0,
           outs: outs ?? 0,
           scoreDiffBattingTeam,
-          runnersOnBase,
+          basesState: basesState ?? "000",
           calledPitch: "ball",
           challengesRemaining,
         },
@@ -4822,7 +4853,7 @@ export async function getUmpireChallenges(
                       strikes: r.strikes_before ?? r.strikes ?? 0,
                       outs: r.outs ?? 0,
                       scoreDiffBattingTeam: getScoreDiffBattingTeam(r.halfinning, r.home_score, r.away_score),
-                      runnersOnBase: countOccupiedBases(r.bases_state),
+                      basesState: r.bases_state ?? "000",
                       calledPitch,
                       challengesRemaining: 1,
                     },

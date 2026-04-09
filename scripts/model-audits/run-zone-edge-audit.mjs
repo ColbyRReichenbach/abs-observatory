@@ -2,6 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { Client } from "pg";
 import {
+  describeAuditDatabaseTarget,
+  loadAuditEnv,
+  resolveAuditDatabaseUrl,
+} from "./audit-runtime.mjs";
+import {
   AUDIT_DATE,
   AUDIT_END,
   ROOT,
@@ -25,12 +30,9 @@ const ARTIFACT_PATH = path.join(
   `docs/models/audits/artifacts/${AUDIT_DATE}-zone-edge-audit.json`,
 );
 
-loadEnvFile(".env");
-loadEnvFile(".env.local");
-
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is required");
-}
+loadAuditEnv();
+const DATABASE_URL = resolveAuditDatabaseUrl();
+const DATABASE_TARGET = describeAuditDatabaseTarget(DATABASE_URL);
 
 function summarizeBy(rows, keyFn) {
   const groups = new Map();
@@ -120,7 +122,10 @@ ${toMarkdownTable(report.byDirectionAndBucket, [
 }
 
 async function main() {
-  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  console.info(
+    `[zone-edge-audit] database_role=${DATABASE_TARGET.role} host=${DATABASE_TARGET.host} db=${DATABASE_TARGET.database}`,
+  );
+  const client = new Client({ connectionString: DATABASE_URL });
   await client.connect();
 
   try {
