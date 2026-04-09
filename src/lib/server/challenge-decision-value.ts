@@ -95,6 +95,33 @@ const INVENTORY_COST_BY_BUCKET: Record<string, number> = {
   "2|9+|not_close": 0.007338901098901094,
 };
 
+const DEFAULT_OVERTURN_FALLBACK_ROWS: OverturnProbabilityLookupRow[] = [
+  {
+    fallbackTier: "global",
+    splitPolicyVersion: null,
+    geometryVariant: "center_only",
+    challengeDirection: null,
+    edgeBucket: null,
+    sampleSize: 0,
+    overturnsTotal: 0,
+    rawOverturnRate: 0.5,
+    overturnProbability: 0.5,
+    confidenceBand: "low",
+  },
+  {
+    fallbackTier: "global",
+    splitPolicyVersion: null,
+    geometryVariant: "radius_adjusted",
+    challengeDirection: null,
+    edgeBucket: null,
+    sampleSize: 0,
+    overturnsTotal: 0,
+    rawOverturnRate: 0.5,
+    overturnProbability: 0.5,
+    confidenceBand: "low",
+  },
+];
+
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
@@ -168,19 +195,7 @@ export async function getOverturnProbabilityFallbackRows(forceRefresh = false) {
     return cachedLookupRows;
   }
 
-  const rawRows = await sql<{
-    fallback_tier: OverturnProbabilityFallbackTier;
-    split_policy_version: string | null;
-    geometry_variant: OverturnGeometryVariant;
-    challenge_direction: ChallengeDirection | null;
-    edge_bucket: EdgeBucket | null;
-    sample_size: number;
-    overturns_total: number;
-    raw_overturn_rate: number;
-    overturn_probability: number;
-    confidence_band: ConfidenceBand;
-  }>(
-    `
+  const selectColumns = `
     SELECT
       fallback_tier,
       split_policy_version,
@@ -192,13 +207,50 @@ export async function getOverturnProbabilityFallbackRows(forceRefresh = false) {
       raw_overturn_rate,
       overturn_probability,
       confidence_band
-    FROM mart_modeled_abs_overturn_probability_fallbacks
-    WHERE geometry_variant = 'center_only'
-    `,
-  );
+  `;
+  const sources = [
+    "serving_abs_overturn_probability_fallbacks",
+    "mart_modeled_abs_overturn_probability_fallbacks",
+  ];
+
+  let rawRows: Array<{
+    fallback_tier: OverturnProbabilityFallbackTier;
+    split_policy_version: string | null;
+    geometry_variant: OverturnGeometryVariant;
+    challenge_direction: ChallengeDirection | null;
+    edge_bucket: EdgeBucket | null;
+    sample_size: number;
+    overturns_total: number;
+    raw_overturn_rate: number;
+    overturn_probability: number;
+    confidence_band: ConfidenceBand;
+  }> = [];
+
+  for (const source of sources) {
+    try {
+      rawRows = await sql<{
+        fallback_tier: OverturnProbabilityFallbackTier;
+        split_policy_version: string | null;
+        geometry_variant: OverturnGeometryVariant;
+        challenge_direction: ChallengeDirection | null;
+        edge_bucket: EdgeBucket | null;
+        sample_size: number;
+        overturns_total: number;
+        raw_overturn_rate: number;
+        overturn_probability: number;
+        confidence_band: ConfidenceBand;
+      }>(`
+        ${selectColumns}
+        FROM ${source}
+      `);
+      if (rawRows.length > 0) break;
+    } catch {
+      rawRows = [];
+    }
+  }
 
   const rows = Array.isArray(rawRows) ? rawRows : [];
-  cachedLookupRows = rows.map((row) => ({
+  cachedLookupRows = rows.length > 0 ? rows.map((row) => ({
     fallbackTier: row.fallback_tier,
     splitPolicyVersion: row.split_policy_version ?? null,
     geometryVariant: row.geometry_variant,
@@ -209,7 +261,7 @@ export async function getOverturnProbabilityFallbackRows(forceRefresh = false) {
     rawOverturnRate: Number(row.raw_overturn_rate ?? 0),
     overturnProbability: Number(row.overturn_probability ?? 0.5),
     confidenceBand: row.confidence_band ?? getOverturnProbabilityConfidenceBand(row.sample_size),
-  }));
+  })) : DEFAULT_OVERTURN_FALLBACK_ROWS;
   cachedAt = now;
   return cachedLookupRows;
 }

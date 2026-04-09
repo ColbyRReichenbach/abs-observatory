@@ -30,9 +30,10 @@ mkdir -p "$MANIFEST_DIR"
 RUN_FALLBACK_CSV="$(mktemp)"
 WIN_FALLBACK_CSV="$(mktemp)"
 COUNT_BASELINE_CSV="$(mktemp)"
+OVERTURN_FALLBACK_CSV="$(mktemp)"
 
 cleanup() {
-  rm -f "$RUN_FALLBACK_CSV" "$WIN_FALLBACK_CSV" "$COUNT_BASELINE_CSV"
+  rm -f "$RUN_FALLBACK_CSV" "$WIN_FALLBACK_CSV" "$COUNT_BASELINE_CSV" "$OVERTURN_FALLBACK_CSV"
 }
 trap cleanup EXIT
 
@@ -75,6 +76,7 @@ psql "$SOURCE_DATABASE_URL" -v ON_ERROR_STOP=1 -c "\copy (
     positive_outcome_rate
   FROM mart_count_state_outcome_baselines_train_validation
 ) TO '$COUNT_BASELINE_CSV' CSV"
+psql "$SOURCE_DATABASE_URL" -v ON_ERROR_STOP=1 -c "\copy (SELECT * FROM mart_modeled_abs_overturn_probability_fallbacks) TO '$OVERTURN_FALLBACK_CSV' CSV"
 
 restore_log="$(mktemp)"
 
@@ -109,6 +111,7 @@ SET search_path TO public;
 DROP TABLE IF EXISTS serving_run_expectancy_fallbacks CASCADE;
 DROP TABLE IF EXISTS serving_win_expectancy_fallbacks CASCADE;
 DROP TABLE IF EXISTS serving_count_state_outcome_baselines CASCADE;
+DROP TABLE IF EXISTS serving_abs_overturn_probability_fallbacks CASCADE;
 \i $ROOT_DIR/db/schema.sql
 \i $ROOT_DIR/db/views.sql
 SQL
@@ -118,9 +121,11 @@ psql "$TARGET_DATABASE_URL" -v ON_ERROR_STOP=1 <<SQL
 TRUNCATE TABLE serving_run_expectancy_fallbacks;
 TRUNCATE TABLE serving_win_expectancy_fallbacks;
 TRUNCATE TABLE serving_count_state_outcome_baselines;
+TRUNCATE TABLE serving_abs_overturn_probability_fallbacks;
 \copy serving_run_expectancy_fallbacks FROM '$RUN_FALLBACK_CSV' CSV
 \copy serving_win_expectancy_fallbacks FROM '$WIN_FALLBACK_CSV' CSV
 \copy serving_count_state_outcome_baselines FROM '$COUNT_BASELINE_CSV' CSV
+\copy serving_abs_overturn_probability_fallbacks FROM '$OVERTURN_FALLBACK_CSV' CSV
 SQL
 
 echo "Verifying serving relations"
@@ -152,6 +157,10 @@ FROM public.serving_win_expectancy_fallbacks;
 SELECT
   'serving_count_state_outcome_baselines=' || COUNT(*)
 FROM public.serving_count_state_outcome_baselines;
+
+SELECT
+  'serving_abs_overturn_probability_fallbacks=' || COUNT(*)
+FROM public.serving_abs_overturn_probability_fallbacks;
 SQL
 
 publish_timestamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
@@ -166,6 +175,7 @@ target_abs_count="$(psql "$TARGET_DATABASE_URL" -Atqc "SELECT COUNT(*) FROM publ
 target_run_fallbacks="$(psql "$TARGET_DATABASE_URL" -Atqc "SELECT COUNT(*) FROM public.serving_run_expectancy_fallbacks")"
 target_win_fallbacks="$(psql "$TARGET_DATABASE_URL" -Atqc "SELECT COUNT(*) FROM public.serving_win_expectancy_fallbacks")"
 target_count_baselines="$(psql "$TARGET_DATABASE_URL" -Atqc "SELECT COUNT(*) FROM public.serving_count_state_outcome_baselines")"
+target_overturn_fallbacks="$(psql "$TARGET_DATABASE_URL" -Atqc "SELECT COUNT(*) FROM public.serving_abs_overturn_probability_fallbacks")"
 
 cat > "$manifest_path" <<JSON
 {
@@ -187,7 +197,8 @@ cat > "$manifest_path" <<JSON
       "absChallenges": $target_abs_count,
       "servingRunExpectancyFallbacks": $target_run_fallbacks,
       "servingWinExpectancyFallbacks": $target_win_fallbacks,
-      "servingCountStateOutcomeBaselines": $target_count_baselines
+      "servingCountStateOutcomeBaselines": $target_count_baselines,
+      "servingAbsOverturnProbabilityFallbacks": $target_overturn_fallbacks
     }
   }
 }

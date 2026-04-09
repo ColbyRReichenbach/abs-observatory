@@ -1341,6 +1341,27 @@ CREATE TABLE IF NOT EXISTS serving_count_state_outcome_baselines (
 CREATE INDEX IF NOT EXISTS idx_serving_count_state_outcome_baselines_lookup
   ON serving_count_state_outcome_baselines (count_key);
 
+CREATE TABLE IF NOT EXISTS serving_abs_overturn_probability_fallbacks (
+  fallback_tier TEXT NOT NULL,
+  split_policy_version TEXT,
+  geometry_variant TEXT NOT NULL,
+  challenge_direction TEXT,
+  edge_bucket TEXT,
+  sample_size INTEGER NOT NULL,
+  overturns_total INTEGER NOT NULL,
+  raw_overturn_rate NUMERIC NOT NULL,
+  overturn_probability NUMERIC NOT NULL,
+  confidence_band TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_serving_abs_overturn_probability_fallbacks_lookup
+  ON serving_abs_overturn_probability_fallbacks (
+    geometry_variant,
+    fallback_tier,
+    challenge_direction,
+    edge_bucket
+  );
+
 DROP TRIGGER IF EXISTS trg_product_users_touch ON product.users;
 CREATE TRIGGER trg_product_users_touch BEFORE UPDATE ON product.users FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
 

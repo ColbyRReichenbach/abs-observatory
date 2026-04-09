@@ -2822,14 +2822,18 @@ async function getUmpireRubricMetrics(range: RangeKey = "season") {
         c.bases_state AS basesState,
         c.home_score AS homeScore,
         c.away_score AS awayScore,
-        c.balls_before AS ballsBefore,
-        c.strikes_before AS strikesBefore,
-        c.balls_after AS ballsAfter,
-        c.strikes_after AS strikesAfter,
+        p.balls_before AS ballsBefore,
+        p.strikes_before AS strikesBefore,
+        p.balls_after AS ballsAfter,
+        p.strikes_after AS strikesAfter,
         c.is_overturned AS isOverturned
       FROM abs_challenges c
       JOIN games g ON g.game_pk = c.game_pk
       JOIN officials o ON o.game_pk = c.game_pk AND o.official_type = 'Home Plate'
+      LEFT JOIN pitches p
+        ON p.game_pk = c.game_pk
+       AND p.at_bat_index = c.at_bat_index
+       AND p.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
       WHERE ${window.clause}
       ORDER BY o.official_id, c.challenge_id
       `,
