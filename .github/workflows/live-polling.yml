@@ -71,25 +71,33 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --omit=dev
 
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Ensure PostgreSQL client
+        run: |
+          if command -v psql >/dev/null 2>&1; then
+            psql --version
+          else
+            sudo apt-get update && sudo apt-get install -y postgresql-client
+          fi
 
       - name: Reconcile Warehouse vs Serving
         env:
           WAREHOUSE_DATABASE_URL: ${{ secrets.WAREHOUSE_DATABASE_URL }}
           SERVING_DATABASE_URL: ${{ secrets.SERVING_DATABASE_URL }}
+          SERVING_SYNC_DAYS: 2
         run: npm run db:reconcile:warehouse-serving -- --fail-on-drift false
 
       - name: Publish Warehouse to Serving
         env:
           WAREHOUSE_DATABASE_URL: ${{ secrets.WAREHOUSE_DATABASE_URL }}
           SERVING_DATABASE_URL: ${{ secrets.SERVING_DATABASE_URL }}
+          SERVING_SYNC_DAYS: 2
         run: npm run db:publish:serving
 
       - name: Verify Serving Caught Up
         env:
           WAREHOUSE_DATABASE_URL: ${{ secrets.WAREHOUSE_DATABASE_URL }}
           SERVING_DATABASE_URL: ${{ secrets.SERVING_DATABASE_URL }}
+          SERVING_SYNC_DAYS: 2
         run: npm run db:reconcile:warehouse-serving
