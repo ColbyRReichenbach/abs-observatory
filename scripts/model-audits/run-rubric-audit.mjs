@@ -1,3 +1,4 @@
+import fs from "node:fs/promises";
 import path from "node:path";
 import { Client } from "pg";
 import {
@@ -52,78 +53,31 @@ function mapUmpireGrade(score) {
   return "F";
 }
 
-function mapDisplayGradeFromPercentile(percentile) {
-  if (percentile >= 0.9) return "A";
-  if (percentile >= 0.7) return "B";
-  if (percentile >= 0.3) return "C";
-  if (percentile >= 0.1) return "D";
-  return "F";
-}
-
 function softenExtremeGradeForConfidence(grade, confidence) {
   if (confidence === "high") return grade;
   if (grade === "A") return "B";
-  if (grade === "F") return "D";
+  if (grade === "F") return confidence === "medium" ? "D" : "C";
   return grade;
 }
 
 function mapFanDescriptor(grade, confidence) {
-  if (confidence === "low") {
-    switch (grade) {
-      case "A":
-      case "B":
-        return "Balanced";
-      case "C":
-        return "Uneasy";
-      case "D":
-      case "F":
-        return "Uneasy";
-      default:
-        return "Uneasy";
-    }
-  }
-
-  if (confidence === "medium") {
-    if (grade === "A") return "Balanced";
-    if (grade === "F") return "Erratic";
-  }
-
   switch (grade) {
     case "A":
       return "Reliable";
     case "B":
-      return "Balanced";
+      return "Steady";
     case "C":
-      return "Uneasy";
+      return "Watchful";
     case "D":
-      return "Erratic";
+      return "Volatile";
     case "F":
-      return "Chaotic";
+      return "High-Risk";
     default:
-      return "Uneasy";
+      return "Watchful";
   }
 }
 
 function mapOrgDescriptor(grade, confidence) {
-  if (confidence === "low") {
-    switch (grade) {
-      case "A":
-      case "B":
-      case "C":
-        return "Monitor";
-      case "D":
-      case "F":
-        return "Elevated risk";
-      default:
-        return "Monitor";
-    }
-  }
-
-  if (confidence === "medium") {
-    if (grade === "A") return "Stable profile";
-    if (grade === "F") return "Elevated risk";
-  }
-
   switch (grade) {
     case "A":
       return "Low-risk profile";
@@ -142,15 +96,15 @@ function mapOrgDescriptor(grade, confidence) {
 
 function mapOrgStyleLabel(style) {
   switch (style) {
-    case "Clutch":
-      return "Opportunistic";
-    case "Calculated":
-      return "Disciplined";
-    case "Trigger-Happy":
-      return "Aggressive";
-    case "Passive":
-      return "Conservative";
-    case "Hybrid":
+    case "High-Impact":
+      return "Timely";
+    case "Selective":
+      return "Selective";
+    case "Overactive":
+      return "High-Usage";
+    case "Low-Usage":
+      return "Low-Usage";
+    case "Balanced":
       return "Mixed profile";
     default:
       return "Mixed profile";
@@ -178,8 +132,8 @@ function computeUmpireReportCard(input) {
   );
 
   const score = clamp(0.45 * rateScore + 0.3 * accuracyScore + 0.15 * consistencyScore + 0.1 * recentFormScore);
-  const grade = mapUmpireGrade(score);
   const confidence = confidenceFromSampleSize(input.challengedCalls);
+  const grade = softenExtremeGradeForConfidence(mapUmpireGrade(score), confidence);
 
   return {
     score: Number(score.toFixed(2)),
@@ -234,44 +188,6 @@ function softenRiskTierForConfidence(riskTier, confidence) {
   return riskTier;
 }
 
-function calibrateUmpireDisplayGrades(inputs) {
-  const sorted = [...inputs].sort((left, right) => {
-    if (right.score !== left.score) return right.score - left.score;
-    return left.umpireId - right.umpireId;
-  });
-
-  const percentileById = new Map();
-  let index = 0;
-  while (index < sorted.length) {
-    let end = index;
-    while (end + 1 < sorted.length && sorted[end + 1].score === sorted[index].score) {
-      end += 1;
-    }
-    const averageRank = (index + end) / 2;
-    const percentile = sorted.length <= 1 ? 1 : 1 - averageRank / (sorted.length - 1);
-    for (let cursor = index; cursor <= end; cursor += 1) {
-      percentileById.set(sorted[cursor].umpireId, percentile);
-    }
-    index = end + 1;
-  }
-
-  return new Map(
-    inputs.map((input) => {
-      const percentile = percentileById.get(input.umpireId) ?? 0.5;
-      const grade = softenExtremeGradeForConfidence(mapDisplayGradeFromPercentile(percentile), input.confidence);
-      return [
-        input.umpireId,
-        {
-          grade,
-          fanDescriptor: mapFanDescriptor(grade, input.confidence),
-          orgDescriptor: mapOrgDescriptor(grade, input.confidence),
-          percentile,
-        },
-      ];
-    }),
-  );
-}
-
 function computeTeamChallengeStyle(input) {
   const aggressionScore = scoreFromRelativeDelta(input.challengeRatePerGame, input.leagueChallengeRatePerGame, true);
   const lateLeverageScore = scoreFromRelativeDelta(input.lateLeverageShare, input.leagueLateLeverageShare, true);
@@ -288,24 +204,24 @@ function computeTeamChallengeStyle(input) {
   const efficiencyScore = scoreFromRelativeDelta(input.overturnRate, input.leagueOverturnRate, true, 30);
 
   const scores = {
-    Clutch: 0.3 * lateLeverageScore + 0.25 * efficiencyScore + 0.2 * aggressionScore + 0.25 * conservationScore,
-    Calculated:
+    "High-Impact": 0.3 * lateLeverageScore + 0.25 * efficiencyScore + 0.2 * aggressionScore + 0.25 * conservationScore,
+    Selective:
       0.3 * disciplineScore + 0.3 * conservationScore + 0.25 * efficiencyScore + 0.15 * lateLeverageScore,
-    "Trigger-Happy":
+    Overactive:
       0.35 * aggressionScore +
       0.3 * (100 - disciplineScore) +
       0.2 * (100 - conservationScore) +
       0.15 * (100 - efficiencyScore),
-    Passive:
+    "Low-Usage":
       0.35 * (100 - aggressionScore) +
       0.3 * conservationScore +
       0.2 * (100 - lateLeverageScore) +
       0.15 * disciplineScore,
-    Hybrid: 0,
+    Balanced: 0,
   };
 
   const ranked = Object.entries(scores)
-    .filter(([style]) => style !== "Hybrid")
+    .filter(([style]) => style !== "Balanced")
     .map(([style, score]) => ({ style, score }))
     .sort((a, b) => b.score - a.score);
 
@@ -317,35 +233,35 @@ function computeTeamChallengeStyle(input) {
   const centeredDiscipline = 100 - Math.min(100, Math.abs(disciplineScore - 50) * 2);
   const efficiencyNeutrality = 100 - Math.min(100, Math.abs(efficiencyScore - 50) * 2);
 
-  scores.Hybrid =
+  scores.Balanced =
     0.35 * clamp(100 - topGap * 10) +
     0.2 * centeredAggression +
     0.2 * centeredLeverage +
     0.15 * centeredDiscipline +
     0.1 * efficiencyNeutrality;
 
-  let winner = ranked[0]?.style ?? "Hybrid";
+  let winner = ranked[0]?.style ?? "Balanced";
   if (ranked.length > 1 && topGap <= 4) {
-    if (lateLeverageScore >= 60 && aggressionScore >= 50) winner = "Clutch";
-    else if (aggressionScore >= 60 && conservationScore <= 45) winner = "Trigger-Happy";
-    else if (disciplineScore >= 55 && conservationScore >= 55) winner = "Calculated";
-    else winner = "Passive";
+    if (lateLeverageScore >= 60 && aggressionScore >= 50) winner = "High-Impact";
+    else if (aggressionScore >= 60 && conservationScore <= 45) winner = "Overactive";
+    else if (disciplineScore >= 55 && conservationScore >= 55) winner = "Selective";
+    else winner = "Low-Usage";
   }
 
   const decisiveLateIdentity = lateLeverageScore >= 60 && aggressionScore >= 50;
   const decisiveAggressiveIdentity = aggressionScore >= 60 && conservationScore <= 45;
   const decisiveDisciplinedIdentity = disciplineScore >= 55 && conservationScore >= 55;
 
-  const shouldUseHybrid =
+  const shouldUseBalanced =
     input.sampleSize >= 12 &&
     !decisiveLateIdentity &&
     !decisiveAggressiveIdentity &&
     !decisiveDisciplinedIdentity &&
     (topGap <= 3 ||
       (topGap <= 7 && efficiencyScore >= 45 && efficiencyScore <= 58) ||
-      (topScore < 64 && scores.Hybrid >= topScore - 2));
+      (topScore < 64 && scores.Balanced >= topScore - 2));
 
-  if (shouldUseHybrid) winner = "Hybrid";
+  if (shouldUseBalanced) winner = "Balanced";
 
   return {
     style: winner,
@@ -779,6 +695,7 @@ async function main() {
 
   try {
     await client.query(`
+      DROP TABLE IF EXISTS audit_challenge_states;
       CREATE TEMP TABLE audit_challenge_states AS
       SELECT
         c.challenge_id,
@@ -851,13 +768,13 @@ async function main() {
         pt.impact_type,
         COALESCE(c.px, c.inferred_px) AS px,
         COALESCE(c.pz, c.inferred_pz) AS pz,
-        resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top) AS strike_zone_top,
-        resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strike_zone_bottom,
+        COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) AS strike_zone_top,
+        COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strike_zone_bottom,
         CASE
           WHEN COALESCE(c.px, c.inferred_px) IS NULL
             OR COALESCE(c.pz, c.inferred_pz) IS NULL
-            OR resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top) IS NULL
-            OR resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) IS NULL
+            OR COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) IS NULL
+            OR COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) IS NULL
           THEN NULL
           WHEN LOWER(COALESCE(p.called_description, c.called_description, '')) LIKE 'called strike%' THEN
             CASE
@@ -865,8 +782,8 @@ async function main() {
                 POWER(GREATEST(ABS(COALESCE(c.px, c.inferred_px)) - 0.8291666667, 0), 2)
                 + POWER(
                   GREATEST(
-                    resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) - COALESCE(c.pz, c.inferred_pz),
-                    COALESCE(c.pz, c.inferred_pz) - resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top),
+                    COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) - COALESCE(c.pz, c.inferred_pz),
+                    COALESCE(c.pz, c.inferred_pz) - COALESCE(c.strike_zone_top, c.inferred_strike_zone_top),
                     0
                   ),
                   2
@@ -876,8 +793,8 @@ async function main() {
                 POWER(GREATEST(ABS(COALESCE(c.px, c.inferred_px)) - 0.8291666667, 0), 2)
                 + POWER(
                   GREATEST(
-                    resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) - COALESCE(c.pz, c.inferred_pz),
-                    COALESCE(c.pz, c.inferred_pz) - resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top),
+                    COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) - COALESCE(c.pz, c.inferred_pz),
+                    COALESCE(c.pz, c.inferred_pz) - COALESCE(c.strike_zone_top, c.inferred_strike_zone_top),
                     0
                   ),
                   2
@@ -890,8 +807,8 @@ async function main() {
               WHEN GREATEST(
                 LEAST(
                   0.8291666667 - ABS(COALESCE(c.px, c.inferred_px)),
-                  COALESCE(c.pz, c.inferred_pz) - resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom),
-                  resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top) - COALESCE(c.pz, c.inferred_pz)
+                  COALESCE(c.pz, c.inferred_pz) - COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom),
+                  COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) - COALESCE(c.pz, c.inferred_pz)
                 ),
                 0
               ) <= 0.003 THEN 'edge'
@@ -920,6 +837,7 @@ async function main() {
     `);
 
     await client.query(`
+      DROP TABLE IF EXISTS audit_we_fallbacks;
       CREATE TEMP TABLE audit_we_fallbacks AS
       SELECT * FROM mart_win_expectancy_fallbacks;
       CREATE INDEX audit_we_fallbacks_idx
@@ -927,6 +845,7 @@ async function main() {
     `);
 
     await client.query(`
+      DROP TABLE IF EXISTS audit_overturn_fallbacks;
       CREATE TEMP TABLE audit_overturn_fallbacks AS
       SELECT * FROM mart_historical_abs_overturn_probability_fallbacks;
       CREATE INDEX audit_overturn_fallbacks_idx
@@ -944,21 +863,50 @@ async function main() {
 
     const teamRows = (
       await client.query(`
-        WITH team_summary AS (
+        WITH remaining_snapshot AS (
+          SELECT DISTINCT ON (game_pk)
+            game_pk,
+            abs_home_remaining,
+            abs_away_remaining
+          FROM game_state_snapshots
+          ORDER BY game_pk, snapshot_time DESC
+        ),
+        team_game_summary AS (
+          SELECT
+            c.game_pk,
+            c.challenge_team_id AS "teamId",
+            LOWER(MAX(c.challenge_team_side)) AS "teamSide",
+            SUM(CASE WHEN c.is_overturned THEN 1 ELSE 0 END)::INT AS "usedSuccessful",
+            SUM(CASE WHEN NOT c.is_overturned THEN 1 ELSE 0 END)::INT AS "usedFailed"
+          FROM abs_challenges c
+          WHERE c.challenge_team_id IS NOT NULL
+          GROUP BY c.game_pk, c.challenge_team_id
+        ),
+        team_summary AS (
           SELECT
             t.team_id AS "teamId",
             t.name AS "teamName",
             COUNT(DISTINCT s.game_pk)::INT AS "gamesTracked",
-            COALESCE(SUM(s.used_successful), 0)::INT AS "usedSuccessful",
-            COALESCE(SUM(s.used_failed), 0)::INT AS "usedFailed",
-            COALESCE(SUM(s.challenges_total), 0)::INT AS "challengesTotal",
-            COALESCE(AVG(s.remaining), 0)::NUMERIC AS "avgRemaining",
-            CASE WHEN SUM(s.challenges_total) > 0
-              THEN SUM(s.used_successful)::NUMERIC / SUM(s.challenges_total)
+            COALESCE(SUM(s."usedSuccessful"), 0)::INT AS "usedSuccessful",
+            COALESCE(SUM(s."usedFailed"), 0)::INT AS "usedFailed",
+            COALESCE(SUM(s."usedSuccessful" + s."usedFailed"), 0)::INT AS "challengesTotal",
+            COALESCE(
+              AVG(
+                CASE
+                  WHEN s."teamSide" = 'home' THEN rs.abs_home_remaining
+                  WHEN s."teamSide" = 'away' THEN rs.abs_away_remaining
+                  ELSE NULL
+                END
+              ),
+              0
+            )::NUMERIC AS "avgRemaining",
+            CASE WHEN SUM(s."usedSuccessful" + s."usedFailed") > 0
+              THEN SUM(s."usedSuccessful")::NUMERIC / SUM(s."usedSuccessful" + s."usedFailed")
               ELSE 0
             END AS "overturnRate"
           FROM teams t
-          LEFT JOIN team_abs_game_summary s ON s.team_id = t.team_id
+          LEFT JOIN team_game_summary s ON s."teamId" = t.team_id
+          LEFT JOIN remaining_snapshot rs ON rs.game_pk = s.game_pk
           GROUP BY t.team_id, t.name
         ),
         style_metrics AS (
@@ -979,40 +927,57 @@ async function main() {
 
     const umpireRows = (
       await client.query(`
-        WITH umpire_summary AS (
+        WITH umpire_game_summary AS (
           SELECT
             o.official_id AS "umpireId",
             o.official_name AS "umpireName",
-            COALESCE(SUM(s.challenged_calls), 0)::INT AS "challengedCalls",
-            COALESCE(SUM(s.overturned_calls), 0)::INT AS "overturnedCalls",
-            COALESCE(SUM(s.confirmed_calls), 0)::INT AS "confirmedCalls",
-            CASE WHEN SUM(s.challenged_calls) > 0
-              THEN SUM(s.overturned_calls)::NUMERIC / SUM(s.challenged_calls)
+            c.game_pk,
+            COUNT(*)::INT AS "challengedCalls",
+            SUM(CASE WHEN c.is_overturned THEN 1 ELSE 0 END)::INT AS "overturnedCalls",
+            SUM(CASE WHEN NOT c.is_overturned THEN 1 ELSE 0 END)::INT AS "confirmedCalls",
+            CASE
+              WHEN COUNT(*) > 0 THEN SUM(CASE WHEN c.is_overturned THEN 1 ELSE 0 END)::NUMERIC / COUNT(*)
+              ELSE 0
+            END AS "gameOverturnRate"
+          FROM abs_challenges c
+          JOIN officials o
+            ON o.game_pk = c.game_pk
+           AND o.official_type = 'Home Plate'
+          GROUP BY o.official_id, o.official_name, c.game_pk
+        ),
+        umpire_summary AS (
+          SELECT
+            s."umpireId",
+            s."umpireName",
+            COALESCE(SUM(s."challengedCalls"), 0)::INT AS "challengedCalls",
+            COALESCE(SUM(s."overturnedCalls"), 0)::INT AS "overturnedCalls",
+            COALESCE(SUM(s."confirmedCalls"), 0)::INT AS "confirmedCalls",
+            CASE WHEN SUM(s."challengedCalls") > 0
+              THEN SUM(s."overturnedCalls")::NUMERIC / SUM(s."challengedCalls")
               ELSE 0
             END AS "overturnRate",
             COUNT(DISTINCT s.game_pk)::INT AS "gamesWorked"
-          FROM (SELECT DISTINCT official_id, official_name FROM officials WHERE official_type = 'Home Plate') o
-          LEFT JOIN umpire_abs_game_summary s ON s.umpire_id = o.official_id
-          GROUP BY o.official_id, o.official_name
+          FROM umpire_game_summary s
+          GROUP BY s."umpireId", s."umpireName"
         ),
         rubric_metrics AS (
           WITH filtered AS (
             SELECT
-              s.umpire_id AS "umpireId",
+              s."umpireId",
               s.game_pk,
-              s.challenged_calls,
-              s.overturned_calls,
-              CASE WHEN s.challenged_calls > 0 THEN s.overturned_calls::NUMERIC / s.challenged_calls ELSE NULL END AS "gameOverturnRate",
-              ROW_NUMBER() OVER (PARTITION BY s.umpire_id ORDER BY g.game_date DESC, s.game_pk DESC) AS "recentRank"
-            FROM umpire_abs_game_summary s
+              s."challengedCalls",
+              s."overturnedCalls",
+              s."gameOverturnRate",
+              ROW_NUMBER() OVER (PARTITION BY s."umpireId" ORDER BY g.game_date DESC, s.game_pk DESC) AS "recentRank"
+            FROM umpire_game_summary s
             JOIN games g ON g.game_pk = s.game_pk
           )
           SELECT
             "umpireId",
             COALESCE(STDDEV_POP("gameOverturnRate"), 0)::NUMERIC AS "overturnRateVariance",
             CASE
-              WHEN SUM(challenged_calls) FILTER (WHERE "recentRank" <= 5) > 0
-                THEN SUM(overturned_calls) FILTER (WHERE "recentRank" <= 5)::NUMERIC / SUM(challenged_calls) FILTER (WHERE "recentRank" <= 5)
+              WHEN SUM("challengedCalls") FILTER (WHERE "recentRank" <= 5) > 0
+                THEN SUM("overturnedCalls") FILTER (WHERE "recentRank" <= 5)::NUMERIC / SUM("challengedCalls") FILTER (WHERE "recentRank" <= 5)
               ELSE NULL
             END AS "recentOverturnRate"
           FROM filtered
@@ -1226,27 +1191,6 @@ async function main() {
       };
     });
 
-    const displayGrades = calibrateUmpireDisplayGrades(
-      rubricUmpires.map((row) => ({
-        umpireId: row.umpireId,
-        score: row.reportCard.score,
-        confidence: row.reportCard.confidence,
-      })),
-    );
-
-    const displayRubricUmpires = rubricUmpires.map((row) => {
-      const display = displayGrades.get(row.umpireId);
-      return {
-        ...row,
-        reportCard: {
-          ...row.reportCard,
-          grade: display?.grade ?? row.reportCard.grade,
-          fanDescriptor: display?.fanDescriptor ?? row.reportCard.fanDescriptor,
-          orgDescriptor: display?.orgDescriptor ?? row.reportCard.orgDescriptor,
-        },
-      };
-    });
-
     const totalMoments = controversyRows.length;
     const controversialMoments = controversyRows.map((row, index) => {
       const inning = Number(row.inning ?? 0);
@@ -1329,7 +1273,7 @@ async function main() {
     const orgDescriptorCounts = new Map();
     const riskTierCounts = new Map();
     const umpireConfidenceCounts = new Map();
-    for (const row of displayRubricUmpires) {
+    for (const row of rubricUmpires) {
       increment(umpireGradeCounts, row.reportCard.grade);
       increment(fanDescriptorCounts, row.reportCard.fanDescriptor);
       increment(orgDescriptorCounts, row.reportCard.orgDescriptor);
@@ -1358,11 +1302,11 @@ async function main() {
     }));
     const byGrade = mapEntries(umpireGradeCounts, "grade").map((row) => ({
         ...row,
-        share: row.count / Math.max(displayRubricUmpires.length, 1),
+        share: row.count / Math.max(rubricUmpires.length, 1),
       }));
     const byRiskTier = mapEntries(riskTierCounts, "tier").map((row) => ({
       ...row,
-      share: row.count / Math.max(displayRubricUmpires.length, 1),
+      share: row.count / Math.max(rubricUmpires.length, 1),
     }));
     const byScoreBucket = mapEntries(controversyBucketCounts, "bucket").map((row) => ({
       ...row,
@@ -1402,7 +1346,7 @@ async function main() {
       },
       overview: {
         teamsTracked: styledTeams.length,
-        umpiresTracked: displayRubricUmpires.length,
+        umpiresTracked: rubricUmpires.length,
         controversyMoments: Number(overview.controversy_moments),
       },
       teamStyles: {
@@ -1419,7 +1363,7 @@ async function main() {
         byOrgDescriptor: mapEntries(orgDescriptorCounts, "descriptor"),
         byRiskTier,
         byConfidence: mapEntries(umpireConfidenceCounts, "confidence"),
-        topRiskProfiles: [...displayRubricUmpires]
+        topRiskProfiles: [...rubricUmpires]
           .sort((left, right) => right.rawRisk.riskScore - left.rawRisk.riskScore)
           .slice(0, 10)
           .map((row) => ({
@@ -1429,9 +1373,9 @@ async function main() {
             riskScore: row.rawRisk.riskScore,
             riskTier: row.riskTier,
           })),
-        medianScore: [...displayRubricUmpires]
+        medianScore: [...rubricUmpires]
           .map((row) => row.reportCard.score)
-          .sort((left, right) => left - right)[Math.floor(displayRubricUmpires.length / 2)] ?? null,
+          .sort((left, right) => left - right)[Math.floor(rubricUmpires.length / 2)] ?? null,
       },
       controversy: {
         byScoreBucket,
@@ -1445,12 +1389,11 @@ async function main() {
         topTeamStyle: byStyle[0] ?? { style: "n/a", count: 0, share: 0 },
         umpireGradeBuckets: byGrade.length,
         medianUmpireScore:
-          [...displayRubricUmpires].map((row) => row.reportCard.score).sort((left, right) => left - right)[
-            Math.floor(displayRubricUmpires.length / 2)
+          [...rubricUmpires].map((row) => row.reportCard.score).sort((left, right) => left - right)[
+            Math.floor(rubricUmpires.length / 2)
           ] ?? null,
         lowConfidenceUmpireShare:
-          displayRubricUmpires.filter((row) => row.reportCard.confidence === "low").length /
-          Math.max(displayRubricUmpires.length, 1),
+          rubricUmpires.filter((row) => row.reportCard.confidence === "low").length / Math.max(rubricUmpires.length, 1),
         topRiskTier: byRiskTier[0] ?? { tier: "n/a", count: 0, share: 0 },
         meanOverturnedControversy,
         meanConfirmedControversy,

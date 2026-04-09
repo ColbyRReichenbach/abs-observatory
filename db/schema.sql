@@ -1104,6 +1104,10 @@ CREATE TABLE IF NOT EXISTS modeling.called_pitch_decisions (
   home_score INTEGER,
   away_score INTEGER,
   score_diff_batting INTEGER,
+  batting_team_id INTEGER,
+  fielding_team_id INTEGER,
+  opportunity_team_id INTEGER,
+  opportunity_team_side TEXT,
   batter_id BIGINT,
   pitcher_id BIGINT,
   catcher_id BIGINT,
@@ -1146,6 +1150,7 @@ CREATE TABLE IF NOT EXISTS modeling.called_pitch_decisions (
   was_challenged BOOLEAN NOT NULL DEFAULT FALSE,
   challenge_source TEXT,
   challenge_dedupe_key TEXT,
+  actual_challenge_team_id INTEGER,
   challenge_outcome TEXT,
   is_overturned BOOLEAN,
   challenge_result_confirmed_source BOOLEAN NOT NULL DEFAULT FALSE,
@@ -1160,11 +1165,21 @@ CREATE TABLE IF NOT EXISTS modeling.called_pitch_decisions (
   PRIMARY KEY (game_pk, at_bat_number, pitch_number)
 );
 
+ALTER TABLE modeling.called_pitch_decisions
+  ADD COLUMN IF NOT EXISTS batting_team_id INTEGER,
+  ADD COLUMN IF NOT EXISTS fielding_team_id INTEGER,
+  ADD COLUMN IF NOT EXISTS opportunity_team_id INTEGER,
+  ADD COLUMN IF NOT EXISTS opportunity_team_side TEXT,
+  ADD COLUMN IF NOT EXISTS actual_challenge_team_id INTEGER;
+
 CREATE INDEX IF NOT EXISTS idx_modeling_called_pitch_decisions_phase
   ON modeling.called_pitch_decisions (season, competition_phase, game_type);
 
 CREATE INDEX IF NOT EXISTS idx_modeling_called_pitch_decisions_batter
   ON modeling.called_pitch_decisions (batter_id, game_date);
+
+CREATE INDEX IF NOT EXISTS idx_modeling_called_pitch_decisions_opportunity_team
+  ON modeling.called_pitch_decisions (opportunity_team_id, game_date);
 
 CREATE INDEX IF NOT EXISTS idx_modeling_called_pitch_decisions_challenge
   ON modeling.called_pitch_decisions (was_challenged, challenge_outcome, challenge_dedupe_key);

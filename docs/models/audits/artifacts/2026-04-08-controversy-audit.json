@@ -1,0 +1,258 @@
+{
+  "auditDate": "2026-04-08",
+  "scoreVersion": "controversy_editorial_v2",
+  "springWindow": {
+    "start": "2026-02-20",
+    "end": "2026-04-08"
+  },
+  "overall": {
+    "rows": 2312,
+    "topDecileThreshold": 63.81,
+    "overturnedShare": 0.5358996539792388,
+    "topDecileOverturnedShare": 1,
+    "topDecileDirectImpactShare": 0.1810344827586207,
+    "meanScore": 46.703083910034564,
+    "topDecileMeanScore": 68.45590517241382
+  },
+  "byOverturnStatus": [
+    {
+      "key": "overturned",
+      "rows": 1239,
+      "share": 0.5358996539792388,
+      "meanScore": 56.128531073446304,
+      "meanModeledValueScore": 57.364003228410006,
+      "meanLeverageScore": 51.66505246166263
+    },
+    {
+      "key": "confirmed",
+      "rows": 1073,
+      "share": 0.4641003460207612,
+      "meanScore": 35.81945945945937,
+      "meanModeledValueScore": 23.364398881640263,
+      "meanLeverageScore": 56.863932898415655
+    }
+  ],
+  "byImpactType": [
+    {
+      "key": "direct_count_impact",
+      "rows": 997,
+      "share": 0.4312283737024221,
+      "meanScore": 56.430802407221755,
+      "meanModeledValueScore": 63.19859578736209,
+      "meanLeverageScore": 50.90972918756269
+    },
+    {
+      "key": "direct_ending_impact",
+      "rows": 216,
+      "share": 0.09342560553633218,
+      "meanScore": 56.52189814814814,
+      "meanModeledValueScore": 37.33796296296296,
+      "meanLeverageScore": 55.217592592592595
+    },
+    {
+      "key": "confirmed",
+      "rows": 1049,
+      "share": 0.453719723183391,
+      "meanScore": 35.88091515729256,
+      "meanModeledValueScore": 23.898951382268827,
+      "meanLeverageScore": 56.795042897998094
+    },
+    {
+      "key": "unknown",
+      "rows": 50,
+      "share": 0.02162629757785467,
+      "meanScore": 37.364200000000004,
+      "meanModeledValueScore": 0,
+      "meanLeverageScore": 55.32
+    }
+  ],
+  "topMoments": [
+    {
+      "challengeId": "1d8cf26a-7393-4f16-b0e5-7229ed894cc3",
+      "gamePk": 831519,
+      "inning": 9,
+      "homeScore": 2,
+      "awayScore": 10,
+      "isOverturned": true,
+      "impactType": "direct_count_impact",
+      "decisionValueMode": "win_expectancy",
+      "controversyScore": 79.5,
+      "leverageScore": 100,
+      "modeledValueScore": 95,
+      "realizedChallengeValue": 0.0588,
+      "expectedChallengeValue": 0.03268175905770489
+    },
+    {
+      "challengeId": "0c328eb1-05c1-432d-84e3-8473a24c387d",
+      "gamePk": 824215,
+      "inning": 9,
+      "homeScore": 9,
+      "awayScore": 6,
+      "isOverturned": true,
+      "impactType": "direct_count_impact",
+      "decisionValueMode": "win_expectancy",
+      "controversyScore": 79.47,
+      "leverageScore": 93,
+      "modeledValueScore": 95,
+      "realizedChallengeValue": 0.0801,
+      "expectedChallengeValue": 0.03778181818181819
+    },
+    {
+      "challengeId": "08387948-c07d-455d-9c3a-d5827b388f19",
+      "gamePk": 822839,
+      "inning": 9,
+      "homeScore": 2,
+      "awayScore": 1,
+      "isOverturned": true,
+      "impactType": "direct_ending_impact",
+      "decisionValueMode": "heuristic",
+      "controversyScore": 78.74,
+      "leverageScore": 100,
+      "modeledValueScore": 62,
+      "realizedChallengeValue": 0.0155,
+      "expectedChallengeValue": 0.006924510890613106
+    },
+    {
+      "challengeId": "9834c4a1-5606-4e4d-8a17-519e744059bf",
+      "gamePk": 823969,
+      "inning": 9,
+      "homeScore": 4,
+      "awayScore": 1,
+      "isOverturned": true,
+      "impactType": "direct_count_impact",
+      "decisionValueMode": "win_expectancy",
+      "controversyScore": 78.67,
+      "leverageScore": 93,
+      "modeledValueScore": 95,
+      "realizedChallengeValue": -0.0801,
+      "expectedChallengeValue": -0.04624757626449636
+    },
+    {
+      "challengeId": "7ccfb094-c949-42a6-b489-d7aa300432ef",
+      "gamePk": 823488,
+      "inning": 10,
+      "homeScore": 3,
+      "awayScore": 3,
+      "isOverturned": true,
+      "impactType": "direct_count_impact",
+      "decisionValueMode": "win_expectancy",
+      "controversyScore": 77.5,
+      "leverageScore": 100,
+      "modeledValueScore": 95,
+      "realizedChallengeValue": 0.2375,
+      "expectedChallengeValue": 0.13141641137271134
+    },
+    {
+      "challengeId": "884146dc-3617-46a3-a271-52f243678a9c",
+      "gamePk": 831916,
+      "inning": 9,
+      "homeScore": 7,
+      "awayScore": 7,
+      "isOverturned": true,
+      "impactType": "direct_count_impact",
+      "decisionValueMode": "win_expectancy",
+      "controversyScore": 77.5,
+      "leverageScore": 100,
+      "modeledValueScore": 95,
+      "realizedChallengeValue": -0.1078,
+      "expectedChallengeValue": -0.056312878787878794
+    },
+    {
+      "challengeId": "907664f3-1cd3-44f1-a87f-fb33a8703e5b",
+      "gamePk": 823488,
+      "inning": 10,
+      "homeScore": 3,
+      "awayScore": 4,
+      "isOverturned": true,
+      "impactType": "direct_count_impact",
+      "decisionValueMode": "win_expectancy",
+      "controversyScore": 77.5,
+      "leverageScore": 100,
+      "modeledValueScore": 95,
+      "realizedChallengeValue": 0.036,
+      "expectedChallengeValue": 0.018152535356098343
+    },
+    {
+      "challengeId": "812e0a6a-6942-4fde-b82f-0835547e02ad",
+      "gamePk": 831959,
+      "inning": 9,
+      "homeScore": 2,
+      "awayScore": 3,
+      "isOverturned": true,
+      "impactType": "direct_count_impact",
+      "decisionValueMode": "win_expectancy",
+      "controversyScore": 76.34,
+      "leverageScore": 96,
+      "modeledValueScore": 95,
+      "realizedChallengeValue": 0.0428,
+      "expectedChallengeValue": 0.022514832868150796
+    },
+    {
+      "challengeId": "13b27083-13d3-4900-b8b8-1e173af894a2",
+      "gamePk": 831583,
+      "inning": 9,
+      "homeScore": 9,
+      "awayScore": 5,
+      "isOverturned": true,
+      "impactType": "direct_ending_impact",
+      "decisionValueMode": "heuristic",
+      "controversyScore": 76.17,
+      "leverageScore": 93,
+      "modeledValueScore": 45,
+      "realizedChallengeValue": 0.0089,
+      "expectedChallengeValue": 0.0028686058742616715
+    },
+    {
+      "challengeId": "401338ae-f0c9-47d7-9b15-58904c0430f1",
+      "gamePk": 831827,
+      "inning": 9,
+      "homeScore": 4,
+      "awayScore": 3,
+      "isOverturned": true,
+      "impactType": "direct_count_impact",
+      "decisionValueMode": "win_expectancy",
+      "controversyScore": 75.62,
+      "leverageScore": 98,
+      "modeledValueScore": 80,
+      "realizedChallengeValue": 0.0277,
+      "expectedChallengeValue": 0.011478030303030302
+    },
+    {
+      "challengeId": "bdddd147-e974-4d95-a657-05a533594d95",
+      "gamePk": 823809,
+      "inning": 9,
+      "homeScore": 2,
+      "awayScore": 3,
+      "isOverturned": true,
+      "impactType": "direct_count_impact",
+      "decisionValueMode": "win_expectancy",
+      "controversyScore": 75.5,
+      "leverageScore": 100,
+      "modeledValueScore": 95,
+      "realizedChallengeValue": 0.0334,
+      "expectedChallengeValue": 0.017206690615777034
+    },
+    {
+      "challengeId": "348da604-599e-4a8e-9348-8300b77ac444",
+      "gamePk": 831783,
+      "inning": 8,
+      "homeScore": 1,
+      "awayScore": 5,
+      "isOverturned": true,
+      "impactType": "direct_count_impact",
+      "decisionValueMode": "win_expectancy",
+      "controversyScore": 75.44,
+      "leverageScore": 86,
+      "modeledValueScore": 95,
+      "realizedChallengeValue": 0.0653,
+      "expectedChallengeValue": 0.030740151515151515
+    }
+  ],
+  "rootCause": {
+    "topDecileLateShare": 0.7155172413793104,
+    "topDecileCloseShare": 0.49137931034482757,
+    "topDecileWeBackedShare": 0.6379310344827587,
+    "topDecileValueShare": 0.978448275862069,
+    "topDecileConfirmedShare": 0
+  }
+}

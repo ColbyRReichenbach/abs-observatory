@@ -367,6 +367,7 @@ Date: ${formatAuditDateLabel()}
 - The alignment is only moderate rather than tight: leverage index and absolute WE swing correlate at ${formatMaybeNumber(report.pearsonCorrelation, 3)}, so this heuristic is useful for pressure ordering but not a substitute for WE itself.
 - The current heuristic is better at separating empty / one-run / runner-pressure states from true low-pressure spots than it is at ranking the very highest-pressure challenge windows.
 - This audit only covers WE-backed count swings; terminal count states that fall out of the WE comparison layer are intentionally excluded from this benchmark.
+- Conclusion: retain leverage as an explicitly labeled heuristic pressure proxy rather than presenting it as a calibrated probabilistic model.
 
 ## By Leverage Bucket
 
@@ -440,6 +441,7 @@ ${toMarkdownTable(report.topUnderstatements, [
 - The WE comparison layer uses internal count-swing WE because public MLB win probability is not exposed at pitch-count resolution.
 - This audit should be rerun after meaningful data refreshes because leverage usefulness is mainly about ordering pressure correctly as the challenge sample grows.
 - The correct analyst question is whether the heuristic pressure score and bucketing are telling the right story, not whether leverage literally equals WE swing.
+- Product and docs should describe this layer as an estimated pressure proxy, not as modeled WE or calibrated leverage truth.
 `;
 }
 

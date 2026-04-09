@@ -160,10 +160,15 @@ Platform dependencies:
 
 Tasks:
 
-- rebuild count-state baselines from split-aware historical pitch states
-- define exact target families and smoothing policy
-- validate by handedness and pitch-family subgroups
-- add held-out calibration readouts
+- [x] rebuild count-state baselines from split-aware historical pitch states
+- [x] define an explicit split-governed baseline family using:
+  - `mart_historical_pitch_states_split`
+  - `mart_count_state_outcome_baselines_train`
+  - `mart_count_state_outcome_baselines_train_validation`
+- [x] validate by handedness and pitch-family subgroups
+- [x] add held-out calibration readouts
+- [ ] decide whether any additional smoothing is needed beyond the empirical train baseline
+- [ ] write count-state model card
 
 Primary file targets:
 
@@ -173,14 +178,35 @@ Primary file targets:
 
 Potential new assets:
 
-- count-state audit script
-- count-state model card
+- [x] count-state audit script
+- [ ] count-state model card
 
 Statistical acceptance criteria:
 
 - held-out rate calibration reported
 - sample and interval reporting added
 - challenged-only bias eliminated from baseline estimation
+
+Current progress:
+
+- split-aware Warehouse views are now live in [views.sql](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/db/views.sql)
+- app fallback reads now prefer the split-aware train-validation fit when serving tables are unavailable:
+  - [data.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/data.ts)
+- held-out count-state audit now exists:
+  - [2026-04-08-count-state-audit.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-count-state-audit.md)
+  - [2026-04-08-count-state-audit.json](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/artifacts/2026-04-08-count-state-audit.json)
+- current held-out results are directionally strong:
+  - validation weighted MAE:
+    - batting average `0.36%`
+    - walk rate `0.07%`
+    - strikeout rate `0.22%`
+    - positive outcome rate `0.35%`
+  - test weighted MAE:
+    - batting average `1.74%`
+    - walk rate `0.36%`
+    - strikeout rate `0.78%`
+    - positive outcome rate `1.33%`
+- subgroup stability is reasonable on held-out data, with larger miss on test for breaking / offspeed families than fastballs
 
 ### Phase 3: Run Expectancy Rebuild
 
@@ -209,6 +235,21 @@ Statistical acceptance criteria:
 - sparse-state fallback rates reported on held-out data
 - confidence is not expressed only as sample-size band
 
+Current progress:
+
+- split-aware RE marts are now rebuilt on Warehouse:
+  - `mart_run_expectancy_fallbacks_train` fits on `train`
+  - `mart_run_expectancy_fallbacks` now fits on `train + validation`
+- held-out benchmark now runs on:
+  - validation rows: `712,528`
+  - test rows: `49,854`
+- current held-out readout from [2026-04-08-re-benchmark.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-re-benchmark.md):
+  - validation MAE: `0.032`
+  - validation RMSE: `0.061`
+  - test MAE: `0.105`
+  - test RMSE: `0.199`
+- current test sample resolves entirely through `exact` fallback on the early-2026 window, so the next remaining RE rigor task is uncertainty and sparse-tail communication rather than core leakage control
+
 ### Phase 4: Win Expectancy Rebuild
 
 Platform dependencies:
@@ -235,6 +276,24 @@ Statistical acceptance criteria:
 - held-out Brier and log loss reported
 - calibration curves produced
 - external benchmark language downgraded to benchmark, not truth
+
+Current progress:
+
+- split-aware WE marts are now rebuilt on Warehouse:
+  - `mart_win_expectancy_fallbacks_train` fits on `train`
+  - `mart_win_expectancy_fallbacks` now fits on `train + validation`
+- a new primary held-out internal audit is now in place:
+  - [2026-04-08-we-benchmark.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-we-benchmark.md)
+- MLB public WE is now explicitly retained as secondary external evidence:
+  - [2026-04-08-mlb-we-benchmark.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-mlb-we-benchmark.md)
+- current held-out WE readout:
+  - validation: Brier `0.0107`, log loss `0.4736`, MAE `6.0%`
+  - test: Brier `0.0538`, log loss `0.4992`, MAE `15.5%`
+- current external MLB benchmark readout:
+  - `40,963` at-bats compared
+  - mean absolute gap `2.5%`
+  - mean signed gap `+1.19 pts`
+- the WE layer is now on the correct statistical framework, but test-tail instability is still visible and should be addressed before downstream leverage/rubric layers rely on it as fully mature
 
 ### Phase 5: Called-Pitch Canonical Dataset
 
@@ -307,6 +366,26 @@ Tasks:
 - use held-out periods for calibration
 - fix exact-edge joins in serving marts
 - add reliability reporting with confidence intervals
+- freeze the overturn training population to challenged rows only from `modeling.called_pitch_decisions`
+- build the grouped fallback hierarchy explicitly:
+  - direction + geometry version + edge bucket
+  - direction + geometry version
+  - direction only
+  - global
+- emit fallback tier with every scored probability
+- compare `center_only` vs `radius_adjusted` on held-out challenge outcomes and choose a leading candidate
+- publish a geometry-comparison artifact alongside calibration outputs
+
+Implementation order:
+
+1. create an overturn training view or query from `modeling.called_pitch_decisions`
+2. derive challenge direction from `observed_call`
+3. define edge buckets separately for each geometry version
+4. fit empirical overturn rates on `train` only
+5. choose any smoothing constants on `validation` only
+6. score `test` rows with frozen parameters
+7. report held-out calibration and geometry comparison
+8. only then update serving marts or live scoring logic
 
 Primary file targets:
 
@@ -318,11 +397,20 @@ Known blocker to resolve:
 
 - exact-edge probability join issue in the team decision mart
 
+Current progress:
+
+- exact-edge join bug fixed in [db/views.sql](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/db/views.sql)
+- held-out calibration audit rebuilt in [run-overturn-calibration.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/model-audits/run-overturn-calibration.mjs)
+- current audit now trains on `train`, selects geometry on `validation`, and reports held-out `test`
+- current validation winner is `center_only`
+
 Statistical acceptance criteria:
 
 - no in-sample calibration claims remain
 - reliability tables are held-out
 - exact, direction-only, and global fallback usage are reported correctly
+- geometry winner is chosen from held-out evidence, not intuition
+- every scored overturn probability records fallback tier and geometry version
 
 ### Phase 8: Challenge-Now / Policy Rebuild
 
@@ -339,6 +427,55 @@ Tasks:
 - replace `runnersOnBase` simplification with full `basesState`
 - re-evaluate thresholds on validation only
 - test policy value on held-out windows
+- decompose the policy stack explicitly into:
+  - overturn probability
+  - success value
+  - failure value
+  - inventory cost
+  - final expected challenge value
+- expose all intermediate values in the model output contract
+- define the initial inventory-cost function as heuristic but versioned and sensitivity-tested
+- evaluate recommendation quality on all eligible opportunities, not just historical challenges
+
+Implementation order:
+
+1. update API and serving paths to require exact `basesState`
+2. define challenge-eligible opportunity rows from `modeling.called_pitch_decisions`
+3. attach overturn probability outputs to those rows
+4. compute success and failure baseball values from count / RE / WE deltas
+5. compute inventory cost from current inventory state and game horizon
+6. calculate expected challenge value
+7. tune recommendation thresholds on `validation` only
+8. evaluate policy metrics on `test` only
+9. only then expose the rebuilt recommendation to serving surfaces
+
+Current progress:
+
+- exact `basesState` now flows through the request and server decision path
+- challenge-now response now exposes:
+  - success value
+  - failure value
+  - inventory cost
+  - inventory cost version
+  - expected challenge value
+  - overturn geometry variant
+  - overturn split policy version
+- server overturn lookups now read from `mart_modeled_abs_overturn_probability_fallbacks`
+- [run-decision-value-audit.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/model-audits/run-decision-value-audit.mjs) now scores the full held-out opportunity set instead of only historical challenges
+- empirical inventory-cost audit added in [run-inventory-cost-audit.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/model-audits/run-inventory-cost-audit.mjs)
+- current leading inventory-cost version is `inventory_future_opportunity_v1`
+  - selected from held-out comparison as the best current bucketed option-value model
+  - grouped by remaining challenges, inning bucket, and close-game flag
+- after the RE and WE rebuilds, the policy audit was rerun on the updated value stack:
+  - recommendation share is now `0.8%`
+  - actual held-out historical challenge share is `2.5%`
+  - mean expected challenge value is `-20.03%`
+- the policy is now fully downstream of split-aware overturn, RE, and WE layers
+- the policy is still not publication-ready because recommendation aggressiveness and inventory/value tradeoffs remain underfit even after the value-stack rebuild
+- current repo direction is to treat challenge-now as:
+  - experimental fan-facing live support
+  - stronger postgame challenge evaluation
+  - not an org-grade live optimization product unless the evidence materially improves
 
 Primary file targets:
 
@@ -353,6 +490,16 @@ Statistical acceptance criteria:
 - decision policy is evaluated on held-out opportunities
 - exact game state is preserved through the live API
 - policy metrics replace simple expected-vs-realized on already-challenged rows
+- outputs include intermediate value decomposition, not just a binary recommendation
+- inventory-cost assumptions are sensitivity-tested and documented
+
+Current recommendation:
+
+- pause additional threshold-chasing for org-grade live optimization
+- keep improving the layer where it compounds:
+  - postgame challenge evaluation
+  - missed-opportunity review
+  - honest experimental live fan framing
 
 ### Phase 9: Leverage Reclassification Or Rebuild
 
@@ -367,6 +514,17 @@ Tasks:
 - decide whether leverage remains heuristic or becomes empirical
 - if rebuilt, fit against held-out absolute WE swing
 - if retained as heuristic, relabel everywhere
+
+Current progress:
+
+- leverage has now been re-audited against the rebuilt WE layer:
+  - [2026-04-08-leverage-audit.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-leverage-audit.md)
+- current evidence supports retaining leverage as a heuristic pressure proxy, not rebuilding it as a calibrated model:
+  - Pearson correlation to absolute WE swing: `0.190`
+  - `high` bucket mean abs WE swing: `5.5%`
+  - `low` bucket mean abs WE swing: `2.2%`
+- product surfaces already mostly say `Estimated Leverage`; code now carries explicit heuristic metadata in [estimated-leverage.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/estimated-leverage.ts)
+- recommendation: close leverage as an honesty/relabeling phase, not an empirical model-build phase
 
 Primary file targets:
 
@@ -403,6 +561,21 @@ Statistical acceptance criteria:
 - low-confidence extreme labels are damped
 - docs state descriptive vs predictive scope clearly
 
+Current progress:
+
+- shared rubric helpers in [rubrics.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/rubrics.ts) now behave as explicit translation layers instead of hard-edged labelers:
+  - low-confidence umpire grade extremes are softened
+  - org watch risk tiers are softened for low-confidence umpire profiles
+  - team style now includes a neutral `Balanced` bucket with org label `Mixed profile`
+- the rubric audit was rebuilt to run directly on canonical Warehouse data instead of depending on stale summary tables:
+  - [2026-04-08-rubric-audit.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-rubric-audit.md)
+  - [2026-04-08-rubric-audit.json](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/artifacts/2026-04-08-rubric-audit.json)
+- current audit readout is directionally healthy for a translation layer:
+  - team styles now separate into `3` buckets, with `Balanced` the largest at `63.3%`
+  - umpire report cards now cover `108` tracked HP umpires across `3` grade buckets
+  - low-confidence umpire share is down at `2.8%`
+- warehouse rubric coverage for umpires is now unblocked because the serving-to-warehouse live-context sync includes `officials`
+
 ### Phase 11: Controversy Rebuild
 
 Tasks:
@@ -411,6 +584,18 @@ Tasks:
 - document component weights
 - sensitivity test the ranking
 - ensure modeled value inputs inherit upstream confidence
+
+Current progress:
+
+- controversy scoring in [rubrics.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/rubrics.ts) is now versioned as `controversy_editorial_v2`
+- the production scorer now includes modeled value instead of relying only on leverage, impact, miss distance, and recency
+- recent home moments now attach expected / realized challenge value before ranking in [data.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/data.ts)
+- the controversy audit now matches the editorial framing and the current product formula:
+  - [2026-04-08-controversy-audit.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-controversy-audit.md)
+- current audit readout is strong for an editorial layer:
+  - top-decile overturned share `100%`
+  - top-decile modeled value `>= 0.5%` share `97.8%`
+  - top-decile confirmed share `0.0%`
 
 Primary file targets:
 
@@ -430,6 +615,24 @@ Tasks:
 - reintroduce team and umpire org surfaces only after upstream green lights
 - attach sample sizes and confidence framing to all org charts
 - suppress or downgrade low-confidence aggregates
+
+Current progress:
+
+- first downstream confidence-hardening pass is now in place on umpire analytics surfaces:
+  - [umpire-consequence-board.tsx](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/components/analytics/umpire-consequence-board.tsx)
+  - [umpire-consequence-matrix.tsx](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/components/analytics/umpire-consequence-matrix.tsx)
+  - [umpire-pitch-trait-scatter.tsx](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/components/analytics/umpire-pitch-trait-scatter.tsx)
+  - [umpire-handedness-board.tsx](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/components/analytics/umpire-handedness-board.tsx)
+- those boards now only aggregate `expectedChallengeValue` when it comes from the trusted `win_expectancy` path, instead of blending heuristic fallback values into org-facing averages
+- the shared team decision-value aggregators in [data.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/data.ts) now follow the same rule:
+  - expected / realized review value
+  - surplus
+  - captured / wasted shares
+  - high-pressure and late-close value shares
+  - best-window selection
+  are all computed from `win_expectancy` rows only
+- team/org decision boards may still show total challenge counts, but value-bearing summaries now degrade honestly when trusted WE-backed samples are thin instead of averaging heuristic-mode rows into org-facing outputs
+- additional org-surface hardening is still needed, but the main confidence overclaim path in team and umpire value summaries has now been reduced
 
 Primary file targets:
 
@@ -452,6 +655,26 @@ Tasks:
 - rerun locked audits
 - produce publication checklist
 
+Current progress:
+
+- model cards now exist for the active stack:
+  - called-pitch geometry
+  - count-state value
+  - run expectancy
+  - win expectancy
+  - overturn probability
+  - challenge-now policy
+  - leverage
+  - rubrics and descriptors
+  - controversy
+- the publication checklist has been rewritten from a product-launch list into a statistical publication gate
+- the remaining work is now mostly editorial and governance:
+  - close remaining blocker claims
+  - refresh cards and checklist as the 2026 sample grows
+  - make the final publication package cite dated audit artifacts directly
+- a consolidated readiness memo now exists:
+  - [publication-readiness.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/publication-readiness.md)
+
 Primary file targets:
 
 - [docs/models](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models)
@@ -468,13 +691,12 @@ Exit criteria:
 ### Count-State Value
 
 Status:
-- rebuild required
+- complete for now: split-aware Warehouse baselines, held-out audit, and model card are in place
 
 Tasks:
 
-- define targets formally
-- add held-out audit
-- add model card
+- finalize any smoothing decision
+- publish train-validation serving baseline
 
 Depends on:
 - split governance
@@ -482,12 +704,11 @@ Depends on:
 ### Run Expectancy
 
 Status:
-- structurally implemented, statistically rebuild required
+- complete for now: split-aware marts, held-out benchmark, and model card are in place
 
 Tasks:
 
-- split-aware mart rebuild
-- held-out benchmark
+- review uncertainty / interval layer for sparse states
 - uncertainty upgrade
 
 Depends on:
@@ -496,13 +717,12 @@ Depends on:
 ### Win Expectancy
 
 Status:
-- structurally implemented, statistically rebuild required
+- complete for now: split-aware marts, held-out internal benchmark, secondary MLB benchmark, and model card are in place
 
 Tasks:
 
-- split-aware mart rebuild
-- held-out calibration
-- benchmark downgrade to secondary evidence
+- tighten tail-state handling and uncertainty communication
+- keep MLB benchmark secondary in all publication-facing docs
 
 Depends on:
 - split governance
@@ -510,14 +730,13 @@ Depends on:
 ### Overturn Probability
 
 Status:
-- baseline implemented, publication-grade rebuild required
+- in progress: held-out calibration path and model card are in place, but geometry and serving posture remain provisional
 
 Tasks:
 
-- fix joins
-- holdout calibration
 - confidence intervals
-- model card
+- choose current leading geometry variant from held-out evidence
+- emit fallback tier and geometry version in scored outputs
 
 Depends on:
 - called-pitch and geometry foundation
@@ -525,26 +744,40 @@ Depends on:
 ### Challenge-Now
 
 Status:
-- concept live, policy-grade rebuild required
+- in progress: exact-state contract, decomposition output, held-out policy audit, empirical inventory-cost v1, and model card are all in place
+
+Immediate blocker:
+
+- the current policy is directionally sane now, but it still needs stronger validation and threshold/resource tuning before deployment or publication claims
+- latest budget-constrained validation still shows no overlap with historical challenged rows, so the policy remains below publication standard for optimization claims
 
 Tasks:
 
 - exact state preservation
 - opportunity dataset
 - held-out policy evaluation
+- intermediate value decomposition output
+- inventory-cost versioning and sensitivity testing
+- migrate success/failure value components onto rebuilt count-state / RE / WE layers once those phases are green
 
 Depends on:
 - overturn probability
 - RE/WE green
 
+Current progress:
+
+- canonical `called_pitch_decisions` now carries batting-team, fielding-team, opportunity-team, and actual-challenge-team context directly
+- the decision-value audit no longer needs ad hoc team-context recovery joins to simulate budgeted team-game selection
+
 ### Leverage
 
 Status:
-- heuristic
+- complete for now: retained as heuristic pressure proxy with explicit audit backing and model card coverage
 
 Tasks:
 
-- relabel or rebuild empirically
+- keep labeled as estimated / heuristic pressure proxy
+- rerun the leverage audit after meaningful challenge-sample refreshes
 
 ### Geometry
 
@@ -560,22 +793,22 @@ Tasks:
 ### Rubrics
 
 Status:
-- downstream translation layer requiring stabilization
+- complete for now: translation layer is confidence-damped, warehouse-audited, and no longer overstates weak separation
 
 Tasks:
 
-- confidence damping
-- stability audit
+- rerun the rubric audit after large current-season sample refreshes
+- keep label scope explicitly descriptive in product and docs
 
 ### Controversy
 
 Status:
-- editorial composite requiring explicit governance
+- complete for now: editorial composite is versioned, value-aware, audit-backed, and documented by a model card
 
 Tasks:
 
-- weight documentation
-- sensitivity analysis
+- rerun editorial audit after upstream value-layer refreshes
+- keep product/publication framing clearly non-predictive
 
 ## Release Checklist
 
@@ -621,3 +854,18 @@ Sprint 6:
 
 - Phase 12 org analytics re-enablement
 - Phase 13 model cards and publication gate
+
+## Final Closeout Sprint
+
+Use this sprint after the main rework phases are complete.
+
+Priority order:
+
+1. geometry closeout
+2. overturn uncertainty closeout
+3. challenge-now policy-evaluation closeout
+4. final publication copy review
+
+Primary reference:
+
+- [final-sprint-plan.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/final-sprint-plan.md)

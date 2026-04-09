@@ -301,6 +301,9 @@ Required rigor:
 - fallback usage by split
 - interval estimates for sparse states
 
+Implementation note:
+- the first split-aware held-out RE rebuild is now live on Warehouse, with `train`-only audit fitting and `train + validation` serving fitting; current evidence is in [2026-04-08-re-benchmark.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-re-benchmark.md)
+
 Publication boundary:
 - may be described as empirical pitch-state RE
 - may not be described as exact club internal value model
@@ -331,6 +334,9 @@ Required rigor:
 - Brier and log loss on held-out data
 - tail-state diagnostics
 - external MLB benchmark only as secondary validation
+
+Implementation note:
+- the first split-aware WE rebuild is now live on Warehouse, with primary held-out evidence in [2026-04-08-we-benchmark.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-we-benchmark.md) and secondary MLB comparison in [2026-04-08-mlb-we-benchmark.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-mlb-we-benchmark.md)
 
 Publication boundary:
 - may be described as empirical count-aware WE if out-of-sample validated
@@ -367,10 +373,79 @@ Publication boundary:
 - may be described as a modeled overturn likelihood
 - must not be described as official ABS truth probability
 
+Concrete implementation spec:
+
+- modeling population:
+  - rows from `modeling.called_pitch_decisions` where:
+    - `was_challenged = TRUE`
+    - `challenge_outcome IN ('overturned', 'confirmed')`
+    - `split_set IN ('train', 'validation', 'test')`
+- binary target:
+  - `y = 1` when `challenge_outcome = 'overturned'`
+  - `y = 0` when `challenge_outcome = 'confirmed'`
+- features allowed at challenge time:
+  - `observed_call`
+  - challenge direction derived from `observed_call`
+  - `balls`, `strikes`, `outs`
+  - exact `bases_state`
+  - `inning`, `half_inning`
+  - `home_score`, `away_score`, `score_diff_batting`
+  - `stand`, `p_throws`
+  - `pitch_type`, `pitch_name`, `start_speed`, `end_speed`, `spin_rate`
+  - `plate_x`, `plate_z`, `strike_zone_top`, `strike_zone_bottom`
+  - geometry-derived fields:
+    - `abs_zone_outcome_center_only`
+    - `abs_zone_outcome_radius_adjusted`
+    - `min_edge_distance_center_only`
+    - `min_edge_distance_radius_adjusted`
+    - direction-specific edge buckets
+- features explicitly disallowed:
+  - `challenge_outcome`
+  - any post-review score or inventory result
+  - any field populated only after the challenge result is known
+- baseline model design:
+  - start with interpretable grouped empirical rates with shrinkage
+  - grouping hierarchy:
+    - challenge direction + geometry variant + edge bucket
+    - challenge direction + geometry variant
+    - challenge direction only
+    - global
+  - every fallback must record its usage tier
+- geometry comparison rule:
+  - evaluate `center_only` and `radius_adjusted` in parallel
+  - whichever geometry variant wins on held-out calibration and classification evidence becomes the default production geometry
+  - losing geometry remains stored for audit comparison until formally retired
+- split rule for current window:
+  - `train`: through `2026-03-31`
+  - `validation`: `2026-04-01` through `2026-04-03`
+  - `test`: `2026-04-04` through `2026-04-07`
+- validation outputs required:
+  - held-out reliability table
+  - Brier score
+  - bucket counts
+  - calibration by challenge direction
+  - fallback-tier usage by split
+  - center-only vs radius-adjusted comparison artifact
+- serving output contract:
+  - serving layers may consume only compact, versioned overturn lookup tables or a versioned scoring function
+  - every output must expose:
+    - probability
+    - fallback tier
+    - geometry version
+    - model version
+
+Baseball logic:
+
+- this model answers only:
+  - "if we challenge this pitch, how often should we expect to win?"
+- it does not answer:
+  - "is it worth spending the challenge here?"
+- that second question belongs to the challenge-now policy layer below
+
 ### 5. Challenge-Now / Expected Decision Value
 
 Purpose:
-- determine whether challenging now is optimal before outcome is known
+- estimate challenge value at decision time and support honest live discussion plus retrospective review
 
 Target:
 - expected value under policy, not observed single-pitch realized outcome alone
@@ -400,6 +475,109 @@ Required rigor:
 
 Publication boundary:
 - no org-grade claim until out-of-sample policy value is demonstrated
+- until that threshold is met, the approved use is:
+  - experimental fan-facing/live discussion support
+  - postgame challenge evaluation
+  - missed-opportunity and low-value-usage review
+
+Concrete implementation spec:
+
+- modeling objective:
+  - produce expected challenge decision value at challenge time
+  - final recommendation is `challenge` or `hold`
+- decision unit:
+  - one challenge-eligible taken pitch from `modeling.called_pitch_decisions`
+- minimum required inputs:
+  - overturn probability output from the overturn model
+  - count-state / RE / WE deltas for flipping the call
+  - exact current game state
+  - challenge inventory state
+- decomposition rule:
+  - challenge-now must remain a decomposed policy stack, not a single opaque classifier
+  - required layers:
+    - geometry layer
+    - overturn probability layer
+    - baseball value layer
+    - inventory-cost layer
+    - final policy layer
+- baseball value equation:
+  - define:
+    - `p = P(overturn)`
+    - `success_value = baseball value if the call flips`
+    - `failure_value = baseball value if the call stands`
+    - `inventory_cost = strategic cost of spending one challenge now`
+  - expected value:
+    - `EV = p * success_value + (1 - p) * failure_value - inventory_cost`
+- success and failure value rules:
+  - `success_value` must come from exact-state count / RE / WE deltas implied by flipping the observed call
+  - those deltas must be expressed from the challenging team's perspective, not blindly from the batting team's perspective
+  - for `ball_to_strike` opportunities, batting-team value deltas must be sign-adjusted before policy scoring
+  - `failure_value` must not be silently assumed zero unless explicitly documented and sensitivity-tested
+  - if challenge retention rules create asymmetric inventory outcomes, that asymmetry must be included explicitly
+- challenge-time features allowed:
+  - exact `bases_state`
+  - exact count
+  - inning / half inning / outs
+  - score state
+  - observed call
+  - overturn probability and fallback tier
+  - pitch geometry and pitch traits available immediately after the pitch
+  - current team challenge inventory state
+- challenge-time features disallowed:
+  - realized challenge outcome
+  - any downstream play result after the challenged pitch
+  - any inventory state observed after the decision point
+- inventory-cost design:
+  - the first production-facing implementation should use a versioned, empirical option-value table estimated from later positive-value opportunities in the same game
+  - current leading version is `inventory_future_opportunity_v1`
+    - grouped by remaining challenges, inning bucket, and close-game flag
+    - estimated on `train`
+    - selected on `validation`
+    - reported on held-out `test`
+  - if a heuristic fallback is ever used, it must be labeled heuristic everywhere
+  - the penalty must vary by:
+    - inning / game horizon
+    - leverage or expected future opportunity density
+    - remaining challenge inventory
+  - future versions may replace this with simulation-based opportunity cost
+- policy output contract:
+  - required output fields:
+    - `overturnProbability`
+    - `successValue`
+    - `failureValue`
+    - `inventoryCost`
+    - `inventoryCostVersion`
+    - `expectedChallengeValue`
+    - `recommendation`
+    - `recommendationBand`
+    - `modelVersion`
+    - `geometryVersion`
+    - `fallbackTier`
+- validation design:
+  - do not evaluate only on already-challenged rows as if those were the full opportunity universe
+  - define the opportunity set as all challenge-eligible taken pitches in the evaluation window
+  - evaluate:
+    - recommendation rate
+    - value captured on held-out opportunities
+    - challenge budget usage
+    - recommendation quality by band
+    - sensitivity to inventory penalty
+  - if the policy remains descriptively interesting but not causally convincing, route it to:
+    - experimental fan-facing live surfaces
+    - retrospective postgame and team-review surfaces
+    - not org-grade live operational recommendation
+  - current leading audit for `inventory_future_opportunity_v1` should be published alongside the decision-value audit so the policy can be traced back to its option-cost evidence
+- live serving rule:
+  - the live API must accept exact `basesState`, not `runnersOnBase`
+  - any product surface that collapses state invalidates the policy claim
+
+Baseball logic:
+
+- this model answers:
+  - "even if we might win the challenge, is this the right moment to spend it?"
+- it must respect that:
+  - a moderately strong overturn spot in a huge leverage state can be worth more than an easy overturn in a low-impact state
+  - using a challenge is a resource-allocation decision, not just a geometry decision
 
 ### 6. Leverage
 
@@ -422,6 +600,9 @@ Required rigor:
 
 Publication boundary:
 - if heuristic, call it heuristic everywhere
+
+Implementation note:
+- current audit evidence supports retaining leverage as a heuristic pressure proxy rather than rebuilding it as a calibrated model; see [2026-04-08-leverage-audit.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-leverage-audit.md)
 
 ### 7. Zone / Edge Geometry
 
@@ -471,6 +652,12 @@ Required rigor:
 - confidence-aware dampening
 - label transition audit
 
+Implementation note:
+- the shared rubric layer is now explicitly confidence-damped and warehouse-audited:
+  - low-confidence umpire grade and risk extremes are softened
+  - team style now has a neutral `Balanced` / `Mixed profile` outcome when no strong identity separates
+  - current evidence is in [2026-04-08-rubric-audit.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-rubric-audit.md)
+
 Publication boundary:
 - descriptive translation layer only
 
@@ -496,6 +683,9 @@ Required rigor:
 
 Publication boundary:
 - editorial ranking, not predictive model truth
+
+Implementation note:
+- controversy is now versioned as `controversy_editorial_v2`, uses modeled value where available, and is audited as an editorial composite in [2026-04-08-controversy-audit.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-controversy-audit.md)
 
 ### 10. Derived Org Analytics
 
@@ -523,6 +713,11 @@ Required rigor:
 - confidence inheritance from upstream models
 - sample size on every view
 - suppression or directional labeling when uncertainty is high
+
+Implementation note:
+- the first org-surface hardening pass is now live in the app layer:
+  - umpire-facing value boards only aggregate trusted `win_expectancy` outputs
+  - shared team decision-value summaries in [data.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/data.ts) now restrict expected / realized value, surplus, and value-share calculations to `win_expectancy` rows instead of blending heuristic fallback rows into org-facing value totals
 
 Publication boundary:
 - only publish if upstream models meet their own standards
@@ -627,6 +822,13 @@ Forbidden claim examples until stronger evidence exists:
 4. updated docs with reconciled numbers
 5. archived superseded plans and pre-fix artifacts
 6. publication checklist signed off
+
+Current implementation note:
+
+- active model cards now live under [model-cards/README.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/model-cards/README.md)
+- the publication gate now lives in [publication-checklist.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/launch/publication-checklist.md)
+- the current overall status memo now lives in [publication-readiness.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/publication-readiness.md)
+- the remaining publication work is no longer missing documentation; it is closing the remaining claim and evidence gaps honestly
 
 ## Current Source References
 

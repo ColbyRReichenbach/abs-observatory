@@ -1,0 +1,352 @@
+{
+  "generatedAt": "2026-04-08T20:48:08.014Z",
+  "dataset": {
+    "geometryVariant": "center_only",
+    "trainRows": 13822,
+    "validationRows": 4967,
+    "testRows": 9768
+  },
+  "baseline": {
+    "testRecommendationShare": 0.5738124488124489
+  },
+  "modelComparison": [
+    {
+      "modelType": "inning_bucket_close",
+      "challengesRemaining": 2,
+      "validationMae": 0.07694390809925047,
+      "validationBias": 0.0030818271718302146,
+      "validationRecommendationShare": 0.05677471310650292,
+      "testMae": 0.09803824605186305,
+      "testRecommendationShare": 0.07678132678132678
+    },
+    {
+      "modelType": "inning_bucket",
+      "challengesRemaining": 2,
+      "validationMae": 0.0805104851071777,
+      "validationBias": 0.002771640884950548,
+      "validationRecommendationShare": 0.06200926112341454,
+      "testMae": 0.10123675519851172,
+      "testRecommendationShare": 0.08251433251433252
+    },
+    {
+      "modelType": "global",
+      "challengesRemaining": 2,
+      "validationMae": 0.09829924931403086,
+      "validationBias": 0.004208928161872777,
+      "validationRecommendationShare": 0.05476142540769076,
+      "testMae": 0.12432899643158249,
+      "testRecommendationShare": 0.07360769860769861
+    },
+    {
+      "modelType": "inning_bucket_close",
+      "challengesRemaining": 1,
+      "validationMae": 0.1064733346926279,
+      "validationBias": 0.0031082781621042553,
+      "validationRecommendationShare": 0.02838735655325146,
+      "testMae": 0.12110194782504105,
+      "testRecommendationShare": 0.043202293202293206
+    },
+    {
+      "modelType": "inning_bucket",
+      "challengesRemaining": 1,
+      "validationMae": 0.11151639697094719,
+      "validationBias": 0.002798428752375431,
+      "validationRecommendationShare": 0.032212603180994566,
+      "testMae": 0.12707271801550124,
+      "testRecommendationShare": 0.044226044226044224
+    },
+    {
+      "modelType": "global",
+      "challengesRemaining": 1,
+      "validationMae": 0.1320654751281767,
+      "validationBias": 0.004571526576927791,
+      "validationRecommendationShare": 0.027783370243607813,
+      "testMae": 0.15063511654141126,
+      "testRecommendationShare": 0.0430999180999181
+    }
+  ],
+  "selection": {
+    "modelType": "inning_bucket_close",
+    "challengesRemaining": 2
+  },
+  "validation": {
+    "global": {
+      "1": {
+        "rows": 4967,
+        "mae": 0.1320654751281767,
+        "bias": 0.004571526576927791,
+        "recommendationShare": 0.027783370243607813
+      },
+      "2": {
+        "rows": 4967,
+        "mae": 0.09829924931403086,
+        "bias": 0.004208928161872777,
+        "recommendationShare": 0.05476142540769076
+      }
+    },
+    "inning_bucket": {
+      "1": {
+        "rows": 4967,
+        "mae": 0.11151639697094719,
+        "bias": 0.002798428752375431,
+        "recommendationShare": 0.032212603180994566
+      },
+      "2": {
+        "rows": 4967,
+        "mae": 0.0805104851071777,
+        "bias": 0.002771640884950548,
+        "recommendationShare": 0.06200926112341454
+      }
+    },
+    "inning_bucket_close": {
+      "1": {
+        "rows": 4967,
+        "mae": 0.1064733346926279,
+        "bias": 0.0031082781621042553,
+        "recommendationShare": 0.02838735655325146
+      },
+      "2": {
+        "rows": 4967,
+        "mae": 0.07694390809925047,
+        "bias": 0.0030818271718302146,
+        "recommendationShare": 0.05677471310650292
+      }
+    }
+  },
+  "test": {
+    "global": {
+      "1": {
+        "rows": 9768,
+        "mae": 0.15063511654141126,
+        "bias": -0.049120178525229895,
+        "recommendationShare": 0.0430999180999181
+      },
+      "2": {
+        "rows": 9768,
+        "mae": 0.12432899643158249,
+        "bias": -0.043412154888800555,
+        "recommendationShare": 0.07360769860769861
+      }
+    },
+    "inning_bucket": {
+      "1": {
+        "rows": 9768,
+        "mae": 0.12707271801550124,
+        "bias": -0.050684966282422556,
+        "recommendationShare": 0.044226044226044224
+      },
+      "2": {
+        "rows": 9768,
+        "mae": 0.10123675519851172,
+        "bias": -0.04468756291751849,
+        "recommendationShare": 0.08251433251433252
+      }
+    },
+    "inning_bucket_close": {
+      "1": {
+        "rows": 9768,
+        "mae": 0.12110194782504105,
+        "bias": -0.045180472086818795,
+        "recommendationShare": 0.043202293202293206
+      },
+      "2": {
+        "rows": 9768,
+        "mae": 0.09803824605186305,
+        "bias": -0.04040053897845192,
+        "recommendationShare": 0.07678132678132678
+      }
+    }
+  },
+  "bucketTables": {
+    "global": {
+      "1": [
+        {
+          "bucket": "1",
+          "sampleSize": 13822,
+          "meanCost": 0.2015533063232538
+        }
+      ],
+      "2": [
+        {
+          "bucket": "2",
+          "sampleSize": 13822,
+          "meanCost": 0.14013024887860304
+        }
+      ]
+    },
+    "inning_bucket": {
+      "1": [
+        {
+          "bucket": "1|1-3",
+          "sampleSize": 4638,
+          "meanCost": 0.27552373868046687
+        },
+        {
+          "bucket": "1|4-6",
+          "sampleSize": 4760,
+          "meanCost": 0.21405939075630262
+        },
+        {
+          "bucket": "1|7-8",
+          "sampleSize": 3102,
+          "meanCost": 0.1368110573823348
+        },
+        {
+          "bucket": "1|9+",
+          "sampleSize": 1322,
+          "meanCost": 0.048925945537065155
+        }
+      ],
+      "2": [
+        {
+          "bucket": "2|1-3",
+          "sampleSize": 4638,
+          "meanCost": 0.20337266062958312
+        },
+        {
+          "bucket": "2|4-6",
+          "sampleSize": 4760,
+          "meanCost": 0.14850581932772977
+        },
+        {
+          "bucket": "2|7-8",
+          "sampleSize": 3102,
+          "meanCost": 0.08209248871695676
+        },
+        {
+          "bucket": "2|9+",
+          "sampleSize": 1322,
+          "meanCost": 0.024280862329803275
+        }
+      ]
+    },
+    "inning_bucket_close": {
+      "1": [
+        {
+          "bucket": "1|1-3|close",
+          "sampleSize": 3426,
+          "meanCost": 0.28954352014010387
+        },
+        {
+          "bucket": "1|1-3|not_close",
+          "sampleSize": 1212,
+          "meanCost": 0.23589356435643613
+        },
+        {
+          "bucket": "1|4-6|close",
+          "sampleSize": 1812,
+          "meanCost": 0.24681330022075038
+        },
+        {
+          "bucket": "1|4-6|not_close",
+          "sampleSize": 2948,
+          "meanCost": 0.19392706919945835
+        },
+        {
+          "bucket": "1|7-8|close",
+          "sampleSize": 913,
+          "meanCost": 0.21035421686746955
+        },
+        {
+          "bucket": "1|7-8|not_close",
+          "sampleSize": 2189,
+          "meanCost": 0.10613727729556854
+        },
+        {
+          "bucket": "1|9+|close",
+          "sampleSize": 412,
+          "meanCost": 0.11896820388349548
+        },
+        {
+          "bucket": "1|9+|not_close",
+          "sampleSize": 910,
+          "meanCost": 0.01721450549450547
+        }
+      ],
+      "2": [
+        {
+          "bucket": "2|1-3|close",
+          "sampleSize": 3426,
+          "meanCost": 0.21517434325744247
+        },
+        {
+          "bucket": "2|1-3|not_close",
+          "sampleSize": 1212,
+          "meanCost": 0.17001245874587342
+        },
+        {
+          "bucket": "2|4-6|close",
+          "sampleSize": 1812,
+          "meanCost": 0.17933073951434852
+        },
+        {
+          "bucket": "2|4-6|not_close",
+          "sampleSize": 2948,
+          "meanCost": 0.1295591587516967
+        },
+        {
+          "bucket": "2|7-8|close",
+          "sampleSize": 913,
+          "meanCost": 0.134208543263965
+        },
+        {
+          "bucket": "2|7-8|not_close",
+          "sampleSize": 2189,
+          "meanCost": 0.06035564184559155
+        },
+        {
+          "bucket": "2|9+|close",
+          "sampleSize": 412,
+          "meanCost": 0.06170121359223295
+        },
+        {
+          "bucket": "2|9+|not_close",
+          "sampleSize": 910,
+          "meanCost": 0.007338901098901094
+        }
+      ]
+    }
+  },
+  "selectedBuckets": [
+    {
+      "bucket": "2|1-3|close",
+      "sampleSize": 3426,
+      "meanCost": 0.21517434325744247
+    },
+    {
+      "bucket": "2|1-3|not_close",
+      "sampleSize": 1212,
+      "meanCost": 0.17001245874587342
+    },
+    {
+      "bucket": "2|4-6|close",
+      "sampleSize": 1812,
+      "meanCost": 0.17933073951434852
+    },
+    {
+      "bucket": "2|4-6|not_close",
+      "sampleSize": 2948,
+      "meanCost": 0.1295591587516967
+    },
+    {
+      "bucket": "2|7-8|close",
+      "sampleSize": 913,
+      "meanCost": 0.134208543263965
+    },
+    {
+      "bucket": "2|7-8|not_close",
+      "sampleSize": 2189,
+      "meanCost": 0.06035564184559155
+    },
+    {
+      "bucket": "2|9+|close",
+      "sampleSize": 412,
+      "meanCost": 0.06170121359223295
+    },
+    {
+      "bucket": "2|9+|not_close",
+      "sampleSize": 910,
+      "meanCost": 0.007338901098901094
+    }
+  ]
+}

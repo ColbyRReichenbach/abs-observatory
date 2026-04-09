@@ -42,6 +42,9 @@ class CalledPitchSummary:
     savant_only_rows_with_bases_state: int
     rows_with_score_context: int
     savant_only_rows_with_score_context: int
+    rows_with_team_context: int
+    rows_with_opportunity_team: int
+    challenged_with_actual_challenge_team: int
     rows_with_zone_bounds: int
     rows_with_abs_center: int
     rows_with_abs_radius: int
@@ -130,6 +133,13 @@ def summarize(cur, start_date: str, end_date: str) -> CalledPitchSummary:
               AND score_diff_batting IS NOT NULL
           )::bigint AS savant_only_rows_with_score_context,
           COUNT(*) FILTER (
+            WHERE batting_team_id IS NOT NULL AND fielding_team_id IS NOT NULL
+          )::bigint AS rows_with_team_context,
+          COUNT(*) FILTER (WHERE opportunity_team_id IS NOT NULL)::bigint AS rows_with_opportunity_team,
+          COUNT(*) FILTER (
+            WHERE was_challenged AND actual_challenge_team_id IS NOT NULL
+          )::bigint AS challenged_with_actual_challenge_team,
+          COUNT(*) FILTER (
             WHERE strike_zone_top IS NOT NULL AND strike_zone_bottom IS NOT NULL
           )::bigint AS rows_with_zone_bounds,
           COUNT(*) FILTER (WHERE abs_zone_outcome_center_only IS NOT NULL)::bigint AS rows_with_abs_center,
@@ -157,12 +167,15 @@ def summarize(cur, start_date: str, end_date: str) -> CalledPitchSummary:
         savant_only_rows_with_bases_state=int(row[11] or 0),
         rows_with_score_context=int(row[12] or 0),
         savant_only_rows_with_score_context=int(row[13] or 0),
-        rows_with_zone_bounds=int(row[14] or 0),
-        rows_with_abs_center=int(row[15] or 0),
-        rows_with_abs_radius=int(row[16] or 0),
-        challenged_with_result=int(row[17] or 0),
-        duplicate_natural_keys=int(row[18] or 0),
-        raw_abs_event_rows=int(row[19] or 0),
+        rows_with_team_context=int(row[14] or 0),
+        rows_with_opportunity_team=int(row[15] or 0),
+        challenged_with_actual_challenge_team=int(row[16] or 0),
+        rows_with_zone_bounds=int(row[17] or 0),
+        rows_with_abs_center=int(row[18] or 0),
+        rows_with_abs_radius=int(row[19] or 0),
+        challenged_with_result=int(row[20] or 0),
+        duplicate_natural_keys=int(row[21] or 0),
+        raw_abs_event_rows=int(row[22] or 0),
     )
 
 
@@ -213,6 +226,16 @@ def main() -> None:
     if summary.challenged_with_result != summary.challenged_rows:
         failures.append(
             f"called_pitch_decisions:challenged_with_result={summary.challenged_with_result} challenged_rows={summary.challenged_rows}",
+        )
+    if summary.rows_with_opportunity_team != summary.row_count:
+        failures.append(
+            f"called_pitch_decisions:rows_with_opportunity_team={summary.rows_with_opportunity_team} row_count={summary.row_count}",
+        )
+    if summary.challenged_with_actual_challenge_team != summary.challenged_rows:
+        failures.append(
+            "called_pitch_decisions:"
+            f"challenged_with_actual_challenge_team={summary.challenged_with_actual_challenge_team} "
+            f"challenged_rows={summary.challenged_rows}",
         )
 
     status["strictFailures"] = failures

@@ -14,9 +14,13 @@ Key files:
 
 - [model-rework-master-plan.md](./model-rework-master-plan.md)
 - [model-rework-execution-tracker.md](./model-rework-execution-tracker.md)
+- [current-model-verdict.md](./current-model-verdict.md)
 - [data-platform-master-plan.md](./data-platform-master-plan.md)
 - [data-platform-execution-tracker.md](./data-platform-execution-tracker.md)
 - [data-foundation-spec.md](./data-foundation-spec.md)
+- [model-cards/README.md](./model-cards/README.md)
+- [publication-readiness.md](./publication-readiness.md)
+- [final-sprint-plan.md](./final-sprint-plan.md)
 - [operating-procedure.md](./operating-procedure.md)
 - [model-history.md](./model-history.md)
 - [audit-cadence.md](./audit-cadence.md)
@@ -36,6 +40,16 @@ The retained model docs cover:
 - zone and controversy audits
 
 The dated files under `audits/` and `audits/artifacts/` are historical evidence packages. They may preserve superseded labels or earlier terminology because they capture what the audit recorded at that time.
+
+## Model Cards
+
+The `model-cards/` directory is the current single-source publication layer for:
+
+- target definitions
+- feature availability rules
+- split and evaluation policy
+- current measured performance
+- claim boundaries
 
 ## Documentation Rule
 

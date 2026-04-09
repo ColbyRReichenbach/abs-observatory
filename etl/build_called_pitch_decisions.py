@@ -44,6 +44,9 @@ WITH statcast_taken AS (
     p.home_score,
     p.away_score,
     p.score_diff_batting,
+    p.batting_team_id,
+    p.fielding_team_id,
+    sae.challenge_team_id AS actual_challenge_team_id,
     p.batter_id,
     p.pitcher_id,
     sae.catcher_id,
@@ -147,6 +150,9 @@ savant_challenge_only AS (
         THEN COALESCE(lp.away_score_before, lac.away_score) - COALESCE(lp.home_score_before, lac.home_score)
       ELSE COALESCE(lp.home_score_before, lac.home_score) - COALESCE(lp.away_score_before, lac.away_score)
     END AS score_diff_batting,
+    sae.team_batting_id AS batting_team_id,
+    sae.team_fielding_id AS fielding_team_id,
+    COALESCE(lac.challenge_team_id, sae.challenge_team_id) AS actual_challenge_team_id,
     COALESCE(lp.batter_id, lac.batter_id, sae.batter_id) AS batter_id,
     COALESCE(lp.pitcher_id, lac.pitcher_id, sae.pitcher_id) AS pitcher_id,
     COALESCE(lac.challenge_player_id, sae.catcher_id) AS catcher_id,
@@ -216,6 +222,16 @@ derived AS (
     'center_of_ball_assumed'::TEXT AS coordinate_interpretation,
     %(ball_radius_feet)s::NUMERIC AS ball_radius_feet,
     CASE
+      WHEN c.observed_call = 'strike' THEN c.batting_team_id
+      WHEN c.observed_call = 'ball' THEN c.fielding_team_id
+      ELSE NULL
+    END AS opportunity_team_id,
+    CASE
+      WHEN c.observed_call = 'strike' THEN 'batting'
+      WHEN c.observed_call = 'ball' THEN 'fielding'
+      ELSE NULL
+    END AS opportunity_team_side,
+    CASE
       WHEN c.plate_x IS NULL OR c.plate_z IS NULL OR c.strike_zone_top IS NULL OR c.strike_zone_bottom IS NULL OR c.strike_zone_top <= c.strike_zone_bottom THEN NULL
       WHEN c.plate_x BETWEEN -0.83 AND 0.83 AND c.plate_z BETWEEN c.strike_zone_bottom AND c.strike_zone_top THEN 'strike'
       ELSE 'ball'
@@ -274,7 +290,8 @@ finalized AS (
 INSERT INTO modeling.called_pitch_decisions (
   game_pk, game_date, season, game_type, competition_phase, is_spring_training, is_regular_season, is_postseason,
   is_abs_enabled_game, inning, half_inning, at_bat_number, pitch_number, balls, strikes, outs, bases_state,
-  home_score, away_score, score_diff_batting, batter_id, pitcher_id, catcher_id, stand, p_throws, pitch_type,
+  home_score, away_score, score_diff_batting, batting_team_id, fielding_team_id, opportunity_team_id,
+  opportunity_team_side, batter_id, pitcher_id, catcher_id, stand, p_throws, pitch_type,
   pitch_name, start_speed, end_speed, spin_rate, plate_x, plate_z, px, pz, strike_zone_top, strike_zone_bottom,
   zone, called_code, called_description, observed_call, is_called_ball, is_called_strike, geometry_version,
   zone_rule_version, coordinate_interpretation, ball_radius_feet, abs_zone_outcome_center_only,
@@ -282,13 +299,14 @@ INSERT INTO modeling.called_pitch_decisions (
   horizontal_edge_distance_center_only, vertical_edge_distance_center_only, min_edge_distance_center_only,
   horizontal_edge_distance_radius_adjusted, vertical_edge_distance_radius_adjusted, min_edge_distance_radius_adjusted,
   inside_shadow_band, absolute_center_distance, is_challenge_eligible, was_challenged, challenge_source,
-  challenge_dedupe_key, challenge_outcome, is_overturned, challenge_result_confirmed_source, source_system,
+  challenge_dedupe_key, actual_challenge_team_id, challenge_outcome, is_overturned, challenge_result_confirmed_source, source_system,
   source_row_hash, data_snapshot_id, split_set, split_policy_version, feature_freeze_ts
 )
 SELECT
   game_pk, game_date, season, game_type, competition_phase, is_spring_training, is_regular_season, is_postseason,
   is_abs_enabled_game, inning, half_inning, at_bat_number, pitch_number, balls, strikes, outs, bases_state,
-  home_score, away_score, score_diff_batting, batter_id, pitcher_id, catcher_id, stand, p_throws, pitch_type,
+  home_score, away_score, score_diff_batting, batting_team_id, fielding_team_id, opportunity_team_id,
+  opportunity_team_side, batter_id, pitcher_id, catcher_id, stand, p_throws, pitch_type,
   pitch_name, start_speed, end_speed, spin_rate, plate_x, plate_z, px, pz, strike_zone_top, strike_zone_bottom,
   zone, called_code, called_description, observed_call, is_called_ball, is_called_strike, geometry_version,
   zone_rule_version, coordinate_interpretation, ball_radius_feet, abs_zone_outcome_center_only,
@@ -296,7 +314,7 @@ SELECT
   horizontal_edge_distance_center_only, vertical_edge_distance_center_only, min_edge_distance_center_only,
   horizontal_edge_distance_radius_adjusted, vertical_edge_distance_radius_adjusted, min_edge_distance_radius_adjusted,
   inside_shadow_band, absolute_center_distance, (observed_call IN ('ball', 'strike')) AS is_challenge_eligible,
-  was_challenged, challenge_source, challenge_dedupe_key, challenge_outcome, is_overturned,
+  was_challenged, challenge_source, challenge_dedupe_key, actual_challenge_team_id, challenge_outcome, is_overturned,
   challenge_result_confirmed_source, source_system, source_row_hash, %(data_snapshot_id)s,
   CASE
     WHEN %(split_set)s IS NOT NULL THEN %(split_set)s
@@ -325,6 +343,10 @@ ON CONFLICT (game_pk, at_bat_number, pitch_number) DO UPDATE SET
   home_score = EXCLUDED.home_score,
   away_score = EXCLUDED.away_score,
   score_diff_batting = EXCLUDED.score_diff_batting,
+  batting_team_id = EXCLUDED.batting_team_id,
+  fielding_team_id = EXCLUDED.fielding_team_id,
+  opportunity_team_id = EXCLUDED.opportunity_team_id,
+  opportunity_team_side = EXCLUDED.opportunity_team_side,
   batter_id = EXCLUDED.batter_id,
   pitcher_id = EXCLUDED.pitcher_id,
   catcher_id = EXCLUDED.catcher_id,
@@ -367,6 +389,7 @@ ON CONFLICT (game_pk, at_bat_number, pitch_number) DO UPDATE SET
   was_challenged = EXCLUDED.was_challenged,
   challenge_source = EXCLUDED.challenge_source,
   challenge_dedupe_key = EXCLUDED.challenge_dedupe_key,
+  actual_challenge_team_id = EXCLUDED.actual_challenge_team_id,
   challenge_outcome = EXCLUDED.challenge_outcome,
   is_overturned = EXCLUDED.is_overturned,
   challenge_result_confirmed_source = EXCLUDED.challenge_result_confirmed_source,

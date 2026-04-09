@@ -1,0 +1,427 @@
+{
+  "auditDate": "2026-04-08",
+  "springWindow": {
+    "start": "2026-02-20",
+    "end": "2026-04-08"
+  },
+  "overall": {
+    "rows": 1426,
+    "meanLeverage": 50.840112201963535,
+    "meanAbsWinSwing": 0.03349277699859742,
+    "medianAbsWinSwing": 0.0203,
+    "p90AbsWinSwing": 0.0762
+  },
+  "pearsonCorrelation": 0.19012703209756962,
+  "topDecileCapture": {
+    "high": 0.2097902097902098,
+    "medium": 0.7202797202797203,
+    "low": 0.06993006993006994
+  },
+  "topDecileLeakage": {
+    "low": 0.04504504504504504
+  },
+  "byLeverageBucket": [
+    {
+      "key": "high",
+      "rows": 138,
+      "share": 0.0967741935483871,
+      "meanLeverage": 69.17391304347827,
+      "meanAbsWinSwing": 0.05499057971014494,
+      "medianAbsWinSwing": 0.031200000000000002,
+      "topDecileShare": 0.21739130434782608
+    },
+    {
+      "key": "medium",
+      "rows": 1066,
+      "share": 0.7475455820476858,
+      "meanLeverage": 51.87429643527204,
+      "meanAbsWinSwing": 0.033027767354596574,
+      "medianAbsWinSwing": 0.020999999999999998,
+      "topDecileShare": 0.09662288930581614
+    },
+    {
+      "key": "low",
+      "rows": 222,
+      "share": 0.15568022440392706,
+      "meanLeverage": 34.47747747747748,
+      "meanAbsWinSwing": 0.022362162162162164,
+      "medianAbsWinSwing": 0.0116,
+      "topDecileShare": 0.04504504504504504
+    }
+  ],
+  "byInningBucket": [
+    {
+      "key": "1-3",
+      "rows": 489,
+      "share": 0.3429172510518934,
+      "meanLeverage": 48.91411042944785,
+      "meanAbsWinSwing": 0.03727893660531697,
+      "medianAbsWinSwing": 0.0251,
+      "topDecileShare": 0.11860940695296524
+    },
+    {
+      "key": "4-6",
+      "rows": 539,
+      "share": 0.37798036465638146,
+      "meanLeverage": 47.71057513914657,
+      "meanAbsWinSwing": 0.03284805194805193,
+      "medianAbsWinSwing": 0.0203,
+      "topDecileShare": 0.10204081632653061
+    },
+    {
+      "key": "7-8",
+      "rows": 264,
+      "share": 0.18513323983169705,
+      "meanLeverage": 55.22727272727273,
+      "meanAbsWinSwing": 0.03234431818181817,
+      "medianAbsWinSwing": 0.013250000000000001,
+      "topDecileShare": 0.07575757575757576
+    },
+    {
+      "key": "9+",
+      "rows": 134,
+      "share": 0.09396914446002805,
+      "meanLeverage": 61.8134328358209,
+      "meanAbsWinSwing": 0.024532089552238796,
+      "medianAbsWinSwing": 0.0116,
+      "topDecileShare": 0.07462686567164178
+    }
+  ],
+  "byScoreBucket": [
+    {
+      "key": "Tied",
+      "rows": 299,
+      "share": 0.20967741935483872,
+      "meanLeverage": 56.68896321070234,
+      "meanAbsWinSwing": 0.03236622073578596,
+      "medianAbsWinSwing": 0.0225,
+      "topDecileShare": 0.10033444816053512
+    },
+    {
+      "key": "One-Run",
+      "rows": 355,
+      "share": 0.24894810659186536,
+      "meanLeverage": 56.06478873239437,
+      "meanAbsWinSwing": 0.04300704225352115,
+      "medianAbsWinSwing": 0.0269,
+      "topDecileShare": 0.14366197183098592
+    },
+    {
+      "key": "Two-Run",
+      "rows": 247,
+      "share": 0.17321178120617112,
+      "meanLeverage": 51.51417004048583,
+      "meanAbsWinSwing": 0.0391,
+      "medianAbsWinSwing": 0.0249,
+      "topDecileShare": 0.11740890688259109
+    },
+    {
+      "key": "Three-Run",
+      "rows": 186,
+      "share": 0.13043478260869565,
+      "meanLeverage": 47.53225806451613,
+      "meanAbsWinSwing": 0.03851182795698926,
+      "medianAbsWinSwing": 0.024550000000000002,
+      "topDecileShare": 0.13440860215053763
+    },
+    {
+      "key": "Four-Plus",
+      "rows": 339,
+      "share": 0.23772791023842918,
+      "meanLeverage": 41.53392330383481,
+      "meanAbsWinSwing": 0.017683775811209432,
+      "medianAbsWinSwing": 0.0091,
+      "topDecileShare": 0.02359882005899705
+    }
+  ],
+  "byRunnerState": [
+    {
+      "key": "Bases Loaded",
+      "rows": 51,
+      "share": 0.03576437587657784,
+      "meanLeverage": 60.15686274509804,
+      "meanAbsWinSwing": 0.0830745098039216,
+      "medianAbsWinSwing": 0.0575,
+      "topDecileShare": 0.4117647058823529
+    },
+    {
+      "key": "Two Runners",
+      "rows": 206,
+      "share": 0.14446002805049088,
+      "meanLeverage": 56.73300970873787,
+      "meanAbsWinSwing": 0.05762087378640779,
+      "medianAbsWinSwing": 0.03685,
+      "topDecileShare": 0.24271844660194175
+    },
+    {
+      "key": "One Runner",
+      "rows": 434,
+      "share": 0.30434782608695654,
+      "meanLeverage": 53.73271889400922,
+      "meanAbsWinSwing": 0.0403504608294931,
+      "medianAbsWinSwing": 0.028749999999999998,
+      "topDecileShare": 0.14746543778801843
+    },
+    {
+      "key": "Empty",
+      "rows": 735,
+      "share": 0.5154277699859747,
+      "meanLeverage": 46.83401360544217,
+      "meanAbsWinSwing": 0.01924068027210882,
+      "medianAbsWinSwing": 0.0143,
+      "topDecileShare": 0.010884353741496598
+    }
+  ],
+  "topOverstatements": [
+    {
+      "key": "7-8|One-Run|1|One Runner|Early Count",
+      "rows": 10,
+      "share": 0.0070126227208976155,
+      "meanLeverage": 68,
+      "meanAbsWinSwing": 0.047819999999999994,
+      "medianAbsWinSwing": 0.05,
+      "topDecileShare": 0.1,
+      "inningBucket": "7-8",
+      "scoreBucketLabel": "One-Run",
+      "outs": 1,
+      "runnerState": "One Runner",
+      "countPressure": "Early Count",
+      "signedPressureGap": 0.1572716549789621
+    },
+    {
+      "key": "1-3|Tied|2|Two Runners|Early Count",
+      "rows": 9,
+      "share": 0.006311360448807854,
+      "meanLeverage": 66,
+      "meanAbsWinSwing": 0.0312,
+      "medianAbsWinSwing": 0.0336,
+      "topDecileShare": 0,
+      "inningBucket": "1-3",
+      "scoreBucketLabel": "Tied",
+      "outs": 2,
+      "runnerState": "Two Runners",
+      "countPressure": "Early Count",
+      "signedPressureGap": 0.15389165497896207
+    },
+    {
+      "key": "7-8|One-Run|2|Empty|Early Count",
+      "rows": 12,
+      "share": 0.008415147265077139,
+      "meanLeverage": 65,
+      "meanAbsWinSwing": 0.023025,
+      "medianAbsWinSwing": 0.02015,
+      "topDecileShare": 0,
+      "inningBucket": "7-8",
+      "scoreBucketLabel": "One-Run",
+      "outs": 2,
+      "runnerState": "Empty",
+      "countPressure": "Early Count",
+      "signedPressureGap": 0.15206665497896205
+    },
+    {
+      "key": "4-6|Tied|1|One Runner|Early Count",
+      "rows": 11,
+      "share": 0.007713884992987377,
+      "meanLeverage": 62.90909090909091,
+      "meanAbsWinSwing": 0.03998181818181818,
+      "medianAbsWinSwing": 0.0384,
+      "topDecileShare": 0.18181818181818182,
+      "inningBucket": "4-6",
+      "scoreBucketLabel": "Tied",
+      "outs": 1,
+      "runnerState": "One Runner",
+      "countPressure": "Early Count",
+      "signedPressureGap": 0.11420074588805296
+    },
+    {
+      "key": "4-6|One-Run|2|One Runner|Early Count",
+      "rows": 10,
+      "share": 0.0070126227208976155,
+      "meanLeverage": 62,
+      "meanAbsWinSwing": 0.03301,
+      "medianAbsWinSwing": 0.0238,
+      "topDecileShare": 0.2,
+      "inningBucket": "4-6",
+      "scoreBucketLabel": "One-Run",
+      "outs": 2,
+      "runnerState": "One Runner",
+      "countPressure": "Early Count",
+      "signedPressureGap": 0.11208165497896208
+    },
+    {
+      "key": "7-8|Two-Run|1|One Runner|Early Count",
+      "rows": 14,
+      "share": 0.009817671809256662,
+      "meanLeverage": 62,
+      "meanAbsWinSwing": 0.037814285714285724,
+      "medianAbsWinSwing": 0.03535,
+      "topDecileShare": 0.07142857142857142,
+      "inningBucket": "7-8",
+      "scoreBucketLabel": "Two-Run",
+      "outs": 1,
+      "runnerState": "One Runner",
+      "countPressure": "Early Count",
+      "signedPressureGap": 0.10727736926467635
+    },
+    {
+      "key": "9+|Three-Run|2|Empty|Early Count",
+      "rows": 9,
+      "share": 0.006311360448807854,
+      "meanLeverage": 59,
+      "meanAbsWinSwing": 0.008666666666666665,
+      "medianAbsWinSwing": 0.0076,
+      "topDecileShare": 0,
+      "inningBucket": "9+",
+      "scoreBucketLabel": "Three-Run",
+      "outs": 2,
+      "runnerState": "Empty",
+      "countPressure": "Early Count",
+      "signedPressureGap": 0.10642498831229541
+    },
+    {
+      "key": "7-8|Two-Run|2|Empty|Early Count",
+      "rows": 9,
+      "share": 0.006311360448807854,
+      "meanLeverage": 59,
+      "meanAbsWinSwing": 0.018311111111111108,
+      "medianAbsWinSwing": 0.0112,
+      "topDecileShare": 0,
+      "inningBucket": "7-8",
+      "scoreBucketLabel": "Two-Run",
+      "outs": 2,
+      "runnerState": "Empty",
+      "countPressure": "Early Count",
+      "signedPressureGap": 0.09678054386785097
+    }
+  ],
+  "topUnderstatements": [
+    {
+      "key": "1-3|Four-Plus|1|Empty|Early Count",
+      "rows": 9,
+      "share": 0.006311360448807854,
+      "meanLeverage": 28,
+      "meanAbsWinSwing": 0.030677777777777786,
+      "medianAbsWinSwing": 0.0277,
+      "topDecileShare": 0,
+      "inningBucket": "1-3",
+      "scoreBucketLabel": "Four-Plus",
+      "outs": 1,
+      "runnerState": "Empty",
+      "countPressure": "Early Count",
+      "signedPressureGap": -0.22558612279881574
+    },
+    {
+      "key": "4-6|Four-Plus|0|Empty|Early Count",
+      "rows": 24,
+      "share": 0.016830294530154277,
+      "meanLeverage": 29,
+      "meanAbsWinSwing": 0.009912500000000001,
+      "medianAbsWinSwing": 0.0094,
+      "topDecileShare": 0,
+      "inningBucket": "4-6",
+      "scoreBucketLabel": "Four-Plus",
+      "outs": 0,
+      "runnerState": "Empty",
+      "countPressure": "Early Count",
+      "signedPressureGap": -0.19482084502103794
+    },
+    {
+      "key": "4-6|Four-Plus|1|Empty|Early Count",
+      "rows": 17,
+      "share": 0.011921458625525946,
+      "meanLeverage": 31.529411764705884,
+      "meanAbsWinSwing": 0.011694117647058822,
+      "medianAbsWinSwing": 0.0058,
+      "topDecileShare": 0,
+      "inningBucket": "4-6",
+      "scoreBucketLabel": "Four-Plus",
+      "outs": 1,
+      "runnerState": "Empty",
+      "countPressure": "Early Count",
+      "signedPressureGap": -0.17130834502103792
+    },
+    {
+      "key": "1-3|Four-Plus|2|Empty|Early Count",
+      "rows": 13,
+      "share": 0.0091164095371669,
+      "meanLeverage": 33,
+      "meanAbsWinSwing": 0.019069230769230772,
+      "medianAbsWinSwing": 0.0153,
+      "topDecileShare": 0,
+      "inningBucket": "1-3",
+      "scoreBucketLabel": "Four-Plus",
+      "outs": 2,
+      "runnerState": "Empty",
+      "countPressure": "Early Count",
+      "signedPressureGap": -0.1639775757902687
+    },
+    {
+      "key": "1-3|Two-Run|0|One Runner|Early Count",
+      "rows": 10,
+      "share": 0.0070126227208976155,
+      "meanLeverage": 44,
+      "meanAbsWinSwing": 0.11078999999999999,
+      "medianAbsWinSwing": 0.10215,
+      "topDecileShare": 0.7,
+      "inningBucket": "1-3",
+      "scoreBucketLabel": "Two-Run",
+      "outs": 0,
+      "runnerState": "One Runner",
+      "countPressure": "Early Count",
+      "signedPressureGap": -0.14569834502103793
+    },
+    {
+      "key": "4-6|Three-Run|0|Empty|Early Count",
+      "rows": 11,
+      "share": 0.007713884992987377,
+      "meanLeverage": 34.90909090909091,
+      "meanAbsWinSwing": 0.015536363636363633,
+      "medianAbsWinSwing": 0.0051,
+      "topDecileShare": 0,
+      "inningBucket": "4-6",
+      "scoreBucketLabel": "Three-Run",
+      "outs": 0,
+      "runnerState": "Empty",
+      "countPressure": "Early Count",
+      "signedPressureGap": -0.14135379956649252
+    },
+    {
+      "key": "4-6|Four-Plus|0|One Runner|Early Count",
+      "rows": 12,
+      "share": 0.008415147265077139,
+      "meanLeverage": 37,
+      "meanAbsWinSwing": 0.02085833333333333,
+      "medianAbsWinSwing": 0.011300000000000001,
+      "topDecileShare": 0,
+      "inningBucket": "4-6",
+      "scoreBucketLabel": "Four-Plus",
+      "outs": 0,
+      "runnerState": "One Runner",
+      "countPressure": "Early Count",
+      "signedPressureGap": -0.12576667835437128
+    },
+    {
+      "key": "4-6|Four-Plus|2|Empty|Early Count",
+      "rows": 35,
+      "share": 0.024544179523141654,
+      "meanLeverage": 36.77142857142857,
+      "meanAbsWinSwing": 0.007537142857142858,
+      "medianAbsWinSwing": 0.0054,
+      "topDecileShare": 0,
+      "inningBucket": "4-6",
+      "scoreBucketLabel": "Four-Plus",
+      "outs": 2,
+      "runnerState": "Empty",
+      "countPressure": "Early Count",
+      "signedPressureGap": -0.11473120216389505
+    }
+  ],
+  "rootCause": {
+    "weBackedRows": 1426,
+    "highLeverageBelowMedianRows": 47,
+    "lowLeverageTopDecileRows": 10,
+    "fullCountShareTopDecile": 0,
+    "twoStrikeShareTopDecile": 0,
+    "closeGameShareTopDecile": 0.5664335664335665
+  }
+}

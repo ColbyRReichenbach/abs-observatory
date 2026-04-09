@@ -1,5 +1,7 @@
 DROP VIEW IF EXISTS mart_weekly_editorial_summary CASCADE;
 DROP VIEW IF EXISTS mart_daily_editorial_summary CASCADE;
+DROP VIEW IF EXISTS mart_modeled_abs_overturn_probability_fallbacks CASCADE;
+DROP VIEW IF EXISTS mart_modeled_abs_overturn_inputs CASCADE;
 DROP VIEW IF EXISTS mart_historical_abs_overturn_probability_fallbacks CASCADE;
 DROP VIEW IF EXISTS mart_historical_abs_overturn_probability CASCADE;
 DROP VIEW IF EXISTS mart_historical_abs_team_summary CASCADE;
@@ -7,10 +9,16 @@ DROP VIEW IF EXISTS mart_historical_abs_overturn_inputs CASCADE;
 DROP VIEW IF EXISTS mart_team_challenge_decision_value CASCADE;
 DROP VIEW IF EXISTS mart_team_challenge_win_value CASCADE;
 DROP VIEW IF EXISTS mart_team_challenge_run_value CASCADE;
+DROP VIEW IF EXISTS mart_win_expectancy_fallbacks_train CASCADE;
 DROP VIEW IF EXISTS mart_win_expectancy_fallbacks CASCADE;
 DROP VIEW IF EXISTS mart_win_expectancy_by_count_state CASCADE;
+DROP VIEW IF EXISTS mart_run_expectancy_fallbacks_train CASCADE;
 DROP VIEW IF EXISTS mart_run_expectancy_fallbacks CASCADE;
 DROP VIEW IF EXISTS mart_run_expectancy_by_count_state CASCADE;
+DROP VIEW IF EXISTS mart_count_state_outcome_baselines_train_validation CASCADE;
+DROP VIEW IF EXISTS mart_count_state_outcome_baselines_train CASCADE;
+DROP VIEW IF EXISTS mart_count_state_outcome_baselines_split CASCADE;
+DROP VIEW IF EXISTS mart_historical_pitch_states_split CASCADE;
 DROP VIEW IF EXISTS mart_state_coverage CASCADE;
 DROP VIEW IF EXISTS mart_count_state_baselines_v2 CASCADE;
 DROP VIEW IF EXISTS mart_pitch_state_baselines CASCADE;
@@ -315,6 +323,214 @@ SELECT
   END AS confidence_band
 FROM global_row g;
 
+CREATE OR REPLACE VIEW mart_modeled_abs_overturn_inputs AS
+WITH challenged AS (
+  SELECT
+    c.game_pk,
+    c.game_date,
+    c.season,
+    c.game_type,
+    c.competition_phase,
+    c.split_set,
+    c.split_policy_version,
+    c.observed_call,
+    CASE
+      WHEN c.observed_call = 'strike' THEN 'strike_to_ball'
+      WHEN c.observed_call = 'ball' THEN 'ball_to_strike'
+      ELSE NULL
+    END AS challenge_direction,
+    c.challenge_outcome,
+    c.is_overturned,
+    c.abs_zone_outcome_center_only,
+    c.abs_zone_outcome_radius_adjusted,
+    c.min_edge_distance_center_only,
+    c.min_edge_distance_radius_adjusted
+  FROM modeling.called_pitch_decisions c
+  WHERE c.was_challenged = TRUE
+    AND c.challenge_outcome IN ('overturned', 'confirmed')
+    AND c.observed_call IN ('strike', 'ball')
+),
+geometry_rows AS (
+  SELECT
+    challenged.game_pk,
+    challenged.game_date,
+    challenged.season,
+    challenged.game_type,
+    challenged.competition_phase,
+    challenged.split_set,
+    challenged.split_policy_version,
+    challenged.observed_call,
+    challenged.challenge_direction,
+    challenged.challenge_outcome,
+    challenged.is_overturned,
+    'center_only'::TEXT AS geometry_variant,
+    challenged.abs_zone_outcome_center_only AS modeled_abs_outcome,
+    challenged.min_edge_distance_center_only AS raw_margin,
+    CASE
+      WHEN challenged.challenge_direction = 'ball_to_strike' THEN challenged.min_edge_distance_center_only
+      WHEN challenged.challenge_direction = 'strike_to_ball' THEN -challenged.min_edge_distance_center_only
+      ELSE NULL
+    END AS challenge_aligned_margin
+  FROM challenged
+  WHERE challenged.abs_zone_outcome_center_only IS NOT NULL
+
+  UNION ALL
+
+  SELECT
+    challenged.game_pk,
+    challenged.game_date,
+    challenged.season,
+    challenged.game_type,
+    challenged.competition_phase,
+    challenged.split_set,
+    challenged.split_policy_version,
+    challenged.observed_call,
+    challenged.challenge_direction,
+    challenged.challenge_outcome,
+    challenged.is_overturned,
+    'radius_adjusted'::TEXT AS geometry_variant,
+    challenged.abs_zone_outcome_radius_adjusted AS modeled_abs_outcome,
+    challenged.min_edge_distance_radius_adjusted AS raw_margin,
+    CASE
+      WHEN challenged.challenge_direction = 'ball_to_strike' THEN challenged.min_edge_distance_radius_adjusted
+      WHEN challenged.challenge_direction = 'strike_to_ball' THEN -challenged.min_edge_distance_radius_adjusted
+      ELSE NULL
+    END AS challenge_aligned_margin
+  FROM challenged
+  WHERE challenged.abs_zone_outcome_radius_adjusted IS NOT NULL
+)
+SELECT
+  g.*,
+  CASE
+    WHEN g.challenge_aligned_margin IS NULL THEN 'unknown'
+    WHEN g.challenge_aligned_margin <= -0.15 THEN 'strong_confirm'
+    WHEN g.challenge_aligned_margin <= -0.03 THEN 'lean_confirm'
+    WHEN g.challenge_aligned_margin < 0.03 THEN 'borderline'
+    WHEN g.challenge_aligned_margin < 0.15 THEN 'lean_overturn'
+    ELSE 'strong_overturn'
+  END AS edge_bucket
+FROM geometry_rows g;
+
+CREATE OR REPLACE VIEW mart_modeled_abs_overturn_probability_fallbacks AS
+WITH train_inputs AS (
+  SELECT *
+  FROM mart_modeled_abs_overturn_inputs
+  WHERE split_set = 'train'
+),
+global_rows AS (
+  SELECT
+    split_policy_version,
+    geometry_variant,
+    COUNT(*) AS sample_size,
+    COUNT(*) FILTER (WHERE is_overturned) AS overturns_total
+  FROM train_inputs
+  GROUP BY 1, 2
+),
+direction_rows AS (
+  SELECT
+    split_policy_version,
+    geometry_variant,
+    challenge_direction,
+    COUNT(*) AS sample_size,
+    COUNT(*) FILTER (WHERE is_overturned) AS overturns_total
+  FROM train_inputs
+  GROUP BY 1, 2, 3
+),
+exact_rows AS (
+  SELECT
+    split_policy_version,
+    geometry_variant,
+    challenge_direction,
+    edge_bucket,
+    COUNT(*) AS sample_size,
+    COUNT(*) FILTER (WHERE is_overturned) AS overturns_total
+  FROM train_inputs
+  GROUP BY 1, 2, 3, 4
+)
+SELECT
+  'exact'::TEXT AS fallback_tier,
+  e.split_policy_version,
+  e.geometry_variant,
+  e.challenge_direction,
+  e.edge_bucket,
+  e.sample_size,
+  e.overturns_total,
+  CASE
+    WHEN e.sample_size > 0 THEN e.overturns_total::NUMERIC / e.sample_size
+    ELSE NULL
+  END AS raw_overturn_rate,
+  CASE
+    WHEN e.sample_size > 0 AND d.sample_size > 0
+      THEN (e.overturns_total::NUMERIC + (((d.overturns_total::NUMERIC / d.sample_size)) * 20)) / (e.sample_size + 20)
+    WHEN e.sample_size > 0 THEN e.overturns_total::NUMERIC / e.sample_size
+    ELSE NULL
+  END AS overturn_probability,
+  CASE
+    WHEN e.sample_size >= 150 THEN 'high'
+    WHEN e.sample_size >= 40 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM exact_rows e
+JOIN direction_rows d
+  ON d.split_policy_version = e.split_policy_version
+ AND d.geometry_variant = e.geometry_variant
+ AND d.challenge_direction = e.challenge_direction
+
+UNION ALL
+
+SELECT
+  'direction_only'::TEXT AS fallback_tier,
+  d.split_policy_version,
+  d.geometry_variant,
+  d.challenge_direction,
+  NULL::TEXT AS edge_bucket,
+  d.sample_size,
+  d.overturns_total,
+  CASE
+    WHEN d.sample_size > 0 THEN d.overturns_total::NUMERIC / d.sample_size
+    ELSE NULL
+  END AS raw_overturn_rate,
+  CASE
+    WHEN d.sample_size > 0 AND g.sample_size > 0
+      THEN (d.overturns_total::NUMERIC + (((g.overturns_total::NUMERIC / g.sample_size)) * 40)) / (d.sample_size + 40)
+    WHEN d.sample_size > 0 THEN d.overturns_total::NUMERIC / d.sample_size
+    ELSE NULL
+  END AS overturn_probability,
+  CASE
+    WHEN d.sample_size >= 300 THEN 'high'
+    WHEN d.sample_size >= 100 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM direction_rows d
+JOIN global_rows g
+  ON g.split_policy_version = d.split_policy_version
+ AND g.geometry_variant = d.geometry_variant
+
+UNION ALL
+
+SELECT
+  'global'::TEXT AS fallback_tier,
+  g.split_policy_version,
+  g.geometry_variant,
+  NULL::TEXT AS challenge_direction,
+  NULL::TEXT AS edge_bucket,
+  g.sample_size,
+  g.overturns_total,
+  CASE
+    WHEN g.sample_size > 0 THEN g.overturns_total::NUMERIC / g.sample_size
+    ELSE NULL
+  END AS raw_overturn_rate,
+  CASE
+    WHEN g.sample_size > 0 THEN g.overturns_total::NUMERIC / g.sample_size
+    ELSE NULL
+  END AS overturn_probability,
+  CASE
+    WHEN g.sample_size >= 300 THEN 'high'
+    WHEN g.sample_size >= 100 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM global_rows g;
+
 CREATE OR REPLACE VIEW mart_team_abs_daily AS
 SELECT
   g.game_date::date AS game_day,
@@ -568,6 +784,18 @@ SELECT
 FROM historical_pitch_states
 GROUP BY season, inning_bucket, outs, bases_state, count_key;
 
+CREATE OR REPLACE VIEW mart_historical_pitch_states_split AS
+SELECT
+  h.*,
+  CASE
+    WHEN h.game_date <= DATE '2024-12-31' THEN 'train'
+    WHEN h.game_date BETWEEN DATE '2025-01-01' AND DATE '2025-12-31' THEN 'validation'
+    WHEN h.game_date BETWEEN DATE '2026-03-26' AND DATE '2026-04-07' THEN 'test'
+    ELSE 'exclude'
+  END AS split_set,
+  'historical_pitch_states_season_holdout_v1'::TEXT AS split_policy_version
+FROM historical_pitch_states h;
+
 CREATE OR REPLACE VIEW mart_count_state_baselines_v2 AS
 SELECT
   count_key,
@@ -588,6 +816,65 @@ SELECT
   END AS positive_outcome_rate
 FROM historical_pitch_states
 WHERE is_last_pitch_of_pa = TRUE
+  AND count_key IS NOT NULL
+GROUP BY count_key;
+
+CREATE OR REPLACE VIEW mart_count_state_outcome_baselines_split AS
+SELECT
+  split_set,
+  split_policy_version,
+  count_key,
+  COUNT(*)::INTEGER AS sample_size,
+  COUNT(*) FILTER (WHERE hit_event = TRUE)::INTEGER AS hit_count,
+  COUNT(*) FILTER (WHERE walk_event = TRUE)::INTEGER AS walk_count,
+  COUNT(*) FILTER (WHERE strikeout_event = TRUE)::INTEGER AS strikeout_count,
+  COUNT(*) FILTER (WHERE positive_outcome = TRUE)::INTEGER AS positive_outcome_count,
+  COUNT(*) FILTER (WHERE official_at_bat = TRUE)::INTEGER AS official_at_bat_count,
+  AVG(CASE WHEN official_at_bat THEN CASE WHEN hit_event THEN 1.0 ELSE 0.0 END ELSE NULL END)::NUMERIC AS batting_average,
+  AVG(CASE WHEN walk_event THEN 1.0 ELSE 0.0 END)::NUMERIC AS walk_rate,
+  AVG(CASE WHEN strikeout_event THEN 1.0 ELSE 0.0 END)::NUMERIC AS strikeout_rate,
+  AVG(CASE WHEN positive_outcome THEN 1.0 ELSE 0.0 END)::NUMERIC AS positive_outcome_rate
+FROM mart_historical_pitch_states_split
+WHERE split_set IN ('train', 'validation', 'test')
+  AND is_last_pitch_of_pa = TRUE
+  AND count_key IS NOT NULL
+GROUP BY split_set, split_policy_version, count_key;
+
+CREATE OR REPLACE VIEW mart_count_state_outcome_baselines_train AS
+SELECT
+  split_policy_version,
+  count_key,
+  sample_size,
+  hit_count,
+  walk_count,
+  strikeout_count,
+  positive_outcome_count,
+  official_at_bat_count,
+  batting_average,
+  walk_rate,
+  strikeout_rate,
+  positive_outcome_rate
+FROM mart_count_state_outcome_baselines_split
+WHERE split_set = 'train';
+
+CREATE OR REPLACE VIEW mart_count_state_outcome_baselines_train_validation AS
+SELECT
+  'train_validation'::TEXT AS fit_population,
+  'historical_pitch_states_season_holdout_v1'::TEXT AS split_policy_version,
+  count_key,
+  COUNT(*)::INTEGER AS sample_size,
+  COUNT(*) FILTER (WHERE hit_event = TRUE)::INTEGER AS hit_count,
+  COUNT(*) FILTER (WHERE walk_event = TRUE)::INTEGER AS walk_count,
+  COUNT(*) FILTER (WHERE strikeout_event = TRUE)::INTEGER AS strikeout_count,
+  COUNT(*) FILTER (WHERE positive_outcome = TRUE)::INTEGER AS positive_outcome_count,
+  COUNT(*) FILTER (WHERE official_at_bat = TRUE)::INTEGER AS official_at_bat_count,
+  AVG(CASE WHEN official_at_bat THEN CASE WHEN hit_event THEN 1.0 ELSE 0.0 END ELSE NULL END)::NUMERIC AS batting_average,
+  AVG(CASE WHEN walk_event THEN 1.0 ELSE 0.0 END)::NUMERIC AS walk_rate,
+  AVG(CASE WHEN strikeout_event THEN 1.0 ELSE 0.0 END)::NUMERIC AS strikeout_rate,
+  AVG(CASE WHEN positive_outcome THEN 1.0 ELSE 0.0 END)::NUMERIC AS positive_outcome_rate
+FROM mart_historical_pitch_states_split
+WHERE split_set IN ('train', 'validation')
+  AND is_last_pitch_of_pa = TRUE
   AND count_key IS NOT NULL
 GROUP BY count_key;
 
@@ -631,7 +918,17 @@ GROUP BY inning_bucket, outs, bases_state, count_key;
 
 CREATE OR REPLACE VIEW mart_run_expectancy_fallbacks AS
 WITH source_available AS (
-  SELECT EXISTS(SELECT 1 FROM historical_pitch_states LIMIT 1) AS has_history
+  SELECT EXISTS(
+    SELECT 1
+    FROM mart_historical_pitch_states_split
+    WHERE split_set IN ('train', 'validation')
+    LIMIT 1
+  ) AS has_history
+),
+source_rows AS (
+  SELECT *
+  FROM mart_historical_pitch_states_split
+  WHERE split_set IN ('train', 'validation')
 ),
 exact_rows AS (
   SELECT
@@ -641,7 +938,7 @@ exact_rows AS (
     count_key,
     COUNT(*) AS sample_size,
     AVG(COALESCE(runs_to_inning_end, 0))::NUMERIC AS expected_runs_to_end_inning
-  FROM historical_pitch_states
+  FROM source_rows
   GROUP BY inning_bucket, outs, bases_state, count_key
 ),
 count_priors AS (
@@ -651,7 +948,7 @@ count_priors AS (
     count_key,
     COUNT(*) AS sample_size,
     AVG(COALESCE(runs_to_inning_end, 0))::NUMERIC AS expected_runs_to_end_inning
-  FROM historical_pitch_states
+  FROM source_rows
   GROUP BY outs, bases_state, count_key
 ),
 base_out_priors AS (
@@ -660,7 +957,7 @@ base_out_priors AS (
     bases_state,
     COUNT(*) AS sample_size,
     AVG(COALESCE(runs_to_inning_end, 0))::NUMERIC AS expected_runs_to_end_inning
-  FROM historical_pitch_states
+  FROM source_rows
   GROUP BY outs, bases_state
 )
 SELECT
@@ -729,10 +1026,100 @@ SELECT
 FROM serving_run_expectancy_fallbacks, source_available
 WHERE NOT source_available.has_history;
 
+CREATE OR REPLACE VIEW mart_run_expectancy_fallbacks_train AS
+WITH source_rows AS (
+  SELECT *
+  FROM mart_historical_pitch_states_split
+  WHERE split_set = 'train'
+),
+exact_rows AS (
+  SELECT
+    inning_bucket,
+    outs,
+    bases_state,
+    count_key,
+    COUNT(*) AS sample_size,
+    AVG(COALESCE(runs_to_inning_end, 0))::NUMERIC AS expected_runs_to_end_inning
+  FROM source_rows
+  GROUP BY inning_bucket, outs, bases_state, count_key
+),
+count_priors AS (
+  SELECT
+    outs,
+    bases_state,
+    count_key,
+    COUNT(*) AS sample_size,
+    AVG(COALESCE(runs_to_inning_end, 0))::NUMERIC AS expected_runs_to_end_inning
+  FROM source_rows
+  GROUP BY outs, bases_state, count_key
+),
+base_out_priors AS (
+  SELECT
+    outs,
+    bases_state,
+    COUNT(*) AS sample_size,
+    AVG(COALESCE(runs_to_inning_end, 0))::NUMERIC AS expected_runs_to_end_inning
+  FROM source_rows
+  GROUP BY outs, bases_state
+)
+SELECT
+  'exact'::TEXT AS fallback_tier,
+  e.inning_bucket,
+  e.outs,
+  e.bases_state,
+  e.count_key,
+  e.sample_size,
+  CASE
+    WHEN e.sample_size < 25
+      THEN ((e.expected_runs_to_end_inning * e.sample_size) + (cp.expected_runs_to_end_inning * 12))
+        / NULLIF(e.sample_size + 12, 0)
+    ELSE e.expected_runs_to_end_inning
+  END AS expected_runs_to_end_inning,
+  CASE
+    WHEN e.sample_size >= 500 THEN 'high'
+    WHEN e.sample_size >= 150 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM exact_rows e
+JOIN count_priors cp
+  ON cp.outs = e.outs
+ AND cp.bases_state = e.bases_state
+ AND cp.count_key = e.count_key
+UNION ALL
+SELECT
+  'drop_inning_bucket'::TEXT AS fallback_tier,
+  NULL::TEXT AS inning_bucket,
+  cp.outs,
+  cp.bases_state,
+  cp.count_key,
+  cp.sample_size,
+  cp.expected_runs_to_end_inning,
+  CASE
+    WHEN cp.sample_size >= 500 THEN 'high'
+    WHEN cp.sample_size >= 150 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM count_priors cp
+UNION ALL
+SELECT
+  'drop_count_key'::TEXT AS fallback_tier,
+  NULL::TEXT AS inning_bucket,
+  bp.outs,
+  bp.bases_state,
+  NULL::TEXT AS count_key,
+  bp.sample_size,
+  bp.expected_runs_to_end_inning,
+  CASE
+    WHEN bp.sample_size >= 500 THEN 'high'
+    WHEN bp.sample_size >= 150 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM base_out_priors bp;
+
 CREATE OR REPLACE VIEW mart_win_expectancy_by_count_state AS
 WITH win_states AS (
   SELECT
-    season,
+    h.season,
     inning,
     inning_bucket,
     half_inning,
@@ -751,8 +1138,9 @@ WITH win_states AS (
     bases_state,
     count_key,
     batting_team_won
-  FROM historical_pitch_states
-  WHERE batting_team_won IS NOT NULL
+  FROM mart_historical_pitch_states_split h
+  WHERE h.split_set IN ('train', 'validation')
+    AND batting_team_won IS NOT NULL
     AND inning IS NOT NULL
     AND half_inning IS NOT NULL
     AND outs IS NOT NULL
@@ -781,11 +1169,16 @@ GROUP BY inning, inning_bucket, half_inning, score_diff_bucket, outs, bases_stat
 
 CREATE OR REPLACE VIEW mart_win_expectancy_fallbacks AS
 WITH source_available AS (
-  SELECT EXISTS(SELECT 1 FROM historical_pitch_states LIMIT 1) AS has_history
+  SELECT EXISTS(
+    SELECT 1
+    FROM mart_historical_pitch_states_split
+    WHERE split_set IN ('train', 'validation')
+    LIMIT 1
+  ) AS has_history
 ),
 win_states AS (
   SELECT
-    season,
+    h.season,
     inning,
     inning_bucket,
     half_inning,
@@ -804,8 +1197,9 @@ win_states AS (
     bases_state,
     count_key,
     batting_team_won
-  FROM historical_pitch_states
-  WHERE batting_team_won IS NOT NULL
+  FROM mart_historical_pitch_states_split h
+  WHERE h.split_set IN ('train', 'validation')
+    AND batting_team_won IS NOT NULL
     AND inning IS NOT NULL
     AND half_inning IS NOT NULL
     AND outs IS NOT NULL
@@ -962,6 +1356,173 @@ SELECT
   confidence_band
 FROM serving_win_expectancy_fallbacks, source_available
 WHERE NOT source_available.has_history;
+
+CREATE OR REPLACE VIEW mart_win_expectancy_fallbacks_train AS
+WITH win_states AS (
+  SELECT
+    h.season,
+    inning,
+    inning_bucket,
+    half_inning,
+    CASE
+      WHEN score_diff_batting <= -4 THEN 'trail4plus'
+      WHEN score_diff_batting = -3 THEN 'trail3'
+      WHEN score_diff_batting = -2 THEN 'trail2'
+      WHEN score_diff_batting = -1 THEN 'trail1'
+      WHEN score_diff_batting = 0 THEN 'tied'
+      WHEN score_diff_batting = 1 THEN 'lead1'
+      WHEN score_diff_batting = 2 THEN 'lead2'
+      WHEN score_diff_batting = 3 THEN 'lead3'
+      ELSE 'lead4plus'
+    END AS score_diff_bucket,
+    outs,
+    bases_state,
+    count_key,
+    batting_team_won
+  FROM mart_historical_pitch_states_split h
+  WHERE h.split_set = 'train'
+    AND batting_team_won IS NOT NULL
+    AND inning IS NOT NULL
+    AND half_inning IS NOT NULL
+    AND outs IS NOT NULL
+    AND bases_state IS NOT NULL
+    AND score_diff_batting IS NOT NULL
+),
+exact_rows AS (
+  SELECT
+    inning,
+    inning_bucket,
+    half_inning,
+    score_diff_bucket,
+    outs,
+    bases_state,
+    count_key,
+    COUNT(*) AS sample_size,
+    AVG(CASE WHEN batting_team_won THEN 1 ELSE 0 END)::NUMERIC AS batting_team_win_probability
+  FROM win_states
+  WHERE count_key IS NOT NULL
+  GROUP BY inning, inning_bucket, half_inning, score_diff_bucket, outs, bases_state, count_key
+),
+bucket_count_rows AS (
+  SELECT
+    inning_bucket,
+    half_inning,
+    score_diff_bucket,
+    outs,
+    bases_state,
+    count_key,
+    COUNT(*) AS sample_size,
+    AVG(CASE WHEN batting_team_won THEN 1 ELSE 0 END)::NUMERIC AS batting_team_win_probability
+  FROM win_states
+  WHERE count_key IS NOT NULL
+  GROUP BY inning_bucket, half_inning, score_diff_bucket, outs, bases_state, count_key
+),
+drop_count_exact_rows AS (
+  SELECT
+    inning,
+    half_inning,
+    score_diff_bucket,
+    outs,
+    bases_state,
+    COUNT(*) AS sample_size,
+    AVG(CASE WHEN batting_team_won THEN 1 ELSE 0 END)::NUMERIC AS batting_team_win_probability
+  FROM win_states
+  GROUP BY inning, half_inning, score_diff_bucket, outs, bases_state
+),
+drop_count_bucket_rows AS (
+  SELECT
+    inning_bucket,
+    half_inning,
+    score_diff_bucket,
+    outs,
+    bases_state,
+    COUNT(*) AS sample_size,
+    AVG(CASE WHEN batting_team_won THEN 1 ELSE 0 END)::NUMERIC AS batting_team_win_probability
+  FROM win_states
+  GROUP BY inning_bucket, half_inning, score_diff_bucket, outs, bases_state
+)
+SELECT
+  'exact'::TEXT AS fallback_tier,
+  e.inning,
+  NULL::TEXT AS inning_bucket,
+  e.half_inning,
+  e.score_diff_bucket,
+  e.outs,
+  e.bases_state,
+  e.count_key,
+  e.sample_size,
+  CASE
+    WHEN e.sample_size < 25
+      THEN ((e.batting_team_win_probability * e.sample_size) + (dce.batting_team_win_probability * 8))
+        / NULLIF(e.sample_size + 8, 0)
+    ELSE e.batting_team_win_probability
+  END AS batting_team_win_probability,
+  CASE
+    WHEN e.sample_size >= 2000 THEN 'high'
+    WHEN e.sample_size >= 500 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM exact_rows e
+JOIN drop_count_exact_rows dce
+  ON dce.inning = e.inning
+ AND dce.half_inning = e.half_inning
+ AND dce.score_diff_bucket = e.score_diff_bucket
+ AND dce.outs = e.outs
+ AND dce.bases_state = e.bases_state
+UNION ALL
+SELECT
+  'drop_inning_to_bucket'::TEXT AS fallback_tier,
+  NULL::INTEGER AS inning,
+  bc.inning_bucket,
+  bc.half_inning,
+  bc.score_diff_bucket,
+  bc.outs,
+  bc.bases_state,
+  bc.count_key,
+  bc.sample_size,
+  bc.batting_team_win_probability,
+  CASE
+    WHEN bc.sample_size >= 2000 THEN 'high'
+    WHEN bc.sample_size >= 500 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM bucket_count_rows bc
+UNION ALL
+SELECT
+  'drop_count_key_exact_inning'::TEXT AS fallback_tier,
+  dce.inning,
+  NULL::TEXT AS inning_bucket,
+  dce.half_inning,
+  dce.score_diff_bucket,
+  dce.outs,
+  dce.bases_state,
+  NULL::TEXT AS count_key,
+  dce.sample_size,
+  dce.batting_team_win_probability,
+  CASE
+    WHEN dce.sample_size >= 2000 THEN 'high'
+    WHEN dce.sample_size >= 500 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM drop_count_exact_rows dce
+UNION ALL
+SELECT
+  'drop_count_key_bucketed_inning'::TEXT AS fallback_tier,
+  NULL::INTEGER AS inning,
+  dcb.inning_bucket,
+  dcb.half_inning,
+  dcb.score_diff_bucket,
+  dcb.outs,
+  dcb.bases_state,
+  NULL::TEXT AS count_key,
+  dcb.sample_size,
+  dcb.batting_team_win_probability,
+  CASE
+    WHEN dcb.sample_size >= 2000 THEN 'high'
+    WHEN dcb.sample_size >= 500 THEN 'medium'
+    ELSE 'low'
+  END AS confidence_band
+FROM drop_count_bucket_rows dcb;
 
 CREATE OR REPLACE VIEW mart_zone_outcome_baselines AS
 SELECT
@@ -1310,6 +1871,52 @@ WITH decision_inputs AS (
       ELSE NULL
     END AS challenge_direction,
     CASE
+      WHEN COALESCE(c.px, c.inferred_px) IS NULL
+        OR COALESCE(c.pz, c.inferred_pz) IS NULL
+        OR COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) IS NULL
+        OR COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) IS NULL
+      THEN NULL
+      WHEN UPPER(COALESCE(p.called_description, c.called_description, '')) LIKE 'CALLED STRIKE%' THEN
+        CASE
+          WHEN SQRT(
+            POWER(GREATEST(ABS(COALESCE(c.px, c.inferred_px)) - 0.8291666667, 0), 2)
+            + POWER(
+              GREATEST(
+                COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) - COALESCE(c.pz, c.inferred_pz),
+                COALESCE(c.pz, c.inferred_pz) - COALESCE(c.strike_zone_top, c.inferred_strike_zone_top),
+                0
+              ),
+              2
+            )
+          ) <= 0.015 THEN 'edge'
+          WHEN SQRT(
+            POWER(GREATEST(ABS(COALESCE(c.px, c.inferred_px)) - 0.8291666667, 0), 2)
+            + POWER(
+              GREATEST(
+                COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) - COALESCE(c.pz, c.inferred_pz),
+                COALESCE(c.pz, c.inferred_pz) - COALESCE(c.strike_zone_top, c.inferred_strike_zone_top),
+                0
+              ),
+              2
+            )
+          ) <= 0.16 THEN 'near_edge'
+          ELSE 'clear_miss'
+        END
+      WHEN UPPER(COALESCE(p.called_description, c.called_description, '')) LIKE 'BALL%' THEN
+        CASE
+          WHEN GREATEST(
+            LEAST(
+              0.8291666667 - ABS(COALESCE(c.px, c.inferred_px)),
+              COALESCE(c.pz, c.inferred_pz) - COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom),
+              COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) - COALESCE(c.pz, c.inferred_pz)
+            ),
+            0
+          ) <= 0.003 THEN 'edge'
+          ELSE 'near_edge'
+        END
+      ELSE NULL
+    END AS edge_bucket,
+    CASE
       WHEN INITCAP(c.half_inning) = 'Top' THEN
         CASE
           WHEN c.away_score IS NULL OR c.home_score IS NULL THEN NULL
@@ -1397,7 +2004,7 @@ decision_lookup AS (
   FROM decision_inputs di
   LEFT JOIN mart_historical_abs_overturn_probability_fallbacks prob
     ON (
-      (prob.fallback_tier = 'exact' AND prob.challenge_direction = di.challenge_direction AND prob.edge_bucket IS NULL)
+      (prob.fallback_tier = 'exact' AND prob.challenge_direction = di.challenge_direction AND prob.edge_bucket = di.edge_bucket)
       OR (prob.fallback_tier = 'direction_only' AND prob.challenge_direction = di.challenge_direction AND prob.edge_bucket IS NULL)
       OR (prob.fallback_tier = 'global' AND prob.challenge_direction IS NULL AND prob.edge_bucket IS NULL)
     )

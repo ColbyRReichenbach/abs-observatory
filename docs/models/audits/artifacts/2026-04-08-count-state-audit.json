@@ -1,0 +1,342 @@
+{
+  "generatedAt": "2026-04-08T21:30:25.110Z",
+  "databaseTarget": {
+    "role": "warehouse",
+    "host": "ep-fragrant-salad-a4s62gpc-pooler.us-east-1.aws.neon.tech",
+    "database": "neondb"
+  },
+  "splitPolicyVersion": "historical_pitch_states_season_holdout_v1",
+  "splitRowCounts": {
+    "test": 12591,
+    "train": 985403,
+    "validation": 183362
+  },
+  "trainCountStates": 12,
+  "validationCountStates": 12,
+  "testCountStates": 12,
+  "errorSummary": [
+    {
+      "splitSet": "validation",
+      "metric": "batting_average",
+      "mae": 0.003608536143599002,
+      "rmse": 0.0044866012761180995,
+      "bias": -0.0024045041016522565
+    },
+    {
+      "splitSet": "validation",
+      "metric": "walk_rate",
+      "mae": 0.0007262011229229806,
+      "rmse": 0.0029719166500497872,
+      "bias": 0.0004767470424231794
+    },
+    {
+      "splitSet": "validation",
+      "metric": "strikeout_rate",
+      "mae": 0.0021733086148155883,
+      "rmse": 0.00408785633938184,
+      "bias": -0.0021733086148155883
+    },
+    {
+      "splitSet": "validation",
+      "metric": "positive_outcome_rate",
+      "mae": 0.0034833634425613063,
+      "rmse": 0.004385034018526536,
+      "bias": -0.0018075199663745722
+    },
+    {
+      "splitSet": "test",
+      "metric": "batting_average",
+      "mae": 0.01737235479946888,
+      "rmse": 0.03489991080496149,
+      "bias": -0.013843229132481835
+    },
+    {
+      "splitSet": "test",
+      "metric": "walk_rate",
+      "mae": 0.003584765369899304,
+      "rmse": 0.013182666220362934,
+      "bias": 0.003584765369899304
+    },
+    {
+      "splitSet": "test",
+      "metric": "strikeout_rate",
+      "mae": 0.00776768669829092,
+      "rmse": 0.011960073622515008,
+      "bias": 0.0064096005437984495
+    },
+    {
+      "splitSet": "test",
+      "metric": "positive_outcome_rate",
+      "mae": 0.013251439158594636,
+      "rmse": 0.01635548302104548,
+      "bias": -0.006932660042878104
+    }
+  ],
+  "testCalibration": [
+    {
+      "countKey": "0-0",
+      "sampleSize": 1387,
+      "predictedPositiveOutcomeRate": 0.3249556556146814,
+      "observedPositiveOutcomeRate": 0.31218457101658253,
+      "observedPositiveOutcomeRateCiLow": 0.28779750717023167,
+      "observedPositiveOutcomeRateCiHigh": 0.3365716348629334,
+      "predictedWalkRate": 0,
+      "observedWalkRate": 0,
+      "predictedStrikeoutRate": 0,
+      "observedStrikeoutRate": 0
+    },
+    {
+      "countKey": "0-1",
+      "sampleSize": 1061,
+      "predictedPositiveOutcomeRate": 0.3105981234429932,
+      "observedPositiveOutcomeRate": 0.30348727615457116,
+      "observedPositiveOutcomeRateCiLow": 0.27582211843042853,
+      "observedPositiveOutcomeRateCiHigh": 0.3311524338787138,
+      "predictedWalkRate": 0,
+      "observedWalkRate": 0,
+      "predictedStrikeoutRate": 0,
+      "observedStrikeoutRate": 0
+    },
+    {
+      "countKey": "0-2",
+      "sampleSize": 1185,
+      "predictedPositiveOutcomeRate": 0.14803071114975927,
+      "observedPositiveOutcomeRate": 0.14345991561181434,
+      "observedPositiveOutcomeRateCiLow": 0.1235010420176304,
+      "observedPositiveOutcomeRateCiHigh": 0.16341878920599828,
+      "predictedWalkRate": 0,
+      "observedWalkRate": 0,
+      "predictedStrikeoutRate": 0.5059492247979809,
+      "observedStrikeoutRate": 0.49873417721518987
+    },
+    {
+      "countKey": "1-0",
+      "sampleSize": 731,
+      "predictedPositiveOutcomeRate": 0.33080591079883404,
+      "observedPositiveOutcomeRate": 0.3091655266757866,
+      "observedPositiveOutcomeRateCiLow": 0.2756628184918956,
+      "observedPositiveOutcomeRateCiHigh": 0.3426682348596776,
+      "predictedWalkRate": 0,
+      "observedWalkRate": 0,
+      "predictedStrikeoutRate": 0,
+      "observedStrikeoutRate": 0
+    },
+    {
+      "countKey": "1-1",
+      "sampleSize": 918,
+      "predictedPositiveOutcomeRate": 0.31966039147881964,
+      "observedPositiveOutcomeRate": 0.3006535947712418,
+      "observedPositiveOutcomeRateCiLow": 0.27099066082836964,
+      "observedPositiveOutcomeRateCiHigh": 0.330316528714114,
+      "predictedWalkRate": 0,
+      "observedWalkRate": 0,
+      "predictedStrikeoutRate": 0,
+      "observedStrikeoutRate": 0
+    },
+    {
+      "countKey": "1-2",
+      "sampleSize": 1851,
+      "predictedPositiveOutcomeRate": 0.1580365596096424,
+      "observedPositiveOutcomeRate": 0.14424635332252836,
+      "observedPositiveOutcomeRateCiLow": 0.12824046941671813,
+      "observedPositiveOutcomeRateCiHigh": 0.1602522372283386,
+      "predictedWalkRate": 0,
+      "observedWalkRate": 0,
+      "predictedStrikeoutRate": 0.48407386073979913,
+      "observedStrikeoutRate": 0.5089141004862237
+    },
+    {
+      "countKey": "2-0",
+      "sampleSize": 258,
+      "predictedPositiveOutcomeRate": 0.33924394123701695,
+      "observedPositiveOutcomeRate": 0.29844961240310075,
+      "observedPositiveOutcomeRateCiLow": 0.24261401560728288,
+      "observedPositiveOutcomeRateCiHigh": 0.3542852091989186,
+      "predictedWalkRate": 0,
+      "observedWalkRate": 0,
+      "predictedStrikeoutRate": 0,
+      "observedStrikeoutRate": 0
+    },
+    {
+      "countKey": "2-1",
+      "sampleSize": 551,
+      "predictedPositiveOutcomeRate": 0.3298188699648554,
+      "observedPositiveOutcomeRate": 0.3466424682395644,
+      "observedPositiveOutcomeRateCiLow": 0.3069053281799445,
+      "observedPositiveOutcomeRateCiHigh": 0.38637960829918433,
+      "predictedWalkRate": 0,
+      "observedWalkRate": 0,
+      "predictedStrikeoutRate": 0,
+      "observedStrikeoutRate": 0
+    },
+    {
+      "countKey": "2-2",
+      "sampleSize": 1840,
+      "predictedPositiveOutcomeRate": 0.17119627852398214,
+      "observedPositiveOutcomeRate": 0.15978260869565217,
+      "observedPositiveOutcomeRateCiLow": 0.14304059291923665,
+      "observedPositiveOutcomeRateCiHigh": 0.17652462447206768,
+      "predictedWalkRate": 0.000027939009143040743,
+      "observedWalkRate": 0.0005434782608695652,
+      "predictedStrikeoutRate": 0.4511800738986792,
+      "observedStrikeoutRate": 0.46793478260869564
+    },
+    {
+      "countKey": "3-0",
+      "sampleSize": 294,
+      "predictedPositiveOutcomeRate": 0.9364207221350078,
+      "observedPositiveOutcomeRate": 0.9523809523809523,
+      "observedPositiveOutcomeRateCiLow": 0.9280377276029449,
+      "observedPositiveOutcomeRateCiHigh": 0.9767241771589598,
+      "predictedWalkRate": 0.8975667189952904,
+      "observedWalkRate": 0.9421768707482994,
+      "predictedStrikeoutRate": 0,
+      "observedStrikeoutRate": 0
+    },
+    {
+      "countKey": "3-1",
+      "sampleSize": 596,
+      "predictedPositiveOutcomeRate": 0.7066816047293271,
+      "observedPositiveOutcomeRate": 0.75,
+      "observedPositiveOutcomeRateCiLow": 0.7152356929167304,
+      "observedPositiveOutcomeRateCiHigh": 0.7847643070832696,
+      "predictedWalkRate": 0.5555290696288527,
+      "observedWalkRate": 0.6073825503355704,
+      "predictedStrikeoutRate": 0,
+      "observedStrikeoutRate": 0
+    },
+    {
+      "countKey": "3-2",
+      "sampleSize": 1919,
+      "predictedPositiveOutcomeRate": 0.44923156809150505,
+      "observedPositiveOutcomeRate": 0.4460656591974987,
+      "observedPositiveOutcomeRateCiLow": 0.42382502721506765,
+      "observedPositiveOutcomeRateCiHigh": 0.4683062911799297,
+      "predictedWalkRate": 0.3177868007125394,
+      "observedWalkRate": 0.31787389265242316,
+      "predictedStrikeoutRate": 0.28116458361880586,
+      "observedStrikeoutRate": 0.2876498176133403
+    }
+  ],
+  "handednessStability": [
+    {
+      "splitSet": "test",
+      "subgroup": "L/L",
+      "rows": 5,
+      "weightedPositiveOutcomeMae": 0.01687961116207893,
+      "avgObservedPositiveOutcomeRate": 0.2523946178935984
+    },
+    {
+      "splitSet": "test",
+      "subgroup": "L/R",
+      "rows": 12,
+      "weightedPositiveOutcomeMae": 0.01591277156369292,
+      "avgObservedPositiveOutcomeRate": 0.3694532550989926
+    },
+    {
+      "splitSet": "test",
+      "subgroup": "R/L",
+      "rows": 10,
+      "weightedPositiveOutcomeMae": 0.020444580265474334,
+      "avgObservedPositiveOutcomeRate": 0.3098500738727991
+    },
+    {
+      "splitSet": "test",
+      "subgroup": "R/R",
+      "rows": 10,
+      "weightedPositiveOutcomeMae": 0.016583924216469897,
+      "avgObservedPositiveOutcomeRate": 0.31672350804870303
+    },
+    {
+      "splitSet": "validation",
+      "subgroup": "L/L",
+      "rows": 12,
+      "weightedPositiveOutcomeMae": 0.016951312943773153,
+      "avgObservedPositiveOutcomeRate": 0.3648004184535894
+    },
+    {
+      "splitSet": "validation",
+      "subgroup": "L/R",
+      "rows": 12,
+      "weightedPositiveOutcomeMae": 0.004783140320959818,
+      "avgObservedPositiveOutcomeRate": 0.3806831267028921
+    },
+    {
+      "splitSet": "validation",
+      "subgroup": "R/L",
+      "rows": 12,
+      "weightedPositiveOutcomeMae": 0.00498458062243061,
+      "avgObservedPositiveOutcomeRate": 0.37946404529640926
+    },
+    {
+      "splitSet": "validation",
+      "subgroup": "R/R",
+      "rows": 12,
+      "weightedPositiveOutcomeMae": 0.006889626250571042,
+      "avgObservedPositiveOutcomeRate": 0.3703402898785419
+    }
+  ],
+  "pitchFamilyStability": [
+    {
+      "splitSet": "test",
+      "subgroup": "breaking",
+      "rows": 8,
+      "weightedPositiveOutcomeMae": 0.027520877738456562,
+      "avgObservedPositiveOutcomeRate": 0.2568729983841274
+    },
+    {
+      "splitSet": "test",
+      "subgroup": "fastball",
+      "rows": 12,
+      "weightedPositiveOutcomeMae": 0.012685675135200518,
+      "avgObservedPositiveOutcomeRate": 0.3800165624113851
+    },
+    {
+      "splitSet": "test",
+      "subgroup": "offspeed",
+      "rows": 7,
+      "weightedPositiveOutcomeMae": 0.02432430717601204,
+      "avgObservedPositiveOutcomeRate": 0.24197580333108834
+    },
+    {
+      "splitSet": "test",
+      "subgroup": "other",
+      "rows": 4,
+      "weightedPositiveOutcomeMae": 0.026710018527475583,
+      "avgObservedPositiveOutcomeRate": 0.20694493436293976
+    },
+    {
+      "splitSet": "validation",
+      "subgroup": "breaking",
+      "rows": 12,
+      "weightedPositiveOutcomeMae": 0.007127947062276225,
+      "avgObservedPositiveOutcomeRate": 0.3805761173084983
+    },
+    {
+      "splitSet": "validation",
+      "subgroup": "fastball",
+      "rows": 12,
+      "weightedPositiveOutcomeMae": 0.00590777609295377,
+      "avgObservedPositiveOutcomeRate": 0.3758098159454497
+    },
+    {
+      "splitSet": "validation",
+      "subgroup": "offspeed",
+      "rows": 11,
+      "weightedPositiveOutcomeMae": 0.010761158929947072,
+      "avgObservedPositiveOutcomeRate": 0.32230420793463527
+    },
+    {
+      "splitSet": "validation",
+      "subgroup": "other",
+      "rows": 11,
+      "weightedPositiveOutcomeMae": 0.017815153138678062,
+      "avgObservedPositiveOutcomeRate": 0.38079876944724234
+    }
+  ],
+  "sourceViews": {
+    "split": "mart_historical_pitch_states_split",
+    "train": "mart_count_state_outcome_baselines_train",
+    "trainValidation": "mart_count_state_outcome_baselines_train_validation"
+  }
+}

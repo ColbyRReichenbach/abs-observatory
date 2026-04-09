@@ -8,23 +8,13 @@ import {
 } from "./audit-runtime.mjs";
 import {
   AUDIT_DATE,
-  AUDIT_END,
   ROOT,
-  SPRING_START,
-  clamp,
-  computeDirectionalZoneDistance,
-  countRunnersOnBase,
   formatAuditDateLabel,
   formatMaybeNumber,
   formatPct,
   formatSignedPctPoint,
-  getCalledPitch,
-  getChallengeDirection,
-  getEdgeBucketForChallenge,
   getWinExpectancyCountSwing,
-  loadEnvFile,
   mean,
-  percentile,
   toMarkdownTable,
 } from "./shared-audit-utils.mjs";
 
@@ -34,36 +24,85 @@ const ARTIFACT_PATH = path.join(
   `docs/models/audits/artifacts/${AUDIT_DATE}-decision-value-audit.json`,
 );
 
-const HEURISTIC_SUCCESS_PER_LI = 0.009;
-const HEURISTIC_FAILURE_COST_PER_LI = 0.003;
-const HEURISTIC_LATE_CLOSE_PER_LI_BOOST = 0.0015;
-const HEURISTIC_RUNNER_PRESSURE_PER_LI_BOOST = 0.0005;
-const HEURISTIC_COUNT_PRESSURE_PER_LI_BOOST = 0.0005;
+const CURRENT_GEOMETRY_VARIANT = "center_only";
+const HEURISTIC_SUCCESS_PER_LI = 0.012;
+const HEURISTIC_FAILURE_COST_PER_LI = 0.0025;
+const INVENTORY_COST_VERSION = "inventory_future_opportunity_v1";
+const INVENTORY_COST_BY_BUCKET = {
+  "1|1-3|close": 0.28954352014010387,
+  "1|1-3|not_close": 0.23589356435643613,
+  "1|4-6|close": 0.24681330022075038,
+  "1|4-6|not_close": 0.19392706919945835,
+  "1|7-8|close": 0.21035421686746955,
+  "1|7-8|not_close": 0.10613727729556854,
+  "1|9+|close": 0.11896820388349548,
+  "1|9+|not_close": 0.01721450549450547,
+  "2|1-3|close": 0.21517434325744247,
+  "2|1-3|not_close": 0.17001245874587342,
+  "2|4-6|close": 0.17933073951434852,
+  "2|4-6|not_close": 0.1295591587516967,
+  "2|7-8|close": 0.134208543263965,
+  "2|7-8|not_close": 0.06035564184559155,
+  "2|9+|close": 0.06170121359223295,
+  "2|9+|not_close": 0.007338901098901094,
+};
+const INVENTORY_COST_SENSITIVITY = [
+  { version: "v0_5x", multiplier: 0.5 },
+  { version: "v1_0x", multiplier: 1 },
+  { version: "v2_0x", multiplier: 2 },
+  { version: "v4_0x", multiplier: 4 },
+  { version: "v8_0x", multiplier: 8 },
+];
+const RECOMMENDATION_THRESHOLDS = [0, 0.0025, 0.005, 0.01, 0.02];
+const BUDGET_SCENARIOS = [1, 2];
 
 loadAuditEnv();
 const DATABASE_URL = resolveAuditDatabaseUrl();
 const DATABASE_TARGET = describeAuditDatabaseTarget(DATABASE_URL);
 
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function challengeDirectionFromObservedCall(observedCall) {
+  if (observedCall === "strike") return "strike_to_ball";
+  if (observedCall === "ball") return "ball_to_strike";
+  return null;
+}
+
+function calledPitchFromObservedCall(observedCall) {
+  if (observedCall === "strike") return "called_strike";
+  if (observedCall === "ball") return "ball";
+  return null;
+}
+
+function getChallengeTeamValueMultiplier(calledPitch) {
+  return calledPitch === "called_strike" ? 1 : -1;
+}
+
+function toChallengeAlignedMargin(direction, rawMargin) {
+  if (rawMargin == null || direction == null) return null;
+  if (direction === "ball_to_strike") return rawMargin;
+  if (direction === "strike_to_ball") return -rawMargin;
+  return null;
+}
+
+function toEdgeBucket(alignedMargin) {
+  if (alignedMargin == null || Number.isNaN(alignedMargin)) return null;
+  if (alignedMargin <= -0.15) return "strong_confirm";
+  if (alignedMargin <= -0.03) return "lean_confirm";
+  if (alignedMargin < 0.03) return "borderline";
+  if (alignedMargin < 0.15) return "lean_overturn";
+  return "strong_overturn";
+}
+
 function leverageApprox(req) {
+  const runnersOnBase = (req.basesState ?? "").split("").filter((value) => value === "1").length;
   const inningFactor = clamp(req.inning / 9, 0.1, 1.7);
   const closeGameFactor = clamp(1.5 - Math.abs(req.scoreDiffBattingTeam) * 0.15, 0.3, 1.5);
   const countFactor = req.balls === 3 && req.strikes === 2 ? 1.2 : req.strikes === 2 ? 1.1 : 1.0;
-  const baseOutFactor = req.runnersOnBase > 0 ? 1 + req.runnersOnBase * 0.12 : 0.95;
+  const baseOutFactor = runnersOnBase > 0 ? 1 + runnersOnBase * 0.12 : 0.95;
   return Number(clamp(inningFactor * closeGameFactor * countFactor * baseOutFactor, 0.2, 3.0).toFixed(3));
-}
-
-function calculateHeuristicSuccessDelta(req, li) {
-  let successPerLi = HEURISTIC_SUCCESS_PER_LI;
-  if (req.inning >= 8 && Math.abs(req.scoreDiffBattingTeam) <= 1) {
-    successPerLi += HEURISTIC_LATE_CLOSE_PER_LI_BOOST;
-  }
-  if (req.runnersOnBase > 0) {
-    successPerLi += HEURISTIC_RUNNER_PRESSURE_PER_LI_BOOST;
-  }
-  if (req.balls >= 2 || req.strikes >= 2) {
-    successPerLi += HEURISTIC_COUNT_PRESSURE_PER_LI_BOOST;
-  }
-  return Number((successPerLi * li).toFixed(4));
 }
 
 function incrementBallCount(balls, strikes) {
@@ -88,25 +127,34 @@ function deriveCountKeys(req) {
       };
 }
 
-function synthesizeScores(scoreDiffBattingTeam, halfInning) {
-  if (halfInning === "Top") {
-    const homeScore = scoreDiffBattingTeam >= 0 ? 0 : Math.abs(scoreDiffBattingTeam);
-    const awayScore = homeScore + scoreDiffBattingTeam;
-    return { homeScore, awayScore };
-  }
-  const awayScore = scoreDiffBattingTeam >= 0 ? 0 : Math.abs(scoreDiffBattingTeam);
-  const homeScore = awayScore + scoreDiffBattingTeam;
-  return { homeScore, awayScore };
+function inventoryCostApprox(req, leverageIndex) {
+  void leverageIndex;
+  const remainingChallenges = req.challengesRemaining >= 2 ? 2 : 1;
+  const inningKey = req.inning >= 9 ? "9+" : req.inning >= 7 ? "7-8" : req.inning >= 4 ? "4-6" : "1-3";
+  const closeKey = Math.abs(req.scoreDiffBattingTeam) <= 1 ? "close" : "not_close";
+  const bucketKey = `${remainingChallenges}|${inningKey}|${closeKey}`;
+  return Number((INVENTORY_COST_BY_BUCKET[bucketKey] ?? 0).toFixed(4));
 }
 
 function resolveOverturnProbabilityWithFallback(input, rows) {
-  const challengeDirection = getChallengeDirection(input.calledPitch);
-  const resolvedEdgeBucket = getEdgeBucketForChallenge(input);
   const lookups = [
-    { tier: "exact", challengeDirection, edgeBucket: resolvedEdgeBucket ?? null },
-    { tier: "direction_only", challengeDirection, edgeBucket: null },
-    { tier: "global", challengeDirection: null, edgeBucket: null },
+    {
+      tier: "exact",
+      challengeDirection: input.challengeDirection,
+      edgeBucket: input.edgeBucket,
+    },
+    {
+      tier: "direction_only",
+      challengeDirection: input.challengeDirection,
+      edgeBucket: null,
+    },
+    {
+      tier: "global",
+      challengeDirection: null,
+      edgeBucket: null,
+    },
   ];
+
   for (const lookup of lookups) {
     const match = rows.find(
       (row) =>
@@ -122,16 +170,14 @@ function resolveOverturnProbabilityWithFallback(input, rows) {
 function calculateSuccessWinDelta(req, winRows) {
   const { heldCountKey, correctedCountKey } = deriveCountKeys(req);
   if (!heldCountKey || !correctedCountKey) return null;
-  const { homeScore, awayScore } = synthesizeScores(req.scoreDiffBattingTeam, req.halfInning);
-  const basesState = `${req.runnersOnBase >= 1 ? "1" : "0"}${req.runnersOnBase >= 2 ? "1" : "0"}${req.runnersOnBase >= 3 ? "1" : "0"}`;
   return getWinExpectancyCountSwing(
     {
       inning: req.inning,
       halfInning: req.halfInning,
       outs: req.outs,
-      basesState,
-      homeScore,
-      awayScore,
+      basesState: req.basesState,
+      homeScore: req.homeScore,
+      awayScore: req.awayScore,
     },
     heldCountKey,
     correctedCountKey,
@@ -139,22 +185,66 @@ function calculateSuccessWinDelta(req, winRows) {
   );
 }
 
-function summarizeBy(rows, keyFn) {
+function expectedValueBucket(value) {
+  if (value == null || Number.isNaN(value)) return "unknown";
+  if (value < -0.005) return "< -0.005";
+  if (value < 0) return "-0.005 to 0";
+  if (value < 0.005) return "0 to 0.005";
+  return ">= 0.005";
+}
+
+function summarizeBy(rows, keyFn, metricFn) {
   const groups = new Map();
   for (const row of rows) {
     const key = keyFn(row);
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(row);
+    const existing = groups.get(key) ?? [];
+    existing.push(row);
+    groups.set(key, existing);
   }
-  return [...groups.entries()].map(([key, grouped]) => ({
-    key,
-    rows: grouped.length,
-    avgExpected: mean(grouped.map((row) => row.expectedWpDelta)),
-    avgRealized: mean(grouped.map((row) => row.realizedWpDelta)),
-    avgSignedGap: mean(grouped.map((row) => row.realizedWpDelta - row.expectedWpDelta)),
-    positiveRealizedShare:
-      grouped.filter((row) => row.realizedWpDelta > 0).length / grouped.length,
-  }));
+  return [...groups.entries()].map(([key, grouped]) => metricFn(key, grouped));
+}
+
+function simulateBudgetPolicy(rows, budgetPerGameTeam) {
+  const grouped = new Map();
+  for (const row of rows) {
+    const key = `${row.gamePk}|${row.challengeTeamId ?? "unknown"}`;
+    const existing = grouped.get(key) ?? [];
+    existing.push(row);
+    grouped.set(key, existing);
+  }
+
+  const selected = [];
+  for (const groupRows of grouped.values()) {
+    const chosen = groupRows
+      .filter((row) => row.challengeTeamId != null && row.expectedChallengeValue > 0)
+      .sort((a, b) => b.expectedChallengeValue - a.expectedChallengeValue)
+      .slice(0, budgetPerGameTeam);
+    selected.push(...chosen);
+  }
+
+  const selectedKey = new Set(
+    selected.map((row) => `${row.gamePk}|${row.atBatNumber}|${row.pitchNumber}`),
+  );
+
+  return {
+    budgetPerGameTeam,
+    selectedRows: selected.length,
+    recommendationShare: selected.length / Math.max(rows.length, 1),
+    avgExpectedChallengeValueOnSelected: mean(selected.map((row) => row.expectedChallengeValue)),
+    actualChallengeRateOnSelected:
+      selected.filter((row) => row.wasChallenged).length / Math.max(selected.length, 1),
+    actualOverturnRateOnSelectedChallenges:
+      selected.filter((row) => row.wasChallenged).length > 0
+        ? selected.filter((row) => row.wasChallenged && row.isOverturned).length /
+          selected.filter((row) => row.wasChallenged).length
+        : null,
+    actualChallengedRowsCaptured: rows.filter(
+      (row) => row.wasChallenged && selectedKey.has(`${row.gamePk}|${row.atBatNumber}|${row.pitchNumber}`),
+    ).length,
+    positiveEvRowsLeftUnselected: rows.filter(
+      (row) => row.expectedChallengeValue > 0 && !selectedKey.has(`${row.gamePk}|${row.atBatNumber}|${row.pitchNumber}`),
+    ).length,
+  };
 }
 
 function buildMarkdown(report) {
@@ -164,95 +254,128 @@ Date: ${formatAuditDateLabel()}
 
 ## Scope
 
-- Comparison layer: realized challenge value on spring ABS reviews
-- Internal layer: AiBS decision-value model in \`challenge-decision-value.ts\`
-- Sample: final spring-training ABS challenges from ${SPRING_START} through ${AUDIT_END}
+- Source table: \`modeling.called_pitch_decisions\`
+- Population: all challenge-eligible \`test\` opportunities
+- Geometry variant: \`${report.dataset.geometryVariant}\`
+- Overturn lookup source: \`mart_modeled_abs_overturn_probability_fallbacks\`
+- Inventory cost version: \`${report.dataset.inventoryCostVersion}\`
 
 ## Overview
 
-- Challenges benchmarked: ${report.overall.rows}
-- Mean expected WP delta: ${formatPct(report.overall.meanExpected, 2)}
-- Mean realized WP delta: ${formatPct(report.overall.meanRealized, 2)}
-- Mean signed gap (realized - expected): ${formatSignedPctPoint(report.overall.meanSignedGap)}
-- Mean absolute gap: ${formatPct(report.overall.meanAbsGap, 2)}
-- Positive-sign agreement: ${formatPct(report.overall.positiveSignAgreement)}
-- Recommendation share (\`challenge\` with 1 challenge remaining): ${formatPct(report.overall.challengeRecommendationShare)}
+- Held-out opportunities: ${report.dataset.testOpportunities}
+- Validation opportunities: ${report.dataset.validationOpportunities}
+- Held-out challenged rows: ${report.dataset.testChallengedRows}
+- Held-out non-challenged rows: ${report.dataset.testNonChallengedRows}
+- Split policy: \`${report.dataset.splitPolicyVersion}\`
+- Challenge recommendation share: ${formatPct(report.opportunitySummary.challengeRecommendationShare)}
+- Actual historical challenge share: ${formatPct(report.opportunitySummary.actualChallengeShare)}
+- Mean expected challenge value: ${formatPct(report.opportunitySummary.meanExpectedChallengeValue, 2)}
+- Positive-EV non-challenged opportunities: ${report.rootCause.positiveEvNonChallengedRows}
+- Negative-EV challenged opportunities: ${report.rootCause.negativeEvChallengedRows}
 
-## Key Findings
+## Inventory Cost Sensitivity On Validation
 
-- Decision value is behaving sensibly if recommended spots realize better average WP value than hold spots.
-- This audit is not testing whether historical teams made perfect choices; it is testing whether the current composite model distinguishes stronger from weaker challenge spots.
-- The most important readout is whether expected value rank-order aligns with realized value direction across fallback tiers and modes.
+${toMarkdownTable(report.validationInventorySensitivity, [
+    { label: "Version", render: (row) => row.version },
+    { label: "Multiplier", render: (row) => formatMaybeNumber(row.multiplier, 1) },
+    { label: "Validation Challenge Share", render: (row) => formatPct(row.recommendationShare) },
+    { label: "Avg Expected", render: (row) => formatPct(row.meanExpectedChallengeValue, 2) },
+    { label: "Positive-EV Non-Challenge Rows", render: (row) => row.positiveEvHoldRows },
+  ])}
 
-## By Recommendation
+## Validation Threshold Envelope
+
+${toMarkdownTable(report.validationThresholdEnvelope, [
+    { label: "Threshold", render: (row) => formatPct(row.threshold, 2) },
+    { label: "Validation Challenge Share", render: (row) => formatPct(row.recommendationShare) },
+    { label: "Avg Expected On Recommended", render: (row) => formatPct(row.avgExpectedChallengeValueOnRecommended, 2) },
+    { label: "Positive-EV Holds", render: (row) => row.positiveEvHoldRows },
+    { label: "Negative-EV Challenges", render: (row) => row.negativeEvChallengeRows },
+  ])}
+
+## Validation Budget-Constrained Envelope
+
+${toMarkdownTable(report.validationBudgetEnvelope, [
+    { label: "Budget / Team-Game", render: (row) => row.budgetPerGameTeam },
+    { label: "Validation Challenge Share", render: (row) => formatPct(row.recommendationShare) },
+    { label: "Avg Expected On Selected", render: (row) => formatPct(row.avgExpectedChallengeValueOnSelected, 2) },
+    { label: "Actual Challenge Rate On Selected", render: (row) => formatPct(row.actualChallengeRateOnSelected) },
+    { label: "Actual Overturn Rate On Selected Challenges", render: (row) => formatPct(row.actualOverturnRateOnSelectedChallenges) },
+    { label: "Actual Challenged Rows Captured", render: (row) => row.actualChallengedRowsCaptured },
+    { label: "Positive-EV Rows Left Unselected", render: (row) => row.positiveEvRowsLeftUnselected },
+  ])}
+
+## Opportunity-Level Policy Summary
 
 ${toMarkdownTable(report.byRecommendation, [
     { label: "Recommendation", render: (row) => row.key },
     { label: "Rows", render: (row) => row.rows },
-    { label: "Avg Expected", render: (row) => formatPct(row.avgExpected, 2) },
-    { label: "Avg Realized", render: (row) => formatPct(row.avgRealized, 2) },
-    { label: "Gap", render: (row) => formatSignedPctPoint(row.avgSignedGap) },
+    { label: "Actual Challenge Rate", render: (row) => formatPct(row.actualChallengeRate) },
+    { label: "Avg Ovr Prob", render: (row) => formatPct(row.avgOverturnProbability) },
+    { label: "Avg Success", render: (row) => formatPct(row.avgSuccessValue, 2) },
+    { label: "Avg Fail", render: (row) => formatPct(row.avgFailureValue, 2) },
+    { label: "Avg Inventory", render: (row) => formatPct(row.avgInventoryCost, 2) },
+    { label: "Avg Expected", render: (row) => formatPct(row.avgExpectedChallengeValue, 2) },
+  ])}
+
+## By Expected Value Bucket
+
+${toMarkdownTable(report.byExpectedBucket, [
+    { label: "EV Bucket", render: (row) => row.key },
+    { label: "Rows", render: (row) => row.rows },
+    { label: "Actual Challenge Rate", render: (row) => formatPct(row.actualChallengeRate) },
+    { label: "Overturn Rate On Challenged", render: (row) => formatPct(row.overturnRateOnChallenged) },
+    { label: "Avg Expected", render: (row) => formatPct(row.avgExpectedChallengeValue, 2) },
+  ])}
+
+## Challenged-Subset Diagnostic
+
+This section is descriptive only. Realized value is observed only for pitches that were actually challenged, so it is not a causal evaluation of the full policy.
+
+- Challenged rows in held-out test: ${report.challengedSubset.rows}
+- Mean expected challenge value on challenged rows: ${formatPct(report.challengedSubset.meanExpectedChallengeValue, 2)}
+- Mean realized challenge value on challenged rows: ${formatPct(report.challengedSubset.meanRealizedChallengeValue, 2)}
+- Mean signed gap (realized - expected): ${formatSignedPctPoint(report.challengedSubset.meanSignedGap)}
+- Recommended-share on challenged rows: ${formatPct(report.challengedSubset.recommendedShare)}
+- Positive realized share on challenged rows: ${formatPct(report.challengedSubset.positiveRealizedShare)}
+
+${toMarkdownTable(report.challengedByRecommendation, [
+    { label: "Recommendation", render: (row) => row.key },
+    { label: "Rows", render: (row) => row.rows },
+    { label: "Avg Expected", render: (row) => formatPct(row.avgExpectedChallengeValue, 2) },
+    { label: "Avg Realized", render: (row) => formatPct(row.avgRealizedChallengeValue, 2) },
     { label: "Positive Realized Share", render: (row) => formatPct(row.positiveRealizedShare) },
+    { label: "Overturn Share", render: (row) => formatPct(row.overturnShare) },
   ])}
 
-## By Decision Mode
+## Largest Missed Positive-EV Holds
 
-${toMarkdownTable(report.byDecisionMode, [
-    { label: "Mode", render: (row) => row.key },
-    { label: "Rows", render: (row) => row.rows },
-    { label: "Avg Expected", render: (row) => formatPct(row.avgExpected, 2) },
-    { label: "Avg Realized", render: (row) => formatPct(row.avgRealized, 2) },
-    { label: "Gap", render: (row) => formatSignedPctPoint(row.avgSignedGap) },
-  ])}
-
-## By Overturn Fallback Tier
-
-${toMarkdownTable(report.byFallbackTier, [
-    { label: "Tier", render: (row) => row.key },
-    { label: "Rows", render: (row) => row.rows },
-    { label: "Avg Expected", render: (row) => formatPct(row.avgExpected, 2) },
-    { label: "Avg Realized", render: (row) => formatPct(row.avgRealized, 2) },
-    { label: "Gap", render: (row) => formatSignedPctPoint(row.avgSignedGap) },
-  ])}
-
-## Largest Overestimates
-
-${toMarkdownTable(report.topOverestimates, [
+${toMarkdownTable(report.topMissedOpportunities, [
     { label: "Game", render: (row) => row.gamePk },
-    { label: "Challenge", render: (row) => row.challengeId.slice(0, 8) },
-    { label: "Mode", render: (row) => row.decisionValueMode },
-    { label: "Tier", render: (row) => row.overturnProbabilityFallbackTier ?? "—" },
-    { label: "Expected", render: (row) => formatPct(row.expectedWpDelta, 2) },
-    { label: "Realized", render: (row) => formatPct(row.realizedWpDelta, 2) },
-    { label: "Gap", render: (row) => formatSignedPctPoint(row.realizedWpDelta - row.expectedWpDelta) },
+    { label: "Phase", render: (row) => row.competitionPhase },
+    { label: "State", render: (row) => `${row.inning} ${row.halfInning}, ${row.basesState}, ${row.balls}-${row.strikes}` },
+    { label: "Ovr Prob", render: (row) => formatPct(row.overturnProbability) },
+    { label: "Expected", render: (row) => formatPct(row.expectedChallengeValue, 2) },
   ])}
 
-## Largest Underestimates
+## Largest Negative-EV Actual Challenges
 
-${toMarkdownTable(report.topUnderestimates, [
+${toMarkdownTable(report.topNegativeActualChallenges, [
     { label: "Game", render: (row) => row.gamePk },
-    { label: "Challenge", render: (row) => row.challengeId.slice(0, 8) },
-    { label: "Mode", render: (row) => row.decisionValueMode },
-    { label: "Tier", render: (row) => row.overturnProbabilityFallbackTier ?? "—" },
-    { label: "Expected", render: (row) => formatPct(row.expectedWpDelta, 2) },
-    { label: "Realized", render: (row) => formatPct(row.realizedWpDelta, 2) },
-    { label: "Gap", render: (row) => formatSignedPctPoint(row.realizedWpDelta - row.expectedWpDelta) },
+    { label: "Phase", render: (row) => row.competitionPhase },
+    { label: "State", render: (row) => `${row.inning} ${row.halfInning}, ${row.basesState}, ${row.balls}-${row.strikes}` },
+    { label: "Ovr Prob", render: (row) => formatPct(row.overturnProbability) },
+    { label: "Expected", render: (row) => formatPct(row.expectedChallengeValue, 2) },
+    { label: "Realized", render: (row) => formatPct(row.realizedChallengeValue, 2) },
   ])}
-
-## Root-Cause Readout
-
-- WE-backed decision rows: ${report.rootCause.weBackedRows}
-- Heuristic-mode decision rows: ${report.rootCause.heuristicRows}
-- Positive expected but negative realized: ${report.rootCause.positiveExpectedNegativeRealized}
-- Negative expected but positive realized: ${report.rootCause.negativeExpectedPositiveRealized}
-- Avg realized WP delta for recommended challenges: ${formatPct(report.rootCause.recommendedRealizedMean, 2)}
-- Avg realized WP delta for hold-labeled challenges: ${formatPct(report.rootCause.holdRealizedMean, 2)}
 
 ## Notes
 
-- The recommendation split uses the same one-challenge-remaining threshold as the live product.
-- This is an internal composite audit, not an MLB external benchmark.
-- The key analyst question is whether the model meaningfully separates stronger from weaker historical challenge spots, not whether it perfectly matches every single realized outcome.
+- This audit now scores the full held-out opportunity set rather than only historical challenges.
+- Non-challenged rows do not have observed counterfactual realized value, so opportunity-level metrics are descriptive policy diagnostics, not causal proof.
+- Challenged-subset realized-value comparisons are useful for sanity checks, but they remain selection-biased until a stronger counterfactual design is added.
+- Threshold-envelope reporting is included so recommendation rate can be compared against historical usage before any stronger deployment claim is made.
+- Budget-constrained validation reporting is descriptive only; it shows what a simple team-game budgeted selector would do, not what a fully retained-challenge simulation has proven.
 `;
 }
 
@@ -295,18 +418,26 @@ async function main() {
     }));
 
     const overturnRows = (
-      await client.query(`
+      await client.query(
+        `
         SELECT
           fallback_tier,
+          split_policy_version,
+          geometry_variant,
           challenge_direction,
           edge_bucket,
           sample_size,
           overturn_probability,
           confidence_band
-        FROM mart_historical_abs_overturn_probability_fallbacks
-      `)
+        FROM mart_modeled_abs_overturn_probability_fallbacks
+        WHERE geometry_variant = $1
+        `,
+        [CURRENT_GEOMETRY_VARIANT],
+      )
     ).rows.map((row) => ({
       fallbackTier: row.fallback_tier,
+      splitPolicyVersion: row.split_policy_version,
+      geometryVariant: row.geometry_variant,
       challengeDirection: row.challenge_direction,
       edgeBucket: row.edge_bucket,
       sampleSize: Number(row.sample_size ?? 0),
@@ -314,175 +445,333 @@ async function main() {
       confidenceBand: row.confidence_band,
     }));
 
-    const challenges = (
-      await client.query(
-        `
+    const opportunities = (
+      await client.query(`
         SELECT
-          c.challenge_id,
           c.game_pk,
+          c.game_date,
+          c.competition_phase,
+          c.split_set,
+          c.split_policy_version,
+          c.at_bat_number,
+          c.pitch_number,
           c.inning,
           c.half_inning,
+          c.balls,
+          c.strikes,
           c.outs,
           c.bases_state,
           c.home_score,
           c.away_score,
-          COALESCE(p.balls_before, c.balls) AS balls_before,
-          COALESCE(p.strikes_before, c.strikes) AS strikes_before,
-          COALESCE(p.called_description, c.called_description) AS called_description,
-          c.is_overturned,
-          COALESCE(c.px, c.inferred_px) AS px,
-          COALESCE(c.pz, c.inferred_pz) AS pz,
-          resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top) AS strike_zone_top,
-          resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strike_zone_bottom
-        FROM abs_challenges c
-        JOIN games g ON g.game_pk = c.game_pk
-        LEFT JOIN pitches p
-          ON p.game_pk = c.game_pk
-         AND p.at_bat_index = c.at_bat_index
-         AND p.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
-        WHERE g.status_detailed = 'Final'
-          AND g.game_date BETWEEN $1::date AND $2::date
-          AND c.challenge_team_id IS NOT NULL
-        ORDER BY c.game_pk, c.challenge_id
-        `,
-        [SPRING_START, AUDIT_END],
-      )
-    ).rows;
-
-    const benchmarkRows = [];
-    for (const row of challenges) {
-      const calledPitch = getCalledPitch(row.called_description);
-      const balls = row.balls_before === null ? null : Number(row.balls_before);
-      const strikes = row.strikes_before === null ? null : Number(row.strikes_before);
-      if (!calledPitch || balls === null || strikes === null) continue;
-
-      const scoreDiffBattingTeam =
-        String(row.half_inning).toLowerCase() === "top"
-          ? Number(row.away_score) - Number(row.home_score)
-          : Number(row.home_score) - Number(row.away_score);
-      const runnersOnBase = countRunnersOnBase(row.bases_state);
-      const px = row.px === null ? null : Number(row.px);
-      const pz = row.pz === null ? null : Number(row.pz);
-      const strikeZoneTop = row.strike_zone_top === null ? null : Number(row.strike_zone_top);
-      const strikeZoneBottom = row.strike_zone_bottom === null ? null : Number(row.strike_zone_bottom);
-      const edgeDistance = computeDirectionalZoneDistance({
-        calledPitch,
-        px,
-        pz,
-        strikeZoneTop,
-        strikeZoneBottom,
-      });
-      const overturn = resolveOverturnProbabilityWithFallback(
-        {
-          calledPitch,
-          edgeDistance,
-          px,
-          pz,
-          strikeZoneTop,
-          strikeZoneBottom,
-        },
-        overturnRows,
-      );
-
-      const li = leverageApprox({
-        inning: Number(row.inning),
-        balls,
-        strikes,
-        outs: Number(row.outs ?? 0),
-        scoreDiffBattingTeam,
-        runnersOnBase,
-      });
-      const winDelta = calculateSuccessWinDelta(
-        {
-          inning: Number(row.inning),
-          halfInning: String(row.half_inning).toLowerCase() === "bottom" ? "Bottom" : "Top",
-          balls,
-          strikes,
-          outs: Number(row.outs ?? 0),
-          scoreDiffBattingTeam,
-          runnersOnBase,
-          calledPitch,
-        },
-        winRows,
-      );
-
-      const successDelta = winDelta?.swing ?? calculateHeuristicSuccessDelta({
-        inning: Number(row.inning),
-        balls,
-        strikes,
-        scoreDiffBattingTeam,
-        runnersOnBase,
-      }, li);
-      const failureCost = Number((-HEURISTIC_FAILURE_COST_PER_LI * li).toFixed(4));
-      const expectedWpDelta =
-        (overturn?.overturnProbability ?? 0.5) * successDelta +
-        (1 - (overturn?.overturnProbability ?? 0.5)) * failureCost;
-      const realizedWpDelta = row.is_overturned ? successDelta : failureCost;
-      const recommendation = expectedWpDelta > 0.0015 ? "challenge" : "hold";
-
-      benchmarkRows.push({
-        challengeId: row.challenge_id,
+          c.score_diff_batting,
+          c.observed_call,
+          c.min_edge_distance_center_only,
+          COALESCE(c.challenge_dedupe_key, '') AS challenge_dedupe_key,
+          c.batting_team_id,
+          c.fielding_team_id,
+          c.opportunity_team_id,
+          c.opportunity_team_side,
+          c.actual_challenge_team_id,
+          c.was_challenged,
+          c.challenge_outcome,
+          c.is_overturned
+        FROM modeling.called_pitch_decisions c
+        WHERE split_set IN ('validation', 'test')
+          AND is_challenge_eligible = TRUE
+          AND observed_call IN ('ball', 'strike')
+        ORDER BY game_pk, at_bat_number, pitch_number
+      `)
+    ).rows.map((row) => {
+      const observedCall = row.observed_call;
+      const calledPitch = calledPitchFromObservedCall(observedCall);
+      const challengeDirection = challengeDirectionFromObservedCall(observedCall);
+      const rawMargin =
+        row.min_edge_distance_center_only == null ? null : Number(row.min_edge_distance_center_only);
+      const alignedMargin = toChallengeAlignedMargin(challengeDirection, rawMargin);
+      const edgeBucket = toEdgeBucket(alignedMargin);
+      return {
         gamePk: Number(row.game_pk),
-        decisionValueMode: winDelta ? "win_expectancy" : "heuristic",
-        overturnProbabilityFallbackTier: overturn?.fallbackTier ?? null,
-        expectedWpDelta: Number(expectedWpDelta.toFixed(4)),
-        realizedWpDelta: Number(realizedWpDelta.toFixed(4)),
-        recommendation,
+        gameDate: row.game_date,
+        competitionPhase: row.competition_phase ?? "unknown",
+        splitSet: row.split_set,
+        splitPolicyVersion: row.split_policy_version ?? "unknown",
+        atBatNumber: Number(row.at_bat_number ?? 0),
+        pitchNumber: Number(row.pitch_number ?? 0),
+        inning: Number(row.inning ?? 0),
+        halfInning: String(row.half_inning).toLowerCase() === "bottom" ? "Bottom" : "Top",
+        balls: Number(row.balls ?? 0),
+        strikes: Number(row.strikes ?? 0),
+        outs: Number(row.outs ?? 0),
+        basesState: row.bases_state ?? "000",
+        homeScore: row.home_score === null ? null : Number(row.home_score),
+        awayScore: row.away_score === null ? null : Number(row.away_score),
+        scoreDiffBattingTeam: Number(row.score_diff_batting ?? 0),
+        observedCall,
+        calledPitch,
+        challengeDirection,
+        battingTeamId: row.batting_team_id == null ? null : Number(row.batting_team_id),
+        fieldingTeamId: row.fielding_team_id == null ? null : Number(row.fielding_team_id),
+        opportunityTeamId: row.opportunity_team_id == null ? null : Number(row.opportunity_team_id),
+        opportunityTeamSide: row.opportunity_team_side ?? null,
+        actualChallengeTeamId:
+          row.actual_challenge_team_id == null ? null : Number(row.actual_challenge_team_id),
+        rawMargin,
+        alignedMargin,
+        edgeBucket,
+        challengeDedupeKey: row.challenge_dedupe_key || null,
+        wasChallenged: Boolean(row.was_challenged),
+        challengeOutcome: row.challenge_outcome,
+        isOverturned: row.is_overturned === null ? null : Boolean(row.is_overturned),
+      };
+    });
+
+    const splitPolicyVersion =
+      opportunities.find((row) => row.splitPolicyVersion && row.splitPolicyVersion !== "unknown")
+        ?.splitPolicyVersion ?? "unknown";
+
+    const scoredRows = opportunities
+      .map((row) => {
+        if (!row.calledPitch || !row.challengeDirection) return null;
+
+        const overturn = resolveOverturnProbabilityWithFallback(
+          {
+            challengeDirection: row.challengeDirection,
+            edgeBucket: row.edgeBucket,
+          },
+          overturnRows,
+        );
+
+        const leverageIndex = leverageApprox(row);
+        const winDelta = calculateSuccessWinDelta(
+          {
+            inning: row.inning,
+            halfInning: row.halfInning,
+            balls: row.balls,
+            strikes: row.strikes,
+            outs: row.outs,
+            basesState: row.basesState,
+            homeScore: row.homeScore,
+            awayScore: row.awayScore,
+            calledPitch: row.calledPitch,
+          },
+          winRows,
+        );
+
+        const successValue =
+          winDelta
+            ? Number((winDelta.swing * getChallengeTeamValueMultiplier(row.calledPitch)).toFixed(4))
+            : Number((HEURISTIC_SUCCESS_PER_LI * leverageIndex).toFixed(4));
+        const failureValue = Number((-HEURISTIC_FAILURE_COST_PER_LI * leverageIndex).toFixed(4));
+        const inventoryCost = inventoryCostApprox(
+          {
+            inning: row.inning,
+            basesState: row.basesState,
+            balls: row.balls,
+            strikes: row.strikes,
+            scoreDiffBattingTeam: row.scoreDiffBattingTeam,
+            challengesRemaining: 1,
+          },
+          leverageIndex,
+        );
+        const overturnProbability = overturn?.overturnProbability ?? 0.5;
+        const expectedChallengeValue =
+          overturnProbability * successValue +
+          (1 - overturnProbability) * failureValue -
+          inventoryCost;
+        const realizedChallengeValue = row.wasChallenged
+          ? (row.isOverturned ? successValue : failureValue) - inventoryCost
+          : null;
+
+        return {
+          ...row,
+          challengeTeamId: row.opportunityTeamId,
+          leverageIndex,
+          overturnProbability,
+          overturnProbabilityFallbackTier: overturn?.fallbackTier ?? "global",
+          overturnProbabilityConfidence: overturn?.confidenceBand ?? null,
+          successValue,
+          failureValue,
+          inventoryCost,
+          expectedChallengeValue: Number(expectedChallengeValue.toFixed(4)),
+          realizedChallengeValue:
+            realizedChallengeValue == null ? null : Number(realizedChallengeValue.toFixed(4)),
+          decisionValueMode: winDelta ? "win_expectancy" : "heuristic",
+          recommendation: expectedChallengeValue > 0 ? "challenge" : "hold",
+        };
+      })
+      .filter(Boolean);
+
+    const validationRows = scoredRows.filter((row) => row.splitSet === "validation");
+    const testRows = scoredRows.filter((row) => row.splitSet === "test");
+    const challengedSubsetRows = testRows.filter((row) => row.wasChallenged);
+
+    const byRecommendation = summarizeBy(
+      testRows,
+      (row) => row.recommendation,
+      (key, rows) => ({
+        key,
+        rows: rows.length,
+        actualChallengeRate: rows.filter((row) => row.wasChallenged).length / rows.length,
+        avgOverturnProbability: mean(rows.map((row) => row.overturnProbability)),
+        avgSuccessValue: mean(rows.map((row) => row.successValue)),
+        avgFailureValue: mean(rows.map((row) => row.failureValue)),
+        avgInventoryCost: mean(rows.map((row) => row.inventoryCost)),
+        avgExpectedChallengeValue: mean(rows.map((row) => row.expectedChallengeValue)),
+      }),
+    ).sort((a, b) => b.avgExpectedChallengeValue - a.avgExpectedChallengeValue);
+
+    const byExpectedBucket = summarizeBy(
+      testRows,
+      (row) => expectedValueBucket(row.expectedChallengeValue),
+      (key, rows) => {
+        const challengedRows = rows.filter((row) => row.wasChallenged);
+        return {
+          key,
+          rows: rows.length,
+          actualChallengeRate: challengedRows.length / rows.length,
+          overturnRateOnChallenged:
+            challengedRows.length > 0
+              ? challengedRows.filter((row) => row.isOverturned).length / challengedRows.length
+              : null,
+          avgExpectedChallengeValue: mean(rows.map((row) => row.expectedChallengeValue)),
+        };
+      },
+    ).sort((a, b) => a.avgExpectedChallengeValue - b.avgExpectedChallengeValue);
+
+    const challengedByRecommendation = summarizeBy(
+      challengedSubsetRows,
+      (row) => row.recommendation,
+      (key, rows) => ({
+        key,
+        rows: rows.length,
+        avgExpectedChallengeValue: mean(rows.map((row) => row.expectedChallengeValue)),
+        avgRealizedChallengeValue: mean(rows.map((row) => row.realizedChallengeValue)),
+        positiveRealizedShare:
+          rows.filter((row) => (row.realizedChallengeValue ?? -Infinity) > 0).length / rows.length,
+        overturnShare: rows.filter((row) => row.isOverturned).length / rows.length,
+      }),
+    ).sort((a, b) => b.avgExpectedChallengeValue - a.avgExpectedChallengeValue);
+
+    const validationInventorySensitivity = INVENTORY_COST_SENSITIVITY.map(({ version, multiplier }) => {
+      const rescored = validationRows.map((row) => {
+        const adjustedExpectedChallengeValue =
+          row.overturnProbability * row.successValue +
+          (1 - row.overturnProbability) * row.failureValue -
+          row.inventoryCost * multiplier;
+        return {
+          ...row,
+          adjustedExpectedChallengeValue,
+          adjustedRecommendation: adjustedExpectedChallengeValue > 0 ? "challenge" : "hold",
+        };
       });
-    }
+      return {
+        version,
+        multiplier,
+        recommendationShare:
+          rescored.filter((row) => row.adjustedRecommendation === "challenge").length /
+          Math.max(rescored.length, 1),
+        meanExpectedChallengeValue: mean(
+          rescored.map((row) => row.adjustedExpectedChallengeValue),
+        ),
+        positiveEvHoldRows: rescored.filter(
+          (row) => row.adjustedRecommendation === "hold" && row.adjustedExpectedChallengeValue > 0,
+        ).length,
+      };
+    });
 
-    const overall = {
-      rows: benchmarkRows.length,
-      meanExpected: mean(benchmarkRows.map((row) => row.expectedWpDelta)),
-      meanRealized: mean(benchmarkRows.map((row) => row.realizedWpDelta)),
-      meanSignedGap: mean(benchmarkRows.map((row) => row.realizedWpDelta - row.expectedWpDelta)),
-      meanAbsGap: mean(benchmarkRows.map((row) => Math.abs(row.realizedWpDelta - row.expectedWpDelta))),
-      positiveSignAgreement:
-        benchmarkRows.filter((row) => (row.expectedWpDelta > 0) === (row.realizedWpDelta > 0)).length /
-        benchmarkRows.length,
-      challengeRecommendationShare:
-        benchmarkRows.filter((row) => row.recommendation === "challenge").length / benchmarkRows.length,
-    };
+    const validationThresholdEnvelope = RECOMMENDATION_THRESHOLDS.map((threshold) => {
+      const recommendedRows = validationRows.filter(
+        (row) => row.expectedChallengeValue >= threshold,
+      );
+      return {
+        threshold,
+        recommendationShare: recommendedRows.length / Math.max(validationRows.length, 1),
+        avgExpectedChallengeValueOnRecommended: mean(
+          recommendedRows.map((row) => row.expectedChallengeValue),
+        ),
+        positiveEvHoldRows: validationRows.filter(
+          (row) => row.expectedChallengeValue > 0 && row.expectedChallengeValue < threshold,
+        ).length,
+        negativeEvChallengeRows: validationRows.filter(
+          (row) => row.expectedChallengeValue >= threshold && row.expectedChallengeValue < 0,
+        ).length,
+      };
+    });
 
-    const byRecommendation = summarizeBy(benchmarkRows, (row) => row.recommendation);
-    const byDecisionMode = summarizeBy(benchmarkRows, (row) => row.decisionValueMode);
-    const byFallbackTier = summarizeBy(benchmarkRows, (row) => row.overturnProbabilityFallbackTier ?? "unknown");
-    const topOverestimates = [...benchmarkRows]
-      .sort((a, b) => (a.realizedWpDelta - a.expectedWpDelta) - (b.realizedWpDelta - b.expectedWpDelta))
-      .slice(0, 10);
-    const topUnderestimates = [...benchmarkRows]
-      .sort((a, b) => (b.realizedWpDelta - b.expectedWpDelta) - (a.realizedWpDelta - a.expectedWpDelta))
-      .slice(0, 10);
+    const validationBudgetEnvelope = BUDGET_SCENARIOS.map((budgetPerGameTeam) =>
+      simulateBudgetPolicy(validationRows, budgetPerGameTeam),
+    );
 
     const report = {
-      auditDate: AUDIT_DATE,
-      springWindow: { start: SPRING_START, end: AUDIT_END },
-      overall,
+      generatedAt: new Date().toISOString(),
+      dataset: {
+        geometryVariant: CURRENT_GEOMETRY_VARIANT,
+        inventoryCostVersion: INVENTORY_COST_VERSION,
+        splitPolicyVersion,
+        validationOpportunities: validationRows.length,
+        testOpportunities: testRows.length,
+        testChallengedRows: challengedSubsetRows.length,
+        testNonChallengedRows: testRows.length - challengedSubsetRows.length,
+      },
+      validationInventorySensitivity,
+      validationThresholdEnvelope,
+      validationBudgetEnvelope,
+      opportunitySummary: {
+        challengeRecommendationShare:
+          testRows.filter((row) => row.recommendation === "challenge").length / testRows.length,
+        actualChallengeShare:
+          testRows.filter((row) => row.wasChallenged).length / testRows.length,
+        meanExpectedChallengeValue: mean(testRows.map((row) => row.expectedChallengeValue)),
+      },
       byRecommendation,
-      byDecisionMode,
-      byFallbackTier,
-      topOverestimates,
-      topUnderestimates,
+      byExpectedBucket,
+      challengedSubset: {
+        rows: challengedSubsetRows.length,
+        meanExpectedChallengeValue: mean(challengedSubsetRows.map((row) => row.expectedChallengeValue)),
+        meanRealizedChallengeValue: mean(challengedSubsetRows.map((row) => row.realizedChallengeValue)),
+        meanSignedGap: mean(
+          challengedSubsetRows.map(
+            (row) => (row.realizedChallengeValue ?? 0) - row.expectedChallengeValue,
+          ),
+        ),
+        recommendedShare:
+          challengedSubsetRows.filter((row) => row.recommendation === "challenge").length /
+          challengedSubsetRows.length,
+        positiveRealizedShare:
+          challengedSubsetRows.filter((row) => (row.realizedChallengeValue ?? -Infinity) > 0).length /
+          challengedSubsetRows.length,
+      },
+      challengedByRecommendation,
+      topMissedOpportunities: scoredRows
+        .filter((row) => row.splitSet === "test")
+        .filter((row) => !row.wasChallenged && row.expectedChallengeValue > 0)
+        .sort((a, b) => b.expectedChallengeValue - a.expectedChallengeValue)
+        .slice(0, 10),
+      topNegativeActualChallenges: challengedSubsetRows
+        .filter((row) => row.expectedChallengeValue < 0)
+        .sort((a, b) => a.expectedChallengeValue - b.expectedChallengeValue)
+        .slice(0, 10),
       rootCause: {
-        weBackedRows: benchmarkRows.filter((row) => row.decisionValueMode === "win_expectancy").length,
-        heuristicRows: benchmarkRows.filter((row) => row.decisionValueMode === "heuristic").length,
-        positiveExpectedNegativeRealized: benchmarkRows.filter(
-          (row) => row.expectedWpDelta > 0 && row.realizedWpDelta <= 0,
+        winExpectancyBackedRows: testRows.filter((row) => row.decisionValueMode === "win_expectancy").length,
+        heuristicRows: testRows.filter((row) => row.decisionValueMode === "heuristic").length,
+        positiveEvNonChallengedRows: testRows.filter(
+          (row) => !row.wasChallenged && row.expectedChallengeValue > 0,
         ).length,
-        negativeExpectedPositiveRealized: benchmarkRows.filter(
-          (row) => row.expectedWpDelta <= 0 && row.realizedWpDelta > 0,
+        strongPositiveEvNonChallengedRows: testRows.filter(
+          (row) => !row.wasChallenged && row.expectedChallengeValue >= 0.005,
         ).length,
-        recommendedRealizedMean: mean(
-          benchmarkRows.filter((row) => row.recommendation === "challenge").map((row) => row.realizedWpDelta),
-        ),
-        holdRealizedMean: mean(
-          benchmarkRows.filter((row) => row.recommendation === "hold").map((row) => row.realizedWpDelta),
-        ),
+        negativeEvChallengedRows: challengedSubsetRows.filter(
+          (row) => row.expectedChallengeValue < 0,
+        ).length,
+        recommendedOverturnedShare:
+          challengedSubsetRows.filter((row) => row.recommendation === "challenge" && row.isOverturned).length /
+          Math.max(challengedSubsetRows.filter((row) => row.isOverturned).length, 1),
       },
     };
 
+    fs.mkdirSync(path.dirname(ARTIFACT_PATH), { recursive: true });
     fs.writeFileSync(ARTIFACT_PATH, `${JSON.stringify(report, null, 2)}\n`);
-    fs.writeFileSync(DOC_PATH, buildMarkdown(report));
+    fs.writeFileSync(DOC_PATH, `${buildMarkdown(report)}\n`);
     console.log(`Wrote ${DOC_PATH}`);
     console.log(`Wrote ${ARTIFACT_PATH}`);
   } finally {

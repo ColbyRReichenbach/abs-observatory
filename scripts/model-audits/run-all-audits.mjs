@@ -7,6 +7,7 @@ const SUITE = [
   { slug: "abs-product-qa", label: "ABS product QA", script: "run-abs-product-qa.mjs" },
   { slug: "current-state-audit", label: "Current-state audit", script: "run-current-state-audit.mjs" },
   { slug: "re-benchmark", label: "RE benchmark", script: "run-re-benchmark.mjs" },
+  { slug: "we-benchmark", label: "WE benchmark", script: "run-we-benchmark.mjs" },
   { slug: "mlb-we-benchmark", label: "MLB WE benchmark", script: "run-mlb-we-benchmark.mjs" },
   { slug: "overturn-calibration", label: "Overturn calibration", script: "run-overturn-calibration.mjs" },
   { slug: "rubric-audit", label: "Rubric audit", script: "run-rubric-audit.mjs" },
