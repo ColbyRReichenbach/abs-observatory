@@ -195,7 +195,7 @@ async function HomePageBody({
                 <div className="flex flex-wrap gap-4">
                   {topTeams.map((team, idx) => (
                     <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
-                      <TeamIcon teamId={team.teamId} name={team.teamName} size={28} />
+                      <TeamIcon teamId={team.teamId} name={team.teamName} size={28} variant="flat" className="shrink-0" />
                       <div className="min-w-0">
                         <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{team.teamName}</p>
                         <div className="mt-2 flex items-center justify-between gap-2">
@@ -328,7 +328,7 @@ async function HomePageBody({
                   <div className="flex flex-wrap gap-4">
                     {topTeams.map((team, idx) => (
                       <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
-                        <TeamIcon teamId={team.teamId} name={team.teamName} size={28} />
+                        <TeamIcon teamId={team.teamId} name={team.teamName} size={28} variant="flat" className="shrink-0" />
                         <div className="min-w-0">
                           <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{team.teamName}</p>
                               <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-3)]">
@@ -345,7 +345,7 @@ async function HomePageBody({
                         const rank = teams.length - bottomTeams.length + idx + 1;
                         return (
                           <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
-                            <TeamIcon teamId={team.teamId} name={team.teamName} size={28} />
+                            <TeamIcon teamId={team.teamId} name={team.teamName} size={28} variant="flat" className="shrink-0" />
                             <div className="min-w-0">
                               <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{team.teamName}</p>
                               <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-3)]">
@@ -366,10 +366,10 @@ async function HomePageBody({
         <HomeExpandableGrid games={games} />
 
         {/* S2-5: Reduced gap (mt-16 instead of mt-32) */}
-        <section className="mt-16">
-          <div className="mb-20 flex flex-col items-center text-center">
-            <div className="h-12 w-px bg-blue-200 mb-8" />
-            <h2 className="w-full text-5xl md:text-7xl font-display uppercase tracking-tight text-gray-900 mb-6 leading-[1.2] py-4 px-12 overflow-visible">
+        <section className="mt-10">
+          <div className="mb-14 flex flex-col items-center text-center">
+            <div className="mb-6 h-10 w-px bg-blue-200" />
+            <h2 className="w-full overflow-visible px-12 py-2 text-5xl font-display uppercase tracking-tight text-gray-900 md:text-7xl leading-[1.2] mb-5">
               Most <span className="opacity-20 italic px-2 pr-5">Consequential</span> Calls
             </h2>
             <p className="text-gray-500 text-lg max-w-xl font-medium text-balance">

@@ -7,11 +7,12 @@ import {
     XAxis,
     YAxis,
     CartesianGrid,
+    Tooltip,
     ReferenceLine,
     ResponsiveContainer,
     Label,
 } from "recharts";
-import type { ScatterShapeProps } from "recharts";
+import type { ScatterShapeProps, TooltipContentProps } from "recharts";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
 import { buildLinearAxis, formatNumberTick, formatPercentTick } from "@/components/analytics/chart-axis";
@@ -111,10 +112,42 @@ const TeamLogoDot = memo((props: TeamLogoDotProps) => {
 });
 TeamLogoDot.displayName = "TeamLogoDot";
 
+type ScatterTooltipContentProps = TooltipContentProps<number, string> & {
+    viewBox?: {
+        height?: number;
+    };
+};
+
+function ScatterTooltipContent({ active, payload, coordinate, viewBox }: ScatterTooltipContentProps) {
+    if (!active || !payload?.length || !coordinate) return null;
+    const point = payload[0]?.payload as TeamScatterChartPoint | undefined;
+    if (!point) return null;
+
+    const isBottomHalf = (coordinate.y || 0) > (viewBox?.height || 400) / 2;
+
+    return (
+        <div
+            className="transition-transform duration-300 ease-out"
+            style={{
+                transform: isBottomHalf
+                    ? "translateX(-50%) translateY(-100%) translateY(-50px)"
+                    : "translateX(-50%) translateY(50px)",
+                pointerEvents: "none",
+            }}
+        >
+            <ChartTooltip
+                title={point.teamName}
+                value={`${(point.overturnRate * 100).toFixed(2)}%`}
+                subValueLabel="Overturn Rate"
+                extra={[{ label: "Rate / Game", value: point.challengeRatePerGame.toFixed(2) }]}
+            />
+        </div>
+    );
+}
+
 export function TeamScatterPlot({ data, mode = "fan" }: Props) {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
     const [hoveredTeamId, setHoveredTeamId] = useState<number | null>(null);
 
     const { xAxis, yAxis, avgChallengeRate, avgOverturnRate, xTickDigits } = useMemo(() => {
@@ -149,10 +182,6 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
         () => data.map((d) => ({ ...d, overturnPct: d.overturnRate * 100 })),
         [data],
     );
-    const hoveredPoint = useMemo(
-        () => chartData.find((point) => point.teamId === hoveredTeamId) ?? null,
-        [chartData, hoveredTeamId],
-    );
 
     if (data.length === 0) return null;
 
@@ -169,7 +198,6 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
 
             <div
                 className="relative h-[400px] w-full"
-                onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}
                 onMouseLeave={() => setHoveredTeamId(null)}
             >
                 {/* Quadrant labels */}
@@ -279,20 +307,18 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                                 }}
                                 isAnimationActive={false}
                             />
+                            <Tooltip
+                                content={(props) => <ScatterTooltipContent {...(props as ScatterTooltipContentProps)} />}
+                                cursor={false}
+                                offset={0}
+                                allowEscapeViewBox={{ x: true, y: true }}
+                                wrapperStyle={{ zIndex: 10001, outline: "none", pointerEvents: "none" }}
+                                isAnimationActive={false}
+                                animationDuration={0}
+                            />
                         </ScatterChart>
                     </ResponsiveContainer>
                 </ClientOnly>
-
-                {hoveredPoint ? (
-                    <ChartTooltip
-                        usePortal
-                        portalProps={mousePos}
-                        title={hoveredPoint.teamName}
-                        value={`${(hoveredPoint.overturnRate * 100).toFixed(2)}%`}
-                        subValueLabel="Overturn Rate"
-                        extra={[{ label: "Rate / Game", value: hoveredPoint.challengeRatePerGame.toFixed(2) }]}
-                    />
-                ) : null}
             </div>
         </div>
     );

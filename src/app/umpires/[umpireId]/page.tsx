@@ -89,6 +89,16 @@ export default async function UmpirePage({
   );
   const rankIndex = rankedUmpires.findIndex((umpire) => umpire.umpireId === summary.umpireId);
   const displayRank = rankIndex >= 0 ? rankIndex + 1 : null;
+  const orgValueLabel =
+    currentUmpire?.averageWinExpectancyDelta !== null && currentUmpire?.averageWinExpectancyDelta !== undefined
+      ? "Avg WE Δ"
+      : "Avg RE Δ";
+  const orgValueDisplay =
+    currentUmpire?.averageWinExpectancyDelta !== null && currentUmpire?.averageWinExpectancyDelta !== undefined
+      ? `${currentUmpire.averageWinExpectancyDelta >= 0 ? "+" : ""}${(currentUmpire.averageWinExpectancyDelta * 100).toFixed(2)}%`
+      : currentUmpire?.averageRunExpectancyDelta !== null && currentUmpire?.averageRunExpectancyDelta !== undefined
+        ? `${currentUmpire.averageRunExpectancyDelta >= 0 ? "+" : ""}${currentUmpire.averageRunExpectancyDelta.toFixed(3)}`
+        : "N/A";
   const copy = getUmpireDetailViewCopy(viewMode);
   return (
     <main className="mx-auto max-w-7xl px-6 py-12 lg:py-24 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.02),transparent)]">
@@ -146,12 +156,10 @@ export default async function UmpirePage({
             subLabel={currentUmpire ? (viewMode === "org" ? currentUmpire.orgDescriptor : currentUmpire.fanDescriptor) : "Monitor"}
           />
           <StatCard
-              label={viewMode === "org" ? "Avg WE Δ" : "League Rank"}
+              label={viewMode === "org" ? orgValueLabel : "League Rank"}
               value={
                 viewMode === "org"
-                  ? currentUmpire?.averageWinExpectancyDelta === null || currentUmpire?.averageWinExpectancyDelta === undefined
-                    ? "N/A"
-                    : `${currentUmpire.averageWinExpectancyDelta >= 0 ? "+" : ""}${(currentUmpire.averageWinExpectancyDelta * 100).toFixed(2)}%`
+                  ? orgValueDisplay
                   : displayRank
                     ? `#${displayRank}`
                     : "—"
@@ -161,7 +169,9 @@ export default async function UmpirePage({
                 viewMode === "org"
                   ? currentUmpire?.averageRunExpectancyDelta === null || currentUmpire?.averageRunExpectancyDelta === undefined
                     ? `${currentUmpire?.confidence ?? "medium"} confidence`
-                    : `Avg RE Δ ${currentUmpire.averageRunExpectancyDelta >= 0 ? "+" : ""}${currentUmpire.averageRunExpectancyDelta.toFixed(3)}`
+                    : currentUmpire?.averageWinExpectancyDelta === null || currentUmpire?.averageWinExpectancyDelta === undefined
+                      ? "Win-value coverage pending"
+                      : `Avg RE Δ ${currentUmpire.averageRunExpectancyDelta >= 0 ? "+" : ""}${currentUmpire.averageRunExpectancyDelta.toFixed(3)}`
                   : `${(summary.overturnRate * 100).toFixed(1)}% OT`
               }
             />
@@ -286,7 +296,7 @@ async function UmpireAnalyticsSections({
       ) : (
         <>
           <MotionIn delay={0.15}>
-            <section className="mb-12">
+            <section className="grid gap-8 lg:grid-cols-2 mb-12">
               <div className="panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col">
                 <div className="flex items-center justify-between gap-4 mb-4">
                   <div>
@@ -331,12 +341,6 @@ async function UmpireAnalyticsSections({
                   return null;
                 })()}
               </div>
-            </section>
-          </MotionIn>
-
-          <MotionIn delay={0.18}>
-            <section className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] mb-12">
-              <PitchTypeBreakdownChart data={pitchTypes} />
 
               <div className="panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col">
                 <div>
@@ -351,6 +355,12 @@ async function UmpireAnalyticsSections({
                   <UmpireAccuracyChart data={trend} />
                 </div>
               </div>
+            </section>
+          </MotionIn>
+
+          <MotionIn delay={0.18}>
+            <section className="mb-12">
+              <PitchTypeBreakdownChart data={pitchTypes} />
             </section>
           </MotionIn>
         </>
@@ -872,7 +882,7 @@ function compareFanUmpires(
   left: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
   right: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
 ) {
-  if (right.overturnRate !== left.overturnRate) return right.overturnRate - left.overturnRate;
+  if (left.overturnRate !== right.overturnRate) return left.overturnRate - right.overturnRate;
   if (right.challengedCalls !== left.challengedCalls) return right.challengedCalls - left.challengedCalls;
   return right.gamesWorked - left.gamesWorked;
 }

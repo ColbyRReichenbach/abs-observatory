@@ -2,7 +2,9 @@ name: Live MLB Data Polling
 
 on:
   schedule:
-    # Runs every 5 minutes
+    # GitHub Actions schedules are static and UTC-based.
+    # We keep a 5-minute heartbeat here and let the ET-aware poll gate
+    # decide whether there are live MLB games worth ingesting.
     - cron: '*/5 * * * *'
   
   # Manual trigger from GitHub "Actions" tab
@@ -33,14 +35,24 @@ jobs:
         env:
           WAREHOUSE_DATABASE_URL: ${{ secrets.WAREHOUSE_DATABASE_URL }}
           DATABASE_SSL: true
+          MLB_GAME_TYPES: S,R
         run: |
           TODAY=$(date -u +"%Y-%m-%d")
-          
+
           python3 etl/ingest_mlb_abs.py \
             --start-date $TODAY \
             --end-date $TODAY \
             --game-type S,R \
             --skip-final-existing
+
+      - name: Prune Source Snapshots
+        env:
+          DATABASE_URL: ${{ secrets.WAREHOUSE_DATABASE_URL }}
+        run: |
+          python3 etl/prune_source_snapshots.py \
+            --feed-live-days 14 \
+            --standings-days 0 \
+            --savant-days 0
 
   publish-serving:
     name: Publish Serving

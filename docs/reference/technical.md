@@ -37,7 +37,9 @@ The current system has five primary parts:
 - `ETL and enrichment`
   - ABS ingest
   - live polling
+  - ET-aware poll gating and stale-gap catch-up
   - standings sync
+  - snapshot pruning
   - report generation helpers
 
 - `AI subsystem`
@@ -107,6 +109,9 @@ Primary code areas:
 
 - `etl/`
   - ingest, polling, enrichment, and reporting scripts
+
+- `scripts/local-live-poll.sh`
+  - local scheduler wrapper for serving-mode and archive-mode polling
 
 ## 4. Route Surface
 
@@ -189,6 +194,8 @@ AI and operations:
 
 - AI conversations, tool calls, usage, feedback, and safety state
 - ops audit and job-run tables
+- `ops.game_linescores`
+- retained recent-only `ops.source_snapshots` in serving mode
 
 Warehouse-only baseball domains include:
 
@@ -210,6 +217,12 @@ Key implementation rules:
 - API handlers are thin wrappers over server-side data functions where possible
 - the browser is not treated as a trusted data or authorization layer
 
+For live baseball data specifically:
+
+- polling writes structured live scoreboard state into `ops.game_linescores`
+- hosted serving does not rely on indefinite raw snapshot retention for normal scoreboard rendering
+- the freshness indicator in the UI is driven from ETL run state and live-game detection
+
 ## 7. Auth, AI, and Worker Boundaries
 
 Identity:
@@ -229,6 +242,8 @@ Workers:
 - internal processing is protected by `INTERNAL_WORKER_TOKEN`
 - cron and internal job routes exist in the web app
 - heavy processing is designed to run behind the internal job boundary, not directly from public routes
+
+Current live polling is also documented in [live-polling-runbook.md](../launch/live-polling-runbook.md).
 
 ## 8. Editorial System
 

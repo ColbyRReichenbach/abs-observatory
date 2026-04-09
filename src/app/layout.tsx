@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 import { AuthProvider } from "@/components/auth-provider";
 import { ContextualCopilotFAB } from "@/components/contextual-copilot-fab";
+import { DataFreshnessBadge } from "@/components/data-freshness-badge";
 import { Nav } from "@/components/nav";
 import { ViewModeSync } from "@/components/ui/view-mode-sync";
 import { launchConfig } from "@/lib/launch-config";
@@ -36,9 +37,17 @@ export const metadata: Metadata = {
   description: "High-fidelity live and historical MLB ABS challenge monitoring",
 };
 
+async function getSafeAdminVisibility() {
+  try {
+    return await canAccessAdmin();
+  } catch {
+    return false;
+  }
+}
+
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   validateServerEnv(false);
-  const [initialMode, adminVisible] = await Promise.all([resolveViewMode(), canAccessAdmin()]);
+  const [initialMode, adminVisible] = await Promise.all([resolveViewMode(), getSafeAdminVisibility()]);
 
   return (
     <html lang="en">
@@ -51,6 +60,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             <ViewModeSync />
           </Suspense>
           <Nav initialMode={initialMode} canAccessAdmin={adminVisible} />
+          <DataFreshnessBadge />
           <main id="main-content">
             {children}
           </main>

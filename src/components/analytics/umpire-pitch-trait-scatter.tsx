@@ -10,6 +10,7 @@ type AxisMetric = "velocity" | "spin";
 type TraitPoint = {
   pitchFamily: string;
   sample: number;
+  overturnedCount: number;
   overturnRate: number;
   avgVelocity: number | null;
   avgSpin: number | null;
@@ -133,7 +134,7 @@ export function UmpirePitchTraitScatter({ challenges }: { challenges: ChallengeE
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <MiniStat label="Challenges" value={`${selected.sample}`} />
                   <MiniStat label="Overturn Rate" value={`${selected.overturnRate.toFixed(1)}%`} />
-                  <MiniStat label="Abs WE" value={formatPercent(selected.avgAbsWin)} muted={selected.sample < 3} />
+                  <MiniStat label="Abs WE" value={formatPercent(selected.avgAbsWin, selected.overturnedCount)} muted={selected.sample < 3} />
                   <MiniStat label="Exp. WE" value={formatPercent(selected.avgExpected)} muted={selected.sample < 3} />
                 </div>
                 <p className="mt-4 text-sm leading-7 text-[var(--ink-2)]">
@@ -167,6 +168,7 @@ function buildPoints(challenges: ChallengeEvent[]) {
       return {
         pitchFamily,
         sample: sample.length,
+        overturnedCount: overturned.length,
         overturnRate: sample.length > 0 ? (overturned.length / sample.length) * 100 : 0,
         avgVelocity: average(sample.map((challenge) => challenge.startSpeed).filter((value): value is number => typeof value === "number")),
         avgSpin: average(sample.map((challenge) => challenge.spinRate).filter((value): value is number => typeof value === "number")),
@@ -224,7 +226,8 @@ function chipClass(active: boolean) {
   }`;
 }
 
-function formatPercent(value: number | null) {
+function formatPercent(value: number | null, overturnedCount?: number) {
+  if ((overturnedCount ?? 1) === 0) return "No OT";
   return value === null ? "N/A" : `${(value * 100).toFixed(1)} pts`;
 }
 

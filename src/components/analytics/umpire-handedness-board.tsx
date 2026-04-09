@@ -9,6 +9,7 @@ type SplitCell = {
   pitcherThrows: "R" | "L";
   batterStand: "R" | "L";
   challengedCount: number;
+  overturnedCount: number;
   overturnRate: number;
   avgAbsWin: number | null;
   avgAbsRun: number | null;
@@ -81,8 +82,8 @@ export function UmpireHandednessBoard({
                   </span>
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                  <MiniStat label="Abs WE" value={formatPercent(cell.avgAbsWin)} muted={!trusted} />
-                  <MiniStat label="Abs RE" value={formatRun(cell.avgAbsRun)} muted={!trusted} />
+                  <MiniStat label="Abs WE" value={formatPercent(cell.avgAbsWin, cell.overturnedCount)} muted={!trusted} />
+                  <MiniStat label="Abs RE" value={formatRun(cell.avgAbsRun, cell.overturnedCount)} muted={!trusted} />
                   <MiniStat label="Exp. WE" value={formatPercent(cell.avgExpected)} muted={!trusted} />
                 </div>
               </button>
@@ -131,6 +132,7 @@ function buildCells(challenges: ChallengeEvent[], matchupVulnerabilities: Umpire
       pitcherThrows,
       batterStand,
       challengedCount: sample.length,
+      overturnedCount: overturned.length,
       overturnRate: vuln ? vuln.overturnRate * 100 : sample.length > 0 ? (overturned.length / sample.length) * 100 : 0,
       avgAbsWin: average(
         overturned
@@ -171,11 +173,13 @@ function keyFor(pitcherThrows: "R" | "L", batterStand: "R" | "L") {
   return `${pitcherThrows}-${batterStand}`;
 }
 
-function formatPercent(value: number | null) {
+function formatPercent(value: number | null, overturnedCount?: number) {
+  if ((overturnedCount ?? 1) === 0) return "No OT";
   return value === null ? "N/A" : `${(value * 100).toFixed(1)} pts`;
 }
 
-function formatRun(value: number | null) {
+function formatRun(value: number | null, overturnedCount?: number) {
+  if ((overturnedCount ?? 1) === 0) return "No OT";
   return value === null ? "N/A" : `${value.toFixed(2)} runs`;
 }
 

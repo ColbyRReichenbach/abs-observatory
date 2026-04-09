@@ -26,6 +26,7 @@ import {
 import { assertAiUsageAllowed, type AiPlanCode, type AiUsageFeature } from "./entitlements";
 import { getViewerProfile, type ViewerProfile } from "./profiles";
 import { ConcurrencyLimitError, consumeRateLimit, getCacheKey, getCachedValue, setCachedValue, withConcurrencyGate } from "./scale";
+import { getLatestSuccessfulEtlDataVersion } from "./data-version";
 
 const CHAT_REQUEST_SCHEMA = z.object({
   conversationId: z.string().uuid().optional(),
@@ -66,6 +67,8 @@ const AI_CACHE_TTL_MS = 5 * 60 * 1000;
 const AI_MAX_REQUESTS_PER_MINUTE = 8;
 const AI_GLOBAL_REQUESTS_PER_MINUTE = 50;
 const AI_MAX_CONCURRENT_REQUESTS = 4;
+const AI_COPILOT_PROMPT_VERSION = "ai_chat_v1";
+const AI_CHART_INSIGHT_PROMPT_VERSION = "chart_insight_v2";
 
 export type ChatResponse = {
   conversationId: string;
@@ -533,15 +536,28 @@ async function completeChatTurn(params: {
   chartContext?: ChartInsightPayload;
 }): Promise<ChatResponse> {
   const startedAt = Date.now();
-  const responseCacheKey = getCacheKey([
-    params.surface === "chart_insight" ? "ai-chart" : "ai-chat",
-    params.context?.scope ?? "global",
-    params.context?.entityId ?? "none",
-    params.context?.range ?? "default",
-    params.chartContext?.chartKey ?? "none",
-    params.chartContext ? JSON.stringify(params.chartContext.payload).slice(0, 1200) : "none",
-    params.message.trim().toLowerCase(),
-  ]);
+  let modelName = process.env.OPENAI_SUMMARY_MODEL || "gpt-4.1-mini";
+  const transcriptRows = await getConversationTranscript(params.conversationId);
+  const transcript = formatConversationTranscript(transcriptRows);
+  const hasPriorAssistantTurn = transcriptRows.some((message) => message.role === "assistant");
+  const dataVersion = await getLatestSuccessfulEtlDataVersion();
+  const promptVersion =
+    params.surface === "chart_insight" ? AI_CHART_INSIGHT_PROMPT_VERSION : AI_COPILOT_PROMPT_VERSION;
+  const canUseSharedCache = !(params.surface === "chart_insight" && hasPriorAssistantTurn);
+  const responseCacheKey = canUseSharedCache
+    ? getCacheKey([
+        params.surface === "chart_insight" ? "ai-chart" : "ai-chat",
+        promptVersion,
+        modelName,
+        dataVersion,
+        params.context?.scope ?? "global",
+        params.context?.entityId ?? "none",
+        params.context?.range ?? "default",
+        params.chartContext?.chartKey ?? "none",
+        params.chartContext ? JSON.stringify(params.chartContext.payload).slice(0, 1200) : "none",
+        params.message.trim().toLowerCase(),
+      ])
+    : null;
   const cached = getCachedValue<{
     answer: string;
     structuredInsight?: StructuredChartInsight | null;
@@ -549,7 +565,7 @@ async function completeChatTurn(params: {
     citations: string[];
     confidence: "low" | "medium" | "high";
     modelName: string;
-  }>(responseCacheKey);
+  }>(responseCacheKey ?? "__disabled__");
 
   let toolResults: Array<{ toolName: string; payload: unknown }> = [];
   let answer = "";
@@ -560,7 +576,6 @@ async function completeChatTurn(params: {
         outputTokens?: number;
       }
     | undefined;
-  let modelName = process.env.OPENAI_SUMMARY_MODEL || "gpt-4.1-mini";
   let citations: string[] = [];
   let structuredInsight: StructuredChartInsight | null = null;
 
@@ -578,7 +593,6 @@ async function completeChatTurn(params: {
   } else {
     try {
       const uncached = await withConcurrencyGate("ai-chat", AI_MAX_CONCURRENT_REQUESTS, async () => {
-        const transcript = formatConversationTranscript(await getConversationTranscript(params.conversationId));
         let resolvedToolResults: Array<{ toolName: string; payload: unknown }> = [];
         let resolvedConfidence: "low" | "medium" | "high" = "medium";
         let resolvedAnswer: string;
@@ -658,18 +672,20 @@ Tool results: ${JSON.stringify(resolvedToolResults).slice(0, 18000)}`,
 
     citations = toolResults.map((tool) => tool.toolName);
     answer = postProcessAnswer(answer, citations);
-    setCachedValue(
-      responseCacheKey,
-      {
-        answer,
-        structuredInsight,
-        toolResults,
-        citations,
-        confidence,
-        modelName,
-      },
-      AI_CACHE_TTL_MS,
-    );
+    if (responseCacheKey) {
+      setCachedValue(
+        responseCacheKey,
+        {
+          answer,
+          structuredInsight,
+          toolResults,
+          citations,
+          confidence,
+          modelName,
+        },
+        AI_CACHE_TTL_MS,
+      );
+    }
   }
 
   citations = citations.length > 0 ? citations : toolResults.map((tool) => tool.toolName);
@@ -791,7 +807,7 @@ Tool results: ${JSON.stringify(resolvedToolResults).slice(0, 18000)}`,
           messageId: assistantMessageId,
           provider: cached ? "internal" : openai ? "openai" : "template",
           modelName: cached ? "cache" : modelName,
-          promptVersion: "ai_chat_v1",
+          promptVersion,
           inputTokens,
           outputTokens,
           estimatedCostUsd,

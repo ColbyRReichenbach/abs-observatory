@@ -47,10 +47,17 @@ export function inningBucket(inning: number | null | undefined) {
 }
 
 export function resolveBattingSide(halfInning: string | null | undefined): BattingSide | null {
+  const normalized = normalizeHalfInning(halfInning);
+  if (normalized === "Top") return "away";
+  if (normalized === "Bottom") return "home";
+  return null;
+}
+
+function normalizeHalfInning(halfInning: string | null | undefined) {
   if (!halfInning) return null;
   const normalized = halfInning.trim().toLowerCase();
-  if (normalized === "top") return "away";
-  if (normalized === "bottom") return "home";
+  if (normalized === "top" || normalized === "t") return "Top";
+  if (normalized === "bottom" || normalized === "bot" || normalized === "b") return "Bottom";
   return null;
 }
 
@@ -77,7 +84,8 @@ export function buildCanonicalPitchState(input: {
   homeScore?: number | null;
   awayScore?: number | null;
 }) {
-  const battingSide = resolveBattingSide(input.halfInning);
+  const normalizedHalfInning = normalizeHalfInning(input.halfInning);
+  const battingSide = resolveBattingSide(normalizedHalfInning);
   const homeScore = input.homeScore ?? null;
   const awayScore = input.awayScore ?? null;
   const scoreDiffBatting =
@@ -94,7 +102,7 @@ export function buildCanonicalPitchState(input: {
   return {
     inning: input.inning ?? null,
     inningBucket: inningBucket(input.inning),
-    halfInning: input.halfInning ?? null,
+    halfInning: normalizedHalfInning,
     battingSide,
     outs: input.outs ?? null,
     basesState: input.basesState ?? null,

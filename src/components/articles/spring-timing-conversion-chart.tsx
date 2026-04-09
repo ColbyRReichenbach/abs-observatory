@@ -45,7 +45,7 @@ export function SpringTimingConversionChart({ data }: { data: SpringTimingConver
   return (
     <div className="h-[360px] w-full" onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}>
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={360}>
-        <BarChart data={chartData} margin={{ top: 28, right: 18, bottom: 32, left: 8 }}>
+        <BarChart data={chartData} margin={{ top: 28, right: 72, bottom: 32, left: 8 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
           <XAxis
             dataKey="label"
@@ -67,8 +67,9 @@ export function SpringTimingConversionChart({ data }: { data: SpringTimingConver
             strokeDasharray="4 4"
             label={{
               value: `SPRING AVG ${(overallRate * 100).toFixed(1)}%`,
-              position: "right",
-              style: { fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em" },
+              position: "insideTopRight",
+              offset: 8,
+              style: { fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em", textAnchor: "end" },
             }}
           />
           <Tooltip

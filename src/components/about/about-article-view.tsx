@@ -55,9 +55,6 @@ export function AboutArticleView({ article }: { article: AboutArticle }) {
         <div className="mt-10 grid gap-12 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
           <div className="min-w-0">
             <section>
-              <p className={`text-[11px] font-black uppercase tracking-[0.28em] ${article.accentClass}`}>
-                Overview
-              </p>
               <h2 className="mt-3 text-3xl font-display uppercase tracking-tight md:text-5xl">
                 {article.heroHeading}
               </h2>
@@ -120,6 +117,25 @@ export function AboutArticleView({ article }: { article: AboutArticle }) {
                 </div>
               ))}
             </section>
+
+            {article.actionLinks?.length ? (
+              <section className="mt-12 border-t border-black/15 pt-8">
+                <p className={`text-[11px] font-black uppercase tracking-[0.28em] ${article.accentClass}`}>Connect</p>
+                <div className="mt-5 flex flex-wrap gap-3">
+                  {article.actionLinks.map((link) => (
+                    <a
+                      key={link.href}
+                      href={link.href}
+                      target={link.href.startsWith("mailto:") ? undefined : "_blank"}
+                      rel={link.href.startsWith("mailto:") ? undefined : "noreferrer"}
+                      className="inline-flex items-center justify-center rounded-full border border-black/15 bg-[#f8f3eb] px-5 py-3 text-[11px] font-black uppercase tracking-[0.22em] text-[#2c2c2c] transition-colors hover:border-black hover:bg-white"
+                    >
+                      {link.label}
+                    </a>
+                  ))}
+                </div>
+              </section>
+            ) : null}
           </div>
 
           <aside className="space-y-10 lg:sticky lg:top-28 lg:self-start">

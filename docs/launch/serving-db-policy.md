@@ -21,6 +21,7 @@ These relations are small enough, page-facing, or operationally necessary for th
 - `public.game_reports`
 - `public.at_bats`
 - `public.game_state_snapshots`
+- `ops.game_linescores`
 - `public.pitches`
 - `public.play_events`
 - `raw.savant_abs_events`
@@ -35,18 +36,21 @@ These relations are small enough, page-facing, or operationally necessary for th
 
 ## Keep Recent-Only In Serving DB
 
-If production storage becomes tight, the first tables to prune should be the event-detail tables:
+If production storage becomes tight, the first tables to prune should be the event-detail and recent-only operational tables:
 
 - `public.pitches`
 - `public.play_events`
 - `public.at_bats`
 - `public.game_state_snapshots`
+- `ops.source_snapshots` by source-specific retention policy
 
 Recommended policy once the regular season expands:
 
 - keep full-detail rows for the most recent `30-45` days
 - keep season-long summary tables indefinitely
 - regenerate older deep detail from the warehouse when needed
+- keep `mlb_statsapi.feed_live` snapshots in serving only as recent operational retention, not as indefinite hosted archive
+- prune raw standings and raw Savant snapshots from the serving database
 
 ## Keep Offline Only
 
@@ -55,8 +59,16 @@ These relations belong in the warehouse/training database, not the hosted servin
 - `raw.statcast_pitches`
 - `raw.statcast_games`
 - `raw.savant_gamefeed_games`
-- `ops.source_snapshots`
 - `public.historical_pitch_states`
+
+For `ops.source_snapshots`, the policy is now source-specific:
+
+- raw `mlb_statsapi.standings`
+  - warehouse/archive only
+- raw `baseball_savant.gamefeed`
+  - warehouse/archive only
+- raw `mlb_statsapi.feed_live`
+  - recent-only in serving when needed operationally
 
 These are the primary storage drivers and are not required for the hosted product to render pages.
 

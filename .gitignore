@@ -28,6 +28,7 @@ coverage-final.json
 
 # next.js and app builds
 /.next/
+/.next-webpack/
 /.next-sample*/
 /out/
 /build
@@ -83,6 +84,7 @@ env/
 .env.test.local
 .env.production.local
 .env.preview
+.env.poll
 .env.*.bak
 .env.*.backup
 .envrc

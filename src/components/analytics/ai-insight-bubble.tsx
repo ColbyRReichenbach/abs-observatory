@@ -350,9 +350,6 @@ export function AIInsightBubble({
                         <div className={spotlight ? "flex h-full min-h-0 flex-col overflow-hidden rounded-[1.5rem] border border-gray-100 bg-white" : ""}>
                           <div className={spotlight ? "border-b border-gray-100 px-5 py-4" : "mb-4"}>
                             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">Chart Read</p>
-                            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
-                              Explain the visual, the signal, and the baseball implication
-                            </p>
                           </div>
 
                           <div ref={threadRef} className={spotlight ? "min-h-0 flex-1 overflow-y-auto px-5 py-5" : ""}>

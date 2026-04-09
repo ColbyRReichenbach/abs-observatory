@@ -51,6 +51,13 @@ def require_requests() -> None:
         raise RuntimeError("requests is required to fetch Savant and Stats API payloads")
 
 
+def _env_bool(name: str, default: bool = True) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
 @dataclass(frozen=True)
 class ScheduleGame:
     game_pk: int
@@ -161,6 +168,9 @@ def fetch_savant_gamefeed(
 
 
 def store_source_snapshot(cur, source_name: str, entity_key: str, payload: Dict[str, Any]) -> None:
+    if not (_env_bool("WRITE_RAW_SNAPSHOTS", True) and _env_bool("WRITE_RAW_SAVANT", True)):
+        return
+
     payload_text = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
     payload_hash = __import__("hashlib").sha256(payload_text.encode("utf-8")).hexdigest()
     cur.execute(

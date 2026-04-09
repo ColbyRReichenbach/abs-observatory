@@ -48,6 +48,28 @@ def require_requests() -> None:
         raise RuntimeError("requests is required to fetch MLB Stats API payloads")
 
 
+def _env_bool(name: str, default: bool = True) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def should_write_raw_source_snapshot(source_name: str) -> bool:
+    if not _env_bool("WRITE_RAW_SNAPSHOTS", True):
+        return False
+
+    source_flag_map = {
+        "mlb_statsapi.feed_live": "WRITE_RAW_FEED_LIVE",
+        "mlb_statsapi.standings": "WRITE_RAW_STANDINGS",
+        "baseball_savant.gamefeed": "WRITE_RAW_SAVANT",
+    }
+    flag_name = source_flag_map.get(source_name)
+    if not flag_name:
+        return True
+    return _env_bool(flag_name, True)
+
+
 def _height_to_inches(height_text: Optional[str]) -> Optional[float]:
     if not height_text:
         return None
@@ -74,6 +96,15 @@ def _parse_iso(s: Optional[str]) -> Optional[datetime]:
     if not s:
         return None
     return datetime.fromisoformat(s.replace("Z", "+00:00"))
+
+
+def _parse_mlb_timestamp(s: Optional[str]) -> Optional[datetime]:
+    if not s:
+        return None
+    try:
+        return datetime.strptime(s, "%Y%m%d_%H%M%S").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return _parse_iso(s)
 
 
 def _normalize_count_state(
@@ -151,7 +182,27 @@ def fetch_game_feed(game_pk: int) -> Dict[str, Any]:
     return requests.get(url, timeout=30).json()
 
 
+def filter_existing_final_game_pks(cur, game_pks: List[int]) -> List[int]:
+    if not game_pks:
+        return []
+
+    cur.execute(
+        """
+        SELECT game_pk
+        FROM games
+        WHERE game_pk = ANY(%s)
+          AND LOWER(status_abstract) = 'final'
+        """,
+        (game_pks,),
+    )
+    existing_final = {row[0] for row in cur.fetchall()}
+    return [game_pk for game_pk in game_pks if game_pk not in existing_final]
+
+
 def store_source_snapshot(cur, source_name: str, entity_key: str, payload: Dict[str, Any]) -> None:
+    if not should_write_raw_source_snapshot(source_name):
+        return
+
     payload_text = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     payload_hash = hashlib.sha256(payload_text.encode("utf-8")).hexdigest()
     cur.execute(
@@ -161,6 +212,108 @@ def store_source_snapshot(cur, source_name: str, entity_key: str, payload: Dict[
         ON CONFLICT DO NOTHING
         """,
         (source_name, entity_key, payload_hash, Json(payload)),
+    )
+
+
+def _extract_linescore_innings(linescore: Dict[str, Any]) -> List[Dict[str, Any]]:
+    innings: List[Dict[str, Any]] = []
+    for index, inning in enumerate(linescore.get("innings") or []):
+        away = inning.get("away") or {}
+        home = inning.get("home") or {}
+        innings.append(
+            {
+                "inning": int(inning.get("num") or (index + 1)),
+                "awayRuns": away.get("runs"),
+                "homeRuns": home.get("runs"),
+                "awayHits": away.get("hits"),
+                "homeHits": home.get("hits"),
+                "awayErrors": away.get("errors"),
+                "homeErrors": home.get("errors"),
+            }
+        )
+    return innings
+
+
+def upsert_game_linescore(cur, game_pk: int, feed: Dict[str, Any]) -> None:
+    linescore = (feed.get("liveData") or {}).get("linescore") or {}
+    teams = linescore.get("teams") or {}
+    away = teams.get("away") or {}
+    home = teams.get("home") or {}
+    status = (feed.get("gameData") or {}).get("status") or {}
+    metadata = feed.get("metaData") or {}
+    source_updated_at = _parse_mlb_timestamp(metadata.get("timeStamp")) or datetime.now(timezone.utc)
+
+    cur.execute(
+        """
+        INSERT INTO ops.game_linescores (
+          game_pk,
+          source_name,
+          source_updated_at,
+          status_abstract,
+          current_inning,
+          current_inning_ordinal,
+          inning_state,
+          inning_half,
+          is_top_inning,
+          scheduled_innings,
+          balls,
+          strikes,
+          outs,
+          away_runs,
+          home_runs,
+          away_hits,
+          home_hits,
+          away_errors,
+          home_errors,
+          innings_json,
+          raw_linescore
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        ON CONFLICT (game_pk) DO UPDATE SET
+          source_name = EXCLUDED.source_name,
+          source_updated_at = EXCLUDED.source_updated_at,
+          status_abstract = EXCLUDED.status_abstract,
+          current_inning = EXCLUDED.current_inning,
+          current_inning_ordinal = EXCLUDED.current_inning_ordinal,
+          inning_state = EXCLUDED.inning_state,
+          inning_half = EXCLUDED.inning_half,
+          is_top_inning = EXCLUDED.is_top_inning,
+          scheduled_innings = EXCLUDED.scheduled_innings,
+          balls = EXCLUDED.balls,
+          strikes = EXCLUDED.strikes,
+          outs = EXCLUDED.outs,
+          away_runs = EXCLUDED.away_runs,
+          home_runs = EXCLUDED.home_runs,
+          away_hits = EXCLUDED.away_hits,
+          home_hits = EXCLUDED.home_hits,
+          away_errors = EXCLUDED.away_errors,
+          home_errors = EXCLUDED.home_errors,
+          innings_json = EXCLUDED.innings_json,
+          raw_linescore = EXCLUDED.raw_linescore,
+          updated_at = NOW()
+        """,
+        (
+            game_pk,
+            "mlb_statsapi.feed_live",
+            source_updated_at,
+            status.get("abstractGameState"),
+            linescore.get("currentInning"),
+            linescore.get("currentInningOrdinal"),
+            linescore.get("inningState"),
+            linescore.get("inningHalf"),
+            linescore.get("isTopInning"),
+            linescore.get("scheduledInnings"),
+            linescore.get("balls"),
+            linescore.get("strikes"),
+            linescore.get("outs"),
+            away.get("runs"),
+            home.get("runs"),
+            away.get("hits"),
+            home.get("hits"),
+            away.get("errors"),
+            home.get("errors"),
+            Json(_extract_linescore_innings(linescore)),
+            Json(linescore),
+        ),
     )
 
 
@@ -264,7 +417,10 @@ def upsert_officials(cur, game_pk: int, feed: Dict[str, Any]) -> None:
     rows = []
     for off in officials:
         official = off.get("official", {})
-        rows.append((game_pk, official.get("id"), official.get("fullName"), off.get("officialType")))
+        official_type = off.get("officialType")
+        fallback_name = official_type or "Unknown Official"
+        official_name = official.get("fullName") or official.get("lastName") or fallback_name
+        rows.append((game_pk, official.get("id"), official_name, official_type))
     if rows:
         execute_batch(
             cur,
@@ -911,6 +1067,7 @@ def ingest_game(cur, game_pk: int) -> Tuple[int, bool]:
     feed = fetch_game_feed(game_pk)
     store_source_snapshot(cur, "mlb_statsapi.feed_live", f"game:{game_pk}", feed)
     upsert_game(cur, feed)
+    upsert_game_linescore(cur, game_pk, feed)
     upsert_players(cur, feed)
     upsert_officials(cur, game_pk, feed)
     upsert_abs_counters(cur, game_pk, feed)
@@ -922,7 +1079,13 @@ def ingest_game(cur, game_pk: int) -> Tuple[int, bool]:
     return inserted, is_final
 
 
-def run(database_url: str, start_date: str, end_date: str, game_type: str) -> None:
+def run(
+    database_url: str,
+    start_date: str,
+    end_date: str,
+    game_type: str,
+    skip_final_existing: bool = False,
+) -> None:
     conn = psycopg2.connect(database_url)
     conn.autocommit = False
 
@@ -935,6 +1098,8 @@ def run(database_url: str, start_date: str, end_date: str, game_type: str) -> No
     reports_generated = 0
     try:
         game_pks = fetch_schedule(start_date, end_date, game_type)
+        if skip_final_existing:
+            game_pks = filter_existing_final_game_pks(cur, game_pks)
         for game_pk in game_pks:
             try:
                 inserted, is_final = ingest_game(cur, game_pk)
@@ -977,12 +1142,23 @@ def main() -> None:
     parser.add_argument("--end-date", required=True, help="YYYY-MM-DD")
     parser.add_argument("--game-type", default="S,R", help="Comma separated game types")
     parser.add_argument("--database-url", help="Postgres connection string; defaults to WAREHOUSE_DATABASE_URL")
+    parser.add_argument(
+        "--skip-final-existing",
+        action="store_true",
+        help="Skip games already marked final in the local games table",
+    )
     args = parser.parse_args()
 
     target = resolve_database_target(cli_database_url=args.database_url, role="warehouse")
     log_database_target("[ingest_mlb_abs]", target)
 
-    run(target.connection_string, args.start_date, args.end_date, args.game_type)
+    run(
+        target.connection_string,
+        args.start_date,
+        args.end_date,
+        args.game_type,
+        skip_final_existing=args.skip_final_existing,
+    )
 
 
 if __name__ == "__main__":
