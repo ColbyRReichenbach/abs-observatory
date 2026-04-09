@@ -34,6 +34,9 @@ describe("data-freshness", () => {
         finished_at: "2026-04-03T01:16:07.565590+00:00",
       })
       .mockResolvedValueOnce({
+        latest_at: "2026-04-03T01:18:11.000000+00:00",
+      })
+      .mockResolvedValueOnce({
         live_count: "3",
       });
 
@@ -41,18 +44,20 @@ describe("data-freshness", () => {
     const snapshot = await getDataFreshnessSnapshot();
 
     expect(snapshot).toEqual({
-      lastFinishedAt: "2026-04-03T01:16:07.565590+00:00",
+      lastFinishedAt: "2026-04-03T01:18:11.000000+00:00",
       lastStatus: "success",
       liveGameCount: 3,
       dataVersion: "2026-04-03T01:16:07.565590+00:00",
       pollIntervalMinutes: 5,
     });
-    expect(sqlOneMock).toHaveBeenCalledTimes(2);
+    expect(sqlOneMock).toHaveBeenCalledTimes(3);
     expect(sqlOneMock.mock.calls[1]?.[1]).toEqual([["2026-04-02"]]);
+    expect(sqlOneMock.mock.calls[2]?.[1]).toEqual([["2026-04-02"]]);
   });
 
-  it("falls back cleanly when there is no completed ETL run yet", async () => {
+  it("falls back cleanly when there is no live activity or completed ETL run yet", async () => {
     sqlOneMock
+      .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({
         live_count: "0",
@@ -66,5 +71,24 @@ describe("data-freshness", () => {
     expect(snapshot.lastStatus).toBe("unknown");
     expect(snapshot.liveGameCount).toBe(0);
     expect(snapshot.dataVersion).toBe("no-etl-success");
+  });
+
+  it("falls back to the ETL timestamp when live serving activity is unavailable", async () => {
+    sqlOneMock
+      .mockResolvedValueOnce({
+        status: "failed",
+        finished_at: "2026-04-03T01:16:07.565590+00:00",
+      })
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        live_count: "0",
+      });
+
+    const { getDataFreshnessSnapshot } = await import("@/lib/server/data-freshness");
+    const snapshot = await getDataFreshnessSnapshot();
+
+    expect(snapshot.lastFinishedAt).toBe("2026-04-03T01:16:07.565590+00:00");
+    expect(snapshot.lastStatus).toBe("failed");
+    expect(snapshot.liveGameCount).toBe(0);
   });
 });
