@@ -80,10 +80,16 @@ jobs:
         env:
           WAREHOUSE_DATABASE_URL: ${{ secrets.WAREHOUSE_DATABASE_URL }}
           SERVING_DATABASE_URL: ${{ secrets.SERVING_DATABASE_URL }}
-        run: npm run db:reconcile:warehouse-serving
+        run: npm run db:reconcile:warehouse-serving -- --fail-on-drift false
 
       - name: Publish Warehouse to Serving
         env:
           WAREHOUSE_DATABASE_URL: ${{ secrets.WAREHOUSE_DATABASE_URL }}
           SERVING_DATABASE_URL: ${{ secrets.SERVING_DATABASE_URL }}
         run: npm run db:publish:serving
+
+      - name: Verify Serving Caught Up
+        env:
+          WAREHOUSE_DATABASE_URL: ${{ secrets.WAREHOUSE_DATABASE_URL }}
+          SERVING_DATABASE_URL: ${{ secrets.SERVING_DATABASE_URL }}
+        run: npm run db:reconcile:warehouse-serving

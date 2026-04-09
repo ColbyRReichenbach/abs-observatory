@@ -73,6 +73,7 @@ async function main() {
 Options:
   --warehouse-url <url>   Override warehouse connection string
   --serving-url <url>     Override serving connection string
+  --fail-on-drift false   Do not exit nonzero when warehouse/serving differ
   --write-artifact false  Print only, do not write .runtime artifact
   --help                  Show this help text`);
     return;
@@ -80,6 +81,7 @@ Options:
   const warehouseUrl = args["warehouse-url"] || process.env.WAREHOUSE_DATABASE_URL || process.env.SOURCE_DATABASE_URL;
   const servingUrl = args["serving-url"] || process.env.SERVING_DATABASE_URL || process.env.TARGET_DATABASE_URL || process.env.DATABASE_URL;
   const writeArtifact = args["write-artifact"] !== "false";
+  const failOnDrift = args["fail-on-drift"] !== "false";
 
   if (!warehouseUrl) {
     throw new Error("WAREHOUSE_DATABASE_URL or --warehouse-url is required.");
@@ -199,7 +201,7 @@ Options:
     }
 
     console.log(JSON.stringify(artifact, null, 2));
-    if (artifact.driftFlags.gamesOutOfSync || artifact.driftFlags.challengesOutOfSync) {
+    if (failOnDrift && (artifact.driftFlags.gamesOutOfSync || artifact.driftFlags.challengesOutOfSync)) {
       process.exitCode = 2;
     }
   } finally {
