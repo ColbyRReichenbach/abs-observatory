@@ -133,13 +133,13 @@ const GAME_VIEW_COPY: Record<
     fan: {
       eyebrow: "Live ABS",
       title: "Review Story",
-      deck: "A live story surface for what the current review spot means, who is winning the challenge battle, and how tonight's reviews are changing the game.",
+      deck: "A live story surface for what the current review spot means, who is winning the challenge battle, and how tonight's reviews are changing the game. The challenge-now lens is exploratory and built for live discussion.",
       sectionOrder: ["meter", "visuals", "explorer"],
     },
     org: {
-      eyebrow: "Live Challenge Desk",
-      title: "Review Decision Support",
-      deck: "Real-time challenge support for whether to review now, what value each team is capturing, and where the umpire is vulnerable tonight.",
+      eyebrow: "Live Review Desk",
+      title: "Live Review Context",
+      deck: "Real-time review context for consequence, overturn risk, and the strongest modeled paths in the current state. This surface should inform discussion, not imply club-ready live optimization.",
       sectionOrder: ["briefing", "visuals", "explorer"],
     },
   },

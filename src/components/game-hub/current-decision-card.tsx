@@ -72,10 +72,10 @@ export function CurrentDecisionCard({
   const pathEyebrow =
     viewMode === "org"
       ? bestPath?.recommendation === "challenge"
-        ? "Best Challenge Path"
+        ? "Strongest Modeled Path"
         : "Largest Available Review Swing"
       : bestPath?.recommendation === "challenge"
-        ? "Most Meaningful Flip"
+        ? "AiBS Challenge Lens"
         : "Largest Available Review Swing";
 
   return (
@@ -83,10 +83,14 @@ export function CurrentDecisionCard({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
-            {viewMode === "org" ? "Current Challenge Decision" : "Current Review Spot"}
+            {viewMode === "org" ? "Current Review Context" : "Current Review Spot"}
           </h4>
           <p className="text-2xl font-display leading-none text-gray-900">
-            Challenge <span className="text-gray-400">Now?</span>
+            {viewMode === "org" ? (
+              <>Modeled <span className="text-gray-400">Review Window</span></>
+            ) : (
+              <>Would AiBS <span className="text-gray-400">Challenge?</span></>
+            )}
           </p>
           <p className="mt-2 text-[11px] font-medium leading-relaxed text-[var(--ink-2)]">
             {formatHalfInningLabel(snapshot.halfInning, "short")} {snapshot.inning ?? "-"} • {snapshot.baseStateLabel} •{" "}
@@ -156,13 +160,21 @@ export function CurrentDecisionCard({
           </div>
           <p className="mt-3 text-sm font-medium leading-relaxed text-gray-600">
             {bestPath.recommendation === "challenge"
-              ? "Model would challenge this spot."
+              ? viewMode === "org"
+                ? "AiBS reads this as a positive-EV review window, but the live decision lens remains experimental and discussion-oriented."
+                : "AiBS would challenge this spot."
               : bestPath.recommendation === "hold"
-                ? "This path has the biggest swing on the board, but the model would still hold the challenge here."
-                : "Review is not advised from the current path."}{" "}
+                ? viewMode === "org"
+                  ? "This path carries the biggest modeled swing on the board, but AiBS still reads the current state as a hold window."
+                  : "This path has the biggest swing on the board, but AiBS would still hold the challenge here."
+                : viewMode === "org"
+                  ? "The current path does not produce a strong enough live review signal."
+                  : "Review is not advised from the current path."}{" "}
             {bestPath.expectedValue === null
-              ? "Expected value is still stabilizing."
-              : `Estimated decision value: ${signedPercent(bestPath.expectedValue)}.`}
+              ? viewMode === "org"
+                ? "Modeled review value is still stabilizing."
+                : "Expected value is still stabilizing."
+              : `${viewMode === "org" ? "Modeled review value" : "Estimated decision value"}: ${signedPercent(bestPath.expectedValue)}.`}
           </p>
         </div>
       ) : null}

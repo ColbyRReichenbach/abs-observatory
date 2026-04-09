@@ -167,7 +167,7 @@ export function LiveWarRoom({ game, challenges, liveStatus, counters, liveChalle
                                 <>This spot has already sparked <strong className="text-blue-600">{sameCountChallenges} challenge{sameCountChallenges === 1 ? "" : "s"}</strong></>
                             )
                         ) : (
-                            <>{viewMode === "org" ? "No review at this state yet" : "No challenge drama at this state yet"}</>
+                            <>{viewMode === "org" ? "No tracked review at this state yet" : "No challenge drama at this state yet"}</>
                         )}
                     </span>
                     {isLateInning && (

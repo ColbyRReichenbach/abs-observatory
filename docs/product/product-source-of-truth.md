@@ -15,6 +15,7 @@ Do not use archived sprint plans or older launch notes as parallel sources of tr
 Related docs:
 
 - [page-route-coverage.md](./page-route-coverage.md)
+- [frontend-surface-verdict-2026-04-08.md](./frontend-surface-verdict-2026-04-08.md)
 - [roadmap.md](./roadmap.md)
 - [technical.md](../reference/technical.md)
 - [security.md](../reference/security.md)
