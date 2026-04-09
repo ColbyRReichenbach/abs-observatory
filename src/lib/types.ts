@@ -748,6 +748,9 @@ export type HomeChallengeMoment = {
   homeScore?: number | null;
   awayScore?: number | null;
   impactType?: string | null;
+  realizedChallengeValue?: number | null;
+  expectedChallengeValue?: number | null;
+  decisionValueMode?: "win_expectancy" | "heuristic" | null;
   controversyScore?: number;
   reasonChips?: ControversyReasonChip[];
 };
@@ -830,13 +833,14 @@ export type UmpireOrgDescriptor =
   | "Elevated risk"
   | "High-risk profile";
 
-export type TeamStyle = "High-Impact" | "Selective" | "Overactive" | "Low-Usage";
+export type TeamStyle = "High-Impact" | "Selective" | "Overactive" | "Low-Usage" | "Balanced";
 
 export type TeamStyleOrgLabel =
   | "Timely"
   | "Selective"
   | "High-Usage"
-  | "Low-Usage";
+  | "Low-Usage"
+  | "Mixed profile";
 
 export type ControversyReasonChip =
   | "Late Inning"

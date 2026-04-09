@@ -9,6 +9,13 @@ vi.mock("@/lib/server/challenge-decision-value", () => ({
     wpDeltaIfSuccess: req.challengesRemaining > 0 ? 0.032 : 0,
     wpDeltaIfFail: req.challengesRemaining > 0 ? -0.003 : 0,
     expectedWpDelta: req.challengesRemaining > 0 ? 0.018 : 0,
+    overturnGeometryVariant: req.challengesRemaining > 0 ? "center_only" : null,
+    overturnSplitPolicyVersion: req.challengesRemaining > 0 ? "called_pitch_decisions_phase_time_v1" : null,
+    successValue: req.challengesRemaining > 0 ? 0.032 : 0,
+    failureValue: req.challengesRemaining > 0 ? -0.003 : 0,
+    inventoryCost: req.challengesRemaining > 0 ? 0.001 : 0,
+    inventoryCostVersion: req.challengesRemaining > 0 ? "inventory_future_opportunity_v1" : null,
+    expectedChallengeValue: req.challengesRemaining > 0 ? 0.018 : 0,
     recommendation: req.challengesRemaining > 0 ? "challenge" : "cannot_challenge",
     rationale: "mocked",
     decisionValueMode: req.challengesRemaining > 0 ? "win_expectancy" : "heuristic",
@@ -26,9 +33,9 @@ describe("challenge value api model", () => {
       strikes: 2,
       outs: 1,
       scoreDiffBattingTeam: 0,
-      runnersOnBase: 2,
+      basesState: "110",
       calledPitch: "called_strike",
-      edgeBucket: "edge",
+      edgeBucket: "borderline",
       challengesRemaining: 0,
     });
     expect(result.recommendation).toBe("cannot_challenge");
@@ -43,9 +50,9 @@ describe("challenge value api model", () => {
       strikes: 2,
       outs: 2,
       scoreDiffBattingTeam: 0,
-      runnersOnBase: 2,
+      basesState: "110",
       calledPitch: "called_strike",
-      edgeBucket: "edge",
+      edgeBucket: "borderline",
       challengesRemaining: 1,
     });
     expect(result.estimatedOverturnProbability).toBeGreaterThan(0);

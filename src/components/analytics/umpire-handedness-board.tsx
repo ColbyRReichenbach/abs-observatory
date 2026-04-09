@@ -144,7 +144,12 @@ function buildCells(challenges: ChallengeEvent[], matchupVulnerabilities: Umpire
           .filter((value): value is number => typeof value === "number")
           .map((value) => Math.abs(value)),
       ),
-      avgExpected: average(sample.map((challenge) => challenge.expectedChallengeValue).filter((value): value is number => typeof value === "number")),
+      avgExpected: average(
+        sample
+          .filter((challenge) => challenge.decisionValueMode === "win_expectancy")
+          .map((challenge) => challenge.expectedChallengeValue)
+          .filter((value): value is number => typeof value === "number"),
+      ),
       topPitchType,
       topCount,
       topZone: vuln?.topZone ?? null,

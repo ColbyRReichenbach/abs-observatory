@@ -137,7 +137,7 @@ export function TeamOrgCommandCenter({
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-[var(--ink-0)]">{window.label}</p>
                       <p className="mt-1 text-[11px] text-[var(--ink-3)]">
-                        {window.challenges} challenges · {formatShare(window.capturedValueShare)} high-value · {formatShare(window.wastedValueShare)} low-value
+                        {window.challenges} trusted reviews · {formatShare(window.capturedValueShare)} high-value · {formatShare(window.wastedValueShare)} low-value
                       </p>
                     </div>
                     <span
@@ -166,11 +166,11 @@ export function TeamOrgCommandCenter({
                     <MiniMetric label="Expected" value={formatSignedPercent(selectedWindow.averageExpectedChallengeValue)} />
                     <MiniMetric label="Actual" value={formatSignedPercent(selectedWindow.averageRealizedChallengeValue)} />
                     <MiniMetric label="Surplus" value={formatSignedPercent(selectedWindow.decisionSurplus)} />
-                    <MiniMetric label="Sample" value={`${selectedWindow.challenges}`} />
+                    <MiniMetric label="Trusted Sample" value={`${selectedWindow.challenges}`} />
                   </div>
                   <p className="mt-4 text-sm leading-7 text-[var(--ink-2)]">
                     {hasTrustedModelConfidenceBand(selectedWindow.modelConfidence)
-                      ? `Expected is the average pre-review win value the model projected, actual is what the challenges in this window really returned, and surplus is actual minus expected. High-value share reflects how often this window landed in the stronger side of the model's recommendation set. Challenge recommendations ran at ${formatShare(selectedWindow.challengeRecommendationRate)}, while holds still made up ${formatShare(selectedWindow.holdRecommendationRate)} of the sample.`
+                      ? `Expected is the average pre-review win value the model projected, actual is what the trusted reviews in this window really returned, and surplus is actual minus expected. High-value share reflects how often this window landed in the stronger side of the model's recommendation set. Challenge recommendations ran at ${formatShare(selectedWindow.challengeRecommendationRate)}, while holds still made up ${formatShare(selectedWindow.holdRecommendationRate)} of the trusted sample.`
                       : "Expected is the pre-review model estimate, actual is what the team really got back, and surplus is the directional gap between the two. High-value share is still directional here because the sample is not yet trusted enough to anchor a hard recommendation on its own."}
                   </p>
                 </>
@@ -266,7 +266,7 @@ function BreakdownDrilldown({
                 <div className="min-w-0 lg:w-56">
                   <p className="text-sm font-semibold text-[var(--ink-0)]">{entry.label}</p>
                   <p className="mt-1 text-[11px] text-[var(--ink-3)]">
-                    {entry.challenges} challenges · {formatShare(entry.capturedValueShare)} higher-value · {formatShare(entry.wastedValueShare)} lower-value
+                    {entry.challenges} trusted reviews · {formatShare(entry.capturedValueShare)} higher-value · {formatShare(entry.wastedValueShare)} lower-value
                   </p>
                 </div>
                 <div className="relative h-8 flex-1 rounded-full bg-white">

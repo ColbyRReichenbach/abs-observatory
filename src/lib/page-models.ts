@@ -179,6 +179,7 @@ export function buildUmpireLeaderboardEntries(
       zoneConcentrationSeverity: clampRisk(metric.overturnRateVariance * 100),
       recentTrendRisk: clampRisk((metric.recentOverturnRate ?? umpire.overturnRate) * 100),
       countHotspotVolatility: clampRisk(metric.overturnRateVariance * 85),
+      confidence: reportCard.confidence,
     });
 
     return {
@@ -215,6 +216,9 @@ export function buildHomeChallengeMoments(moments: HomeChallengeMoment[]): HomeC
         strikes: moment.strikes ?? null,
         isOverturned: moment.isOverturned,
         impactType: moment.impactType ?? null,
+        realizedChallengeValue: moment.realizedChallengeValue ?? null,
+        expectedChallengeValue: moment.expectedChallengeValue ?? null,
+        decisionValueMode: moment.decisionValueMode ?? null,
         slateProgress: all.length <= 1 ? 1 : 1 - index / total,
       });
       return {

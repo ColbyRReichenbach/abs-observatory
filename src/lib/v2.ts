@@ -14,10 +14,12 @@ export const challengeValueRequestSchema = z.object({
   strikes: z.number().int().min(0).max(2),
   outs: z.number().int().min(0).max(2),
   scoreDiffBattingTeam: z.number().int().min(-15).max(15),
-  runnersOnBase: z.number().int().min(0).max(3),
+  basesState: z.string().regex(/^[01]{3}$/),
   calledPitch: z.enum(["called_strike", "ball"]).optional().default("called_strike"),
-  edgeBucket: z.enum(["edge", "near_edge", "clear_miss"]).optional(),
-  edgeDistance: z.number().min(0).max(10).optional(),
+  edgeBucket: z
+    .enum(["strong_confirm", "lean_confirm", "borderline", "lean_overturn", "strong_overturn"])
+    .optional(),
+  edgeDistance: z.number().min(-10).max(10).optional(),
   challengesRemaining: z.number().int().min(0).max(2),
 });
 

@@ -161,7 +161,11 @@ function buildConsequenceSummary(challenges: ChallengeEvent[]) {
   const overturned = challenges.filter((challenge) => challenge.isOverturned);
   const winSample = overturned.filter((challenge) => challenge.winExpectancyDelta !== null);
   const runSample = overturned.filter((challenge) => challenge.runExpectancyDelta !== null);
-  const expected = challenges.filter((challenge) => challenge.expectedChallengeValue !== null);
+  const expected = challenges.filter(
+    (challenge) =>
+      challenge.decisionValueMode === "win_expectancy" &&
+      typeof challenge.expectedChallengeValue === "number",
+  );
   const topBucket = buildBuckets(challenges, "count_state")[0] ?? null;
 
   const avgAbsWe = average(winSample.map((challenge) => absMetric(challenge.winExpectancyDelta)));
@@ -208,7 +212,11 @@ function buildBuckets(challenges: ChallengeEvent[], mode: BucketMode): Consequen
   return [...buckets.entries()]
     .map(([label, bucketChallenges]) => {
       const overturned = bucketChallenges.filter((challenge) => challenge.isOverturned);
-      const expected = bucketChallenges.filter((challenge) => challenge.expectedChallengeValue !== null);
+      const expected = bucketChallenges.filter(
+        (challenge) =>
+          challenge.decisionValueMode === "win_expectancy" &&
+          typeof challenge.expectedChallengeValue === "number",
+      );
       const leverageValues = bucketChallenges
         .map((challenge) => challenge.estimatedLeverageIndex)
         .filter((value): value is number => typeof value === "number");
@@ -252,7 +260,11 @@ function buildTopCalls(challenges: ChallengeEvent[]) {
     .filter(
       (challenge) =>
         challenge.isOverturned &&
-        (challenge.winExpectancyDelta !== null || challenge.runExpectancyDelta !== null || challenge.expectedChallengeValue !== null),
+        (
+          challenge.winExpectancyDelta !== null ||
+          challenge.runExpectancyDelta !== null ||
+          (challenge.decisionValueMode === "win_expectancy" && typeof challenge.expectedChallengeValue === "number")
+        ),
     )
     .sort((left, right) => challengeImpactScore(right) - challengeImpactScore(left))
     .slice(0, 4);
