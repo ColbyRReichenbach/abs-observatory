@@ -180,9 +180,11 @@ Required values:
 Current repo status:
 
 - the scheduled GitHub Actions poller now expects `WAREHOUSE_DATABASE_URL`
+- the scheduled GitHub Actions workflow now publishes the curated serving subset after successful warehouse polling
 - ETL scripts default to `WAREHOUSE_DATABASE_URL`
 - audit scripts default to `WAREHOUSE_DATABASE_URL`
 - the web app should keep using `DATABASE_URL`, which should equal `SERVING_DATABASE_URL`
+- the old Mac launchd poller path should remain disabled; laptop polling is no longer the intended live authority
 
 ### Before running the real warehouse backfill
 

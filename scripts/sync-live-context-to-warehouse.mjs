@@ -144,6 +144,21 @@ const tableConfigs = [
     `,
   },
   {
+    name: "officials",
+    table: "officials",
+    columns: ["game_pk", "official_id", "official_name", "official_type"],
+    conflictTarget: ["game_pk", "official_id", "official_type"],
+    updateColumns: ["official_name"],
+    sourceQuery: `
+      SELECT
+        o.game_pk, o.official_id, o.official_name, o.official_type
+      FROM officials o
+      JOIN games g ON g.game_pk = o.game_pk
+      WHERE g.game_date::date BETWEEN $1 AND $2
+      ORDER BY o.game_pk, o.official_type, o.official_id
+    `,
+  },
+  {
     name: "at_bats",
     table: "at_bats",
     columns: [

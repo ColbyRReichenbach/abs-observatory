@@ -68,14 +68,12 @@ psql "$SOURCE_DATABASE_URL" -v ON_ERROR_STOP=1 -c "\copy (SELECT * FROM mart_win
 psql "$SOURCE_DATABASE_URL" -v ON_ERROR_STOP=1 -c "\copy (
   SELECT
     count_key,
-    COUNT(*)::INTEGER AS sample_size,
-    AVG(CASE WHEN official_at_bat THEN CASE WHEN hit_event THEN 1.0 ELSE 0.0 END ELSE NULL END)::NUMERIC AS batting_average,
-    AVG(CASE WHEN walk_event THEN 1.0 ELSE 0.0 END)::NUMERIC AS walk_rate,
-    AVG(CASE WHEN strikeout_event THEN 1.0 ELSE 0.0 END)::NUMERIC AS strikeout_rate,
-    AVG(CASE WHEN positive_outcome THEN 1.0 ELSE 0.0 END)::NUMERIC AS positive_outcome_rate
-  FROM historical_pitch_states
-  WHERE count_key IS NOT NULL
-  GROUP BY count_key
+    sample_size,
+    batting_average,
+    walk_rate,
+    strikeout_rate,
+    positive_outcome_rate
+  FROM mart_count_state_outcome_baselines_train_validation
 ) TO '$COUNT_BASELINE_CSV' CSV"
 
 restore_log="$(mktemp)"

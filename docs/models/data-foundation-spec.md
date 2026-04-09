@@ -5,34 +5,51 @@ Last verified: `2026-04-08`
 This document is the source of truth for:
 
 - what data exists today
-- where it lives (`local warehouse` vs `Neon serving`)
+- where it lives (`Warehouse Neon` vs `Serving Neon`, plus any local legacy source snapshots)
 - the current data cutoffs
 - which gaps require `backfill` vs `publish`
 - the canonical data contracts for current and planned model tables
 
 It is intentionally operational and evidence-based. Every factual claim in this doc should be traceable to a direct query.
 
+Update after the April 8 warehouse migration pass:
+
+- `Warehouse Neon` is now the canonical modeling database
+- local Postgres still exists as a legacy historical source snapshot, but it is no longer the intended long-term modeling authority
+- the `2019-2025` historical Statcast backbone has been synced into `Warehouse Neon`
+
 ## 1. Verified Environment Topology
 
-### 1.1 Local warehouse / training database
+### 1.1 Local legacy historical source
 
 Current repo env resolves local development to:
 
 - `DATABASE_URL=postgresql:///abs_observatory`
-- effective local warehouse URL used for direct checks:
+- effective local Postgres URL used for direct checks:
   - `postgresql://colbyreichenbach@localhost:5432/abs_observatory`
 
-This local database is the only database directly configured in the current workspace `.env.local`.
+This local database is still available for direct checks and legacy backfills, but it is no longer the intended canonical warehouse.
 
-### 1.2 Neon serving / production database
+### 1.2 Warehouse Neon / canonical modeling database
+
+The current workspace env now includes a dedicated pooled Neon warehouse target via `WAREHOUSE_DATABASE_URL`.
+
+Verified operational state after historical sync:
+
+- `raw.statcast_games`: `15,480` historical rows through `2025-09-28`, plus current `2026` rows
+- `raw.statcast_pitches`: `4,566,992` historical rows through `2025-09-28`, plus current `2026` rows
+- `historical_pitch_states`: `4,566,992` historical rows through `2025-09-28`, plus current `2026` rows
+
+### 1.3 Neon serving / production database
 
 The live pooled Neon connection is not configured in the current workspace `.env.local`, but it is present in the polling / deployment env files used by adjacent recovery worktrees and Vercel deployment material. The verified production target is the pooled Neon `neondb` connection used by the app/polling layer.
 
 Operational conclusion:
 
-- `local` is the warehouse / modeling database
-- `Neon` is the serving / production database
-- the two databases are materially different today
+- `Warehouse Neon` is the warehouse / modeling database
+- `Serving Neon` is the serving / production database
+- local Postgres is now a legacy source snapshot and development convenience, not the canonical warehouse
+- the warehouse and serving databases are materially different by design
 - any plan that treats `DATABASE_URL` in this workspace as “prod” is incorrect
 
 ## 2. Verified Current Data Inventory

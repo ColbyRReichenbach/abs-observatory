@@ -177,7 +177,7 @@ Exit criteria:
 
 Status:
 
-- [ ] In progress
+- [x] Completed
 
 Tasks:
 
@@ -185,7 +185,8 @@ Tasks:
 - [x] update local-window poller to run warehouse-targeted ingest only
 - [x] add poll startup banner with target DB role
 - [x] point scheduled GitHub Actions poller secret to `WAREHOUSE_DATABASE_URL`
-- [ ] deprecate any dual-writer polling pattern
+- [x] deprecate any dual-writer polling pattern
+- [x] disable and remove the old local launchd poller from active use
 
 Primary file targets:
 
@@ -201,6 +202,12 @@ Exit criteria:
 
 - there is one canonical poller path
 - warehouse is the only poller write target
+
+Current progress:
+
+- GitHub Actions is now the intended live polling authority
+- the old Mac launchd poller has been disabled and its plist has been removed from active `~/Library/LaunchAgents`
+- the scheduled live polling workflow now includes a follow-on serving publish job after successful warehouse ingest
 
 ### Phase 4: Warehouse And Serving Reconciliation Layer
 
@@ -237,7 +244,7 @@ Exit criteria:
 
 Status:
 
-- [ ] In progress
+- [x] Completed
 
 Tasks:
 
@@ -314,6 +321,7 @@ Current observed warehouse state after completed stable-window backfill:
   - warehouse is structurally healthy
   - current stable pitch-backed cutoff is `2026-04-07`
   - `2026-04-08` should remain excluded from strict backfill/report commands until pitch-level Statcast is complete
+  - warehouse still needs the `2019-2025` historical backbone migrated in before count-state / RE / WE rebuilds can run on the canonical remote source
 
 ### Phase 7: Historical State Rebuild
 
@@ -323,8 +331,12 @@ Status:
 
 Tasks:
 
+- [x] identify that Warehouse currently holds only the `2026` forward slice while local still holds the `2019-2025` backbone
+- [x] add a dedicated sync command for the pre-2026 historical backbone:
+  - `npm run db:sync:historical:warehouse`
 - [x] rebuild `historical_pitch_states` for the `2026` backfilled window
 - [x] verify 2026 rows exist
+- [x] sync `2019-2025` `raw.statcast_games`, `raw.statcast_pitches`, and `historical_pitch_states` from local into Warehouse
 - [ ] add split-governance fields or split-materialized companion tables
 - [ ] document train/validation/test policy
 
@@ -332,6 +344,7 @@ Primary file targets:
 
 - [etl/build_historical_pitch_states.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/build_historical_pitch_states.py)
 - [db/schema.sql](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/db/schema.sql)
+- [scripts/sync-historical-backbone-to-warehouse.sh](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/sync-historical-backbone-to-warehouse.sh)
 - [data-foundation-spec.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/data-foundation-spec.md)
 
 Dependencies:
@@ -340,8 +353,21 @@ Dependencies:
 
 Exit criteria:
 
-- `historical_pitch_states` includes `2026`
+- `historical_pitch_states` in Warehouse includes both the migrated `2019-2025` backbone and the live `2026` window
 - split policy is explicit
+
+Current observed Warehouse state after historical backbone sync:
+
+- sync manifest:
+  - [historical-backbone-2019-03-20-to-2025-09-28-20260408-165223.json](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/.runtime/historical-backbone-sync/historical-backbone-2019-03-20-to-2025-09-28-20260408-165223.json)
+- Warehouse now contains:
+  - `raw.statcast_games` historical backbone: `15,480`
+  - `raw.statcast_pitches` historical backbone: `4,566,992`
+  - `historical_pitch_states` historical backbone: `4,566,992`
+  - `historical_pitch_states` live `2026` slice: `49,854`
+- interpretation:
+  - the canonical remote warehouse now has the full pre-2026 historical backbone plus the current forward window
+  - count-state / RE / WE rebuilds are no longer blocked on missing historical Warehouse coverage
 
 ### Phase 8: Called-Pitch Canonical Dataset
 
