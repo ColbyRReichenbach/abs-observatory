@@ -81,7 +81,7 @@ PY
 export_query_to_csv() {
   local query="$1"
   local destination="$2"
-  psql "$SOURCE_DATABASE_URL" -v ON_ERROR_STOP=1 -c "\copy ($query) TO '$destination' CSV"
+  psql "$SOURCE_DATABASE_URL" -v ON_ERROR_STOP=1 -c "\\copy ($query) TO '$destination' CSV"
 }
 
 SOURCE_LABEL="$(sanitize_database_url "$SOURCE_DATABASE_URL")"
@@ -94,7 +94,7 @@ SYNC_END_DATE="${SERVING_SYNC_END_DATE:-$SOURCE_MAX_GAME_DATE}"
 if [[ -n "${SERVING_SYNC_START_DATE:-}" ]]; then
   SYNC_START_DATE="$SERVING_SYNC_START_DATE"
 else
-  SYNC_DAYS="${SERVING_SYNC_DAYS:-7}"
+  SYNC_DAYS="${SERVING_SYNC_DAYS:-2}"
   SYNC_START_DATE="$(
     python3 - "$SYNC_END_DATE" "$SYNC_DAYS" <<'PY'
 from datetime import date, timedelta
@@ -131,9 +131,9 @@ export_query_to_csv "SELECT game_pk, umpire_id, umpire_name, challenged_calls, o
 export_query_to_csv "SELECT * FROM public.game_reports WHERE game_pk IN ($GAME_PK_WINDOW) ORDER BY game_pk" "$GAME_REPORT_CSV"
 
 echo "Exporting serving-safe fallback lookup tables from source views"
-psql "$SOURCE_DATABASE_URL" -v ON_ERROR_STOP=1 -c "\copy (SELECT * FROM mart_run_expectancy_fallbacks) TO '$RUN_FALLBACK_CSV' CSV"
-psql "$SOURCE_DATABASE_URL" -v ON_ERROR_STOP=1 -c "\copy (SELECT * FROM mart_win_expectancy_fallbacks) TO '$WIN_FALLBACK_CSV' CSV"
-psql "$SOURCE_DATABASE_URL" -v ON_ERROR_STOP=1 -c "\copy (
+psql "$SOURCE_DATABASE_URL" -v ON_ERROR_STOP=1 -c "\\copy (SELECT * FROM mart_run_expectancy_fallbacks) TO '$RUN_FALLBACK_CSV' CSV"
+psql "$SOURCE_DATABASE_URL" -v ON_ERROR_STOP=1 -c "\\copy (SELECT * FROM mart_win_expectancy_fallbacks) TO '$WIN_FALLBACK_CSV' CSV"
+psql "$SOURCE_DATABASE_URL" -v ON_ERROR_STOP=1 -c "\\copy (
   SELECT
     count_key,
     sample_size,
@@ -143,13 +143,13 @@ psql "$SOURCE_DATABASE_URL" -v ON_ERROR_STOP=1 -c "\copy (
     positive_outcome_rate
   FROM mart_count_state_outcome_baselines_train_validation
 ) TO '$COUNT_BASELINE_CSV' CSV"
-psql "$SOURCE_DATABASE_URL" -v ON_ERROR_STOP=1 -c "\copy (SELECT * FROM mart_modeled_abs_overturn_probability_fallbacks) TO '$OVERTURN_FALLBACK_CSV' CSV"
+psql "$SOURCE_DATABASE_URL" -v ON_ERROR_STOP=1 -c "\\copy (SELECT * FROM mart_modeled_abs_overturn_probability_fallbacks) TO '$OVERTURN_FALLBACK_CSV' CSV"
 
 echo "Applying schema and views to target database"
 psql "$TARGET_DATABASE_URL" -v ON_ERROR_STOP=1 <<SQL
 SET search_path TO public;
-\i $ROOT_DIR/db/schema.sql
-\i $ROOT_DIR/db/views.sql
+\\i $ROOT_DIR/db/schema.sql
+\\i $ROOT_DIR/db/views.sql
 SQL
 
 echo "Loading serving contract rows into target database"
@@ -167,18 +167,18 @@ CREATE TEMP TABLE staging_game_state_snapshots (LIKE public.game_state_snapshots
 CREATE TEMP TABLE staging_team_abs_game_summary (LIKE public.team_abs_game_summary INCLUDING DEFAULTS) ON COMMIT DROP;
 CREATE TEMP TABLE staging_umpire_abs_game_summary (LIKE public.umpire_abs_game_summary INCLUDING DEFAULTS) ON COMMIT DROP;
 CREATE TEMP TABLE staging_game_reports (LIKE public.game_reports INCLUDING DEFAULTS) ON COMMIT DROP;
-\copy staging_teams FROM '$TEAM_CSV' CSV
-\copy staging_players FROM '$PLAYER_CSV' CSV
-\copy staging_games FROM '$GAME_CSV' CSV
-\copy staging_officials FROM '$OFFICIAL_CSV' CSV
-\copy staging_at_bats FROM '$AT_BAT_CSV' CSV
-\copy staging_play_events FROM '$PLAY_EVENT_CSV' CSV
-\copy staging_pitches FROM '$PITCH_CSV' CSV
-\copy staging_abs_challenges FROM '$CHALLENGE_CSV' CSV
-\copy staging_game_state_snapshots FROM '$SNAPSHOT_CSV' CSV
-\copy staging_team_abs_game_summary(game_pk, team_id, team_side, used_successful, used_failed, remaining, created_at, updated_at) FROM '$TEAM_SUMMARY_CSV' CSV
-\copy staging_umpire_abs_game_summary(game_pk, umpire_id, umpire_name, challenged_calls, overturned_calls, confirmed_calls, created_at, updated_at) FROM '$UMPIRE_SUMMARY_CSV' CSV
-\copy staging_game_reports FROM '$GAME_REPORT_CSV' CSV
+\\copy staging_teams FROM '$TEAM_CSV' CSV
+\\copy staging_players FROM '$PLAYER_CSV' CSV
+\\copy staging_games FROM '$GAME_CSV' CSV
+\\copy staging_officials FROM '$OFFICIAL_CSV' CSV
+\\copy staging_at_bats FROM '$AT_BAT_CSV' CSV
+\\copy staging_play_events FROM '$PLAY_EVENT_CSV' CSV
+\\copy staging_pitches FROM '$PITCH_CSV' CSV
+\\copy staging_abs_challenges FROM '$CHALLENGE_CSV' CSV
+\\copy staging_game_state_snapshots FROM '$SNAPSHOT_CSV' CSV
+\\copy staging_team_abs_game_summary(game_pk, team_id, team_side, used_successful, used_failed, remaining, created_at, updated_at) FROM '$TEAM_SUMMARY_CSV' CSV
+\\copy staging_umpire_abs_game_summary(game_pk, umpire_id, umpire_name, challenged_calls, overturned_calls, confirmed_calls, created_at, updated_at) FROM '$UMPIRE_SUMMARY_CSV' CSV
+\\copy staging_game_reports FROM '$GAME_REPORT_CSV' CSV
 INSERT INTO public.teams AS target (
   team_id,
   name,
@@ -297,10 +297,10 @@ TRUNCATE TABLE serving_run_expectancy_fallbacks;
 TRUNCATE TABLE serving_win_expectancy_fallbacks;
 TRUNCATE TABLE serving_count_state_outcome_baselines;
 TRUNCATE TABLE serving_abs_overturn_probability_fallbacks;
-\copy serving_run_expectancy_fallbacks FROM '$RUN_FALLBACK_CSV' CSV
-\copy serving_win_expectancy_fallbacks FROM '$WIN_FALLBACK_CSV' CSV
-\copy serving_count_state_outcome_baselines FROM '$COUNT_BASELINE_CSV' CSV
-\copy serving_abs_overturn_probability_fallbacks FROM '$OVERTURN_FALLBACK_CSV' CSV
+\\copy serving_run_expectancy_fallbacks FROM '$RUN_FALLBACK_CSV' CSV
+\\copy serving_win_expectancy_fallbacks FROM '$WIN_FALLBACK_CSV' CSV
+\\copy serving_count_state_outcome_baselines FROM '$COUNT_BASELINE_CSV' CSV
+\\copy serving_abs_overturn_probability_fallbacks FROM '$OVERTURN_FALLBACK_CSV' CSV
 COMMIT;
 SQL
 
