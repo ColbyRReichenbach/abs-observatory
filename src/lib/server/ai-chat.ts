@@ -1,12 +1,12 @@
 import OpenAI from "openai";
 import { z } from "zod";
 
-import { AI_ALLOWED_RANGES, AI_DELIVERY_MODES } from "./ai-policy";
 import type { ChartInsightPayload, StructuredChartInsight } from "@/lib/chart-insight-payload";
 import type { CopilotContext } from "@/lib/copilot-context";
 import { formatContextWindow } from "@/lib/copilot-context";
 import { sql, sqlOne, withTransaction } from "@/lib/db";
 import { isBaseballRelated } from "@/lib/guardrails";
+import { CHAT_REQUEST_SCHEMA, type AiChatSurface } from "@/lib/server/ai/request-schema";
 import { writeAuditLog } from "./audit";
 import { assertValidCsrf } from "./csrf";
 import { enqueueJob } from "./job-queue";
@@ -27,31 +27,6 @@ import { assertAiUsageAllowed, type AiPlanCode, type AiUsageFeature } from "./en
 import { getViewerProfile, type ViewerProfile } from "./profiles";
 import { ConcurrencyLimitError, consumeRateLimit, getCacheKey, getCachedValue, setCachedValue, withConcurrencyGate } from "./scale";
 import { getLatestSuccessfulEtlDataVersion } from "./data-version";
-
-const CHAT_REQUEST_SCHEMA = z.object({
-  conversationId: z.string().uuid().optional(),
-  message: z.string().min(4).max(2000),
-  surface: z.enum(["copilot", "visualizer", "chart_insight"]).optional().default("copilot"),
-  delivery: z.enum(AI_DELIVERY_MODES).optional().default("auto"),
-  context: z
-    .object({
-      scope: z.enum(["global", "game", "team", "umpire"]).default("global"),
-      entityId: z.string().optional(),
-      range: z.enum(AI_ALLOWED_RANGES).optional(),
-      gameStatus: z.string().optional(),
-    })
-    .optional(),
-  chartContext: z
-    .object({
-      chartType: z.string().min(1).max(120),
-      chartKey: z.string().min(1).max(160),
-      chartTitle: z.string().min(1).max(160),
-      baseballQuestion: z.string().min(1).max(300),
-      chartSummary: z.string().min(1).max(600),
-      payload: z.record(z.string(), z.unknown()),
-    })
-    .optional(),
-});
 
 function hasUsableOpenAiKey(rawKey: string | undefined): rawKey is string {
   const key = rawKey?.trim();
@@ -86,8 +61,6 @@ export type ChatResponse = {
   pollAfterSeconds?: number;
   code?: string;
 };
-
-type ChatSurface = "copilot" | "visualizer" | "chart_insight";
 
 const CHART_INSIGHT_RESPONSE_SCHEMA = z.object({
   headline: z.string().min(1).max(320),
