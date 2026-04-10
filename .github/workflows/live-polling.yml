@@ -3,9 +3,9 @@ name: Live MLB Data Polling
 on:
   schedule:
     # GitHub Actions schedules are static and UTC-based.
-    # We keep a 5-minute heartbeat here and let the ET-aware poll gate
+    # We keep a 10-minute heartbeat here and let the ET-aware poll gate
     # decide whether there are live MLB games worth ingesting.
-    - cron: '*/5 * * * *'
+    - cron: '*/10 * * * *'
   
   # Manual trigger from GitHub "Actions" tab
   workflow_dispatch:
