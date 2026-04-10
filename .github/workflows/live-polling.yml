@@ -73,6 +73,12 @@ jobs:
       - name: Install dependencies
         run: npm ci --omit=dev
 
+      - name: Rebuild Warehouse ABS Summaries
+        env:
+          WAREHOUSE_DATABASE_URL: ${{ secrets.WAREHOUSE_DATABASE_URL }}
+        run: |
+          TARGET_DATABASE_URL="$WAREHOUSE_DATABASE_URL" bash scripts/rebuild-abs-summary-tables.sh
+
       - name: Ensure PostgreSQL client
         run: |
           if command -v psql >/dev/null 2>&1; then
