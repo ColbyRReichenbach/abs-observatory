@@ -6,7 +6,11 @@ import type { CopilotContext } from "@/lib/copilot-context";
 import { formatContextWindow } from "@/lib/copilot-context";
 import { sql, sqlOne, withTransaction } from "@/lib/db";
 import { isBaseballRelated } from "@/lib/guardrails";
+import { buildSurfaceCacheKey } from "@/lib/server/ai/cache";
+import { resolveAiAudienceMode, type AiAudienceMode } from "@/lib/server/ai/context";
 import { CHAT_REQUEST_SCHEMA, type AiChatSurface } from "@/lib/server/ai/request-schema";
+import { resolveTaskFamily, type SurfaceTaskFamily } from "@/lib/server/ai/task-family";
+import { buildAiExecutionTelemetry } from "@/lib/server/ai/telemetry";
 import { writeAuditLog } from "./audit";
 import { assertValidCsrf } from "./csrf";
 import { enqueueJob } from "./job-queue";
@@ -502,10 +506,12 @@ async function completeChatTurn(params: {
   userId?: string | null;
   userMessageId: string | null;
   message: string;
+  audienceMode: AiAudienceMode;
+  taskFamily: SurfaceTaskFamily;
   context?: CopilotContext;
   planCode?: AiPlanCode;
   featureKey?: AiUsageFeature;
-  surface: ChatSurface;
+  surface: AiChatSurface;
   chartContext?: ChartInsightPayload;
 }): Promise<ChatResponse> {
   const startedAt = Date.now();
@@ -518,18 +524,19 @@ async function completeChatTurn(params: {
     params.surface === "chart_insight" ? AI_CHART_INSIGHT_PROMPT_VERSION : AI_COPILOT_PROMPT_VERSION;
   const canUseSharedCache = !(params.surface === "chart_insight" && hasPriorAssistantTurn);
   const responseCacheKey = canUseSharedCache
-    ? getCacheKey([
-        params.surface === "chart_insight" ? "ai-chart" : "ai-chat",
+    ? buildSurfaceCacheKey({
+        surface: params.surface,
         promptVersion,
         modelName,
         dataVersion,
-        params.context?.scope ?? "global",
-        params.context?.entityId ?? "none",
-        params.context?.range ?? "default",
-        params.chartContext?.chartKey ?? "none",
-        params.chartContext ? JSON.stringify(params.chartContext.payload).slice(0, 1200) : "none",
-        params.message.trim().toLowerCase(),
-      ])
+        scope: params.context?.scope ?? "global",
+        entityId: params.context?.entityId ?? null,
+        range: params.context?.range ?? null,
+        taskFamily: params.taskFamily,
+        chartKey: params.chartContext?.chartKey ?? null,
+        promptFingerprint: params.chartContext ? JSON.stringify(params.chartContext.payload).slice(0, 1200) : "none",
+        message: params.message,
+      })
     : null;
   const cached = getCachedValue<{
     answer: string;
@@ -683,6 +690,9 @@ Tool results: ${JSON.stringify(resolvedToolResults).slice(0, 18000)}`,
         params.userId ?? null,
         answer,
         JSON.stringify({
+          surface: params.surface,
+          audienceMode: params.audienceMode,
+          taskFamily: params.taskFamily,
           context: params.context,
           citations: toolResults.map((tool) => tool.toolName),
           chartContext: params.chartContext ?? null,
@@ -708,7 +718,16 @@ Tool results: ${JSON.stringify(resolvedToolResults).slice(0, 18000)}`,
       INSERT INTO ai.safety_events (conversation_id, message_id, disposition, reason, details)
       VALUES ($1, $2, 'allowed', 'Baseball-scoped request accepted.', $3)
       `,
-      [params.conversationId, assistantMessageId, JSON.stringify({ context: params.context })],
+      [
+        params.conversationId,
+        assistantMessageId,
+        JSON.stringify({
+          context: params.context,
+          surface: params.surface,
+          audienceMode: params.audienceMode,
+          taskFamily: params.taskFamily,
+        }),
+      ],
     );
 
     await query(
@@ -757,10 +776,25 @@ Tool results: ${JSON.stringify(resolvedToolResults).slice(0, 18000)}`,
           outputTokens,
           inputTokens + outputTokens,
           estimatedCostUsd,
-          JSON.stringify({ context: params.context, citations, chartContext: params.chartContext ?? null }),
+          JSON.stringify({
+            context: params.context,
+            citations,
+            chartContext: params.chartContext ?? null,
+            surface: params.surface,
+            audienceMode: params.audienceMode,
+            taskFamily: params.taskFamily,
+          }),
         ],
       );
     }
+
+    const executionTelemetry = buildAiExecutionTelemetry({
+      surface: params.surface,
+      taskFamily: params.taskFamily,
+      promptVersion,
+      terminology: null,
+      estimatedPromptChars: null,
+    });
 
     generationId = assistantMessageId
       ? await recordAiGenerationEventWithQuery(query, {
@@ -790,8 +824,11 @@ Tool results: ${JSON.stringify(resolvedToolResults).slice(0, 18000)}`,
           metadata: {
             featureKey: params.featureKey ?? null,
             citations,
+            audienceMode: params.audienceMode,
+            taskFamily: params.taskFamily,
             context: params.context ?? null,
             chartContext: params.chartContext ?? null,
+            aiExecution: executionTelemetry,
           },
         })
       : null;
@@ -817,7 +854,9 @@ export async function executeQueuedChatJob(payload: {
   conversationId: string;
   userMessageId: string | null;
   message: string;
-  surface?: ChatSurface;
+  audienceMode: AiAudienceMode;
+  taskFamily: SurfaceTaskFamily;
+  surface?: AiChatSurface;
   context?: CopilotContext;
   chartContext?: ChartInsightPayload;
 }) {
@@ -855,6 +894,14 @@ export async function runChat(request: Request): Promise<ChatResponse> {
 
   validateChatMessage(body.message);
   const context = body.context;
+  const audienceMode = resolveAiAudienceMode(viewer);
+  const taskFamily = resolveTaskFamily({
+    surface: body.surface,
+    message: body.message,
+    audienceMode,
+    context,
+    chartContext: body.chartContext,
+  });
   const rateLimitSubject = viewer?.userId ?? `anon:${getAnonymousRateLimitSubject(request)}`;
 
   const [userLimit, globalLimit] = await Promise.all([
@@ -946,6 +993,8 @@ export async function runChat(request: Request): Promise<ChatResponse> {
         conversationId: persistedTurn.conversationId,
         userMessageId: persistedTurn.userMessageId,
         message: body.message,
+        audienceMode,
+        taskFamily,
         surface: body.surface,
         context,
         chartContext: body.chartContext,
@@ -982,6 +1031,8 @@ export async function runChat(request: Request): Promise<ChatResponse> {
     userId: viewer?.userId ?? null,
     userMessageId: persistedTurn.userMessageId,
     message: body.message,
+    audienceMode,
+    taskFamily,
     context,
     chartContext: body.chartContext,
     planCode: usagePolicy?.entitlement.planCode,
