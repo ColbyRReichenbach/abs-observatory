@@ -94,7 +94,7 @@ export function TeamOrgCommandCenter({
             accent={teamColor}
           />
           <MetricCard
-            label="Late-Game EV Share"
+            label="Late-Close Positive EV Share"
             value={formatShare(report.summary.lateCloseExpectedValueShare)}
             note={`${formatShare(report.summary.highPressureExpectedValueShare)} high-leverage EV`}
             accent={teamColor}
@@ -362,11 +362,15 @@ function buildDecisionRead(
   const valueMode = trustedWinSummary ? "win value" : "run value";
   return `This club is operating with ${formatShare(report.summary.capturedValueShare)} captured ${valueMode} and ${formatShare(
     report.summary.lateCloseExpectedValueShare,
-  )} of its modeled expected value showing up in late-close spots. The best current deployment shows up in ${bestWindow}, while ${weakWindow} remains the clearest leak point.`;
+  )} of its trusted review sample landing in late-close positive-EV spots. The best current deployment shows up in ${bestWindow}, while ${weakWindow} remains the clearest leak point.`;
 }
 
 function formatShare(value: number) {
-  return `${Math.round(value * 100)}%`;
+  const pct = value * 100;
+  if (pct <= 0) return "0%";
+  if (pct < 1) return "<1%";
+  if (pct < 10) return `${pct.toFixed(1)}%`;
+  return `${Math.round(pct)}%`;
 }
 
 function formatSignedPercent(value: number | null) {
