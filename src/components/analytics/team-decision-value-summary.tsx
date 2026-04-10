@@ -28,8 +28,8 @@ export function TeamDecisionValueSummaryCard({
   const fanNarrative = !trusted
     ? "This team is building an early review profile, but the challenge-value read is still settling in."
     : summary.capturedValueShare >= summary.wastedValueShare
-      ? "This team has been turning a larger share of similar challenge windows into stronger review results."
-      : "This team has created some stronger review windows, but the lower-value share is still elevated.";
+      ? `This team has been turning a larger share of similar challenge windows into stronger review results, with ${formatShare(summary.lateCloseChallengeShare)} of its challenges coming in late-close spots.`
+      : `This team has created some stronger review windows, but the lower-value share is still elevated and only ${formatShare(summary.lateCloseChallengeShare)} of its challenges have come in late-close spots.`;
 
   return (
     <section className="mt-8">
@@ -78,7 +78,7 @@ export function TeamDecisionValueSummaryCard({
                 accent={teamColor}
               />
               <DecisionMetric
-                label="Late-Close EV Share"
+                label="Late-Close Positive EV Share"
                 value={formatShare(summary.lateCloseExpectedValueShare)}
                 accent={teamColor}
               />
@@ -92,6 +92,11 @@ export function TeamDecisionValueSummaryCard({
             <>
               <DecisionMetric label="High-Value Window Share" value={formatShare(summary.capturedValueShare)} accent={teamColor} />
               <DecisionMetric label="Low-Value Window Share" value={formatShare(summary.wastedValueShare)} accent={teamColor} />
+              <DecisionMetric
+                label="Late-Game Review Share"
+                value={formatShare(summary.lateCloseChallengeShare)}
+                accent={teamColor}
+              />
               <DecisionMetric
                 label="Best Review Window"
                 value={summary.bestDecisionWindowLabel ?? "Still building"}
@@ -140,7 +145,11 @@ function Chip({ label }: { label: string }) {
 }
 
 function formatShare(value: number) {
-  return `${Math.round(value * 100)}%`;
+  const pct = value * 100;
+  if (pct <= 0) return "0%";
+  if (pct < 1) return "<1%";
+  if (pct < 10) return `${pct.toFixed(1)}%`;
+  return `${Math.round(pct)}%`;
 }
 
 function formatWinValue(value: number) {
