@@ -1,3 +1,5 @@
+import type OpenAI from "openai";
+
 import type { ChartInsightPayload, StructuredChartInsight } from "@/lib/chart-insight-payload";
 import type { CopilotContext } from "@/lib/copilot-context";
 
@@ -19,11 +21,14 @@ export type SurfaceRunnerResult = {
 };
 
 export type SurfaceRunnerParams = {
+  openaiClient: OpenAI | null;
+  modelName: string;
   surface: AiChatSurface;
   audienceMode: AiAudienceMode;
   taskFamily: SurfaceTaskFamily;
   message: string;
   transcript: string;
+  terminologyAppendix?: string | null;
   context?: CopilotContext;
   chartContext?: ChartInsightPayload;
 };
