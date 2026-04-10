@@ -1,0 +1,1850 @@
+[
+  {
+    "slug": "full-count",
+    "canonical_term": "full count",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "A 3-2 count with three balls and two strikes.",
+    "when_to_use_md": "Use when the count is explicitly 3-2 or when a plate appearance reaches a 3-2 state.",
+    "when_not_to_use_md": "Do not use for any other count state.",
+    "preferred_phrasing_md": "Prefer 'full count'. In org surfaces, '3-2 count' is also acceptable.",
+    "banned_phrasing_md": "Do not substitute vague language like 'critical count' unless leverage is separately supported.",
+    "aliases": [
+      "3-2 count"
+    ],
+    "examples": [
+      "The challenge kept the plate appearance at a full count."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "full_count"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 120
+  },
+  {
+    "slug": "runners-in-scoring-position",
+    "canonical_term": "runners in scoring position",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "A baserunner on second and/or third base.",
+    "when_to_use_md": "Use when the situation specifically involves second and/or third being occupied.",
+    "when_not_to_use_md": "Do not use if only first base is occupied.",
+    "preferred_phrasing_md": "Prefer 'runners in scoring position'. In org mode, 'RISP' is acceptable sparingly.",
+    "banned_phrasing_md": "Do not force the acronym in fan-facing copy.",
+    "aliases": [
+      "RISP"
+    ],
+    "examples": [
+      "They stranded runners in scoring position in the middle innings."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "risp"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 115
+  },
+  {
+    "slug": "bases-loaded",
+    "canonical_term": "bases loaded",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "First, second, and third base are all occupied.",
+    "when_to_use_md": "Use when all three bases are occupied.",
+    "when_not_to_use_md": "Do not use when fewer than three bases are occupied.",
+    "preferred_phrasing_md": "Prefer 'bases loaded'.",
+    "banned_phrasing_md": "Do not use generic traffic language when the exact state is bases loaded.",
+    "aliases": [],
+    "examples": [
+      "The overturn came with the bases loaded in a one-run game."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "bases_loaded"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 120
+  },
+  {
+    "slug": "shutout",
+    "canonical_term": "shutout",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "A game in which a team allows no runs; pitcher-level usage must respect scoring context.",
+    "when_to_use_md": "Use when the evidence supports a scoreless game outcome.",
+    "when_not_to_use_md": "Do not call an individual pitcher outing a shutout unless the evidence supports pitcher-level credit framing.",
+    "preferred_phrasing_md": "Prefer 'shutout', 'held them scoreless', or 'blanked' when appropriate.",
+    "banned_phrasing_md": "Do not use loosely for partial scoreless stretches.",
+    "aliases": [
+      "held scoreless",
+      "blanked"
+    ],
+    "examples": [
+      "They finished the game with a team shutout."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "scoreless_game"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 90
+  },
+  {
+    "slug": "walk-off",
+    "canonical_term": "walk-off",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "A game-ending play in which the home team takes the lead in the bottom of the final inning or extras.",
+    "when_to_use_md": "Use only when the home team wins on the final play.",
+    "when_not_to_use_md": "Do not use for any other late-inning scoring play.",
+    "preferred_phrasing_md": "Prefer 'walk-off'.",
+    "banned_phrasing_md": "Do not use for non-final late rallies.",
+    "aliases": [],
+    "examples": [
+      "The game ended on a walk-off after the review sequence."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "walk_off"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 100
+  },
+  {
+    "slug": "extra-innings",
+    "canonical_term": "extra innings",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "Innings played beyond the ninth inning in a tied game.",
+    "when_to_use_md": "Use when the game extends beyond regulation.",
+    "when_not_to_use_md": "Do not use before the game reaches the 10th inning.",
+    "preferred_phrasing_md": "Prefer 'extra innings'. 'Free baseball' may be allowed in fan mode sparingly.",
+    "banned_phrasing_md": "Do not use casual phrasing in org mode.",
+    "aliases": [
+      "free baseball"
+    ],
+    "examples": [
+      "The challenge profile changed once the game moved into extra innings."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "extra_innings"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 95
+  },
+  {
+    "slug": "leverage",
+    "canonical_term": "leverage",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "The game-state importance of a moment, often tied to win expectancy swing potential.",
+    "when_to_use_md": "Use when the game-state context or model output explicitly supports importance framing.",
+    "when_not_to_use_md": "Do not use as empty drama language without supporting context.",
+    "preferred_phrasing_md": "Prefer 'leverage', 'high-leverage spot', or specific leverage bands when available.",
+    "banned_phrasing_md": "Do not use 'huge moment' if leverage framing is available and more precise.",
+    "aliases": [
+      "high-leverage spot"
+    ],
+    "examples": [
+      "This was a high-leverage review window in the late innings."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "high_leverage"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 120
+  },
+  {
+    "slug": "called-third-strike",
+    "canonical_term": "called third strike",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "A strikeout in which the batter does not swing and strike three is called by the umpire.",
+    "when_to_use_md": "Use when the terminal outcome is a strikeout looking.",
+    "when_not_to_use_md": "Do not use for swinging strikeouts.",
+    "preferred_phrasing_md": "Prefer 'called third strike' or 'strikeout looking'.",
+    "banned_phrasing_md": "Do not use for generic strikeouts unless the called/swinging distinction is supported.",
+    "aliases": [
+      "strikeout looking"
+    ],
+    "examples": [
+      "The overturned call removed a called third strike from the plate appearance."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "called_third_strike"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 100
+  },
+  {
+    "slug": "swinging-strikeout",
+    "canonical_term": "swinging strikeout",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "A strikeout in which the batter swings through strike three.",
+    "when_to_use_md": "Use when the terminal outcome is a swinging strikeout.",
+    "when_not_to_use_md": "Do not use for called strikeouts.",
+    "preferred_phrasing_md": "Prefer 'swinging strikeout' or 'whiffed for strike three' in fan mode sparingly.",
+    "banned_phrasing_md": "Do not use colloquial language in org mode unless style pack allows it.",
+    "aliases": [
+      "whiffed for strike three"
+    ],
+    "examples": [
+      "The count moved away from a called-strikeout path and ended later in a swinging strikeout."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "swinging_strikeout"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 95
+  },
+  {
+    "slug": "double-play",
+    "canonical_term": "double play",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "A play that records two outs.",
+    "when_to_use_md": "Use when two outs are recorded on the same play.",
+    "when_not_to_use_md": "Do not use for sequential outs across separate plays.",
+    "preferred_phrasing_md": "Prefer 'double play'.",
+    "banned_phrasing_md": "Do not reduce it to vague 'they got out of it' language if double-play evidence exists.",
+    "aliases": [],
+    "examples": [
+      "The inning-ending double play erased the remaining threat."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "double_play"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 85
+  },
+  {
+    "slug": "left-on-base",
+    "canonical_term": "left on base",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "Runners who remain on base when the half-inning ends.",
+    "when_to_use_md": "Use when discussing stranded runners or missed opportunities.",
+    "when_not_to_use_md": "Do not force the phrase when no runners were stranded.",
+    "preferred_phrasing_md": "Prefer 'left on base' or 'stranded runners'.",
+    "banned_phrasing_md": "Do not use generic 'missed it' language if stranded-runner framing is the real baseball takeaway.",
+    "aliases": [
+      "stranded runners"
+    ],
+    "examples": [
+      "They left the tying run on base after the overturned call."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "left_on_base"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 80
+  },
+  {
+    "slug": "inherited-runners",
+    "canonical_term": "inherited runners",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "Baserunners left on base for a relief pitcher by the previous pitcher.",
+    "when_to_use_md": "Use when relief context is specifically relevant.",
+    "when_not_to_use_md": "Do not use when no pitching change context exists.",
+    "preferred_phrasing_md": "Prefer 'inherited runners'.",
+    "banned_phrasing_md": "Do not use if bullpen context is not actually in evidence.",
+    "aliases": [],
+    "examples": [
+      "The reliever entered with inherited runners and a live review situation."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight"
+    ],
+    "allowed_audiences": [
+      "org",
+      "fan"
+    ],
+    "required_semantic_tags": [
+      "inherited_runners"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 60
+  },
+  {
+    "slug": "save-situation",
+    "canonical_term": "save situation",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "A game state in which a reliever can earn a save under official scoring rules.",
+    "when_to_use_md": "Use when bullpen context explicitly supports it.",
+    "when_not_to_use_md": "Do not use loosely for any late-game lead.",
+    "preferred_phrasing_md": "Prefer 'save situation'.",
+    "banned_phrasing_md": "Do not imply official save logic when not supported.",
+    "aliases": [],
+    "examples": [
+      "The late review happened in a save situation."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "save_situation"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 70
+  },
+  {
+    "slug": "blown-save",
+    "canonical_term": "blown save",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "A reliever loses a lead in a save opportunity.",
+    "when_to_use_md": "Use only when official save-opportunity context exists and the lead is lost.",
+    "when_not_to_use_md": "Do not use for generic late-game scoring allowed.",
+    "preferred_phrasing_md": "Prefer 'blown save'.",
+    "banned_phrasing_md": "Do not use without save-opportunity context.",
+    "aliases": [],
+    "examples": [
+      "The overturned call extended the inning before the eventual blown save."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "blown_save"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 70
+  },
+  {
+    "slug": "no-hit-bid",
+    "canonical_term": "no-hit bid",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "An ongoing attempt to complete a no-hitter.",
+    "when_to_use_md": "Use when a pitcher or staff has not allowed a hit and the game is still in progress.",
+    "when_not_to_use_md": "Do not use after a hit is allowed or if the evidence is only retrospective without that context.",
+    "preferred_phrasing_md": "Prefer 'no-hit bid'.",
+    "banned_phrasing_md": "Do not use dramatic no-hit framing after the bid has ended.",
+    "aliases": [],
+    "examples": [
+      "The review sequence came during a no-hit bid."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "no_hit_bid"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 75
+  },
+  {
+    "slug": "quality-start",
+    "canonical_term": "quality start",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "A starting pitcher throws at least six innings and allows three earned runs or fewer.",
+    "when_to_use_md": "Use only if the evidence supports the official threshold.",
+    "when_not_to_use_md": "Do not use loosely for any strong outing.",
+    "preferred_phrasing_md": "Prefer 'quality start'.",
+    "banned_phrasing_md": "Do not imply the official stat if the threshold is not met.",
+    "aliases": [],
+    "examples": [
+      "Despite the review traffic, he still finished with a quality start."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "quality_start"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 65
+  },
+  {
+    "slug": "bullpen-game",
+    "canonical_term": "bullpen game",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "A game in which a team uses multiple relievers rather than a traditional starter workload.",
+    "when_to_use_md": "Use when the evidence clearly supports that framing.",
+    "when_not_to_use_md": "Do not use just because a starter exited early once.",
+    "preferred_phrasing_md": "Prefer 'bullpen game'.",
+    "banned_phrasing_md": "Do not overuse when pitcher usage does not fit the pattern.",
+    "aliases": [],
+    "examples": [
+      "The challenge profile mattered more because it was effectively a bullpen game."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "bullpen_game"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 60
+  },
+  {
+    "slug": "small-ball",
+    "canonical_term": "small ball",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "A style emphasizing singles, bunts, steals, and run manufacturing over pure slugging.",
+    "when_to_use_md": "Use when the evidence actually supports run-manufacturing style framing.",
+    "when_not_to_use_md": "Do not force it when the game was driven by slugging or non-contextual offense.",
+    "preferred_phrasing_md": "Prefer 'small ball' only when stylistically warranted.",
+    "banned_phrasing_md": "Do not use as filler baseball color.",
+    "aliases": [],
+    "examples": [
+      "The offense leaned more small ball than power in the late innings."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "small_ball"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 45
+  },
+  {
+    "slug": "slugfest",
+    "canonical_term": "slugfest",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "A high-scoring game with heavy offensive output.",
+    "when_to_use_md": "Use in fan-facing contexts when evidence clearly supports a high-scoring game narrative.",
+    "when_not_to_use_md": "Do not use for middling or low-scoring games.",
+    "preferred_phrasing_md": "Prefer 'slugfest' sparingly in fan mode.",
+    "banned_phrasing_md": "Avoid in org mode unless style pack explicitly allows it.",
+    "aliases": [],
+    "examples": [
+      "The review sequences were part of a broader slugfest."
+    ],
+    "allowed_surfaces": [
+      "copilot"
+    ],
+    "allowed_audiences": [
+      "fan"
+    ],
+    "required_semantic_tags": [
+      "slugfest"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 40
+  },
+  {
+    "slug": "scoreless-frame",
+    "canonical_term": "scoreless frame",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "An inning or half-inning in which no runs score.",
+    "when_to_use_md": "Use for inning-level scoreless outcomes.",
+    "when_not_to_use_md": "Do not use if runs scored.",
+    "preferred_phrasing_md": "Prefer 'scoreless frame' in recap-style wording.",
+    "banned_phrasing_md": "Do not use if more specific outcome language is available and better suited.",
+    "aliases": [],
+    "examples": [
+      "The overturned call helped preserve a scoreless frame."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "scoreless_frame"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 70
+  },
+  {
+    "slug": "clean-inning",
+    "canonical_term": "clean inning",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "An inning with no baserunners or no real traffic depending on context.",
+    "when_to_use_md": "Use cautiously when the inning was tidy and the style pack allows looser phrasing.",
+    "when_not_to_use_md": "Do not use if the inning included meaningful traffic.",
+    "preferred_phrasing_md": "Prefer 'clean inning' only when clearly supported.",
+    "banned_phrasing_md": "Do not use if runners reached or the evidence shows sustained pressure.",
+    "aliases": [],
+    "examples": [
+      "He followed the review sequence with a clean inning."
+    ],
+    "allowed_surfaces": [
+      "copilot"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "clean_inning"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 55
+  },
+  {
+    "slug": "traffic-on-the-bases",
+    "canonical_term": "traffic on the bases",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "Repeated baserunner pressure in an inning or stretch.",
+    "when_to_use_md": "Use when the evidence supports multiple baserunners or sustained baserunner pressure.",
+    "when_not_to_use_md": "Do not use for isolated baserunner events.",
+    "preferred_phrasing_md": "Prefer 'traffic on the bases' or 'traffic' sparingly.",
+    "banned_phrasing_md": "Do not use as generic pressure language without baserunner context.",
+    "aliases": [
+      "traffic"
+    ],
+    "examples": [
+      "The overturned call added traffic on the bases in a leverage spot."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "baserunner_traffic"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 80
+  },
+  {
+    "slug": "table-setter",
+    "canonical_term": "table setter",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "A hitter or sequence that creates offensive opportunities for the middle of the order.",
+    "when_to_use_md": "Use when lineup-context language is genuinely relevant.",
+    "when_not_to_use_md": "Do not force lineup-role narrative if not supported by context.",
+    "preferred_phrasing_md": "Prefer 'table setter' sparingly.",
+    "banned_phrasing_md": "Avoid in dense org contexts unless it clarifies lineup role.",
+    "aliases": [],
+    "examples": [
+      "The leadoff spot functioned as the table setter in the early innings."
+    ],
+    "allowed_surfaces": [
+      "copilot"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "table_setter"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 35
+  },
+  {
+    "slug": "insurance-run",
+    "canonical_term": "insurance run",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "An additional run that extends a lead and provides margin.",
+    "when_to_use_md": "Use when a lead-extending run adds meaningful margin.",
+    "when_not_to_use_md": "Do not use for every late score if margin context is not meaningful.",
+    "preferred_phrasing_md": "Prefer 'insurance run'.",
+    "banned_phrasing_md": "Do not use if the run did not materially change margin or context.",
+    "aliases": [],
+    "examples": [
+      "The overturned count helped set up an insurance run in the eighth."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "insurance_run"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 75
+  },
+  {
+    "slug": "game-winning-run",
+    "canonical_term": "game-winning run",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "general",
+    "definition_md": "The run that gives the winning team a lead it never relinquishes.",
+    "when_to_use_md": "Use when that specific scoring logic is supported.",
+    "when_not_to_use_md": "Do not use loosely for any go-ahead run if the lead changes again later.",
+    "preferred_phrasing_md": "Prefer 'game-winning run'.",
+    "banned_phrasing_md": "Do not use without final-game outcome support.",
+    "aliases": [],
+    "examples": [
+      "The review sequence helped preserve the game-winning run."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "game_winning_run"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 70
+  },
+  {
+    "slug": "overturned-call",
+    "canonical_term": "overturned call",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "abs",
+    "definition_md": "Overturned Call in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when a reviewed call is reversed.",
+    "when_not_to_use_md": "Do not use if no review occurred or the review is still in progress.",
+    "preferred_phrasing_md": "Prefer 'the call was overturned' or 'the challenge reversed the call'.",
+    "banned_phrasing_md": "Do not default to blame language like 'the ump blew it'.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for overturned call."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "review_outcome",
+      "count_shift"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 130
+  },
+  {
+    "slug": "confirmed-call",
+    "canonical_term": "confirmed call",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "abs",
+    "definition_md": "Confirmed Call in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when a reviewed call stands after review.",
+    "when_not_to_use_md": "Do not use for non-reviewed calls.",
+    "preferred_phrasing_md": "Prefer 'the call was confirmed' or 'the call stood after review'.",
+    "banned_phrasing_md": "Do not imply a correction if the call was confirmed.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for confirmed call."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "review_outcome"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 125
+  },
+  {
+    "slug": "challenged-call",
+    "canonical_term": "challenged call",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "abs",
+    "definition_md": "Challenged Call in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when describing the specific call that triggered ABS review.",
+    "when_not_to_use_md": "Do not use if there was no challenge.",
+    "preferred_phrasing_md": "Prefer 'challenged call'.",
+    "banned_phrasing_md": "Avoid vague wording when the challenged-call framing is available.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for challenged call."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "review_outcome"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 115
+  },
+  {
+    "slug": "reviewed-call",
+    "canonical_term": "reviewed call",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "abs",
+    "definition_md": "Reviewed Call in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use as neutral review framing when a pitch/call entered the review process.",
+    "when_not_to_use_md": "Do not use to imply a result before the result is known.",
+    "preferred_phrasing_md": "Prefer 'reviewed call'.",
+    "banned_phrasing_md": "Do not overstate review outcome from neutral review language.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for reviewed call."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "review_outcome"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 110
+  },
+  {
+    "slug": "successful-challenge",
+    "canonical_term": "successful challenge",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "abs",
+    "definition_md": "Successful Challenge in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when the challenging team gets an overturn.",
+    "when_not_to_use_md": "Do not use if the challenge fails or the result is unknown.",
+    "preferred_phrasing_md": "Prefer 'successful challenge'.",
+    "banned_phrasing_md": "Do not use generic winning language when precise challenge-success framing exists.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for successful challenge."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "review_outcome"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 120
+  },
+  {
+    "slug": "failed-challenge",
+    "canonical_term": "failed challenge",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "abs",
+    "definition_md": "Failed Challenge in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when the challenging team does not get an overturn.",
+    "when_not_to_use_md": "Do not use if the challenge is successful or unresolved.",
+    "preferred_phrasing_md": "Prefer 'failed challenge'.",
+    "banned_phrasing_md": "Do not over-dramatize with 'disaster' language.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for failed challenge."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "review_outcome",
+      "inventory_usage"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 118
+  },
+  {
+    "slug": "challenge-burn",
+    "canonical_term": "challenge burn",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "review_inventory",
+    "definition_md": "Challenge Burn in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when an unsuccessful challenge clearly consumes inventory and strategic framing is appropriate.",
+    "when_not_to_use_md": "Do not use in neutral recaps unless inventory consequence is central.",
+    "preferred_phrasing_md": "Prefer 'burned a challenge' or 'spent a challenge without changing the count'.",
+    "banned_phrasing_md": "Do not say 'wasted challenge' unless poor-process evidence exists.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for challenge burn."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "inventory_usage",
+      "decision_quality"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 112
+  },
+  {
+    "slug": "call-reversal",
+    "canonical_term": "call reversal",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "abs",
+    "definition_md": "Call Reversal in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when review changes the original ruling.",
+    "when_not_to_use_md": "Do not use if the reviewed call stands.",
+    "preferred_phrasing_md": "Prefer 'call reversal'.",
+    "banned_phrasing_md": "Do not imply reversal if the call was confirmed.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for call reversal."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "review_outcome",
+      "count_shift"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 105
+  },
+  {
+    "slug": "call-stands",
+    "canonical_term": "call stands",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "abs",
+    "definition_md": "Call Stands in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when the original ruling remains in place after review.",
+    "when_not_to_use_md": "Do not use when the call is overturned.",
+    "preferred_phrasing_md": "Prefer 'the call stood'.",
+    "banned_phrasing_md": "Do not imply a reversal.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for call stands."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "review_outcome"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 102
+  },
+  {
+    "slug": "count-flip",
+    "canonical_term": "count flip",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "count_state",
+    "definition_md": "Count Flip in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when review materially changes the count state.",
+    "when_not_to_use_md": "Do not use if the review outcome does not change the count in a meaningful way.",
+    "preferred_phrasing_md": "Prefer 'flipped the count' or 'changed the plate appearance state'.",
+    "banned_phrasing_md": "Do not use if the count effect is neutral or absent.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for count flip."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "count_shift"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 130
+  },
+  {
+    "slug": "count-swing",
+    "canonical_term": "count swing",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "count_state",
+    "definition_md": "Count Swing in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when the count changes in a meaningful directional way after review.",
+    "when_not_to_use_md": "Do not use if there is no directional count movement.",
+    "preferred_phrasing_md": "Prefer 'count swing'.",
+    "banned_phrasing_md": "Do not overstate if the shift is minimal or neutral.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for count swing."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "count_shift"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 118
+  },
+  {
+    "slug": "corrected-count",
+    "canonical_term": "corrected count",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "count_state",
+    "definition_md": "Corrected Count in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when discussing the count after the reviewed correction.",
+    "when_not_to_use_md": "Do not use if the corrected state is not available.",
+    "preferred_phrasing_md": "Prefer 'corrected count'.",
+    "banned_phrasing_md": "Do not invent a corrected count.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for corrected count."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "count_shift"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 100
+  },
+  {
+    "slug": "held-count",
+    "canonical_term": "held count",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "count_state",
+    "definition_md": "Held Count in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when the original count remains after review or non-overturn.",
+    "when_not_to_use_md": "Do not use if the review actually changes the count.",
+    "preferred_phrasing_md": "Prefer 'held count'.",
+    "banned_phrasing_md": "Do not use if the count changed.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for held count."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "count_shift"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 96
+  },
+  {
+    "slug": "terminal-count",
+    "canonical_term": "terminal count",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "count_state",
+    "definition_md": "Terminal Count in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when the count result immediately creates a walk or strikeout outcome.",
+    "when_not_to_use_md": "Do not use on non-terminal states.",
+    "preferred_phrasing_md": "Prefer 'terminal count' only in org/dense analytical surfaces.",
+    "banned_phrasing_md": "Avoid jargon-heavy usage in fan mode unless supported by style pack.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for terminal count."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "terminal_outcome"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 90
+  },
+  {
+    "slug": "full-count-pressure",
+    "canonical_term": "full-count pressure",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "count_state",
+    "definition_md": "Full-Count Pressure in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when a reviewed decision occurs in a 3-2 count with heightened leverage.",
+    "when_not_to_use_md": "Do not use if the count is not full or the pressure framing is unsupported.",
+    "preferred_phrasing_md": "Prefer 'full-count pressure'.",
+    "banned_phrasing_md": "Do not use generic pressure language if full-count framing is available and more precise.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for full-count pressure."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "full_count",
+      "high_leverage"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 108
+  },
+  {
+    "slug": "challenge-value",
+    "canonical_term": "challenge value",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "challenge_value",
+    "definition_md": "Challenge Value in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when the product is discussing modeled review value or consequence.",
+    "when_not_to_use_md": "Do not use if no value model or consequence framing exists.",
+    "preferred_phrasing_md": "Prefer 'challenge value'.",
+    "banned_phrasing_md": "Do not substitute vague 'good challenge' language when explicit value framing is available.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for challenge value."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "expected_value",
+      "realized_value"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 125
+  },
+  {
+    "slug": "expected-challenge-value",
+    "canonical_term": "expected challenge value",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "challenge_value",
+    "definition_md": "Expected Challenge Value in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when modeled expected benefit is present.",
+    "when_not_to_use_md": "Do not use when only realized outcome is available.",
+    "preferred_phrasing_md": "Prefer 'expected challenge value'.",
+    "banned_phrasing_md": "Do not blur expected and realized value.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for expected challenge value."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "expected_value"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 122
+  },
+  {
+    "slug": "realized-challenge-value",
+    "canonical_term": "realized challenge value",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "challenge_value",
+    "definition_md": "Realized Challenge Value in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when the actual realized game-state outcome of the challenge is known.",
+    "when_not_to_use_md": "Do not use if only modeled expected value exists.",
+    "preferred_phrasing_md": "Prefer 'realized challenge value'.",
+    "banned_phrasing_md": "Do not collapse realized and expected values into one term.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for realized challenge value."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "realized_value"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 120
+  },
+  {
+    "slug": "decision-surplus",
+    "canonical_term": "decision surplus",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "challenge_value",
+    "definition_md": "Decision Surplus in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when process outperforms outcome or vice versa within an expected-vs-realized framework.",
+    "when_not_to_use_md": "Do not use without explicit process-vs-result modeling.",
+    "preferred_phrasing_md": "Prefer 'decision surplus'.",
+    "banned_phrasing_md": "Do not call something 'smart process' without model support.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for decision surplus."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "decision_quality",
+      "expected_value",
+      "realized_value"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 112
+  },
+  {
+    "slug": "decision-cost",
+    "canonical_term": "decision cost",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "challenge_value",
+    "definition_md": "Decision Cost in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when a review decision carries modeled downside or opportunity cost.",
+    "when_not_to_use_md": "Do not use without explicit decision-cost framing.",
+    "preferred_phrasing_md": "Prefer 'decision cost'.",
+    "banned_phrasing_md": "Do not imply cost without evidence.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for decision cost."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "decision_quality",
+      "expected_value"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 108
+  },
+  {
+    "slug": "review-worthiness",
+    "canonical_term": "review worthiness",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "challenge_value",
+    "definition_md": "Review Worthiness in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when evaluating whether a spot warranted review consideration.",
+    "when_not_to_use_md": "Do not use if no process-oriented framing exists.",
+    "preferred_phrasing_md": "Prefer 'review-worthy' or 'review worthiness'.",
+    "banned_phrasing_md": "Do not overstate as obvious without evidence.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for review worthiness."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "decision_quality",
+      "expected_value"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 110
+  },
+  {
+    "slug": "inventory-discipline",
+    "canonical_term": "inventory discipline",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "review_inventory",
+    "definition_md": "Inventory Discipline in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when a team shows selective or efficient challenge usage.",
+    "when_not_to_use_md": "Do not use if there is no inventory pattern evidence.",
+    "preferred_phrasing_md": "Prefer 'inventory discipline'.",
+    "banned_phrasing_md": "Do not use generic 'smart team' language instead.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for inventory discipline."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "inventory_usage",
+      "team_strategy"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 108
+  },
+  {
+    "slug": "inventory-deployment",
+    "canonical_term": "inventory deployment",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "review_inventory",
+    "definition_md": "Inventory Deployment in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when describing when and where teams spend review inventory.",
+    "when_not_to_use_md": "Do not use if challenge spending pattern is not part of the question/evidence.",
+    "preferred_phrasing_md": "Prefer 'inventory deployment'.",
+    "banned_phrasing_md": "Do not flatten to 'used challenges' when deployment framing matters.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for inventory deployment."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "inventory_usage",
+      "challenge_timing"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 120
+  },
+  {
+    "slug": "challenge-opportunity",
+    "canonical_term": "challenge opportunity",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "challenge_value",
+    "definition_md": "Challenge Opportunity in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when describing situations that present a potentially valuable review window.",
+    "when_not_to_use_md": "Do not use if no genuine review window existed.",
+    "preferred_phrasing_md": "Prefer 'challenge opportunity'.",
+    "banned_phrasing_md": "Do not treat every reviewed pitch as an opportunity if the context did not warrant it.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for challenge opportunity."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "expected_value",
+      "challenge_timing"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 110
+  },
+  {
+    "slug": "challenge-traffic",
+    "canonical_term": "challenge traffic",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "umpire_analysis",
+    "definition_md": "Challenge Traffic in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when describing clustering or volume of reviews in certain contexts or lanes.",
+    "when_not_to_use_md": "Do not use for isolated reviewed pitches.",
+    "preferred_phrasing_md": "Prefer 'challenge traffic'.",
+    "banned_phrasing_md": "Do not use generic 'a lot of reviews' when traffic framing is more specific.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for challenge traffic."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "challenge_volume",
+      "umpire_profile"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 112
+  },
+  {
+    "slug": "review-exposure",
+    "canonical_term": "review exposure",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "umpire_analysis",
+    "definition_md": "Review Exposure in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when discussing how often an umpire or context enters review danger zones.",
+    "when_not_to_use_md": "Do not use if there is no review clustering or exposure evidence.",
+    "preferred_phrasing_md": "Prefer 'review exposure'.",
+    "banned_phrasing_md": "Do not overstate with blame language.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for review exposure."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "challenge_volume",
+      "umpire_profile"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 108
+  },
+  {
+    "slug": "zone-vulnerability",
+    "canonical_term": "zone vulnerability",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "umpire_analysis",
+    "definition_md": "Zone Vulnerability in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when certain lanes or edges show elevated overturn or review pressure.",
+    "when_not_to_use_md": "Do not use if location data does not support it.",
+    "preferred_phrasing_md": "Prefer 'zone vulnerability'.",
+    "banned_phrasing_md": "Do not say an umpire is 'bad in that zone' unless the evidence specifically supports that stronger claim.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for zone vulnerability."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "zone_pressure",
+      "edge_location"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 118
+  },
+  {
+    "slug": "overturn-lane",
+    "canonical_term": "overturn lane",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "umpire_analysis",
+    "definition_md": "Overturn Lane in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when a specific zone lane shows elevated overturn behavior.",
+    "when_not_to_use_md": "Do not use without lane-specific evidence.",
+    "preferred_phrasing_md": "Prefer 'overturn lane'.",
+    "banned_phrasing_md": "Do not invent lanes or hotspots.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for overturn lane."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "zone_pressure",
+      "review_outcome"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 122
+  },
+  {
+    "slug": "challenge-rhythm",
+    "canonical_term": "challenge rhythm",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "umpire_analysis",
+    "definition_md": "Challenge Rhythm in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when challenge exposure changes inning by inning or over game flow.",
+    "when_not_to_use_md": "Do not use if no temporal pattern exists.",
+    "preferred_phrasing_md": "Prefer 'challenge rhythm'.",
+    "banned_phrasing_md": "Do not force rhythm language onto noisy or tiny samples.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for challenge rhythm."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "challenge_timing",
+      "umpire_profile"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 115
+  },
+  {
+    "slug": "challenge-management",
+    "canonical_term": "challenge management",
+    "card_type": "term",
+    "status": "active",
+    "baseball_domain": "review_inventory",
+    "definition_md": "Challenge Management in AiBS challenge-era analysis.",
+    "when_to_use_md": "Use when evaluating team challenge process across a game or sample.",
+    "when_not_to_use_md": "Do not use if inventory strategy is not part of the evidence.",
+    "preferred_phrasing_md": "Prefer 'challenge management'.",
+    "banned_phrasing_md": "Do not reduce all challenge decisions to outcome-only framing.",
+    "aliases": [],
+    "examples": [
+      "Example AiBS usage for challenge management."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "inventory_usage",
+      "team_strategy",
+      "decision_quality"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 116
+  },
+  {
+    "slug": "generic-incorrectness-language",
+    "canonical_term": "generic incorrectness language",
+    "card_type": "anti_pattern",
+    "status": "active",
+    "baseball_domain": "anti_pattern",
+    "definition_md": "Anti-pattern control for generic incorrectness language.",
+    "when_to_use_md": "Avoid generic 'the umpire got it wrong' phrasing when a more precise review outcome exists.",
+    "when_not_to_use_md": "Do not inject this card unless the semantic context makes the anti-pattern risk relevant.",
+    "preferred_phrasing_md": "If review outcome is known, prefer overturned/confirmed/challenged-call language.",
+    "banned_phrasing_md": "Do not use blame-heavy language unless a stronger evaluative frame is explicitly supported.",
+    "aliases": [],
+    "examples": [
+      "Block or steer away from generic incorrectness language in the relevant contexts."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "review_outcome"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 140
+  },
+  {
+    "slug": "deterministic-strategy-language",
+    "canonical_term": "deterministic strategy language",
+    "card_type": "anti_pattern",
+    "status": "active",
+    "baseball_domain": "anti_pattern",
+    "definition_md": "Anti-pattern control for deterministic strategy language.",
+    "when_to_use_md": "Avoid acting as if challenge strategy was obviously correct or incorrect without process evidence.",
+    "when_not_to_use_md": "Do not inject this card unless the semantic context makes the anti-pattern risk relevant.",
+    "preferred_phrasing_md": "Use modeled-value or process language when available.",
+    "banned_phrasing_md": "Do not say 'they absolutely had to challenge' without support.",
+    "aliases": [],
+    "examples": [
+      "Block or steer away from deterministic strategy language in the relevant contexts."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "decision_quality"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 138
+  },
+  {
+    "slug": "fake-certainty-on-value",
+    "canonical_term": "fake certainty on value",
+    "card_type": "anti_pattern",
+    "status": "active",
+    "baseball_domain": "anti_pattern",
+    "definition_md": "Anti-pattern control for fake certainty on value.",
+    "when_to_use_md": "Avoid over-certainty on expected or realized challenge value.",
+    "when_not_to_use_md": "Do not inject this card unless the semantic context makes the anti-pattern risk relevant.",
+    "preferred_phrasing_md": "Use directional or modeled language when confidence is limited.",
+    "banned_phrasing_md": "Do not say 'this was absolutely worth it' if the value signal is mixed or thin.",
+    "aliases": [],
+    "examples": [
+      "Block or steer away from fake certainty on value in the relevant contexts."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "expected_value",
+      "realized_value"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 142
+  },
+  {
+    "slug": "review-result-overclaim",
+    "canonical_term": "review result overclaim",
+    "card_type": "anti_pattern",
+    "status": "active",
+    "baseball_domain": "anti_pattern",
+    "definition_md": "Anti-pattern control for review result overclaim.",
+    "when_to_use_md": "Avoid letting the review result stand in for full strategic judgment.",
+    "when_not_to_use_md": "Do not inject this card unless the semantic context makes the anti-pattern risk relevant.",
+    "preferred_phrasing_md": "Separate review result from process quality.",
+    "banned_phrasing_md": "Do not say a successful challenge proves strong process on its own.",
+    "aliases": [],
+    "examples": [
+      "Block or steer away from review result overclaim in the relevant contexts."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "review_outcome",
+      "decision_quality"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 141
+  },
+  {
+    "slug": "umpire-blame-language",
+    "canonical_term": "umpire blame language",
+    "card_type": "anti_pattern",
+    "status": "active",
+    "baseball_domain": "anti_pattern",
+    "definition_md": "Anti-pattern control for umpire blame language.",
+    "when_to_use_md": "Avoid casual blame language about the umpire.",
+    "when_not_to_use_md": "Do not inject this card unless the semantic context makes the anti-pattern risk relevant.",
+    "preferred_phrasing_md": "Prefer exposure, traffic, vulnerability, or reviewed-outcome framing.",
+    "banned_phrasing_md": "Do not say 'the ump was bad all night' without explicit evidence.",
+    "aliases": [],
+    "examples": [
+      "Block or steer away from umpire blame language in the relevant contexts."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "umpire_profile"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 145
+  },
+  {
+    "slug": "casual-overdramatization",
+    "canonical_term": "casual overdramatization",
+    "card_type": "anti_pattern",
+    "status": "active",
+    "baseball_domain": "anti_pattern",
+    "definition_md": "Anti-pattern control for casual overdramatization.",
+    "when_to_use_md": "Avoid casual overdramatization when precise baseball language is available.",
+    "when_not_to_use_md": "Do not inject this card unless the semantic context makes the anti-pattern risk relevant.",
+    "preferred_phrasing_md": "Use exact review/count/leverage phrasing first.",
+    "banned_phrasing_md": "Do not force slang or melodrama into analytical surfaces.",
+    "aliases": [],
+    "examples": [
+      "Block or steer away from casual overdramatization in the relevant contexts."
+    ],
+    "allowed_surfaces": [
+      "copilot",
+      "chart_insight",
+      "visualizer"
+    ],
+    "allowed_audiences": [
+      "fan",
+      "org"
+    ],
+    "required_semantic_tags": [
+      "high_leverage",
+      "review_outcome"
+    ],
+    "forbidden_semantic_tags": [],
+    "priority": 130
+  }
+]
