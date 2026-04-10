@@ -135,6 +135,15 @@ type ModeledTeamDecisionRow = {
   lateClosePositive: boolean;
 };
 
+function isLateCloseDecisionContext(row: Pick<TeamDecisionMetricRow, "inning" | "homeScore" | "awayScore">) {
+  return (
+    (row.inning ?? 0) >= 7 &&
+    row.homeScore !== null &&
+    row.awayScore !== null &&
+    Math.abs(row.homeScore - row.awayScore) <= 2
+  );
+}
+
 async function withVersionedCache<T>(
   keyParts: Array<string | number | boolean | null | undefined>,
   versionPromise: Promise<string>,
@@ -724,11 +733,7 @@ async function modelTeamDecisionRows(rows: TeamDecisionMetricRow[]) {
 
     const realizedValue = row.isOverturned ? decision.wpDeltaIfSuccess : decision.wpDeltaIfFail;
     const highPressure = (row.inning ?? 0) >= 7 || Math.abs((row.homeScore ?? 0) - (row.awayScore ?? 0)) <= 2;
-    const lateClose =
-      (row.inning ?? 0) >= 7 &&
-      row.homeScore !== null &&
-      row.awayScore !== null &&
-      Math.abs(row.homeScore - row.awayScore) <= 2;
+    const lateClose = isLateCloseDecisionContext(row);
 
     modeledRows.push({
       row,
@@ -763,6 +768,7 @@ async function buildTeamDecisionValueMetrics(rows: TeamDecisionMetricRow[], mode
       capturedValueCount: number;
       wastedValueCount: number;
       highPressureExpectedCount: number;
+      lateCloseChallengeCount: number;
       lateCloseExpectedCount: number;
       windows: Map<string, { totalExpected: number; count: number }>;
     }
@@ -782,11 +788,15 @@ async function buildTeamDecisionValueMetrics(rows: TeamDecisionMetricRow[], mode
       capturedValueCount: 0,
       wastedValueCount: 0,
       highPressureExpectedCount: 0,
+      lateCloseChallengeCount: 0,
       lateCloseExpectedCount: 0,
       windows: new Map(),
     };
 
     aggregate.totalChallenges += 1;
+    if (isLateCloseDecisionContext(row)) {
+      aggregate.lateCloseChallengeCount += 1;
+    }
     aggregates.set(row.teamId, aggregate);
   }
 
@@ -867,6 +877,8 @@ async function buildTeamDecisionValueMetrics(rows: TeamDecisionMetricRow[], mode
             aggregate.winModeChallenges > 0 ? aggregate.wastedValueCount / aggregate.winModeChallenges : 0,
           highPressureExpectedValueShare:
             aggregate.winModeChallenges > 0 ? aggregate.highPressureExpectedCount / aggregate.winModeChallenges : 0,
+          lateCloseChallengeShare:
+            aggregate.totalChallenges > 0 ? aggregate.lateCloseChallengeCount / aggregate.totalChallenges : 0,
           lateCloseExpectedValueShare:
             aggregate.winModeChallenges > 0 ? aggregate.lateCloseExpectedCount / aggregate.winModeChallenges : 0,
           bestDecisionWindowLabel: bestWindow?.label ?? null,
@@ -1091,6 +1103,7 @@ export async function getTeamDecisionValueSummary(
       capturedValueShare: 0,
       wastedValueShare: 0,
       highPressureExpectedValueShare: 0,
+      lateCloseChallengeShare: 0,
       lateCloseExpectedValueShare: 0,
       bestDecisionWindowLabel: null,
       bestDecisionWindowExpectedValue: null,
@@ -1124,6 +1137,7 @@ export async function getTeamDecisionValueReport(
       capturedValueShare: 0,
       wastedValueShare: 0,
       highPressureExpectedValueShare: 0,
+      lateCloseChallengeShare: 0,
       lateCloseExpectedValueShare: 0,
       bestDecisionWindowLabel: null,
       bestDecisionWindowExpectedValue: null,
@@ -3560,6 +3574,7 @@ async function getTeamStyleMetrics(
         capturedValueShare: 0,
         wastedValueShare: 0,
         highPressureExpectedValueShare: 0,
+        lateCloseChallengeShare: 0,
         lateCloseExpectedValueShare: 0,
         bestDecisionWindowLabel: null,
         bestDecisionWindowExpectedValue: null,
@@ -3594,6 +3609,7 @@ function mergeTeamStyleAndDecisionMetrics(
       capturedValueShare: 0,
       wastedValueShare: 0,
       highPressureExpectedValueShare: 0,
+      lateCloseChallengeShare: 0,
       lateCloseExpectedValueShare: 0,
       bestDecisionWindowLabel: null,
       bestDecisionWindowExpectedValue: null,
@@ -3610,6 +3626,7 @@ function mergeTeamStyleAndDecisionMetrics(
       capturedValueShare: decision.capturedValueShare,
       wastedValueShare: decision.wastedValueShare,
       highPressureExpectedValueShare: decision.highPressureExpectedValueShare,
+      lateCloseChallengeShare: decision.lateCloseChallengeShare,
       lateCloseExpectedValueShare: decision.lateCloseExpectedValueShare,
       bestDecisionWindowLabel: decision.bestDecisionWindowLabel,
       bestDecisionWindowExpectedValue: decision.bestDecisionWindowExpectedValue,
