@@ -184,7 +184,7 @@ async function TeamsPageBody({
               <th className="text-center">Late/Close</th>
               <th className="text-center">{viewMode === "org" ? "Deployment" : "Timing"}</th>
               <th className="text-center">Trend</th>
-              {showDecisionValueColumns ? <th className="text-right">Late-Close EV Share</th> : null}
+              {showDecisionValueColumns ? <th className="text-right">Late-Close Positive EV Share</th> : null}
               {showDecisionValueColumns ? <th className="text-right">Review Surplus</th> : null}
               <th className="text-right">{viewMode === "org" ? (leagueAvgWinExpectancyDelta !== null ? "Avg WE Δ" : "Avg RE Δ") : "Avg Rem"}</th>
               <th className="text-right">{copy.tableVolumeHeader}</th>
@@ -255,7 +255,9 @@ async function TeamsPageBody({
                       </td>
                       {showDecisionValueColumns ? (
                         <td className="text-right font-mono text-gray-400 italic font-medium pr-8">
-                          {`${Math.round(teams.length > 0 ? teams.reduce((sum, team) => sum + team.lateCloseExpectedValueShare, 0) / teams.length * 100 : 0)}%`}
+                          {formatCompactShare(
+                            teams.length > 0 ? teams.reduce((sum, team) => sum + team.lateCloseExpectedValueShare, 0) / teams.length : 0,
+                          )}
                         </td>
                       ) : null}
                       {showDecisionValueColumns ? (
@@ -353,7 +355,7 @@ async function TeamsPageBody({
                     {showDecisionValueColumns ? (
                       <td className="text-right font-mono text-gray-400 font-medium pr-8">
                         {hasTrustedModelConfidenceBand(t.decisionValueConfidence)
-                          ? `${Math.round(t.lateCloseExpectedValueShare * 100)}%`
+                          ? formatCompactShare(t.lateCloseExpectedValueShare)
                           : "N/A"}
                       </td>
                     ) : null}
@@ -418,6 +420,7 @@ function compareTeamsForTable(
     overturnRate: number;
     decisionSurplus: number | null;
     decisionValueConfidence: "high" | "medium" | "low" | null;
+    lateCloseChallengeShare: number;
     lateCloseExpectedValueShare: number;
     highWinValueShare: number;
     avgWinExpectancyDelta: number | null;
@@ -430,6 +433,7 @@ function compareTeamsForTable(
     overturnRate: number;
     decisionSurplus: number | null;
     decisionValueConfidence: "high" | "medium" | "low" | null;
+    lateCloseChallengeShare: number;
     lateCloseExpectedValueShare: number;
     highWinValueShare: number;
     avgWinExpectancyDelta: number | null;
@@ -494,6 +498,14 @@ function compareTeamsForTable(
   }
 
   return right.overturnRate - left.overturnRate;
+}
+
+function formatCompactShare(value: number) {
+  const pct = value * 100;
+  if (pct <= 0) return "0%";
+  if (pct < 1) return "<1%";
+  if (pct < 10) return `${pct.toFixed(1)}%`;
+  return `${Math.round(pct)}%`;
 }
 
 function formatOrgValueCopy(
