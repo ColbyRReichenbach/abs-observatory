@@ -1,0 +1,236 @@
+[
+  {
+    "surface_key": "copilot",
+    "surface_task_family": "game_summary",
+    "audience_mode": "fan",
+    "required_card_slugs": [
+      "leverage"
+    ],
+    "preferred_card_slugs": [
+      "full-count",
+      "runners-in-scoring-position",
+      "scoreless-frame",
+      "traffic-on-the-bases"
+    ],
+    "max_cards": 6
+  },
+  {
+    "surface_key": "copilot",
+    "surface_task_family": "game_summary",
+    "audience_mode": "org",
+    "required_card_slugs": [
+      "leverage"
+    ],
+    "preferred_card_slugs": [
+      "full-count",
+      "runners-in-scoring-position",
+      "left-on-base",
+      "traffic-on-the-bases"
+    ],
+    "max_cards": 6
+  },
+  {
+    "surface_key": "copilot",
+    "surface_task_family": "general_abs_explanation",
+    "audience_mode": "fan",
+    "required_card_slugs": [
+      "challenged-call"
+    ],
+    "preferred_card_slugs": [
+      "overturned-call",
+      "confirmed-call",
+      "count-flip",
+      "challenge-value"
+    ],
+    "max_cards": 7
+  },
+  {
+    "surface_key": "copilot",
+    "surface_task_family": "general_abs_explanation",
+    "audience_mode": "org",
+    "required_card_slugs": [
+      "challenged-call"
+    ],
+    "preferred_card_slugs": [
+      "overturned-call",
+      "confirmed-call",
+      "count-flip",
+      "challenge-value",
+      "inventory-deployment",
+      "review-worthiness"
+    ],
+    "max_cards": 8
+  },
+  {
+    "surface_key": "copilot",
+    "surface_task_family": "anomaly_diagnosis",
+    "audience_mode": "fan",
+    "required_card_slugs": [
+      "generic-incorrectness-language"
+    ],
+    "preferred_card_slugs": [
+      "challenge-traffic",
+      "review-exposure",
+      "zone-vulnerability"
+    ],
+    "max_cards": 7
+  },
+  {
+    "surface_key": "copilot",
+    "surface_task_family": "anomaly_diagnosis",
+    "audience_mode": "org",
+    "required_card_slugs": [
+      "generic-incorrectness-language",
+      "umpire-blame-language"
+    ],
+    "preferred_card_slugs": [
+      "challenge-traffic",
+      "review-exposure",
+      "zone-vulnerability",
+      "overturn-lane"
+    ],
+    "max_cards": 8
+  },
+  {
+    "surface_key": "chart_insight",
+    "surface_task_family": "challenge_decision_brief",
+    "audience_mode": "fan",
+    "required_card_slugs": [
+      "challenge-value"
+    ],
+    "preferred_card_slugs": [
+      "count-flip",
+      "full-count-pressure",
+      "review-worthiness"
+    ],
+    "max_cards": 8
+  },
+  {
+    "surface_key": "chart_insight",
+    "surface_task_family": "challenge_decision_brief",
+    "audience_mode": "org",
+    "required_card_slugs": [
+      "challenge-value",
+      "expected-challenge-value"
+    ],
+    "preferred_card_slugs": [
+      "realized-challenge-value",
+      "decision-surplus",
+      "decision-cost",
+      "review-worthiness"
+    ],
+    "max_cards": 8
+  },
+  {
+    "surface_key": "chart_insight",
+    "surface_task_family": "challenge_value_timeline",
+    "audience_mode": "fan",
+    "required_card_slugs": [
+      "challenge-value"
+    ],
+    "preferred_card_slugs": [
+      "challenge-opportunity",
+      "inventory-deployment",
+      "challenge-management"
+    ],
+    "max_cards": 8
+  },
+  {
+    "surface_key": "chart_insight",
+    "surface_task_family": "challenge_value_timeline",
+    "audience_mode": "org",
+    "required_card_slugs": [
+      "challenge-value",
+      "inventory-deployment"
+    ],
+    "preferred_card_slugs": [
+      "expected-challenge-value",
+      "realized-challenge-value",
+      "decision-surplus",
+      "challenge-timing"
+    ],
+    "max_cards": 8
+  },
+  {
+    "surface_key": "chart_insight",
+    "surface_task_family": "umpire_rhythm",
+    "audience_mode": "fan",
+    "required_card_slugs": [
+      "challenge-rhythm"
+    ],
+    "preferred_card_slugs": [
+      "challenge-traffic",
+      "review-exposure"
+    ],
+    "max_cards": 7
+  },
+  {
+    "surface_key": "chart_insight",
+    "surface_task_family": "umpire_rhythm",
+    "audience_mode": "org",
+    "required_card_slugs": [
+      "challenge-rhythm"
+    ],
+    "preferred_card_slugs": [
+      "challenge-traffic",
+      "review-exposure",
+      "zone-vulnerability",
+      "umpire-blame-language"
+    ],
+    "max_cards": 8
+  },
+  {
+    "surface_key": "chart_insight",
+    "surface_task_family": "zone_map",
+    "audience_mode": "fan",
+    "required_card_slugs": [
+      "zone-vulnerability"
+    ],
+    "preferred_card_slugs": [
+      "overturn-lane",
+      "challenge-traffic"
+    ],
+    "max_cards": 8
+  },
+  {
+    "surface_key": "chart_insight",
+    "surface_task_family": "zone_map",
+    "audience_mode": "org",
+    "required_card_slugs": [
+      "zone-vulnerability"
+    ],
+    "preferred_card_slugs": [
+      "overturn-lane",
+      "review-exposure",
+      "umpire-blame-language"
+    ],
+    "max_cards": 8
+  },
+  {
+    "surface_key": "visualizer",
+    "surface_task_family": "question_to_visual_plan",
+    "audience_mode": "fan",
+    "required_card_slugs": [],
+    "preferred_card_slugs": [
+      "challenge-opportunity",
+      "challenge-rhythm",
+      "overturn-lane",
+      "inventory-deployment"
+    ],
+    "max_cards": 6
+  },
+  {
+    "surface_key": "visualizer",
+    "surface_task_family": "question_to_visual_plan",
+    "audience_mode": "org",
+    "required_card_slugs": [],
+    "preferred_card_slugs": [
+      "challenge-opportunity",
+      "challenge-rhythm",
+      "overturn-lane",
+      "inventory-deployment",
+      "challenge-value"
+    ],
+    "max_cards": 6
+  }
+]
