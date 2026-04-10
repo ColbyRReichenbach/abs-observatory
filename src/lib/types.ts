@@ -344,6 +344,7 @@ export type TeamDecisionValueSummary = {
   capturedValueShare: number;
   wastedValueShare: number;
   highPressureExpectedValueShare: number;
+  lateCloseChallengeShare: number;
   lateCloseExpectedValueShare: number;
   bestDecisionWindowLabel: string | null;
   bestDecisionWindowExpectedValue: number | null;
@@ -881,6 +882,7 @@ export type TeamLeaderboardEntry = TeamSummary & {
   capturedValueShare: number;
   wastedValueShare: number;
   highPressureExpectedValueShare: number;
+  lateCloseChallengeShare: number;
   lateCloseExpectedValueShare: number;
   bestDecisionWindowLabel: string | null;
   bestDecisionWindowExpectedValue: number | null;

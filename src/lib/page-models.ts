@@ -26,6 +26,7 @@ export type TeamStyleMetric = {
   capturedValueShare: number;
   wastedValueShare: number;
   highPressureExpectedValueShare: number;
+  lateCloseChallengeShare: number;
   lateCloseExpectedValueShare: number;
   bestDecisionWindowLabel: string | null;
   bestDecisionWindowExpectedValue: number | null;
@@ -88,6 +89,7 @@ export function buildTeamLeaderboardEntries(
       capturedValueShare: 0,
       wastedValueShare: 0,
       highPressureExpectedValueShare: 0,
+      lateCloseChallengeShare: 0,
       lateCloseExpectedValueShare: 0,
       bestDecisionWindowLabel: null,
       bestDecisionWindowExpectedValue: null,
@@ -130,6 +132,7 @@ export function buildTeamLeaderboardEntries(
       capturedValueShare: metric.capturedValueShare,
       wastedValueShare: metric.wastedValueShare,
       highPressureExpectedValueShare: metric.highPressureExpectedValueShare,
+      lateCloseChallengeShare: metric.lateCloseChallengeShare,
       lateCloseExpectedValueShare: metric.lateCloseExpectedValueShare,
       bestDecisionWindowLabel: metric.bestDecisionWindowLabel,
       bestDecisionWindowExpectedValue: metric.bestDecisionWindowExpectedValue,
