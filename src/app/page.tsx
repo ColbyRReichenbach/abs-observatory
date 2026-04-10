@@ -286,7 +286,7 @@ async function HomePageBody({
                 <p className="mt-2 text-lg font-semibold text-[var(--ink-0)]">{bigSpotDecisionClub?.teamName ?? "No signal"}</p>
                 <p className="mt-1 text-xs text-[var(--ink-3)]">
                   {bigSpotDecisionClub
-                    ? `${formatOrgOperatorValue(bigSpotDecisionClub)} · ${(bigSpotDecisionClub.lateCloseExpectedValueShare * 100).toFixed(0)}% late-game EV share`
+                    ? `${formatOrgOperatorValue(bigSpotDecisionClub)} · ${formatCompactShare(bigSpotDecisionClub.lateCloseExpectedValueShare)} late-close positive EV share`
                     : "High-leverage review signals will appear once modeled samples stabilize."}
                 </p>
               </div>
@@ -562,4 +562,12 @@ function formatOrgOperatorValue(team: {
     return `${team.avgRunExpectancyDelta >= 0 ? "+" : ""}${team.avgRunExpectancyDelta.toFixed(3)} RE`;
   }
   return null;
+}
+
+function formatCompactShare(value: number) {
+  const pct = value * 100;
+  if (pct <= 0) return "0%";
+  if (pct < 1) return "<1%";
+  if (pct < 10) return `${pct.toFixed(1)}%`;
+  return `${Math.round(pct)}%`;
 }
