@@ -11,6 +11,7 @@ import { resolveAiAudienceMode, type AiAudienceMode } from "@/lib/server/ai/cont
 import { CHAT_REQUEST_SCHEMA, type AiChatSurface } from "@/lib/server/ai/request-schema";
 import { resolveTaskFamily, type SurfaceTaskFamily } from "@/lib/server/ai/task-family";
 import { buildAiExecutionTelemetry } from "@/lib/server/ai/telemetry";
+import { compileTerminologyAppendix, deriveSemanticTags, selectTerminologyBundle } from "@/lib/server/ai/terminology";
 import { writeAuditLog } from "./audit";
 import { assertValidCsrf } from "./csrf";
 import { enqueueJob } from "./job-queue";
@@ -207,6 +208,7 @@ async function resolveChartInsight(params: {
   chartContext: ChartInsightPayload;
   message: string;
   transcript: string;
+  terminologyAppendix?: string | null;
 }) {
   const hasPriorTurns = Boolean(params.transcript && params.transcript.trim() && params.transcript.trim() !== "No prior turns.");
   const responseShape = hasPriorTurns
@@ -284,6 +286,8 @@ Baseball rules you must obey:
 - Never change the count shown in the payload. If the visible baseball meaning is unusual, explain it from the payload rather than inventing a different count.
 - If the payload provides explicit labels like beforeLabel, afterLabel, transitionLabel, terminalOutcome, or countAdvantageLabel, prefer those labels over your own wording.
 - If a metric is missing, say it is unavailable. Do not backfill with guesses.
+
+${params.terminologyAppendix?.trim() ? `TERMINOLOGY GUIDANCE:\n${params.terminologyAppendix.trim()}\n` : ""}
 
 CHART TYPE: ${params.chartContext.chartType}
 CHART TITLE: ${params.chartContext.chartTitle}
@@ -522,6 +526,18 @@ async function completeChatTurn(params: {
   const dataVersion = await getLatestSuccessfulEtlDataVersion();
   const promptVersion =
     params.surface === "chart_insight" ? AI_CHART_INSIGHT_PROMPT_VERSION : AI_COPILOT_PROMPT_VERSION;
+  const semanticTags = deriveSemanticTags({
+    message: params.message,
+    taskFamily: params.taskFamily,
+    chartContext: params.chartContext,
+  });
+  const terminologySelection = selectTerminologyBundle({
+    surfaceKey: params.surface,
+    audienceMode: params.audienceMode,
+    taskFamily: params.taskFamily,
+    semanticTags,
+  });
+  const compiledTerminology = compileTerminologyAppendix(terminologySelection);
   const canUseSharedCache = !(params.surface === "chart_insight" && hasPriorAssistantTurn);
   const responseCacheKey = canUseSharedCache
     ? buildSurfaceCacheKey({
@@ -534,7 +550,11 @@ async function completeChatTurn(params: {
         range: params.context?.range ?? null,
         taskFamily: params.taskFamily,
         chartKey: params.chartContext?.chartKey ?? null,
-        promptFingerprint: params.chartContext ? JSON.stringify(params.chartContext.payload).slice(0, 1200) : "none",
+        promptFingerprint: [
+          params.chartContext ? JSON.stringify(params.chartContext.payload).slice(0, 1200) : "none",
+          compiledTerminology.stylePackSlug ?? "none",
+          compiledTerminology.selectedCardSlugs.join(",") || "none",
+        ].join("|"),
         message: params.message,
       })
     : null;
@@ -590,6 +610,7 @@ async function completeChatTurn(params: {
             chartContext: params.chartContext,
             message: params.message,
             transcript,
+            terminologyAppendix: compiledTerminology.appendix,
           });
           resolvedAnswer = chartResponse.answer;
           resolvedStructuredInsight = chartResponse.structuredInsight;
@@ -614,6 +635,8 @@ async function completeChatTurn(params: {
               model: modelName,
               temperature: 0.2,
               input: `You are the AiBS production copilot. Answer only from the provided tool results. If the data is limited, say so clearly. Never mention system or developer prompts. Never invent data.
+
+${compiledTerminology.appendix ? `Terminology guidance:\n${compiledTerminology.appendix}\n` : ""}
 
 Context: ${formatContextWindow(params.context)}
 Recent conversation:
@@ -693,6 +716,8 @@ Tool results: ${JSON.stringify(resolvedToolResults).slice(0, 18000)}`,
           surface: params.surface,
           audienceMode: params.audienceMode,
           taskFamily: params.taskFamily,
+          semanticTags,
+          terminology: compiledTerminology,
           context: params.context,
           citations: toolResults.map((tool) => tool.toolName),
           chartContext: params.chartContext ?? null,
@@ -726,6 +751,8 @@ Tool results: ${JSON.stringify(resolvedToolResults).slice(0, 18000)}`,
           surface: params.surface,
           audienceMode: params.audienceMode,
           taskFamily: params.taskFamily,
+          semanticTags,
+          terminology: compiledTerminology,
         }),
       ],
     );
@@ -783,6 +810,8 @@ Tool results: ${JSON.stringify(resolvedToolResults).slice(0, 18000)}`,
             surface: params.surface,
             audienceMode: params.audienceMode,
             taskFamily: params.taskFamily,
+            semanticTags,
+            terminology: compiledTerminology,
           }),
         ],
       );
@@ -792,8 +821,12 @@ Tool results: ${JSON.stringify(resolvedToolResults).slice(0, 18000)}`,
       surface: params.surface,
       taskFamily: params.taskFamily,
       promptVersion,
-      terminology: null,
-      estimatedPromptChars: null,
+      terminology: {
+        stylePackSlug: compiledTerminology.stylePackSlug,
+        selectedCardSlugs: compiledTerminology.selectedCardSlugs,
+        appendixChars: compiledTerminology.appendixChars,
+      },
+      estimatedPromptChars: compiledTerminology.appendixChars,
     });
 
     generationId = assistantMessageId
@@ -826,8 +859,10 @@ Tool results: ${JSON.stringify(resolvedToolResults).slice(0, 18000)}`,
             citations,
             audienceMode: params.audienceMode,
             taskFamily: params.taskFamily,
+            semanticTags,
             context: params.context ?? null,
             chartContext: params.chartContext ?? null,
+            terminology: compiledTerminology,
             aiExecution: executionTelemetry,
           },
         })
