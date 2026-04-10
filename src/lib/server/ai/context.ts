@@ -18,5 +18,6 @@ export type AiSurfaceExecutionContext = {
 
 export function resolveAiAudienceMode(viewer?: ViewerProfile | null): AiAudienceMode {
   if (!viewer) return "fan";
-  return viewer.roles.includes("owner") || viewer.roles.includes("admin") ? "org" : "fan";
+  const roles = Array.isArray(viewer.roles) ? viewer.roles : [];
+  return roles.includes("owner") || roles.includes("admin") ? "org" : "fan";
 }
