@@ -436,6 +436,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
   },
   {
     slug: "data-layer",
+    aliases: ["sources-and-credits"],
     title: "The Data Layer",
     dek: "Where I get the data, how I transform it, how the database is organized, and why the storage and query strategy look the way they do.",
     authorName: "Colby Reichenbach",
@@ -550,63 +551,6 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
       },
     ],
     relatedSlugs: ["model-layer", "ai-layer", "sources-and-credits"],
-  },
-  {
-    slug: "sources-and-credits",
-    title: "The Data Layer",
-    dek: "Where AiBS data comes from, how it is structured, and what gets transformed before it becomes product truth.",
-    authorName: "Colby Reichenbach",
-    articleType: "explainer",
-    publishedAt: "2026-03-24",
-    publishedLabel: "Data Layer",
-    readTime: "4 min read",
-    accentClass: "text-blue-900",
-    heroEyebrow: "Transparency",
-    heroHeading: "AiBS depends on public baseball data, but the product is built on its own warehouse, transforms, and validation rules.",
-    leadParagraphs: [
-      "AiBS uses public baseball-facing data sources, but the current system is not just a thin frontend over public endpoints. The product now runs through a warehouse-first data platform with GitHub Actions as the live polling authority, raw ingest in the warehouse, canonical modeling tables, split-aware historical builds, and a separate serving database for the live product.",
-      "That distinction matters because the trust question is not only 'where did the data originate?' It is also 'how was it transformed, tested, and published before it became product truth?' The current data layer is designed to answer that second question much more clearly than before.",
-      "This page exists to make the provenance, structure, and limits explicit instead of hiding them behind generic source language.",
-    ],
-    quickFacts: [
-      { label: "Architecture", value: "Warehouse-first modeling with a separate serving database" },
-      { label: "Live ingest authority", value: "GitHub Actions polling into warehouse" },
-      { label: "Canonical modeling table", value: "One-row-per-taken-pitch called-pitch decision dataset" },
-      { label: "Affiliation", value: "Independent product, not MLB-affiliated" },
-    ],
-    sections: [
-      {
-        eyebrow: "Pipeline",
-        heading: "Public inputs become AiBS data only after transforms, contracts, and checks.",
-        paragraphs: [
-          "The current data platform separates warehouse and serving roles. GitHub Actions polls live baseball data into the warehouse first. Raw Statcast history, ABS challenge events, live MLB feed context, and canonical modeling tables live there. Curated serving tables and compact model outputs are then published into the product-facing database.",
-          "That architecture matters because it gives the model layer one modeling authority instead of a laptop-first workflow or a live product database doubling as a warehouse. It also makes it easier to backfill, audit, reconcile, and reproduce what the product was actually using at a given moment.",
-        ],
-      },
-      {
-        eyebrow: "Canonical truth",
-        heading: "The current key dataset is called-pitch decisions, not just raw challenge logs.",
-        paragraphs: [
-          "The biggest data-layer improvement in the current system is the canonical called-pitch dataset. It stores one row per taken pitch with game state, count, bases, score, team context, pitch traits, observed call, modeled ABS-style geometry, and challenge outcome when a pitch was actually challenged.",
-          "That matters because overturn and challenge analysis should not be built only from a small challenge-events table. The current system now combines historical pitch context with real challenge results, which is a much better foundation for both overturn modeling and retrospective challenge evaluation.",
-        ],
-      },
-      {
-        eyebrow: "Rights and posture",
-        heading: "AiBS is still independent and referential in how it uses baseball entities.",
-        paragraphs: [
-          "Team names, abbreviations, colors, and visual identifiers appear so the product can identify clubs and present baseball information clearly. Those references are descriptive. They do not imply ownership, partnership, or endorsement.",
-          "The same principle applies to MLB rules and ABS explainers. AiBS cites those public materials because the product is trying to explain the league's system clearly, not because it claims league ownership over that explanation.",
-        ],
-      },
-    ],
-    sources: [
-      { label: "MLB: Ball-Strike Challenge System for 2026", href: "https://www.mlb.com/news/ball-strike-challenge-system-2026" },
-      { label: "MLB: ABS Challenge System 2026 overview", href: "https://www.mlb.com/news/abs-challenge-system-2026-mlb-season-overview" },
-      { label: "MLB Glossary: Strike Zone", href: "https://www.mlb.com/glossary/rules/strike-zone" },
-      { label: "MLB Stats API", href: "https://statsapi.mlb.com/" },
-    ],
-    relatedSlugs: ["about-aibs", "abs-explained", "trust-audits-and-monitoring"],
   },
 ];
 
