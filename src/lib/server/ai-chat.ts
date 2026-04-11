@@ -249,22 +249,32 @@ function getAnonymousRateLimitSubject(request: Request) {
   return forwarded || realIp || cloudflareIp || "anonymous";
 }
 
-async function getAiViewerState(userId: string): Promise<Pick<ViewerProfile, "userId" | "isVerified" | "aiBannedAt" | "aiSuspendedUntil"> | null> {
+async function getAiViewerState(
+  userId: string,
+): Promise<Pick<ViewerProfile, "userId" | "isVerified" | "aiBannedAt" | "aiSuspendedUntil" | "roles"> | null> {
   const row = await sqlOne<{
     userid: string;
     isverified: boolean;
     aibannedat: string | null;
     aisuspendeduntil: string | null;
+    roles: string[] | null;
   }>(
     `
     SELECT
       u.user_id AS userId,
       u.is_verified AS isVerified,
       p.ai_banned_at AS aiBannedAt,
-      p.ai_suspended_until AS aiSuspendedUntil
+      p.ai_suspended_until AS aiSuspendedUntil,
+      ARRAY_REMOVE(ARRAY_AGG(DISTINCT r.role), NULL) AS roles
     FROM product.users u
     LEFT JOIN product.user_profiles p ON p.user_id = u.user_id
+    LEFT JOIN product.user_roles r ON r.user_id = u.user_id
     WHERE u.user_id = $1
+    GROUP BY
+      u.user_id,
+      u.is_verified,
+      p.ai_banned_at,
+      p.ai_suspended_until
     `,
     [userId],
   );
@@ -276,12 +286,13 @@ async function getAiViewerState(userId: string): Promise<Pick<ViewerProfile, "us
     isVerified: row.isverified,
     aiBannedAt: row.aibannedat,
     aiSuspendedUntil: row.aisuspendeduntil,
+    roles: row.roles ?? [],
   };
 }
 
 function assertViewerCanUseAi(
-  viewer: Pick<ViewerProfile, "userId" | "isVerified" | "aiBannedAt" | "aiSuspendedUntil"> | null,
-): asserts viewer is Pick<ViewerProfile, "userId" | "isVerified" | "aiBannedAt" | "aiSuspendedUntil"> {
+  viewer: Pick<ViewerProfile, "userId" | "isVerified" | "aiBannedAt" | "aiSuspendedUntil" | "roles"> | null,
+): asserts viewer is Pick<ViewerProfile, "userId" | "isVerified" | "aiBannedAt" | "aiSuspendedUntil" | "roles"> {
   if (!viewer) {
     throw new AiPolicyError("Authentication required", AI_ERROR_CODES.AUTH_REQUIRED, 401);
   }
@@ -691,14 +702,26 @@ export async function executeQueuedChatJob(payload: {
   conversationId: string;
   userMessageId: string | null;
   message: string;
-  audienceMode: AiAudienceMode;
-  taskFamily: SurfaceTaskFamily;
+  audienceMode?: AiAudienceMode;
+  taskFamily?: SurfaceTaskFamily;
   surface?: AiChatSurface;
   context?: CopilotContext;
   chartContext?: ChartInsightPayload;
 }) {
   const viewer = await getAiViewerState(payload.userId);
   assertViewerCanUseAi(viewer);
+  const surface = payload.surface ?? "copilot";
+  const audienceMode = payload.audienceMode ?? resolveAiAudienceMode(viewer);
+  const taskFamily =
+    payload.audienceMode && payload.taskFamily
+      ? payload.taskFamily
+      : resolveTaskFamily({
+          surface,
+          message: payload.message,
+          audienceMode,
+          context: payload.context,
+          chartContext: payload.chartContext,
+        });
   const modelName = process.env.OPENAI_SUMMARY_MODEL || "gpt-4.1-mini";
   const usagePolicy = await assertAiUsageAllowed({
     userId: payload.userId,
@@ -708,7 +731,9 @@ export async function executeQueuedChatJob(payload: {
   });
   return completeChatTurn({
     ...payload,
-    surface: payload.surface ?? "copilot",
+    surface,
+    audienceMode,
+    taskFamily,
     planCode: usagePolicy.entitlement.planCode,
     featureKey: "ai_chat_heavy",
   });

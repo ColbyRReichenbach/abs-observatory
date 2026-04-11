@@ -268,6 +268,43 @@ describe("ai-chat", () => {
     expect(resolveToolResultsMock).not.toHaveBeenCalled();
   });
 
+  it("recomputes missing queue context for legacy heavy chat jobs", async () => {
+    const { executeQueuedChatJob } = await import("@/lib/server/ai-chat");
+    let assistantMetadata: Record<string, unknown> | null = null;
+
+    sqlOneMock.mockResolvedValueOnce({
+      userid: "user-1",
+      isverified: true,
+      aibannedat: null,
+      aisuspendeduntil: null,
+      roles: ["admin"],
+    });
+    resolveToolResultsMock.mockResolvedValueOnce([]);
+    withTransactionMock.mockImplementation(async (callback) =>
+      callback(async (statement: string, params?: unknown[]) => {
+        if (statement.includes("INSERT INTO ai.messages") && statement.includes("'assistant'")) {
+          assistantMetadata = JSON.parse(String(params?.[3] ?? "{}")) as Record<string, unknown>;
+          return [{ message_id: "assistant-1" }];
+        }
+        return [];
+      }),
+    );
+
+    const result = await executeQueuedChatJob({
+      userId: "user-1",
+      conversationId: "conversation-1",
+      userMessageId: "message-1",
+      message: "Compare the Twins and Yankees challenge timing.",
+      surface: "copilot",
+      context: { scope: "global", range: "season" },
+    });
+
+    expect(result.safetyDisposition).toBe("allowed");
+    expect(result.answer).not.toContain("Task family: undefined");
+    expect(assistantMetadata?.audienceMode).toBe("org");
+    expect(assistantMetadata?.taskFamily).toBe("comparison");
+  });
+
   it("honors the global AI kill switch", async () => {
     process.env.AI_GLOBAL_KILL_SWITCH = "true";
     const { AiPolicyError, runChat } = await import("@/lib/server/ai-chat");
