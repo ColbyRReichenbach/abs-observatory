@@ -292,6 +292,113 @@ export async function getAiModelBreakdown(filters: AdminAiAnalyticsFilters) {
   );
 }
 
+export async function getAiPromptRegistryBreakdown(filters: AdminAiAnalyticsFilters) {
+  const { sql: ctes, values } = filteredCtes(filters);
+
+  return sql<{
+    surfacekey: string;
+    promptversion: string;
+    promptlabel: string;
+    terminologymode: string;
+    generations: string;
+    avgpromptchars: string;
+    terminologyhitrate: string;
+  }>(
+    `
+    ${ctes}
+    SELECT
+      ge.surface_key AS surfaceKey,
+      COALESCE(ge.metadata->'promptRegistry'->>'version', ge.prompt_version, 'unknown') AS promptVersion,
+      COALESCE(ge.metadata->'promptRegistry'->>'label', 'Unknown prompt') AS promptLabel,
+      COALESCE(ge.metadata->'promptRegistry'->>'terminologyMode', 'unknown') AS terminologyMode,
+      COUNT(*)::text AS generations,
+      ROUND(
+        COALESCE(
+          AVG(NULLIF(ge.metadata->'aiExecution'->>'estimatedPromptChars', '')::numeric),
+          0
+        )
+      )::text AS avgPromptChars,
+      COALESCE(
+        AVG(
+          CASE
+            WHEN COALESCE(ge.metadata->'terminology'->>'stylePackSlug', ge.metadata->'aiExecution'->'terminology'->>'stylePackSlug') IS NOT NULL
+              OR jsonb_array_length(
+                COALESCE(
+                  ge.metadata->'terminology'->'selectedCardSlugs',
+                  ge.metadata->'aiExecution'->'terminology'->'selectedCardSlugs',
+                  '[]'::jsonb
+                )
+              ) > 0
+            THEN 1
+            ELSE 0
+          END
+        ),
+        0
+      )::text AS terminologyHitRate
+    FROM filtered_generations ge
+    GROUP BY
+      ge.surface_key,
+      COALESCE(ge.metadata->'promptRegistry'->>'version', ge.prompt_version, 'unknown'),
+      COALESCE(ge.metadata->'promptRegistry'->>'label', 'Unknown prompt'),
+      COALESCE(ge.metadata->'promptRegistry'->>'terminologyMode', 'unknown')
+    ORDER BY COUNT(*) DESC, ge.surface_key ASC, promptVersion ASC
+    `,
+    values,
+  ).then((rows) =>
+    rows.map((row) => ({
+      surfaceKey: row.surfacekey,
+      promptVersion: row.promptversion,
+      promptLabel: row.promptlabel,
+      terminologyMode: row.terminologymode,
+      generations: Number(row.generations),
+      avgPromptChars: Number(row.avgpromptchars),
+      terminologyHitRate: Number(row.terminologyhitrate),
+    })),
+  );
+}
+
+export async function getAiTerminologyCardBreakdown(filters: AdminAiAnalyticsFilters) {
+  const { sql: ctes, values } = filteredCtes(filters);
+
+  return sql<{
+    cardslug: string;
+    generations: string;
+    surfacecount: string;
+  }>(
+    `
+    ${ctes},
+    card_usage AS (
+      SELECT
+        ge.generation_id,
+        ge.surface_key,
+        jsonb_array_elements_text(
+          COALESCE(
+            ge.metadata->'terminology'->'selectedCardSlugs',
+            ge.metadata->'aiExecution'->'terminology'->'selectedCardSlugs',
+            '[]'::jsonb
+          )
+        ) AS cardSlug
+      FROM filtered_generations ge
+    )
+    SELECT
+      cardSlug,
+      COUNT(DISTINCT generation_id)::text AS generations,
+      COUNT(DISTINCT surface_key)::text AS surfaceCount
+    FROM card_usage
+    GROUP BY cardSlug
+    ORDER BY COUNT(DISTINCT generation_id) DESC, cardSlug ASC
+    LIMIT 20
+    `,
+    values,
+  ).then((rows) =>
+    rows.map((row) => ({
+      cardSlug: row.cardslug,
+      generations: Number(row.generations),
+      surfaceCount: Number(row.surfacecount),
+    })),
+  );
+}
+
 export async function getAiFeedbackBreakdown(filters: AdminAiAnalyticsFilters) {
   const { sql: ctes, values } = filteredCtes(filters);
 
