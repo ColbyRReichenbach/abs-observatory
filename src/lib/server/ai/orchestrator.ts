@@ -2,6 +2,7 @@ import type OpenAI from "openai";
 
 import type { ChartInsightPayload, StructuredChartInsight } from "@/lib/chart-insight-payload";
 import type { CopilotContext } from "@/lib/copilot-context";
+import type { AIVisualizerPlan } from "@/lib/types";
 
 import type { AiAudienceMode } from "./context";
 import type { AiChatSurface } from "./request-schema";
@@ -12,6 +13,7 @@ export type SurfaceRunnerResult = {
   confidence: "low" | "medium" | "high";
   citations: string[];
   structuredInsight?: StructuredChartInsight | null;
+  structuredPlan?: AIVisualizerPlan | null;
   toolResults?: Array<{ toolName: string; payload: unknown }>;
   modelName?: string;
   usage?: {

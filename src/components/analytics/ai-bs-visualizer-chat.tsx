@@ -272,14 +272,19 @@ export function AIBSVisualizerChat({
                   </div>
                 </div>
 
-                <div className="border-t border-gray-100 bg-white px-10 py-6">
-                  <AIFeedback
-                    assistantMessageId={result.assistantMessageId}
-                    generationId={result.generationId}
-                    conversationId={result.conversationId}
-                    variant="compact"
-                  />
-                </div>
+                {result.assistantMessageId ? (
+                  <div className="border-t border-gray-100 bg-white px-10 py-6">
+                    <AIFeedback
+                      surface="visualizer"
+                      targetType="ai_message"
+                      targetId={result.assistantMessageId}
+                      generationId={result.generationId}
+                      conversationId={result.conversationId}
+                      messageId={result.assistantMessageId}
+                      prompt="Visualizer brief quality"
+                    />
+                  </div>
+                ) : null}
               </div>
             </motion.div>
           ) : null}
