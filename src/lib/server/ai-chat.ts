@@ -12,8 +12,9 @@ import { runChartInsightSurface } from "@/lib/server/ai/surfaces/chart-insight";
 import { runCopilotSurface } from "@/lib/server/ai/surfaces/copilot";
 import { runVisualizerSurface } from "@/lib/server/ai/surfaces/visualizer";
 import { resolveTaskFamily, type SurfaceTaskFamily } from "@/lib/server/ai/task-family";
-import { buildAiExecutionTelemetry } from "@/lib/server/ai/telemetry";
+import { buildAiExecutionTelemetry, estimateAiPromptChars } from "@/lib/server/ai/telemetry";
 import { compileTerminologyAppendix, deriveSemanticTags, selectTerminologyBundle } from "@/lib/server/ai/terminology";
+import type { AIVisualizerPlan } from "@/lib/types";
 import { writeAuditLog } from "./audit";
 import { assertValidCsrf } from "./csrf";
 import { enqueueJob } from "./job-queue";
@@ -58,6 +59,7 @@ export type ChatResponse = {
   modelName?: string;
   answer: string;
   structuredInsight?: StructuredChartInsight | null;
+  structuredPlan?: AIVisualizerPlan | null;
   toolResults: Array<{ toolName: string; payload: unknown }>;
   citations: string[];
   safetyDisposition: "allowed" | "blocked";
@@ -362,6 +364,25 @@ async function completeChatTurn(params: {
     semanticTags,
   });
   const compiledTerminology = compileTerminologyAppendix(terminologySelection);
+  const contextWindow = formatContextWindow(params.context);
+  const executionTelemetry = buildAiExecutionTelemetry({
+    surface: params.surface,
+    taskFamily: params.taskFamily,
+    promptVersion,
+    terminology: {
+      stylePackSlug: compiledTerminology.stylePackSlug,
+      selectedCardSlugs: compiledTerminology.selectedCardSlugs,
+      appendixChars: compiledTerminology.appendixChars,
+    },
+    estimatedPromptChars: estimateAiPromptChars({
+      surface: params.surface,
+      message: params.message,
+      transcript,
+      terminologyAppendix: compiledTerminology.appendix,
+      contextWindow,
+      chartContext: params.chartContext,
+    }),
+  });
   const canUseSharedCache = !(params.surface === "chart_insight" && hasPriorAssistantTurn);
   const responseCacheKey = canUseSharedCache
     ? buildSurfaceCacheKey({
@@ -385,6 +406,7 @@ async function completeChatTurn(params: {
   const cached = getCachedValue<{
     answer: string;
     structuredInsight?: StructuredChartInsight | null;
+    structuredPlan?: AIVisualizerPlan | null;
     toolResults: Array<{ toolName: string; payload: unknown }>;
     citations: string[];
     confidence: "low" | "medium" | "high";
@@ -402,11 +424,13 @@ async function completeChatTurn(params: {
     | undefined;
   let citations: string[] = [];
   let structuredInsight: StructuredChartInsight | null = null;
+  let structuredPlan: AIVisualizerPlan | null = null;
 
   if (cached) {
     toolResults = cached.toolResults;
     answer = cached.answer;
     structuredInsight = cached.structuredInsight ?? null;
+    structuredPlan = cached.structuredPlan ?? null;
     citations = cached.citations;
     confidence = cached.confidence;
     modelName = cached.modelName || "cache";
@@ -442,6 +466,7 @@ async function completeChatTurn(params: {
       toolResults = uncached.toolResults;
       answer = uncached.answer;
       structuredInsight = uncached.structuredInsight ?? null;
+      structuredPlan = uncached.structuredPlan ?? null;
       confidence = uncached.confidence;
       usage = uncached.usage;
     } catch (error) {
@@ -459,6 +484,7 @@ async function completeChatTurn(params: {
         {
           answer,
           structuredInsight,
+          structuredPlan,
           toolResults,
           citations,
           confidence,
@@ -494,12 +520,14 @@ async function completeChatTurn(params: {
           surface: params.surface,
           audienceMode: params.audienceMode,
           taskFamily: params.taskFamily,
+          aiExecution: executionTelemetry,
           semanticTags,
           terminology: compiledTerminology,
           context: params.context,
           citations: toolResults.map((tool) => tool.toolName),
           chartContext: params.chartContext ?? null,
           structuredInsight,
+          structuredPlan,
         }),
       ],
     );
@@ -529,6 +557,7 @@ async function completeChatTurn(params: {
           surface: params.surface,
           audienceMode: params.audienceMode,
           taskFamily: params.taskFamily,
+          aiExecution: executionTelemetry,
           semanticTags,
           terminology: compiledTerminology,
         }),
@@ -588,24 +617,13 @@ async function completeChatTurn(params: {
             surface: params.surface,
             audienceMode: params.audienceMode,
             taskFamily: params.taskFamily,
+            aiExecution: executionTelemetry,
             semanticTags,
             terminology: compiledTerminology,
           }),
         ],
       );
     }
-
-    const executionTelemetry = buildAiExecutionTelemetry({
-      surface: params.surface,
-      taskFamily: params.taskFamily,
-      promptVersion,
-      terminology: {
-        stylePackSlug: compiledTerminology.stylePackSlug,
-        selectedCardSlugs: compiledTerminology.selectedCardSlugs,
-        appendixChars: compiledTerminology.appendixChars,
-      },
-      estimatedPromptChars: compiledTerminology.appendixChars,
-    });
 
     generationId = assistantMessageId
       ? await recordAiGenerationEventWithQuery(query, {
@@ -641,6 +659,7 @@ async function completeChatTurn(params: {
             context: params.context ?? null,
             chartContext: params.chartContext ?? null,
             terminology: compiledTerminology,
+            structuredPlan,
             aiExecution: executionTelemetry,
           },
         })
@@ -654,6 +673,7 @@ async function completeChatTurn(params: {
     modelName: cached ? "cache" : modelName,
     answer,
     structuredInsight,
+    structuredPlan,
     toolResults,
     citations,
     safetyDisposition: "allowed",
