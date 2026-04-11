@@ -7,7 +7,7 @@ import { Activity, AlertCircle, FileText, Loader2, Send } from "lucide-react";
 import { AIFeedback } from "@/components/ai-feedback";
 import { BaseballSpinner } from "@/components/baseball-spinner";
 import { AiBSIcon } from "@/components/ui/aibs-icon";
-import type { AIChatResponse } from "@/lib/types";
+import type { AIChatResponse, AIVisualizerPlan } from "@/lib/types";
 
 export function AIBSVisualizerChat({
   context,
@@ -21,6 +21,7 @@ export function AIBSVisualizerChat({
   const [result, setResult] = useState<{
     query: string;
     answer: string;
+    structuredPlan: AIVisualizerPlan | null;
     citations: string[];
     toolResults: Array<{ toolName: string; payload: unknown }>;
     conversationId: string;
@@ -54,6 +55,7 @@ export function AIBSVisualizerChat({
       setResult({
         query,
         answer: payload.answer,
+        structuredPlan: payload.structuredPlan ?? null,
         citations: payload.citations,
         toolResults: payload.toolResults,
         conversationId: payload.conversationId,
@@ -169,11 +171,58 @@ export function AIBSVisualizerChat({
                           Recommended Output
                         </p>
                         <p className="text-lg font-display uppercase tracking-tight text-gray-900">
-                          Analyst Brief
+                          {result.structuredPlan?.chartType ?? "Analyst Brief"}
                         </p>
                       </div>
                     </div>
-                    <p className="text-sm leading-relaxed text-gray-700">{result.answer}</p>
+                    {result.structuredPlan ? (
+                      <div className="space-y-4 text-sm text-gray-700">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Why This Chart</p>
+                          <p className="mt-1 leading-relaxed">{result.structuredPlan.whyThisChart}</p>
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">X-Axis</p>
+                            <p className="mt-1 leading-relaxed">{result.structuredPlan.xAxis}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Y-Axis</p>
+                            <p className="mt-1 leading-relaxed">{result.structuredPlan.yAxis}</p>
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Grouping</p>
+                          <p className="mt-1 leading-relaxed">{result.structuredPlan.grouping}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Filters</p>
+                          <ul className="mt-2 space-y-2">
+                            {result.structuredPlan.filters.map((filter) => (
+                              <li key={filter}>- {filter}</li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Signals To Watch</p>
+                          <ul className="mt-2 space-y-2">
+                            {result.structuredPlan.signalsToWatch.map((signal) => (
+                              <li key={signal}>- {signal}</li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Caveats</p>
+                          <ul className="mt-2 space-y-2">
+                            {result.structuredPlan.caveats.map((caveat) => (
+                              <li key={caveat}>- {caveat}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm leading-relaxed text-gray-700">{result.answer}</p>
+                    )}
                   </div>
 
                   <div className="space-y-4">
@@ -217,37 +266,20 @@ export function AIBSVisualizerChat({
                           ))}
                         </ul>
                       ) : (
-                        <p className="text-xs text-gray-500">This brief did not return explicit citations.</p>
+                        <p className="text-xs text-gray-500">No citations available for this brief.</p>
                       )}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-col items-center justify-between gap-4 border-t border-gray-50 bg-gray-50/50 px-10 py-6 md:flex-row">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">
-                      Text Brief Only
-                    </p>
-                  </div>
-                  <p className="text-center text-[10px] font-bold italic text-gray-400 md:text-right">
-                    aiBS can recommend what to visualize here, but shared chart rendering is not enabled yet.
-                  </p>
+                <div className="border-t border-gray-100 bg-white px-10 py-6">
+                  <AIFeedback
+                    assistantMessageId={result.assistantMessageId}
+                    generationId={result.generationId}
+                    conversationId={result.conversationId}
+                    variant="compact"
+                  />
                 </div>
-                {result.assistantMessageId ? (
-                  <div className="border-t border-gray-50 px-10 py-5">
-                    <AIFeedback
-                      surface="visualizer"
-                      targetType="ai_message"
-                      targetId={result.assistantMessageId}
-                      generationId={result.generationId}
-                      conversationId={result.conversationId}
-                      messageId={result.assistantMessageId}
-                      metadata={{ context, query: result.query }}
-                      prompt="Visualization brief quality"
-                    />
-                  </div>
-                ) : null}
               </div>
             </motion.div>
           ) : null}
