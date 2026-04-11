@@ -1,4 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/server/ai-tools", () => ({
+  resolveToolResults: vi.fn().mockResolvedValue([]),
+}));
 
 import { runVisualizerSurface } from "@/lib/server/ai/surfaces/visualizer";
 

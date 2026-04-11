@@ -17,8 +17,8 @@ describe("AI terminology voice evals", () => {
     );
 
     expect(compiled.appendix).toContain("Voice Pack:");
-    expect(compiled.appendix.toLowerCase()).toContain("overturned call");
     expect(compiled.appendix.toLowerCase()).toContain("challenged call");
+    expect(compiled.appendix.toLowerCase()).toContain("baseball-native");
   });
 
   it("keeps org chart insight terminology centered on challenge value language", () => {
