@@ -54,4 +54,19 @@ describe("AI terminology runtime", () => {
     expect(compiled.appendix).toContain("Preferred Terms:");
     expect(compiled.appendixChars).toBeGreaterThan(0);
   });
+
+  it("keeps terminology selection and compilation deterministic across repeated runs", () => {
+    const input = {
+      surfaceKey: "chart_insight" as const,
+      audienceMode: "org" as const,
+      taskFamily: "inventory_deployment" as const,
+      semanticTags: ["challenge_value", "inventory_deployment", "late_close"] as const,
+    };
+
+    const first = compileTerminologyAppendix(selectTerminologyBundle(input));
+    const second = compileTerminologyAppendix(selectTerminologyBundle(input));
+
+    expect(first).toEqual(second);
+    expect(first.appendixChars).toBeLessThanOrEqual(2500);
+  });
 });

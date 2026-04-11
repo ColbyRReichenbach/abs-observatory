@@ -196,6 +196,45 @@ describe("ai-chat", () => {
     expect(result.citations).toEqual(["get_live_games"]);
   });
 
+  it("returns a structured visualizer plan through the chat entrypoint", async () => {
+    const { runChat } = await import("@/lib/server/ai-chat");
+    getViewerProfileMock.mockResolvedValueOnce({
+      userId: "user-1",
+      isVerified: true,
+      aiBannedAt: null,
+      aiSuspendedUntil: null,
+    });
+    isBaseballRelatedMock.mockReturnValueOnce(true);
+    resolveToolResultsMock.mockResolvedValueOnce([{ toolName: "get_team_summary", payload: [{ teamId: 147 }] }]);
+    sqlOneMock
+      .mockResolvedValueOnce({ conversationid: "conversation-1" })
+      .mockResolvedValueOnce({ messageid: "message-1" });
+    withTransactionMock.mockImplementation(async (callback) =>
+      callback(async (statement: string) => {
+        if (statement.includes("RETURNING message_id")) {
+          return [{ message_id: "assistant-1" }];
+        }
+        return [];
+      }),
+    );
+
+    const result = await runChat(
+      new Request("http://localhost/api/ai/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-dev-user-id": "user-1" },
+        body: JSON.stringify({
+          message: "What chart best compares the Yankees and Twins challenge timing?",
+          surface: "visualizer",
+        }),
+      }),
+    );
+
+    expect(result.safetyDisposition).toBe("allowed");
+    expect(result.structuredPlan?.chartType).toBeTruthy();
+    expect(result.answer).toContain("Chart Type:");
+    expect(result.citations).toEqual(["get_team_summary"]);
+  });
+
   it("queues heavy analytical requests instead of blocking inline", async () => {
     const { runChat } = await import("@/lib/server/ai-chat");
     getViewerProfileMock.mockResolvedValueOnce({
