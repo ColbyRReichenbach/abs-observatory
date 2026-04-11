@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 
+import { buildAiPromptRegistrySnapshot, getAiPromptDefinition } from "@/lib/ai-prompt-registry";
 import type { ChartInsightPayload, StructuredChartInsight } from "@/lib/chart-insight-payload";
 import type { CopilotContext } from "@/lib/copilot-context";
 import { formatContextWindow } from "@/lib/copilot-context";
@@ -49,8 +50,6 @@ const AI_CACHE_TTL_MS = 5 * 60 * 1000;
 const AI_MAX_REQUESTS_PER_MINUTE = 8;
 const AI_GLOBAL_REQUESTS_PER_MINUTE = 50;
 const AI_MAX_CONCURRENT_REQUESTS = 4;
-const AI_COPILOT_PROMPT_VERSION = "ai_chat_v1";
-const AI_CHART_INSIGHT_PROMPT_VERSION = "chart_insight_v2";
 
 export type ChatResponse = {
   conversationId: string;
@@ -350,8 +349,9 @@ async function completeChatTurn(params: {
   const transcript = formatConversationTranscript(transcriptRows);
   const hasPriorAssistantTurn = transcriptRows.some((message) => message.role === "assistant");
   const dataVersion = await getLatestSuccessfulEtlDataVersion();
-  const promptVersion =
-    params.surface === "chart_insight" ? AI_CHART_INSIGHT_PROMPT_VERSION : AI_COPILOT_PROMPT_VERSION;
+  const promptDefinition = getAiPromptDefinition(params.surface);
+  const promptRegistry = buildAiPromptRegistrySnapshot(params.surface);
+  const promptVersion = promptDefinition.version;
   const semanticTags = deriveSemanticTags({
     message: params.message,
     taskFamily: params.taskFamily,
@@ -520,6 +520,7 @@ async function completeChatTurn(params: {
           surface: params.surface,
           audienceMode: params.audienceMode,
           taskFamily: params.taskFamily,
+          promptRegistry,
           aiExecution: executionTelemetry,
           semanticTags,
           terminology: compiledTerminology,
@@ -557,6 +558,7 @@ async function completeChatTurn(params: {
           surface: params.surface,
           audienceMode: params.audienceMode,
           taskFamily: params.taskFamily,
+          promptRegistry,
           aiExecution: executionTelemetry,
           semanticTags,
           terminology: compiledTerminology,
@@ -617,6 +619,7 @@ async function completeChatTurn(params: {
             surface: params.surface,
             audienceMode: params.audienceMode,
             taskFamily: params.taskFamily,
+            promptRegistry,
             aiExecution: executionTelemetry,
             semanticTags,
             terminology: compiledTerminology,
@@ -658,6 +661,7 @@ async function completeChatTurn(params: {
             semanticTags,
             context: params.context ?? null,
             chartContext: params.chartContext ?? null,
+            promptRegistry,
             terminology: compiledTerminology,
             structuredPlan,
             aiExecution: executionTelemetry,

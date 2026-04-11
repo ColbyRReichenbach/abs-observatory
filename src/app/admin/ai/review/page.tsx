@@ -151,6 +151,50 @@ function SummaryPill({ label, value }: { label: string; value: string | number }
   );
 }
 
+function asObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
+function asString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function asNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
+function extractPromptDebug(generationMetadata: unknown) {
+  const metadata = asObject(generationMetadata);
+  const promptRegistry = asObject(metadata?.promptRegistry);
+  const aiExecution = asObject(metadata?.aiExecution);
+  const terminology = asObject(metadata?.terminology);
+  const executionTerminology = asObject(aiExecution?.terminology);
+
+  return {
+    promptLabel: asString(promptRegistry?.label),
+    promptSummary: asString(promptRegistry?.summary),
+    promptVersion: asString(promptRegistry?.version),
+    baseTemplateVersion: asString(promptRegistry?.baseTemplateVersion),
+    terminologyMode: asString(promptRegistry?.terminologyMode),
+    promptBodyRole: asString(promptRegistry?.promptBodyRole),
+    surfaceInstructionBlocks: asStringArray(promptRegistry?.surfaceInstructionBlocks),
+    stylePackSlug: asString(terminology?.stylePackSlug) ?? asString(executionTerminology?.stylePackSlug),
+    selectedCardSlugs:
+      asStringArray(terminology?.selectedCardSlugs).length > 0
+        ? asStringArray(terminology?.selectedCardSlugs)
+        : asStringArray(executionTerminology?.selectedCardSlugs),
+    appendix: asString(terminology?.appendix),
+    appendixChars: asNumber(terminology?.appendixChars) ?? asNumber(executionTerminology?.appendixChars),
+    semanticTags: asStringArray(metadata?.semanticTags),
+    estimatedPromptChars: asNumber(aiExecution?.estimatedPromptChars),
+  };
+}
+
 export default async function AdminAiReviewPage({
   searchParams,
 }: {
@@ -169,6 +213,7 @@ export default async function AdminAiReviewPage({
   const activeFeedbackId = feedbackId ?? feedback[0]?.feedbackId ?? null;
   const detail = activeFeedbackId ? await getAiFeedbackReviewDetail(activeFeedbackId) : null;
   const selectedTargetHref = detail ? buildTargetHref(detail) : null;
+  const promptDebug = detail ? extractPromptDebug(detail.generationMetadata) : null;
 
   return (
     <div className="space-y-8">
@@ -431,6 +476,87 @@ export default async function AdminAiReviewPage({
                     ) : null}
                   </div>
                 </div>
+
+                {promptDebug ? (
+                  <div className="grid gap-5 md:grid-cols-2">
+                    <div className="rounded-[1.5rem] border border-black/10 p-5">
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Prompt Configuration</p>
+                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        <InfoCard label="Prompt Label" value={promptDebug.promptLabel ?? "Unknown"} />
+                        <InfoCard label="Prompt Version" value={promptDebug.promptVersion ?? detail.promptVersion ?? "Unknown"} />
+                        <InfoCard label="Base Template" value={promptDebug.baseTemplateVersion ?? "Unknown"} />
+                        <InfoCard label="Prompt Body Role" value={promptDebug.promptBodyRole ?? "Unknown"} />
+                      </div>
+                      <p className="mt-4 text-sm leading-7 text-[var(--ink-2)]">
+                        {promptDebug.promptSummary ?? "No prompt summary was saved for this generation."}
+                      </p>
+                      {promptDebug.surfaceInstructionBlocks.length > 0 ? (
+                        <div className="mt-4 rounded-[1rem] bg-[var(--surface-infield)] p-4">
+                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Surface Instructions</p>
+                          <div className="mt-3 space-y-2 text-sm text-[var(--ink-2)]">
+                            {promptDebug.surfaceInstructionBlocks.map((instruction) => (
+                              <p key={instruction}>{instruction}</p>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="rounded-[1.5rem] border border-black/10 p-5">
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Terminology Selection</p>
+                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        <InfoCard label="Terminology Mode" value={promptDebug.terminologyMode ?? "Unknown"} />
+                        <InfoCard label="Style Pack" value={promptDebug.stylePackSlug ?? "None"} />
+                        <InfoCard label="Selected Cards" value={promptDebug.selectedCardSlugs.length.toString()} />
+                        <InfoCard
+                          label="Prompt Chars"
+                          value={(promptDebug.estimatedPromptChars ?? promptDebug.appendixChars ?? 0).toLocaleString()}
+                        />
+                      </div>
+
+                      {promptDebug.semanticTags.length > 0 ? (
+                        <div className="mt-4">
+                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Semantic Tags</p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {promptDebug.semanticTags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="inline-flex rounded-full bg-[var(--surface-infield)] px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-2)]"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {promptDebug.selectedCardSlugs.length > 0 ? (
+                        <div className="mt-4">
+                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Selected Cards</p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {promptDebug.selectedCardSlugs.map((slug) => (
+                              <span
+                                key={slug}
+                                className="inline-flex rounded-full bg-[var(--surface-infield)] px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-2)]"
+                              >
+                                {slug}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {promptDebug.appendix ? (
+                        <div className="mt-4 rounded-[1rem] bg-[var(--surface-infield)] p-4">
+                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Compiled Terminology Appendix</p>
+                          <pre className="mt-3 overflow-x-auto whitespace-pre-wrap text-xs leading-6 text-[var(--ink-2)]">
+                            {promptDebug.appendix}
+                          </pre>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="rounded-[1.5rem] border border-black/10 p-5">
                   <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Related Signals</p>
