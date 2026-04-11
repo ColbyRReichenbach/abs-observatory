@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ai-evals": "vitest run tests/ai-evals",
+    "test:ai-health": "node scripts/ai-health-checks.mjs",
     "test:e2e": "playwright test -c playwright.e2e.config.ts",
     "test:load": "node scripts/load-test.mjs",
     "smoke:release": "node scripts/release-smoke.mjs",

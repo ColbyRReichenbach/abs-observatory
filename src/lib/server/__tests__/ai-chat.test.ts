@@ -196,6 +196,45 @@ describe("ai-chat", () => {
     expect(result.citations).toEqual(["get_live_games"]);
   });
 
+  it("returns a structured visualizer plan through the chat entrypoint", async () => {
+    const { runChat } = await import("@/lib/server/ai-chat");
+    getViewerProfileMock.mockResolvedValueOnce({
+      userId: "user-1",
+      isVerified: true,
+      aiBannedAt: null,
+      aiSuspendedUntil: null,
+    });
+    isBaseballRelatedMock.mockReturnValueOnce(true);
+    resolveToolResultsMock.mockResolvedValueOnce([{ toolName: "get_team_summary", payload: [{ teamId: 147 }] }]);
+    sqlOneMock
+      .mockResolvedValueOnce({ conversationid: "conversation-1" })
+      .mockResolvedValueOnce({ messageid: "message-1" });
+    withTransactionMock.mockImplementation(async (callback) =>
+      callback(async (statement: string) => {
+        if (statement.includes("RETURNING message_id")) {
+          return [{ message_id: "assistant-1" }];
+        }
+        return [];
+      }),
+    );
+
+    const result = await runChat(
+      new Request("http://localhost/api/ai/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-dev-user-id": "user-1" },
+        body: JSON.stringify({
+          message: "What chart best compares the Yankees and Twins challenge timing?",
+          surface: "visualizer",
+        }),
+      }),
+    );
+
+    expect(result.safetyDisposition).toBe("allowed");
+    expect(result.structuredPlan?.chartType).toBeTruthy();
+    expect(result.answer).toContain("Chart Type:");
+    expect(result.citations).toEqual(["get_team_summary"]);
+  });
+
   it("queues heavy analytical requests instead of blocking inline", async () => {
     const { runChat } = await import("@/lib/server/ai-chat");
     getViewerProfileMock.mockResolvedValueOnce({
@@ -227,6 +266,43 @@ describe("ai-chat", () => {
     expect(result.status).toBe("queued");
     expect(result.jobRunId).toBe("job-1");
     expect(resolveToolResultsMock).not.toHaveBeenCalled();
+  });
+
+  it("recomputes missing queue context for legacy heavy chat jobs", async () => {
+    const { executeQueuedChatJob } = await import("@/lib/server/ai-chat");
+    let assistantMetadata: Record<string, unknown> | null = null;
+
+    sqlOneMock.mockResolvedValueOnce({
+      userid: "user-1",
+      isverified: true,
+      aibannedat: null,
+      aisuspendeduntil: null,
+      roles: ["admin"],
+    });
+    resolveToolResultsMock.mockResolvedValueOnce([]);
+    withTransactionMock.mockImplementation(async (callback) =>
+      callback(async (statement: string, params?: unknown[]) => {
+        if (statement.includes("INSERT INTO ai.messages") && statement.includes("'assistant'")) {
+          assistantMetadata = JSON.parse(String(params?.[3] ?? "{}")) as Record<string, unknown>;
+          return [{ message_id: "assistant-1" }];
+        }
+        return [];
+      }),
+    );
+
+    const result = await executeQueuedChatJob({
+      userId: "user-1",
+      conversationId: "conversation-1",
+      userMessageId: "message-1",
+      message: "Compare the Twins and Yankees challenge timing.",
+      surface: "copilot",
+      context: { scope: "global", range: "season" },
+    });
+
+    expect(result.safetyDisposition).toBe("allowed");
+    expect(result.answer).not.toContain("Task family: undefined");
+    expect(assistantMetadata?.audienceMode).toBe("org");
+    expect(assistantMetadata?.taskFamily).toBe("comparison");
   });
 
   it("honors the global AI kill switch", async () => {

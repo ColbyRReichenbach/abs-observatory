@@ -58,6 +58,20 @@ type DashboardProps = {
     upCount: number;
     downCount: number;
   }>;
+  promptRegistryBreakdown: Array<{
+    surfaceKey: string;
+    promptVersion: string;
+    promptLabel: string;
+    terminologyMode: string;
+    generations: number;
+    avgPromptChars: number;
+    terminologyHitRate: number;
+  }>;
+  terminologyCardBreakdown: Array<{
+    cardSlug: string;
+    generations: number;
+    surfaceCount: number;
+  }>;
   feedbackBreakdown: Array<{
     surfaceKey: string;
     bucket: string;
@@ -87,6 +101,8 @@ export function AiAnalyticsDashboard({
   dailySeries,
   surfaceBreakdown,
   modelBreakdown,
+  promptRegistryBreakdown,
+  terminologyCardBreakdown,
   feedbackBreakdown,
   failureBreakdown,
   recentNegativeFeedback,
@@ -170,6 +186,71 @@ export function AiAnalyticsDashboard({
             </BarChart>
           </ResponsiveContainer>
         </ChartPanel>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <DataPanel title="Prompt Registry Usage">
+          <table className="w-full text-left text-xs">
+            <thead className="text-[10px] uppercase tracking-[0.12em] text-[var(--ink-3)]">
+              <tr>
+                <th className="pb-3">Surface</th>
+                <th className="pb-3">Prompt</th>
+                <th className="pb-3 text-right">Chars</th>
+                <th className="pb-3 text-right">Terms</th>
+                <th className="pb-3 text-right">Runs</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-black/5 text-[var(--ink-1)]">
+              {promptRegistryBreakdown.slice(0, 12).map((row) => (
+                <tr key={`${row.surfaceKey}-${row.promptVersion}`}>
+                  <td className="py-3 font-semibold">{row.surfaceKey}</td>
+                  <td className="py-3">
+                    <div className="font-semibold">{row.promptVersion}</div>
+                    <div className="text-[10px] text-[var(--ink-3)]">{row.promptLabel}</div>
+                  </td>
+                  <td className="py-3 text-right font-mono">{row.avgPromptChars.toLocaleString()}</td>
+                  <td className="py-3 text-right font-mono">{percent(row.terminologyHitRate)}</td>
+                  <td className="py-3 text-right font-mono">{row.generations.toLocaleString()}</td>
+                </tr>
+              ))}
+              {promptRegistryBreakdown.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-6 text-center text-sm text-[var(--ink-3)]">
+                    No prompt registry rows in the selected window.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </DataPanel>
+
+        <DataPanel title="Terminology Card Usage">
+          <table className="w-full text-left text-xs">
+            <thead className="text-[10px] uppercase tracking-[0.12em] text-[var(--ink-3)]">
+              <tr>
+                <th className="pb-3">Card Slug</th>
+                <th className="pb-3 text-right">Surfaces</th>
+                <th className="pb-3 text-right">Runs</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-black/5 text-[var(--ink-1)]">
+              {terminologyCardBreakdown.slice(0, 12).map((row) => (
+                <tr key={row.cardSlug}>
+                  <td className="py-3 font-semibold">{row.cardSlug}</td>
+                  <td className="py-3 text-right font-mono">{row.surfaceCount}</td>
+                  <td className="py-3 text-right font-mono">{row.generations.toLocaleString()}</td>
+                </tr>
+              ))}
+              {terminologyCardBreakdown.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="py-6 text-center text-sm text-[var(--ink-3)]">
+                    No terminology card selections in the selected window.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </DataPanel>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">

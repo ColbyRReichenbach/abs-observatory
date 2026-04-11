@@ -9,7 +9,9 @@ import {
   getAiFilterOptions,
   getAiModelBreakdown,
   getAiOverview,
+  getAiPromptRegistryBreakdown,
   getAiSurfaceBreakdown,
+  getAiTerminologyCardBreakdown,
   getRecentNegativeFeedback,
   type AdminAiAnalyticsFilters,
 } from "@/lib/server/admin-ai-analytics";
@@ -44,12 +46,25 @@ export default async function AdminAiPage({
   const sp = await searchParams;
   const filters = buildFilters(sp);
 
-  const [overview, dailySeries, surfaceBreakdown, modelBreakdown, feedbackBreakdown, failureBreakdown, recentNegativeFeedback, options] =
+  const [
+    overview,
+    dailySeries,
+    surfaceBreakdown,
+    modelBreakdown,
+    promptRegistryBreakdown,
+    terminologyCardBreakdown,
+    feedbackBreakdown,
+    failureBreakdown,
+    recentNegativeFeedback,
+    options,
+  ] =
     await Promise.all([
       getAiOverview(filters),
       getAiDailySeries(filters),
       getAiSurfaceBreakdown(filters),
       getAiModelBreakdown(filters),
+      getAiPromptRegistryBreakdown(filters),
+      getAiTerminologyCardBreakdown(filters),
       getAiFeedbackBreakdown(filters),
       getAiFailureBreakdown(filters),
       getRecentNegativeFeedback(filters),
@@ -98,6 +113,8 @@ export default async function AdminAiPage({
         dailySeries={dailySeries}
         surfaceBreakdown={surfaceBreakdown}
         modelBreakdown={modelBreakdown}
+        promptRegistryBreakdown={promptRegistryBreakdown}
+        terminologyCardBreakdown={terminologyCardBreakdown}
         feedbackBreakdown={feedbackBreakdown}
         failureBreakdown={failureBreakdown}
         recentNegativeFeedback={recentNegativeFeedback}

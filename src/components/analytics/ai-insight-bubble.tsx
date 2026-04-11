@@ -364,7 +364,7 @@ export function AIInsightBubble({
                                 </div>
                               ) : insightContent ? (
                                 <div className="space-y-5">{insightContent}</div>
-                              ) : (
+                              ) : chartContext ? null : (
                                 <div className="rounded-[1.25rem] border border-gray-100 bg-white px-4 py-4 text-sm leading-relaxed text-gray-700">
                                   {insight}
                                 </div>

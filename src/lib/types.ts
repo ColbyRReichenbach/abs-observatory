@@ -604,6 +604,17 @@ export type AIQueryResponse = {
   rows: unknown[];
 };
 
+export type AIVisualizerPlan = {
+  chartType: string;
+  whyThisChart: string;
+  xAxis: string;
+  yAxis: string;
+  grouping: string;
+  filters: string[];
+  signalsToWatch: string[];
+  caveats: string[];
+};
+
 export type AIChatResponse = {
   conversationId: string;
   assistantMessageId?: string | null;
@@ -617,6 +628,7 @@ export type AIChatResponse = {
       body: string;
     }>;
   } | null;
+  structuredPlan?: AIVisualizerPlan | null;
   toolResults: Array<{ toolName: string; payload: unknown }>;
   citations: string[];
   safetyDisposition: "allowed" | "blocked";
