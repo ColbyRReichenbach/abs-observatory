@@ -463,7 +463,7 @@ async function completeChatTurn(params: {
         return runCopilotSurface(runnerParams);
       });
 
-      toolResults = uncached.toolResults;
+      toolResults = uncached.toolResults ?? [];
       answer = uncached.answer;
       structuredInsight = uncached.structuredInsight ?? null;
       structuredPlan = uncached.structuredPlan ?? null;

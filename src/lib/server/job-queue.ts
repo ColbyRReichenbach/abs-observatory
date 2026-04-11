@@ -1,6 +1,8 @@
 import type { ChartInsightPayload } from "@/lib/chart-insight-payload";
 import { sql, sqlOne, withTransaction } from "@/lib/db";
 import type { CopilotContext } from "@/lib/copilot-context";
+import type { AiAudienceMode } from "./ai/context";
+import type { SurfaceTaskFamily } from "./ai/task-family";
 import type { QueueClass } from "./jobs";
 
 export type JobType =
@@ -17,6 +19,8 @@ export type AiHeavyChatPayload = {
   conversationId: string;
   userMessageId: string | null;
   message: string;
+  audienceMode: AiAudienceMode;
+  taskFamily: SurfaceTaskFamily;
   surface?: "copilot" | "visualizer" | "chart_insight";
   context?: CopilotContext;
   chartContext?: ChartInsightPayload;
