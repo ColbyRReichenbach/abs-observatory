@@ -52,6 +52,7 @@ describe("AI terminology runtime", () => {
     expect(compiled.selectedCardSlugs).toContain("challenged-call");
     expect(compiled.appendix).toContain("Voice Pack:");
     expect(compiled.appendix).toContain("Preferred Terms:");
+    expect(compiled.appendix).toContain("Avoid:");
     expect(compiled.appendixChars).toBeGreaterThan(0);
   });
 
