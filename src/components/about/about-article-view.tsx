@@ -1,4 +1,5 @@
 import { FlipCard } from "@/components/about/flip-card";
+import { MermaidDiagram } from "@/components/about/mermaid-diagram";
 import { EditorialParagraphStack } from "@/components/editorial/editorial-copy";
 import { BackPill } from "@/components/ui/back-pill";
 import { ModeAwareLink } from "@/components/ui/mode-aware-link";
@@ -86,6 +87,10 @@ export function AboutArticleView({ article }: { article: AboutArticle }) {
                     {section.heading}
                   </h3>
                   <EditorialParagraphStack paragraphs={section.paragraphs} className="mt-5" />
+
+                  {section.diagram ? (
+                    <MermaidDiagram definition={section.diagram} className="mt-6" />
+                  ) : null}
 
                   {section.bullets?.length ? (
                     <ul className="mt-6 max-w-3xl space-y-3 border-t border-black/10 pt-6 text-sm leading-7 text-[#4b463f]">

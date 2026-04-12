@@ -12,6 +12,8 @@ export type AboutArticleSection = {
   bullets?: string[];
   stats?: AboutArticleFact[];
   pullQuote?: string;
+  /** Mermaid diagram definition string. Rendered as an inline SVG when present. */
+  diagram?: string;
 };
 
 export type AboutFeatureCard = {
@@ -252,184 +254,348 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
     slug: "product-layer",
     aliases: ["architect"],
     title: "The Product Layer",
-    dek: "How I structured the routes, fan/org split, article desk, and implementation choices so the same system can serve different kinds of users.",
+    dek: "How I structured the route map, fan and org views, and page responsibilities so the same system can serve different kinds of readers without splitting into separate products.",
     authorName: "Colby Reichenbach",
     articleType: "profile",
-    publishedAt: "2026-03-24",
+    publishedAt: "2026-04-11",
     publishedLabel: "Product Layer",
     readTime: "7 min read",
-    accentClass: "text-blue-900",
+    accentClass: "text-[#8b0000]",
     heroEyebrow: "Product Design",
-    heroHeading: "I structured the route map around questions, not around one oversized dashboard.",
+    heroHeading: "I structured the product around page jobs and reader intent, not around one oversized baseball dashboard.",
     leadParagraphs: [
-      "I structured AiBS the way I did because the same data should not be presented the same way to every user. Some users want a visual front door and plain-language explanation. Others want strategy, consequence, and deeper baseball logic. I wanted to separate those jobs without forking the whole codebase.",
-      "That is the reason fan view and org view exist. Fan view is more visual, more explanatory, and more conversational. Org view is denser, more technical, and more centered on strategy and deeper baseball analytics.",
-      "This is where product and engineering meet. The frontend only works if the route jobs are clear, the backend loaders are scoped to those jobs, and each surface stays honest about what it is actually supposed to answer.",
+      "When I started building AiBS, I did not want the product to become one giant page full of cards, charts, and filters competing for attention. That kind of design can look powerful at first, but it makes the product harder to read and harder to maintain because every page ends up trying to answer every question at once.",
+      "The product is organized around route purpose instead. The home page has one job. Game pages have another. Team pages have another. Umpire pages have another. Articles and About handle longer written analysis and system explanation. Reports exist for postgame review. The route structure is not just URL organization. It is one of the core architectural decisions in the product.",
+      "I also knew early on that the same baseball facts would need different framing depending on the reader. Fan and org views are built into the application layer for exactly that reason. One system, one source of facts, two presentation modes.",
     ],
     quickFacts: [
-      { label: "Design principle", value: "One route, one question, one clear audience" },
-      { label: "View-mode principle", value: "Same system, different presentation and depth by user need" },
-      { label: "Engineering bias", value: "Stable route purpose and honest scope over feature sprawl" },
+      { label: "Route design rule", value: "Each page family answers a smaller number of stronger questions" },
+      { label: "View-mode rule", value: "Same underlying facts, different framing and density by reader need" },
+      { label: "Application framework", value: "Next.js App Router, React Server Components, SQL-first data loading" },
     ],
     sections: [
       {
-        eyebrow: "Route design",
-        heading: "I built the public routes around the questions different readers actually start with.",
+        eyebrow: "Route architecture",
+        heading: "The product architecture is legible enough to read directly from the app tree.",
         paragraphs: [
-          "The home page is the front page. Team pages are about club behavior and decision patterns. Umpire pages are about review exposure, consequence, and profile. Game pages are about event-level context and what changed in one game. The Articles desk is where I publish longer analysis. The About desk is where I explain the system itself. That separation is product architecture, not just URL organization.",
-          "A route structure like that matters because it lets each page make a smaller number of stronger decisions. The charts, metric cards, AI surfaces, and copy do not all need to solve the same problem everywhere.",
+          "The product is built on Next.js App Router with React Server Components. The route surface breaks into distinct families, each with a defined job. The diagram below shows the public, authenticated, and admin surfaces, with fan and org mode as a cross-cutting layer that applies across several of them.",
         ],
+        diagram: `flowchart TB
+    subgraph public ["Public Routes"]
+        A["Home /"] --> B["Game Pages\\n/game/[id]"]
+        A --> C["Team Pages\\n/teams"]
+        A --> D["Umpire Pages\\n/umpires"]
+        A --> E["Articles\\n/articles"]
+        A --> F["About\\n/about"]
+        A --> G["Reports\\n/reports/[id]"]
+    end
+
+    subgraph auth ["Authenticated"]
+        H["Query\\n/query"]
+        I["Profile\\n/profile"]
+    end
+
+    subgraph admin ["Admin"]
+        J["Access"]
+        K["AI Review"]
+        L["Community"]
+        M["Editorial"]
+    end
+
+    N["Fan / Org Mode"] -.->|"cross-cutting"| B
+    N -.-> C
+    N -.-> D
+    N -.-> A`,
         bullets: [
-          "Home: the current ABS landscape and the highest-signal league snapshots.",
-          "Teams: challenge identity, timing, value, and org-vs-fan presentation.",
-          "Umpires: accuracy, volatility, consequence, and directional exposure.",
-          "Games: live, pregame, and postgame views of one challenge environment.",
-          "Articles: analysis papers and recurring editorial interpretation.",
-          "About: permanent product, technical, and methodological documentation.",
+          "/ Home: the ABS landscape front page",
+          "/game/[gamePk] Game pages: state-aware challenge and event context, pregame through final",
+          "/teams and /teams/[teamId] Team pages: challenge identity, usage patterns, and decision behavior",
+          "/umpires and /umpires/[umpireId] Umpire pages: review exposure, volatility, and consequence",
+          "/articles and /articles/[slug] Articles: longer baseball analysis published inside the product",
+          "/about and /about/[slug] About: system architecture and design documentation",
+          "/reports/[gamePk] Reports: postgame challenge review",
+          "/v/[vizId] Visualization sharing",
+          "/u/[username] Public user profiles",
+          "/query Query (authenticated, access-controlled)",
+          "Admin surface: access management, AI review, community moderation, editorial workflow",
         ],
       },
       {
-        eyebrow: "Fan and org view",
-        heading: "Fan and org view are not cosmetic toggles.",
+        eyebrow: "View modes",
+        heading: "Fan and org mode are part of the application architecture, not just two visual themes.",
         paragraphs: [
-          "I use fan view when the job is accessibility and dialogue. That means plainer labels, more explanatory cards, and more visual framing. I use org view when the job is strategy and decision support. That means tighter layouts, denser metrics, and more technical framing. The underlying data is the same, but I do not think the same presentation is optimal for both readers.",
-          "I implemented that choice at the application layer rather than treating it like a design mockup. View mode is resolved in the app and carried through route rendering, which lets one route serve different levels of detail without splitting the product into separate sites.",
+          "Fan and org mode did not start as a cosmetic toggle. They exist because the same baseball state needs different framing for different readers. Fan mode leans toward story, readability, and cleaner narrative ordering. It makes review moments, matchup context, and challenge behavior easier to follow without forcing the user into dense operational language. Org mode pushes further toward review management, timing, modeled context, and decision-oriented detail where the product has enough evidence to support that framing.",
+          "The mode changes presentation and emphasis, not the underlying facts. There are not two separate data pipelines or two separate truth layers. Both modes read from the same challenge records and baseball state. The route resolves the view mode and shapes the output accordingly.",
+          "Fan and org mode currently affects six page route families: the home page, game pages, team index and detail, and umpire index and detail. The AI surfaces also carry audience mode into prompt construction and task-family resolution, so the conversational tone adapts alongside the page framing.",
         ],
       },
       {
-        eyebrow: "What the layer proves",
-        heading: "This is where the software engineering has to stay invisible enough to feel obvious.",
+        eyebrow: "Game pages",
+        heading: "Pregame, live, and final are three different products sharing one route.",
         paragraphs: [
-          "The frontend and backend work here are tightly coupled. The route hierarchy, data loaders, charts, AI entry points, and article system all depend on one clear rule: every page should know what it is responsible for. The engineering work matters because it makes that routing system coherent under real traffic, not because it sounds complicated in isolation.",
-          "The Articles desk is part of that same structure. I wanted my in-season analysis to live inside the same product that generates the supporting evidence, rather than outside it on a disconnected site or thread.",
+          "The game page is where route purpose is most visible. Pregame focuses on matchup tendencies, likely review windows, and setup context. Live focuses on challenge patterns, current review consequences, and the ongoing shape of the game. Final shifts toward postgame challenge analysis, realized swings, missed opportunities, and low-value usage review.",
+          "Many sports products flatten all three states into one page and let the user figure out which information is relevant at any given moment. A live game page should behave like a live page. A final game page should shift toward review and consequence. The state is not a filter. It is the primary context.",
+          "Once page state is explicit, the loaders, charts, and AI surfaces attached to the route can be scoped more precisely to the actual job the page is doing.",
         ],
-        pullQuote: "The best product engineering on this project is the work that makes the route purpose feel obvious instead of clever.",
+      },
+      {
+        eyebrow: "Articles and About",
+        heading: "Longer writing lives inside the product because the product already has the context the writing depends on.",
+        paragraphs: [
+          "Articles are part of the product because the baseball context, review surfaces, and analytical framing the writing depends on are already here. Keeping analysis inside the same system puts it closer to the data that supports it. When an article references challenge patterns, team behavior, or umpire trends, the supporting data lives in the same product the reader is already using.",
+          "The About desk serves a different purpose. Architecture choices, modeling boundaries, product design decisions, and system documentation live here as permanent pages rather than buried in code comments or scattered dev notes. These are the articles you are reading right now.",
+          "Both desks are part of the product architecture. They are maintained and updated like the rest of the system.",
+        ],
+      },
+      {
+        eyebrow: "How the product loads data",
+        heading: "Route logic stays close to the server-side model of the page.",
+        paragraphs: [
+          "The application is SQL-first and server-rendered. Server components and route handlers read from shared helpers in src/lib. Analytics pages are built from page-model helpers rather than doing route-local math in every file. Query logic and data-shaping logic live close to the server-side model of the product rather than being recreated differently in each route.",
+          "Centralizing that work also helps with consistency. When the same summary or model output appears in multiple places, there is one retrieval and shaping path rather than several that diverge over time. The browser is not treated as a trusted data or authorization layer. Product logic, data loading, and permission boundaries hold on the server side.",
+          "The current codebase serves 24 page routes and 37 API routes. Server components handle the initial data load and rendering. Client components handle interactivity, chart rendering, and AI chat surfaces. That split keeps the product responsive while keeping data integrity server-side.",
+        ],
+        pullQuote: "I wanted the page purpose to feel obvious enough that the route structure becomes invisible.",
       },
     ],
-    relatedSlugs: ["about-aibs", "model-layer", "ai-layer"],
+    relatedSlugs: ["ai-layer", "data-layer", "model-layer"],
   },
   {
     slug: "model-layer",
     aliases: ["brain"],
     title: "The Model Layer",
-    dek: "The baseball logic underneath the product: split-aware value models, called-pitch geometry, overturn probability, and carefully labeled downstream layers.",
+    dek: "How I structured the baseball logic underneath AiBS, what each modeling layer is responsible for, and why different outputs carry different levels of confidence.",
     authorName: "Colby Reichenbach",
     articleType: "profile",
-    publishedAt: "2026-03-24",
+    publishedAt: "2026-04-11",
     publishedLabel: "Model Layer",
-    readTime: "9 min read",
-    accentClass: "text-red-900",
+    readTime: "10 min read",
+    accentClass: "text-[#8b0000]",
     heroEyebrow: "Baseball Logic",
-    heroHeading: "The model layer exists to make the product's baseball claims honest, testable, and baseball-sensible.",
+    heroHeading: "I built the model layer so the product could make baseball claims that are measurable, reviewable, and clear about their limits.",
     leadParagraphs: [
-      "AiBS does not rely on one giant baseball model. The current stack is a set of narrower layers with different jobs: count-state baselines, run expectancy, win expectancy, called-pitch geometry, overturn probability, challenge-value logic, leverage framing, and descriptive or editorial translation layers.",
-      "The most important distinction in the current system is that not every layer is the same kind of truth. Count-state, run expectancy, and win expectancy are empirical held-out models. Overturn probability is a smaller, still-growing probabilistic layer. Leverage, rubrics, and controversy are intentionally labeled as heuristic, descriptive, or editorial where appropriate.",
-      "That distinction matters because a product can become less trustworthy by pretending every number is equally proven. The current AiBS model layer is designed so runtime logic, audit logic, and documentation tell the same story about what is strong, what is provisional, and what should stay qualified.",
+      "AiBS does not depend on one oversized model trying to explain everything about ABS. That approach makes it harder to understand what the system is actually doing, and it makes it easier to overstate what the outputs mean. The model layer is a stack of narrower pieces with different jobs.",
+      "That stack includes count-state value, run expectancy, win expectancy, called-pitch geometry, overturn probability, challenge evaluation, leverage, rubric layers, and controversy ranking. Some are empirical value models. Some are probabilistic. Some exist to help with interpretation and communication. They should not all be described the same way.",
+      "The strongest part of the current system is not a single metric. It is the combination of warehouse-first data handling, split-aware train and test control, held-out audits, model cards, and publication boundaries that reflect the actual strength of each layer.",
     ],
     quickFacts: [
-      { label: "Strongest current layers", value: "Count-state, run expectancy, and win expectancy" },
-      { label: "Most provisional layer", value: "Live challenge-now as org-grade optimization" },
-      { label: "Validation rule", value: "Production logic, audit logic, and docs should agree" },
+      { label: "Strongest current layers", value: "Count-state value, run expectancy, and win expectancy" },
+      { label: "Main modeling rule", value: "Each layer has a clear job and a clear confidence boundary" },
+      { label: "Most important limit", value: "Challenge-now is not presented as org-grade optimization" },
     ],
     sections: [
       {
+        eyebrow: "Stack architecture",
+        heading: "ABS is not one modeling problem, so I did not try to solve it with one model.",
+        paragraphs: [
+          "ABS looks simple when the public conversation reduces it to one question: was the pitch a strike or a ball? Once a challenge happens, the picture changes. The count can change, the base-out state matters, the inning and score matter, the number of remaining challenges matters, and the value of a state change depends on the full baseball context around the call.",
+          "The stack reflects that structure. Count-state value handles one job. Run expectancy handles another. Win expectancy handles another. Geometry and overturn probability address a different part of the chain. Challenge evaluation depends on how those upstream pieces interact. Leverage orders the pressure. Rubrics translate patterns into readable categories. Controversy ranks events for editorial surfaces.",
+        ],
+        diagram: `flowchart TB
+    subgraph core ["Core Value Stack — empirical, held-out audited"]
+        A["Count-State Value\\nBA, BB, K baselines"] --> B["Run Expectancy\\nRE by inning, outs, bases, count"]
+        A --> C["Win Expectancy\\nWE by game state + count"]
+    end
+
+    subgraph geo ["Geometry and Overturn"]
+        D["Called-Pitch Geometry\\ncenter_only vs radius_adjusted"] --> E["Overturn Probability\\nP(overturn) by direction + edge"]
+    end
+
+    B --> F["Challenge Value\\nEV = P x success + 1-P x failure - cost"]
+    C --> F
+    E --> F
+
+    subgraph interp ["Interpretation Layers — not predictive truth"]
+        G["Leverage\\npressure proxy"]
+        H["Rubrics\\ndescriptive translation"]
+        I["Controversy\\neditorial ranking"]
+    end
+
+    F --> J["Product\\ngame, team, umpire pages"]
+    G --> J
+    H --> J
+    I --> J`,
+      },
+      {
         eyebrow: "Core value stack",
-        heading: "The strongest current work is in count-state, run expectancy, and win expectancy.",
+        heading: "The strongest work is in count-state value, run expectancy, and win expectancy.",
         paragraphs: [
-          "The current rebuild put the most rigor into the state-value stack. Count-state, run expectancy, and win expectancy now run through split-aware warehouse builds, held-out audits, and explicit model-card documentation instead of loose in-sample checks. That is the part of the product that is currently most defensible in a serious baseball-modeling conversation.",
-          "Those layers matter because challenge analysis is not just about whether a review was won. It is also about the baseball value of the count, base-out state, inning, and score context that would have changed if the call flipped.",
+          "These layers received the most disciplined rebuild. They sit on top of warehouse-first governance, split-aware train, validation, and test control, held-out audits, and model-card documentation. This is the part of the current system I would be most comfortable defending in front of a technical audience.",
+          "Count-state is the cleanest foundation because challenge analysis depends heavily on what the count means before and after a call changes. Run expectancy estimates expected runs to inning end from exact baseball state, so call reversals translate into run value. Win expectancy estimates batting-team win probability from the full game state, putting challenge consequences in terms of the game itself.",
+          "The RE state definition is RE(inning_bucket, outs, bases_state, count). The WE state definition is WE(inning, half_inning, outs, bases_state, score_diff_bucket, count). Those inputs capture the baseball context that determines how much any single call actually matters.",
+        ],
+        stats: [
+          { label: "Count-state held-out wMAE", value: "BA: 1.74%, BB: 0.36%, K: 0.78%, POS: 1.33%" },
+          { label: "RE held-out test", value: "MAE: 0.105, RMSE: 0.199, mean signed error: 0.003" },
+          { label: "RE test rows / states", value: "49,854 rows, 1,088 distinct states" },
+          { label: "WE held-out test", value: "MAE: 15.5%, Brier: 5.4%, log loss: 0.4992" },
+          { label: "WE MLB benchmark", value: "40,963 at-bats, mean gap: 2.5%, median gap: 2.2%" },
         ],
       },
       {
-        eyebrow: "ABS geometry",
-        heading: "Called-pitch geometry is real, but still provisional at the edges.",
+        eyebrow: "Geometry",
+        heading: "Geometry is a reconstructed layer, useful now but not settled enough to present as final ABS truth.",
         paragraphs: [
-          "The current geometry layer is based on batter-specific strike-zone bounds, pitch location, and MLB's published ABS framing. AiBS now keeps separate fields for observed call, modeled ABS-style zone outcome, and real challenge outcome, because those are not the same thing.",
-          "There is still an open geometry choice between a center-only interpretation and a radius-adjusted interpretation of the pitch coordinate. The current evidence leans toward center-only, but the product still treats the geometry layer as provisional instead of pretending the public data gives exact league adjudication truth.",
+          "The geometry layer matters because ABS begins with a strike-zone decision. Public baseball data alone cannot prove the exact adjudication method the league uses. The current system retains two explicit interpretations of called-pitch geometry: center_only and radius_adjusted. Both are evaluated against challenged outcomes rather than treating one as already settled.",
+          "The current validation work points toward center_only as the leading candidate. Segmented follow-up evidence supports that direction, but one smaller held-out comparison left enough ambiguity that the geometry choice stays qualified.",
+          "Direction also matters independently. A called strike flipping to a ball is not the same baseball event as a called ball flipping to a strike. They move the count in opposite directions, create different state sequences, and produce different downstream value. The geometry layer is tied to challenge direction because the baseball consequences are direction-aware, and both geometry variants stay in the stack until the evidence for one is conclusive.",
         ],
       },
       {
-        eyebrow: "Policy boundary",
-        heading: "Challenge-now is useful, but it is not being oversold.",
+        eyebrow: "Overturn probability",
+        heading: "Overturn probability is a real part of the stack, but I keep it in the product with qualified language.",
         paragraphs: [
-          "The challenge-now layer is structurally much better than it used to be. It now uses exact base state, a decomposed overturn plus value plus inventory framework, and a held-out opportunity audit instead of only scoring historical challenge rows.",
-          "But the current evidence is still not strong enough to present live challenge-now as an org-grade optimization engine. In AiBS today, that layer should be read as an experimental live discussion lens and as a much stronger postgame review tool for missed opportunities and low-value challenge usage.",
+          "Overturn probability addresses a straightforward question in the ABS challenge system: given the pitch location and challenge direction, how likely is the call to be overturned? The current model uses a tiered fallback structure. If an exact match exists for the challenge direction and edge bucket, it uses that. If not, it falls back to direction-only, then to a global baseline.",
+          "The validation path has improved substantially, but the layer is still geometry-sensitive and limited by sample size. The current held-out audit covers 245 challenged rows and shows a Brier score of 0.2519, log loss of 0.6970, and a mean absolute bucket gap of 8.3% using center_only geometry. The direction is credible, but sparse subgroups still carry wide intervals.",
+          "That is enough to call the model promising and usable in context. It is not enough to describe it as final or club-grade.",
         ],
       },
       {
-        eyebrow: "Geometry and baseball logic",
-        heading: "I made the geometry model direction-aware because baseball consequences are direction-aware.",
+        eyebrow: "Challenge evaluation",
+        heading: "Challenge-now is much better engineered than it was, and I still will not oversell it.",
         paragraphs: [
-          "A called strike that should become a ball and a called ball that should become a strike are not symmetrical baseball events. They move the count in opposite directions and can produce different downstream value. I model challenge geometry with that in mind. The geometry layer is tied to challenge direction, count-state resolution, and event interpretation instead of just distance from a notional boundary.",
-          "This is where baseball logic has to override bad instincts about what sounds statistically elegant. I am not using geometry to produce a pretty classification. I am using it to reflect the actual review question the system is asking on the field.",
+          "The challenge-value decomposition is the most consequential layer in the stack. It combines all the upstream pieces into a single decision estimate: EV = P(overturn) x success_value + (1 - P(overturn)) x failure_value - inventory_cost.",
+          "The inputs include exact base-out state, inning, score, count, challenge direction, overturn probability, RE and WE value layers, and an inventory cost version. The full decomposition is exposed in the product output so the user can see the components, not just the final recommendation.",
+          "The current evidence does not support presenting it as org-grade live optimization. The held-out opportunity audit covers 9,768 opportunities. Historical challenge share is 2.5%. Current recommendation share is 0.8%. There are 78 positive-EV non-challenged rows and 242 negative-EV challenged rows. The most significant issue is that the budget-constrained validation slice still shows zero overlap between budget-selected rows and historically challenged rows.",
+          "Live challenge-now is framed in the product as an experimental lens for discussion. Postgame challenge evaluation is substantially stronger and more credible for retrospective use. Letting one ambitious layer undermine the credibility of the rest of the stack is not a trade worth making.",
         ],
       },
       {
-        eyebrow: "Aggregation and honesty",
-        heading: "Team, umpire, and event summaries are aggregations of these state changes, not separate truths.",
+        eyebrow: "Leverage, rubrics, and controversy",
+        heading: "Some layers exist to order, describe, or translate. They are not predictive truth.",
         paragraphs: [
-          "When I report average ΔRE, average ΔWE, high-leverage share, or related summary metrics for teams, umpires, or event groups, I am aggregating underlying challenge-level state transitions. That matters because those summary metrics inherit both the strengths and the limits of the base resolution path.",
-          "I want the product to stay honest about what those aggregates mean. An average value delta can describe a sample directionally even when the sample is too thin to support a reputational claim. That matters especially on umpire pages, where small challenge counts are easy to overread if I am not explicit.",
+          "Leverage is useful because the product needs a pressure-ordering layer, but it is not win probability added under a different name. The current audit treats it as a heuristic pressure proxy. It shows a Pearson correlation of 0.190 to absolute WE swing, with higher mean swing in the high-leverage bucket (5.5%) than in the low-leverage bucket (2.2%). That justifies using it for ordering. It does not justify calling it a calibrated model.",
+          "Rubrics and controversy serve different purposes. Rubrics translate challenge patterns and outcomes into readable categories. Controversy ranks events for editorial surfaces. Both help the product communicate clearly, but neither should borrow the tone of the stronger quantitative layers. The audits keep them in descriptive and editorial territory, which is exactly where they belong.",
+          "Products lose trust when interpretive layers quietly sound like predictive ones.",
         ],
-        pullQuote: "If a metric is directional, sparse, or provisional, I want the product to say that directly.",
+      },
+      {
+        eyebrow: "Downstream summaries",
+        heading: "Team and umpire summary pages are downstream of challenge-level state changes, not independent truths.",
+        paragraphs: [
+          "When the product shows average RE change, average WE change, high-leverage share, or similar summary metrics for teams, umpires, or event groups, those numbers are built from challenge-level state transitions. Aggregate pages inherit both the strengths and the limits of the layers underneath them.",
+          "That is especially relevant on umpire pages and smaller samples. A directional summary can still be useful, but it should not automatically become a reputational claim just because it is presented cleanly. The product stays explicit about thin samples and qualified reads rather than letting a clean layout imply more than the data supports.",
+        ],
+      },
+      {
+        eyebrow: "Current model status",
+        heading: "Every layer has an explicit verdict from the dated audit process.",
+        paragraphs: [
+          "The model layer maintains a status for every layer, documented in model cards and a dated verdict file. The current standing is listed below.",
+        ],
+        bullets: [
+          "Count-state value: green. Held-out audited empirical baseline.",
+          "Run expectancy: green. Held-out audited and split-governed.",
+          "Win expectancy: green. Held-out audited and externally benchmarked against MLB public WE.",
+          "Called-pitch geometry: yellow. Useful, but the geometry choice is still provisional.",
+          "Overturn probability: yellow. Credible early model, still sample- and geometry-limited.",
+          "Challenge-now: red for org-grade claims. Useful as an experimental live lens and for postgame review.",
+          "Leverage: green as heuristic. Pressure proxy, not a calibrated model.",
+          "Rubrics: green as descriptive. Translation layer, not predictive truth.",
+          "Controversy: green as editorial. Ranking layer for editorial surfaces.",
+        ],
+        pullQuote: "I want each layer to be used for what it actually is, not for what would sound best in a product description.",
       },
     ],
-    relatedSlugs: ["abs-explained", "data-layer", "trust-audits-and-monitoring"],
+    relatedSlugs: ["data-layer", "trust-audits-and-monitoring", "product-layer"],
   },
   {
     slug: "ai-layer",
     title: "The AI Layer",
-    dek: "How I use AI in AiBS, what each surface is for, how context is passed, and how prompts, usage, and feedback are audited.",
+    dek: "How I designed the AI surfaces in AiBS, how context flows into each one, and how prompt behavior, usage, and generation details are tracked over time.",
     authorName: "Colby Reichenbach",
     articleType: "profile",
-    publishedAt: "2026-03-24",
+    publishedAt: "2026-04-11",
     publishedLabel: "AI Layer",
     readTime: "8 min read",
     accentClass: "text-[#8b0000]",
     heroEyebrow: "AI Systems",
-    heroHeading: "I use AI to make the product more legible, not to turn AiBS into a generic baseball chatbot.",
+    heroHeading: "I built the AI layer as application architecture, not as a chat box sitting on top of baseball data.",
     leadParagraphs: [
-      "I use AI in AiBS to make the data easier to use. That means chart-specific explanation, product-aware follow-up questions, and guided interfaces that help a user understand the baseball signal without needing to speak in technical terms first.",
-      "The AI layer is not one thing. It includes chart insight, the contextual copilot, the visualizer surface, Query Lab, editorial and report generation, feedback capture, generation logging, and admin analytics around how the prompts and responses are performing.",
-      "What matters here is not just that AI exists in the product. What matters is that each surface has defined context, tracked generations, stored feedback, and a review path when something goes wrong.",
+      "The AI layer in AiBS is not one assistant trying to handle every job. The product asks different kinds of questions, expects different response shapes, and has different failure modes depending on where the user is and what they are looking at. Three separate surfaces handle three separate responsibilities: copilot, chart insight, and visualizer.",
+      "Each surface receives different input, follows a different prompt contract, and returns a different kind of output. Copilot answers scoped baseball questions from server-side tool results. Chart insight explains one chart payload in a structured format. Visualizer returns a chart plan. Keeping those jobs separate keeps response behavior close to what the user actually asked for.",
+      "The other half of the design is reviewability. I store more than the final response. Conversations, tool calls, safety events, cost records, usage ledger entries, prompt metadata, terminology selections, and generation details are all persisted so I can trace how any response was produced after the fact.",
     ],
     quickFacts: [
-      { label: "Public AI surfaces", value: "Chart insight, visualizer, and selected follow-up/copilot paths" },
-      { label: "Operational AI surfaces", value: "Editorial/report generation, review workflows, and admin analytics" },
-      { label: "Audit hooks", value: "Feedback, generation events, prompt versioning, and usage/cost tracking" },
+      { label: "AI surfaces", value: "Copilot, chart insight, and visualizer" },
+      { label: "Prompt design rule", value: "One surface, one job, one response contract" },
+      { label: "Review path", value: "Conversations, tool calls, safety events, cost events, usage records, and generation metadata all persisted" },
     ],
     sections: [
       {
-        eyebrow: "Why AI is here",
-        heading: "I use AI for accessibility, not abstraction for its own sake.",
+        eyebrow: "Surface contracts",
+        heading: "Each surface has a distinct job, input shape, and output contract.",
         paragraphs: [
-          "ABS data is only useful if a user can actually interpret it. That is the practical reason I put AI into this product. A chart insight surface can explain what a visual is showing, what the baseball signal is, and what the user should be careful not to overclaim. A guided AI surface can also help a nontechnical user get to the question they were trying to ask in the first place.",
-          "That does not mean every AI surface should be public at once. I keep public-facing surfaces tied to inspectable context. Broader query and copilot interfaces need a higher support and monitoring bar, so some of them remain gated or staged.",
+          "Treating every AI interaction as the same kind of request makes failures harder to diagnose. A chart explanation is a different job from a scoped baseball question, and a visual planning task is different again. Running all of those through one prompt and response path blurs behavior and makes the system harder to test.",
+          "Every inbound request declares its surface up front: copilot, chart_insight, or visualizer. From there, the server routes into a narrower path with its own prompt builder, surface runner, and output contract.",
+          "Copilot is the broadest surface but still bounded. It works from scoped context and server-side tool results. Chart insight only runs when the system has a structured chart payload, and it returns a structured interpretation, not loose prose. Visualizer returns a chart plan with axes, grouping, filters, signals, and caveats. Planning a view is a separate product job from explaining one that already exists.",
         ],
-      },
-      {
-        eyebrow: "The AI surfaces",
-        heading: "I gave each AI surface a different job.",
-        paragraphs: [
-          "Chart insight is the most constrained surface. It receives structured chart payloads and is expected to explain the visual, the baseball signal, and the implication while staying tied to the data already on the page. The visualizer is more generative, but I still keep it inside AiBS context. Copilot and Query Lab are broader interfaces for navigating product knowledge and asking cross-surface questions, which is exactly why they need stronger controls.",
-          "That separation matters because prompt design should follow product purpose. A chart explainer prompt should not behave like an open-ended baseball oracle. A copilot prompt should not behave like a generic assistant with no awareness of the underlying route, game, team, or umpire context.",
-        ],
+        diagram: `flowchart LR
+    A["User Request"] --> B{"Surface"}
+    B -->|copilot| C["Copilot Runner"]
+    B -->|chart_insight| D["Chart Insight Runner"]
+    B -->|visualizer| E["Visualizer Runner"]
+    C --> F["Task Family Resolver"]
+    D --> F
+    E --> F
+    F --> G["Prompt Builder + Terminology"]
+    G --> H["Model Execution"]
+    H --> I["Telemetry Storage"]`,
         bullets: [
-          "Chart insight: explain one visual and one signal clearly.",
-          "Visualizer: help users work toward a chart or view they want to inspect.",
-          "Copilot: navigate product context and answer bounded follow-up questions.",
-          "Query Lab: broader analytical querying, with tighter access controls.",
+          "Copilot: scoped baseball question answering from current tool results",
+          "Chart insight: structured explanation of one chart payload",
+          "Visualizer: structured chart-planning output for a baseball question",
         ],
       },
       {
-        eyebrow: "AI engineering",
-        heading: "The hard part is context control, prompt boundaries, and observability.",
+        eyebrow: "Task routing",
+        heading: "A task-family layer shapes responses by the kind of question, not just the surface name.",
         paragraphs: [
-          "I wire the AI layer around explicit surface types, context payloads, CSRF checks, usage entitlements, generation logging, and feedback capture. Context sharing is deliberate rather than magical. Chart insight receives a chart payload. Copilot receives a route-aware context window. Feedback is tied back to generation records so prompt and model behavior can be reviewed later.",
-          "That is the difference between dropping a model endpoint into a UI and actually engineering an AI surface. Prompts, allowed tools, response shaping, and the audit path have to work together if the system is going to stay product-specific.",
-          "This is where prompt versioning and generation metadata matter. I already track surface, generation, model, and feedback metadata in a way that lets me review failures, compare responses, and iterate on the prompts behind each surface.",
+          "Surface type alone does not capture enough context. Within copilot, a game-summary question needs different treatment from an umpire profile explanation. A zone-map chart is different from an inventory deployment chart. A comparison plan differs from a timing-focused visual plan.",
+          "The task-family resolver classifies each request into a narrower family based on surface, route scope, chart type when present, and message heuristics. Copilot resolves into families like game summary, ABS explanation, anomaly diagnosis, team profile, umpire profile, and comparison. Chart insight resolves by chart type: decision brief, value timeline, umpire rhythm, zone map, scenario matrix, and inventory deployment. Visualizer resolves into question-to-visual, comparison, and timing-and-leverage plans. That family carries into prompt construction and execution telemetry.",
+          "Because the routing rules are explicit in code, they are easy to test. When a surface has a clear input and a clear output contract, I can validate whether it is behaving correctly without guessing at what it was supposed to do.",
         ],
-        pullQuote: "The AI layer is strongest when the model knows exactly what kind of surface it is speaking for.",
+      },
+      {
+        eyebrow: "Prompt construction",
+        heading: "Prompts are built from smaller versioned parts, not from one large file.",
+        paragraphs: [
+          "Each surface has its own prompt builder. Copilot prompts are structured around answering directly with evidence. Chart insight prompts follow a structured interpretation path. Visualizer prompts return a plan. Those differences live in separate files rather than being squeezed through one generic template.",
+          "Prompt changes are easier to track because the system records which prompt version a generation used. When response behavior shifts, I can trace it back to the specific prompt definition that produced it rather than treating prompt text as invisible glue between the request and the response.",
+        ],
+      },
+      {
+        eyebrow: "Terminology",
+        heading: "A file-backed terminology system keeps wording consistent without bloating the prompt.",
+        paragraphs: [
+          "I wanted the model to use ABS language consistently, but loading every request with a giant reference block tends to make responses worse. The current approach is more targeted.",
+          "Seed files for terminology cards, style packs, and surface rules live in the repository. At runtime, the server derives semantic tags from the request based on task family, message content, and chart type. It selects a bounded set of matching entries, compiles them into a short appendix, and injects that appendix into the prompt.",
+          "The selection is fully deterministic. Given the same surface, audience mode, task family, and request tags, the system picks the same wording guidance every time.",
+        ],
+        stats: [
+          { label: "Terminology cards", value: "61 (verified from seed file)" },
+          { label: "Style packs", value: "6" },
+          { label: "Surface rules", value: "16" },
+          { label: "Selection method", value: "Deterministic, derived from task family, message content, and chart type" },
+        ],
+      },
+      {
+        eyebrow: "Context and controls",
+        heading: "Context passing, usage limits, and request controls are wired into the AI system from the start.",
+        paragraphs: [
+          "Each surface gets the right amount of context scoped to its job. Chart insight gets a structured chart payload. Copilot gets route-aware tool results scoped to game, team, umpire, or global context. Visualizer works from the current scoped context rather than raw database access.",
+          "The request path is also wired into broader application controls: CSRF verification, user authentication, usage limits, request queueing, misuse detection, and rate-limit enforcement. Safety events and rate-limit events are recorded when they fire. That infrastructure shapes how the system behaves under real use, not just how a prompt reads in isolation.",
+        ],
+      },
+      {
+        eyebrow: "Observability",
+        heading: "I record more than the answer because the answer alone is not enough to debug or improve.",
+        paragraphs: [
+          "When a generation is stored, the telemetry record includes surface, task family, prompt version, semantic tags, terminology bundle details (style pack, card slugs, appendix character count), estimated prompt size, and structured output where relevant. That gives me a much clearer picture of system behavior than a message log alone.",
+          "The AI path also includes a health-check script that validates terminology seed completeness and runs a test and eval suite covering prompt behavior, telemetry correctness, terminology handling, chart insight output structure, and visualizer output structure. Prompt and response behavior can drift quietly while the product still looks like it is working. The surface starts answering the wrong kind of question, or the response shape wanders away from the contract. The tests exist to catch those shifts before they become decisions made on bad output.",
+          "A narrower surface is a more testable surface. Once the input and output contracts are well defined, checking for good behavior is specific rather than approximate.",
+        ],
+        pullQuote: "I built the AI layer to behave like reviewed software, not like a black box that happens to return text.",
       },
     ],
     relatedSlugs: ["product-layer", "data-layer", "trust-audits-and-monitoring"],
@@ -438,72 +604,96 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
     slug: "data-layer",
     aliases: ["sources-and-credits"],
     title: "The Data Layer",
-    dek: "Where I get the data, how I transform it, how the database is organized, and why the storage and query strategy look the way they do.",
+    dek: "How I ingest baseball data, how I separate warehouse and serving responsibilities, and why the application reads from structured serving state rather than raw feed output.",
     authorName: "Colby Reichenbach",
     articleType: "profile",
-    publishedAt: "2026-03-24",
+    publishedAt: "2026-04-11",
     publishedLabel: "Data Layer",
     readTime: "8 min read",
-    accentClass: "text-[#2d5a27]",
+    accentClass: "text-[#8b0000]",
     heroEyebrow: "Data Engineering",
-    heroHeading: "I built the data layer to turn public baseball feeds into stable, queryable product truth.",
+    heroHeading: "I built the data layer to turn public baseball feeds into stable product truth that the application can serve.",
     leadParagraphs: [
-      "The system is only as good as the data layer underneath it. I need clean ingest, stable relational structure, auditable transforms, and a query path that can serve both live pages and heavier analytical surfaces without collapsing under its own ambition.",
-      "The data does not arrive in the exact shapes the app needs. I ingest it, normalize it, key it, enrich it, and materialize it into serving tables and views that make baseball and product sense. That includes live ABS events, pitch context, historical fallback data, editorial evidence, AI feedback, and product-user state.",
-      "This is where cost and operational decisions show up. I keep some data local by design because historical pitch-level material is expensive enough that it makes sense to separate heavy reference storage from what deployed environments need to serve pages quickly.",
-      "I also run live polling on a fixed heartbeat with an ET-aware gate. The scheduler stays simple, but the ingest path only does real work when games are relevant, stale gaps need recovery, or fresh structured serving state needs to be written.",
+      "AiBS does not depend on raw baseball feeds arriving in exactly the shape the product needs. That assumption usually leads to one of two bad outcomes: the app becomes tightly coupled to source payloads that were never designed for a product, or every route starts doing too much transformation work at request time.",
+      "The data layer is built around a split instead. A warehouse path handles heavier ingest, historical working sets, and model development. A serving path holds the compact, structured state the product needs to render live pages, summaries, reports, and analytics. The database and ETL design reflect the full scope of what AiBS is: not just a stats viewer, but a system carrying baseball state, product state, AI state, editorial state, community state, and operational records all at once.",
     ],
     quickFacts: [
-      { label: "Primary storage", value: "Postgres with raw, product, editorial, community, AI, ops, and serving layers" },
-      { label: "Core baseball entities", value: "Games, pitches, ABS challenges, summaries, and historical fallback tables" },
-      { label: "Serving strategy", value: "Views, marts, and cached app loaders instead of raw endpoint passthrough" },
+      { label: "Core runtime", value: "Next.js, Postgres, Python ETL" },
+      { label: "Primary data split", value: "Warehouse responsibilities separated from serving responsibilities" },
+      { label: "App loading pattern", value: "SQL-first, server-side. No raw API passthrough." },
     ],
     sections: [
       {
-        eyebrow: "Sources and transforms",
-        heading: "I turn public baseball data into product data through transformation, not passthrough.",
+        eyebrow: "Pipeline architecture",
+        heading: "Data flows through a defined sequence from public feeds to serving state.",
         paragraphs: [
-          "The baseball-facing inputs come from public MLB-facing sources and related historical pitch-level material. I ingest those sources into relational tables such as `games`, `pitches`, `abs_challenges`, and raw historical pitch-state tables, then build serving tables and views on top. AiBS is not a thin wrapper over one live endpoint. It is a transformation layer.",
-          "That transformation work matters because product pages do not need raw feed data. They need challenge events tied to count state, score state, pitcher-batter context, umpire context, and fallback model tables. I designed the database around that need.",
-          "That is also why I moved live scoreboard serving toward structured state instead of treating raw source snapshots as the product surface. The app now prefers compact linescore state that the ingest pipeline writes directly for serving.",
+          "The ingest pipeline pulls from MLB live game feeds and related historical baseball sources, including warehouse-side Statcast and Savant material. A Python ETL layer handles schedule data, live game feeds, play-by-play events, pitch-level detail, Statcast pitch history, and Savant ABS gamefeed data. The data is normalized, keyed to internal identifiers, and written to the database. The warehouse path holds raw snapshots and historical working sets. The serving path holds compact, product-shaped state that the Next.js application reads directly.",
+          "The ETL layer lives in Python rather than inside the application server. Ingest work and serving work have different lifecycles, different failure modes, and different schedules. Keeping them separate means a slow backfill job does not touch the application's request path, and a frontend deployment does not require the ETL to redeploy alongside it.",
+        ],
+        diagram: `flowchart LR
+    A["MLB + Statcast + Savant"] --> B["Python ETL\\n18 scripts"]
+    B --> C["Warehouse\\nRaw + Historical"]
+    B --> D["Serving Tables\\nMart Views"]
+    C --> E["Model Dev\\nAudits"]
+    D --> F["Next.js App\\nSQL-first"]
+    E -.->|"publish"| D`,
+      },
+      {
+        eyebrow: "Warehouse and serving",
+        heading: "The two sides of the data layer solve different problems.",
+        paragraphs: [
+          "The warehouse side handles heavier ingest, historical backfills, model development, and audit work. Raw baseball inputs, historical pitch-level data, and model-oriented tables live there without forcing the public-facing app to carry that weight in its normal serving path.",
+          "The serving side handles page-facing baseball state, product metadata, editorial records, community data, AI records, and operational bookkeeping. This is the data the routes actually read to render pages, along with the broader application data that makes AiBS more than a baseball feed viewer.",
+          "The product-facing system stays tighter because of that separation. The app does not need the full historical working set on every deployed path. It needs structured outputs, summaries, and compact serving tables that support the pages and workflows people actually use.",
         ],
       },
       {
         eyebrow: "Database shape",
-        heading: "I organized the schema by responsibility, not by one flat baseball feed.",
+        heading: "The schema is organized by responsibility, not by baseball alone.",
         paragraphs: [
-          "The schema separates product concerns into distinct namespaces and layers. Baseball event tables sit alongside product-user tables, editorial workflow tables, community tables, AI generation and feedback tables, operational audit tables, raw historical statcast inputs, and serving fallback tables. I did that because AiBS is doing more than displaying one stream of pitch events.",
-          "For a data engineer, the important point is that I built this as an application database, not just an analytics sandbox. I need transactional integrity for user and AI systems, relational integrity for baseball data, and performant serving paths for live pages.",
+          "The baseball core includes tables for teams, games, officials, at-bats, play events, pitches, ABS challenges, and game-state snapshots. Those carry the product itself.",
+          "The database also serves the rest of the application. Product and identity tables handle users, profiles, roles, and organizations. Editorial tables track articles, revisions, generation runs, and contributors. AI tables store conversations, messages, tool calls, safety events, cost events, usage ledger entries, and generation records. Community tables cover threads, comments, reports, and moderation. Operational tables handle audit logs, rate limits, webhook deliveries, and job runs. Raw archival tables hold Statcast and Savant source data. The modeling namespace houses the called-pitch decision layer.",
+          "This structure matters because different parts of the application need different guarantees. Baseball data needs relational integrity. User state and AI usage need stable transactional behavior. Editorial history needs to be auditable. The namespace boundaries exist to keep those concerns clear rather than mixed together.",
         ],
         stats: [
-          { label: "Core game tables", value: "games, pitches, abs_challenges" },
-          { label: "Serving tables", value: "run/WE fallbacks and count-state baselines" },
-          { label: "Operational tables", value: "AI feedback, audits, jobs, and webhook deliveries" },
+          { label: "Total tables", value: "56" },
+          { label: "Schema namespaces", value: "public, ops, product, editorial, community, ai, raw, modeling" },
+          { label: "Mart views", value: "34 (analytics, serving, split-aware training)" },
         ],
       },
       {
-        eyebrow: "Polling and freshness",
-        heading: "I keep live ingest cadence simple and the work gate strict.",
+        eyebrow: "Live ingest",
+        heading: "The scheduler is simple. The work gate is smarter.",
         paragraphs: [
-          "The poller runs on a fixed five-minute local scheduler heartbeat, but that does not mean it blindly ingests every time. I gate work by Eastern Time game windows, whether any games are actually live, and whether the system needs bounded stale-gap recovery after downtime.",
-          "That design keeps the scheduler understandable while still protecting freshness. It also lets me surface a small freshness indicator in the product so users can tell whether the system is actively polling or idle.",
+          "The live polling path runs on a fixed five-minute heartbeat. A simple cadence is easy to understand and reason about operationally. The scheduler wakes up on schedule, and the gate decides whether real work needs to happen.",
+          "The gate is Eastern Time aware. If no relevant games exist in the current ET window, the poller exits quickly. If games are scheduled but none are live, it exits again. If the system has been stale for more than eight hours, it runs a bounded catch-up across scheduled ET dates going back up to seven days. Each wake-up does the right amount of work, not a fixed amount.",
+          "Serving mode and archive mode are also separated. In serving mode, the hosted database stays focused on structured page-facing state. In archive mode, heavier raw material is preserved outside the normal serving footprint. Snapshot pruning keeps the serving environment from quietly accumulating data that belongs in an archive.",
         ],
       },
       {
-        eyebrow: "Why local historical data matters",
-        heading: "Keeping historical pitch-level data local is partly a product decision and partly a cost decision.",
+        eyebrow: "Live serving",
+        heading: "Scoreboard data comes from structured linescore state, not open-ended snapshot retention.",
         paragraphs: [
-          "I keep heavier historical material local because pitch-level reference data is expensive enough that I want to be intentional about where it lives. The deployed serving environments need the outputs and the fallback tables they actually use. They do not always need the full historical working set that supports ETL, rebuilds, and deeper local modeling work.",
-          "I also separate recent serving data from raw archive retention on purpose. The hosted database keeps structured page-facing state and only limited recent operational snapshots, while the deeper raw audit trail can live outside the serving footprint.",
+          "The live scoreboard is one of the clearest examples of the serving design. The application reads from structured linescore state written into ops.game_linescores during ingest. That gives the product a compact, serving-friendly scoreboard source for preview, live, and final games.",
+          "The hosted serving environment does not need to behave like a long-term raw archive just to draw a scoreboard. It needs compact state that is easy to read, easy to refresh, and easy to reason about when something goes wrong. Recent operational snapshots can remain where they help the product, but serving should not be confused with archiving.",
         ],
       },
       {
-        eyebrow: "Why the query layer works",
-        heading: "I keep the serving path focused on pre-shaped data and cached loaders.",
+        eyebrow: "Application loading",
+        heading: "The application is SQL-first and server-side on purpose.",
         paragraphs: [
-          "The app does not rely on one giant raw query per route. I use serving views, fallback tables, and cached loaders so route work stays focused on composing product-ready pieces. That is why performance problems are often better solved by fixing lookup strategy or route fan-out than by blaming the base database query alone.",
-          "The data layer is a major part of product reliability. If the transforms, views, indexes, and serving assumptions are wrong, the system will either be slow or dishonest. It has to be neither.",
+          "Server components and route handlers read from shared helpers in src/lib. Analytics pages are built from page-model helpers rather than doing route-local math everywhere. Query logic and data-shaping logic live close to the server-side model of the product rather than scattered across individual routes.",
+          "Centralizing retrieval and shaping also helps with consistency. When the same summary or model output is needed in multiple places, there is one path to maintain rather than several slightly different versions. The browser is not treated as a trusted data or authorization layer. Product logic, data loading, and permission boundaries all hold on the server side.",
         ],
+      },
+      {
+        eyebrow: "Why this matters for modeling",
+        heading: "The model layer gets stronger when the data layer makes state transitions explicit.",
+        paragraphs: [
+          "The model work in AiBS depends on more than pitch location. It depends on count state, base state, inning, score, team context, and the tracked review path that follows each challenged or unchanged call. None of that works unless the data layer preserves those transitions cleanly enough for both serving and audit purposes.",
+          "The warehouse side carries the strongest model layers. Count-state baselines, run expectancy, win expectancy, and challenge evaluation all sit on top of split-aware governance and held-out audits that trace back directly to the data layer. If the ingest is sloppy or the serving shapes are unclear, the modeling work becomes much harder to trust. A clean data layer is what lets the product carry stronger analytical claims without hand-waving.",
+        ],
+        pullQuote: "I built the data layer so the application reads from product truth, not from whatever raw feed payloads happen to exist.",
       },
     ],
     relatedSlugs: ["model-layer", "ai-layer", "trust-audits-and-monitoring"],
@@ -512,45 +702,88 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
     slug: "trust-audits-and-monitoring",
     aliases: ["audits-and-monitoring"],
     title: "Trust, Audits, and Model Monitoring",
-    dek: "How AiBS validates the product before and after changes: held-out audits, warehouse-first evidence, QA gates, and operational monitoring.",
+    dek: "How I validate AiBS across models, data freshness, and the AI layer so the product stays honest about what is strong, what is provisional, and what should stay qualified.",
     authorName: "Colby Reichenbach",
     articleType: "project",
-    publishedAt: "2026-03-24",
-    publishedLabel: "Trust Layer",
+    publishedAt: "2026-04-11",
+    publishedLabel: "Trust and Audits",
     readTime: "7 min read",
     accentClass: "text-[#8b0000]",
     heroEyebrow: "Validation Workflow",
-    heroHeading: "The product is supposed to earn trust through recurring evidence, not one-time confidence.",
+    heroHeading: "Trust comes from whether the system can show its work and admit its limits, not from polished pages or confident wording.",
     leadParagraphs: [
-      "AiBS now has a real audit workflow around the current model stack. That includes split-aware held-out audits for count-state, run expectancy, win expectancy, and overturn calibration, plus decision-value diagnostics, rubric checks, controversy checks, and product QA.",
-      "The important part is that these are not just promises in documentation. The workflow now runs against the warehouse modeling source, writes dated artifacts, and sits next to the live GitHub Actions ingest and publish path so the product can tell the difference between a strong layer, a provisional layer, and a layer that should stay qualified in public.",
-      "That matters because baseball products can look polished while drifting underneath. The audit layer exists so changes are evidence-driven, reproducible, and easier to unwind when a layer is not ready to carry a bigger claim.",
+      "AiBS makes analytical claims about baseball. That means I need a way to separate what is well supported from what is still early. The trust layer exists so the product does not rely on vague confidence or a one-time check that looked good during development.",
+      "Trust in this system has to cover more than one dimension. A product can be wrong because a model is weak, because the data is stale, because a route is presenting something too aggressively, or because an AI response is overreaching. I wanted those different failure types to be identifiable and addressable separately rather than mixed into one vague review process.",
+      "The current trust layer rests on four things: held-out model evaluation with dated audit artifacts, data freshness and serving-state monitoring, AI generation observability, and explicit publication boundaries matched to the actual strength of each layer.",
     ],
     quickFacts: [
-      { label: "Core audit style", value: "Held-out evaluation with dated artifacts" },
-      { label: "Main current evidence", value: "Count-state, RE, WE, overturn, and decision-value audits" },
-      { label: "Release guardrails", value: "Warehouse-first audits, QA, and publication gates" },
+      { label: "Core validation style", value: "Held-out evaluation with dated artifacts and explicit claim boundaries" },
+      { label: "Audit inventory", value: "48 dated reports, 44 JSON artifacts, 9 model cards, all in version control" },
+      { label: "Audit types implemented", value: "Product QA, current-state, controversy, decision-value, leverage, RE benchmark, WE benchmark, overturn calibration, rubric, zone-edge" },
     ],
     sections: [
       {
-        eyebrow: "Audit flow",
-        heading: "Model validation now lives inside the operating workflow.",
+        eyebrow: "How audits work",
+        heading: "Every audit leaves behind a runnable script, a dated report, a JSON artifact, and a clear recommendation.",
         paragraphs: [
-          "The current audit layer is built around warehouse-first runtime helpers, dated markdown and JSON artifacts, and split-aware marts that make it much harder to accidentally evaluate on the same rows used to fit the model. That is a major shift from a lighter 'looks good' style of review.",
-          "It also means the product can now carry more honest boundaries. A green layer can be described confidently. A yellow layer can be published carefully. A red layer can stay in the product as exploratory or fan-facing without being sold as operational truth.",
+          "The audit process is built to be repeatable rather than one-off. The repo contains a suite of audit scripts, each producing a dated markdown report, a dated JSON artifact, and a short written recommendation: no change, monitor, recalibrate, or rebuild. Reports and artifacts are stored in version control so any claim boundary can be traced back to the specific evidence that produced it.",
+          "The intended cadence runs at three levels. Post-refresh checks are designed to run after final games are available and flag material shifts in error, fallback usage, or benchmark gaps. Weekly reviews look at accumulated artifacts together, focusing on convergence, calibration drift, and distribution changes. Deeper audits are run after major data milestones: when the spring training sample expands significantly, after the first regular-season week, after the first full month, or whenever model logic changes.",
+          "The current suite covers 10 audit types: product QA, current-state validation, controversy ranking, decision-value composite, leverage benchmarking, RE benchmarking, WE benchmarking against MLB public WE, overturn-probability calibration, rubric distribution, and zone-edge geometry.",
+        ],
+        diagram: `flowchart LR
+    A["Data Milestone\\nor Refresh"] --> B["Audit Scripts\\n10 types"]
+    B --> C["Dated Report\\n.md file"]
+    B --> D["Dated Artifact\\n.json file"]
+    C --> E{"Recommendation"}
+    D --> E
+    E -->|"no change"| F["Boundaries Hold"]
+    E -->|"monitor"| G["Watch Next Cycle"]
+    E -->|"recalibrate"| H["Retune Thresholds"]
+    E -->|"rebuild"| I["Rebuild and Re-audit"]`,
+      },
+      {
+        eyebrow: "What is strong vs. what stays qualified",
+        heading: "Each layer has an explicit confidence boundary, and the audits are what set those boundaries.",
+        paragraphs: [
+          "The model layer maintains a traffic-light status for every component, documented in model cards and a dated verdict file. Count-state, RE, and WE are green: held-out audited and externally benchmarked. Called-pitch geometry and overturn probability are yellow: useful but still provisional. Challenge-now is red for org-grade claims: structurally improved but not ready to be presented as operational optimization. Leverage, rubrics, and controversy are green in their intended roles as heuristic, descriptive, and editorial layers.",
+          "The specific audit numbers behind those verdicts are in the Model Layer article. What matters here is that the verdicts are not based on feel. They come from the dated audit process and can move in either direction as the evidence develops. A layer can graduate from yellow to green, or a previously green layer can be downgraded if audit metrics start drifting.",
+          "Explicit classification by confidence level does more for credibility than polished wording ever could. A reader can look at the boundary and understand exactly what is and is not being claimed.",
         ],
       },
       {
-        eyebrow: "Monitoring",
-        heading: "Operational trust also means catching drift, mismatch, and overclaim early.",
+        eyebrow: "Data freshness",
+        heading: "Trust also means the product knows when its own serving state is fresh and when it is not.",
         paragraphs: [
-          "Operational trust is not just about a passing build. It also depends on whether the product can detect data drift, model drift, warehouse-versus-serving mismatch, and repeated workflow failures before they become public-facing mistakes.",
-          "That is why the AiBS audit layer now sits next to the data platform and publication-readiness workflow. The goal is not only to compute baseball numbers. It is to keep the system honest about what those numbers mean and how much confidence they deserve.",
+          "Model validation is only one dimension of trust. The product also has to trust its own data path. The polling workflow runs on a fixed five-minute heartbeat with an ET-aware gate that decides whether real ingest work needs to happen. Stale systems beyond eight hours get a bounded catch-up. Nothing relevant in the schedule means a quick exit.",
+          "Live scoreboard serving reads from structured linescore state rather than depending on open-ended raw snapshot retention. Snapshot pruning keeps the serving environment from quietly accumulating archive-weight data. Those choices exist because stale or loosely shaped serving state can make the product look more certain than it should be.",
+          "Blurring the line between fresh structured state, stale operational state, and deeper archive material is a specific failure mode the data design is built to prevent.",
         ],
-        pullQuote: "Trust is not only about getting a number once. It is about whether the system can tell when it should stop trusting itself.",
+      },
+      {
+        eyebrow: "AI observability",
+        heading: "AI responses are reviewable because I cannot improve what I cannot trace.",
+        paragraphs: [
+          "The AI side of trust works differently from the model side, but it matters just as much. When the AI layer produces a response, the system persists the full conversation, individual messages, tool calls, safety events, cost events, usage ledger records, and generation metadata including surface, task family, prompt version, semantic tags, terminology bundle details, and structured output. That record makes it possible to inspect what actually happened rather than guess.",
+          "Knowing whether a weak response came from request routing, the selected surface, the prompt version, the terminology bundle, the available tool context, or the response structure is the difference between diagnosing a problem and replacing things at random.",
+          "The AI path also includes health checks that validate terminology seed completeness and run a test suite covering prompt behavior, telemetry correctness, and output structure. Prompt and response behavior can drift quietly while the product still appears to function. The tests exist to catch that drift.",
+        ],
+      },
+      {
+        eyebrow: "Failure types",
+        heading: "The product can be wrong in different ways, and each way needs its own detection path.",
+        paragraphs: [
+          "Trust in AiBS is organized around four failure types because they require different monitoring and different responses.",
+        ],
+        bullets: [
+          "Model trust: a layer is weak, miscalibrated, or overfit. Caught by held-out audits and dated artifacts.",
+          "Data trust: serving state is stale, loosely shaped, or out of sync with the source. Caught by freshness monitoring and structured serving design.",
+          "Product trust: a route presents information too aggressively or implies stronger confidence than the underlying layer supports. Caught by publication boundaries and claim-level review.",
+          "AI trust: a generated response overreaches, drifts off-surface, or breaks wording consistency. Caught by generation records, health checks, and test suites.",
+        ],
+        pullQuote: "I want the system to be able to tell me when its own confidence should go down.",
       },
     ],
-    relatedSlugs: ["model-layer", "ai-layer", "sources-and-credits"],
+    relatedSlugs: ["model-layer", "data-layer", "ai-layer"],
   },
 ];
 
