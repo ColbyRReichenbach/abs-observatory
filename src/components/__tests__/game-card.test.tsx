@@ -54,6 +54,25 @@ describe("GameCard", () => {
     expect(html).toContain(">3<");
   });
 
+  it("falls back to the live inning scenario when detailed state is generic", () => {
+    const html = renderToStaticMarkup(
+      <GameCard
+        game={{
+          ...baseGame,
+          status: "Live",
+          detailedState: "In Progress",
+          inning: 7,
+          inningHalf: "Bottom",
+          awayScore: 2,
+          homeScore: 1,
+        }}
+      />,
+    );
+
+    expect(html).toContain("Bottom 7th");
+    expect(html).not.toContain("In Progress");
+  });
+
   it("renders final scoreboard state", () => {
     const html = renderToStaticMarkup(
       <GameCard

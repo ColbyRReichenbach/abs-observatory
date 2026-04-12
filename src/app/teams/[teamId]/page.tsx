@@ -206,7 +206,7 @@ export default async function TeamPage({
           </Suspense>
         ) : (
           <>
-            <Suspense fallback={<SectionPanelFallback title="Challenge Value Matrix" heightClass="min-h-[360px]" className="mt-8" />}>
+            <Suspense fallback={<SectionPanelFallback title="Challenge Window Map" heightClass="min-h-[360px]" className="mt-8" />}>
               <TeamChallengeValueSection
                 teamId={summary.teamId}
                 range={range}
@@ -527,7 +527,7 @@ function TeamAnalyticsFallback({ scheduleLate }: { scheduleLate: boolean }) {
       </section>
       {scheduleLate ? <SectionPanelFallback title="Schedule Flow" heightClass="min-h-[220px]" className="mt-8" /> : null}
       <SectionPanelFallback title="Inning Efficiency" heightClass="min-h-[320px]" className="mt-8" />
-      <SectionPanelFallback title="Challenge Value Matrix" heightClass="min-h-[360px]" className="mt-8" />
+      <SectionPanelFallback title="Challenge Window Map" heightClass="min-h-[360px]" className="mt-8" />
       <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_1fr_1fr]">
         <SectionPanelFallback title="Timing Efficiency" heightClass="min-h-[280px]" />
         <SectionPanelFallback title="Umpire Matrix" heightClass="min-h-[280px]" />

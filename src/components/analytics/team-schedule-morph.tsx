@@ -119,17 +119,11 @@ function GameCard({ game }: { game: ScheduleGame }) {
     return (
         <ModeAwareLink
             href={`/game/${game.gamePk}`}
-            className={`block relative p-5 rounded-2xl border transition-all hover:shadow-xl hover:-translate-y-1 group bg-white
-                ${isLive ? 'border-red-200 shadow-[0_0_30px_rgba(239,68,68,0.1)] ring-1 ring-red-500/20' : 'border-gray-100 shadow-sm'}
-            `}
+            className="group relative block rounded-2xl border border-gray-100 bg-white p-5 transition-all hover:-translate-y-1 hover:shadow-xl shadow-sm"
         >
-            {isLive && (
-                <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-red-400 via-orange-500 to-red-500 rounded-t-2xl" />
-            )}
-
             <div className="flex justify-between items-start mb-6">
                 <div className="flex flex-col items-start gap-2">
-                    <span suppressHydrationWarning className={`text-[10px] font-bold uppercase tracking-widest whitespace-nowrap ${isLive ? 'text-red-600' : 'text-gray-400'}`}>
+                    <span suppressHydrationWarning className="text-[10px] font-bold uppercase tracking-widest whitespace-nowrap text-gray-400">
                         {formatDisplayTime(date, {
                           locale: undefined,
                           timeZone: getDisplayTimeZone(),

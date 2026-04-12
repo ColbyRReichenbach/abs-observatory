@@ -1,5 +1,5 @@
 "use client";
-import { useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 type ChartTooltipRowProps = {
@@ -41,6 +41,34 @@ export function ChartTooltip({ title, value, subValueLabel, extra, children, use
         () => true,
         () => false,
     );
+    const [hiddenWhileScrolling, setHiddenWhileScrolling] = useState(false);
+
+    useEffect(() => {
+        if (!usePortal) return;
+        setHiddenWhileScrolling(false);
+    }, [usePortal, portalProps?.x, portalProps?.y]);
+
+    useEffect(() => {
+        if (!usePortal || typeof window === "undefined") return;
+
+        const dismiss = () => setHiddenWhileScrolling(true);
+
+        window.addEventListener("scroll", dismiss, true);
+        window.addEventListener("wheel", dismiss, { passive: true });
+        window.addEventListener("touchmove", dismiss, { passive: true });
+        window.addEventListener("resize", dismiss);
+
+        return () => {
+            window.removeEventListener("scroll", dismiss, true);
+            window.removeEventListener("wheel", dismiss);
+            window.removeEventListener("touchmove", dismiss);
+            window.removeEventListener("resize", dismiss);
+        };
+    }, [usePortal]);
+
+    if (usePortal && hiddenWhileScrolling) {
+        return null;
+    }
 
     let portalStyle: React.CSSProperties | undefined;
     if (usePortal && portalProps && typeof window !== "undefined") {

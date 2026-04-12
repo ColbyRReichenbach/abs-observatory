@@ -13,6 +13,7 @@ import type { LiveGameCard } from "@/lib/types";
 export function GameCard({ game }: { game: LiveGameCard }) {
   const awayAbbr = game.awayTeamAbbreviation ?? game.awayTeamName.slice(0, 3).toUpperCase();
   const homeAbbr = game.homeTeamAbbreviation ?? game.homeTeamName.slice(0, 3).toUpperCase();
+  const liveScenarioLabel = getLiveScenarioLabel(game);
 
   return (
 
@@ -77,11 +78,52 @@ export function GameCard({ game }: { game: LiveGameCard }) {
             <LocalTime dateStr={game.gameDate} showDate={true} />
           </span>
         ) : (
-          <span className="text-[11px] font-bold text-blue-600 uppercase tracking-tighter">{game.detailedState ?? "Scheduled"}</span>
+          <span className="text-[11px] font-bold text-blue-600 uppercase tracking-tighter">{liveScenarioLabel}</span>
         )}
       </div>
     </ModeAwareLink>
   );
+}
+
+function getLiveScenarioLabel(game: LiveGameCard) {
+  if (game.status !== "Live") {
+    return game.detailedState ?? "Scheduled";
+  }
+
+  const normalizedState = game.detailedState?.trim();
+  if (normalizedState && normalizedState.toLowerCase() !== "in progress") {
+    return normalizedState;
+  }
+
+  const inningNumber = typeof game.inning === "number" && Number.isFinite(game.inning) ? ordinalInning(game.inning) : null;
+  const half = normalizeHalfInning(game.inningHalf);
+
+  if (half && inningNumber) {
+    return `${half} ${inningNumber}`;
+  }
+
+  if (inningNumber) {
+    return inningNumber;
+  }
+
+  return "Live";
+}
+
+function normalizeHalfInning(value: string | null | undefined) {
+  if (!value) return null;
+  const lower = value.trim().toLowerCase();
+  if (lower === "top") return "Top";
+  if (lower === "bottom" || lower === "bot") return "Bottom";
+  return value.trim();
+}
+
+function ordinalInning(inning: number) {
+  const remainder10 = inning % 10;
+  const remainder100 = inning % 100;
+  if (remainder10 === 1 && remainder100 !== 11) return `${inning}st`;
+  if (remainder10 === 2 && remainder100 !== 12) return `${inning}nd`;
+  if (remainder10 === 3 && remainder100 !== 13) return `${inning}rd`;
+  return `${inning}th`;
 }
 
 function StatusChip({ status }: { status: string }) {
