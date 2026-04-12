@@ -33,8 +33,35 @@ const plexMono = IBM_Plex_Mono({
 
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://abs-observatory.vercel.app"),
   title: "AiBS | MLB Automated Ball-Strike Analytics",
-  description: "High-fidelity live and historical MLB ABS challenge monitoring",
+  description:
+    "Live and historical MLB ABS challenge analysis, team and umpire breakdowns, and challenge-era modeling.",
+  openGraph: {
+    title: "AiBS | MLB Automated Ball-Strike Analytics",
+    description:
+      "Live and historical MLB ABS challenge analysis, team and umpire breakdowns, and challenge-era modeling.",
+    url: "https://abs-observatory.vercel.app",
+    siteName: "AiBS",
+    images: [
+      {
+        url: "/opengraph-image.png",
+        width: 1200,
+        height: 630,
+        alt: "AiBS MLB ABS analytics preview",
+      },
+    ],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AiBS | MLB Automated Ball-Strike Analytics",
+    description:
+      "Live and historical MLB ABS challenge analysis, team and umpire breakdowns, and challenge-era modeling.",
+    images: ["/twitter-image.png"],
+    creator: "@aicolby",
+    site: "@aicolby",
+  },
 };
 
 async function getSafeAdminVisibility() {
