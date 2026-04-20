@@ -7,7 +7,7 @@ export type AiPlanCode = (typeof AI_PLAN_CODES)[number];
 export const AI_FEATURE_FLAGS = ["premium_ai_limits", "ai_chart_generation", "ai_editorial_tools"] as const;
 export type AiFeatureFlag = (typeof AI_FEATURE_FLAGS)[number];
 
-export const AI_USAGE_FEATURES = ["ai_chat_basic", "ai_chat_heavy", "ai_chart_generation", "ai_editorial_tools"] as const;
+export const AI_USAGE_FEATURES = ["ai_chat_basic", "ai_chat_heavy", "ai_chart_generation", "ai_chart_followup", "ai_editorial_tools"] as const;
 export type AiUsageFeature = (typeof AI_USAGE_FEATURES)[number];
 
 export type AiEntitlement = {
@@ -16,6 +16,7 @@ export type AiEntitlement = {
   aiRequestsPerDay: number;
   aiTokensPerMonth: number;
   aiCostUsdPerMonth: number;
+  aiChartFollowupsPerWeek: number;
   featureFlags: Record<string, boolean>;
 };
 
@@ -31,9 +32,10 @@ type AiUsageRollup = {
 const PLAN_DEFAULTS: Record<AiPlanCode, Omit<AiEntitlement, "userId">> = {
   free: {
     planCode: "free",
-    aiRequestsPerDay: 8,
+    aiRequestsPerDay: 5,
     aiTokensPerMonth: 25_000,
     aiCostUsdPerMonth: 5,
+    aiChartFollowupsPerWeek: 1,
     featureFlags: {
       premium_ai_limits: false,
       ai_chart_generation: false,
@@ -45,6 +47,7 @@ const PLAN_DEFAULTS: Record<AiPlanCode, Omit<AiEntitlement, "userId">> = {
     aiRequestsPerDay: 20,
     aiTokensPerMonth: 100_000,
     aiCostUsdPerMonth: 15,
+    aiChartFollowupsPerWeek: 5,
     featureFlags: {
       premium_ai_limits: true,
       ai_chart_generation: true,
@@ -56,6 +59,7 @@ const PLAN_DEFAULTS: Record<AiPlanCode, Omit<AiEntitlement, "userId">> = {
     aiRequestsPerDay: 50,
     aiTokensPerMonth: 250_000,
     aiCostUsdPerMonth: 40,
+    aiChartFollowupsPerWeek: 15,
     featureFlags: {
       premium_ai_limits: true,
       ai_chart_generation: true,
@@ -67,6 +71,7 @@ const PLAN_DEFAULTS: Record<AiPlanCode, Omit<AiEntitlement, "userId">> = {
     aiRequestsPerDay: 150,
     aiTokensPerMonth: 1_000_000,
     aiCostUsdPerMonth: 120,
+    aiChartFollowupsPerWeek: 50,
     featureFlags: {
       premium_ai_limits: true,
       ai_chart_generation: true,
@@ -114,6 +119,7 @@ function serializeEntitlement(row: {
     aiRequestsPerDay: Number(row.airequestsperday),
     aiTokensPerMonth: Number(row.aitokenspermonth),
     aiCostUsdPerMonth: Number(row.aicostusdpermonth),
+    aiChartFollowupsPerWeek: defaults.aiChartFollowupsPerWeek,
     featureFlags: {
       ...defaults.featureFlags,
       ...(row.featureflags ?? {}),
@@ -246,6 +252,25 @@ async function getUsageRollup(userId: string, modelName: string): Promise<AiUsag
   };
 }
 
+async function getFeatureUsageCount(params: {
+  userId: string;
+  featureKey: AiUsageFeature;
+  windowDays: number;
+}): Promise<number> {
+  const row = await sqlOne<{ requestcount: string }>(
+    `
+    SELECT COALESCE(SUM(request_count), 0)::text AS requestCount
+    FROM ai.usage_ledger
+    WHERE user_id = $1
+      AND feature_key = $2
+      AND created_at >= NOW() - ($3::text || ' days')::interval
+    `,
+    [params.userId, params.featureKey, params.windowDays],
+  );
+
+  return Number(row?.requestcount ?? 0);
+}
+
 export function isFeatureEnabled(entitlement: AiEntitlement, flag: AiFeatureFlag): boolean {
   return Boolean(entitlement.featureFlags[flag]);
 }
@@ -267,8 +292,20 @@ export async function assertAiUsageAllowed(params: {
     throw new AiPolicyError("Current plan does not allow editorial tools", AI_ERROR_CODES.PLAN_RESTRICTED, 403);
   }
 
+  if (params.featureKey === "ai_chart_followup") {
+    const weeklyChartFollowups = await getFeatureUsageCount({
+      userId: params.userId,
+      featureKey: "ai_chart_followup",
+      windowDays: 7,
+    });
+
+    if (weeklyChartFollowups >= entitlement.aiChartFollowupsPerWeek) {
+      throw new AiPolicyError("Weekly chart insight follow-up allowance exceeded", AI_ERROR_CODES.QUOTA_EXCEEDED, 429);
+    }
+  }
+
   if (usage.dailyRequests >= entitlement.aiRequestsPerDay) {
-    throw new AiPolicyError("Daily AI request allowance exceeded", AI_ERROR_CODES.QUOTA_EXCEEDED, 429);
+    throw new AiPolicyError("Daily copilot allowance exceeded", AI_ERROR_CODES.QUOTA_EXCEEDED, 429);
   }
 
   if (usage.monthlyTokens + params.estimatedInputTokens > entitlement.aiTokensPerMonth) {

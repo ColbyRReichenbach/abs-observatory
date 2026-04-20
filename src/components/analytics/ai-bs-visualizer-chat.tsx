@@ -7,6 +7,7 @@ import { Activity, AlertCircle, FileText, Loader2, Send } from "lucide-react";
 import { AIFeedback } from "@/components/ai-feedback";
 import { BaseballSpinner } from "@/components/baseball-spinner";
 import { AiBSIcon } from "@/components/ui/aibs-icon";
+import { ensureCsrfToken } from "@/lib/client/csrf";
 import type { AIChatResponse, AIVisualizerPlan } from "@/lib/types";
 
 export function AIBSVisualizerChat({
@@ -39,10 +40,18 @@ export function AIBSVisualizerChat({
     setError(null);
 
     try {
+      const csrfToken = await ensureCsrfToken();
+      if (!csrfToken) {
+        setError("Sign in and verify your email to use AiBS AI.");
+        return;
+      }
       const prompt = `For ${context}, propose one useful chart or table for this question and explain the baseball takeaway using only AiBS data. Question: ${query.trim()}`;
       const response = await fetch("/api/ai/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-csrf-token": csrfToken,
+        },
         body: JSON.stringify({ message: prompt, delivery: "sync", surface: "visualizer" }),
       });
       const payload = (await response.json()) as AIChatResponse;

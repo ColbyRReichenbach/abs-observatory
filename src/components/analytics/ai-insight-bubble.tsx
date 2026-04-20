@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -8,11 +8,10 @@ import { AlertCircle, Loader2, Send, X } from "lucide-react";
 
 import { AIFeedback } from "@/components/ai-feedback";
 import { AiBSIcon, ExpandableAiBSButton } from "@/components/ui/aibs-icon";
+import { ensureCsrfToken } from "@/lib/client/csrf";
 import type { ChartInsightPayload } from "@/lib/chart-insight-payload";
 import type { AIChatResponse } from "@/lib/types";
 import { useAiArtifactGeneration } from "@/lib/use-ai-artifact";
-
-const CSRF_COOKIE_NAME = "aibs_csrf";
 
 type ChartThreadMessage = {
   role: "user" | "assistant";
@@ -22,33 +21,6 @@ type ChartThreadMessage = {
   assistantMessageId?: string | null;
   generationId?: string | null;
 };
-
-function getCookie(name: string) {
-  if (typeof document === "undefined") return null;
-  const matched = document.cookie
-    .split(";")
-    .map((value) => value.trim())
-    .find((value) => value.startsWith(`${name}=`));
-  return matched ? decodeURIComponent(matched.slice(name.length + 1)) : null;
-}
-
-async function ensureCsrfToken() {
-  const existing = getCookie(CSRF_COOKIE_NAME);
-  if (existing) return existing;
-
-  try {
-    const response = await fetch("/api/csrf", {
-      method: "GET",
-      cache: "no-store",
-      credentials: "same-origin",
-    });
-    const body = (await response.json()) as { csrfToken?: string };
-    if (!response.ok || !body.csrfToken) return null;
-    return body.csrfToken;
-  } catch {
-    return null;
-  }
-}
 
 function buildInitialChartPrompt(chartContext: ChartInsightPayload) {
   return [
@@ -123,6 +95,8 @@ export function AIInsightBubble({
     surfaceDetail: "insight_bubble",
     targetType: "chart_insight",
     targetId: insightId,
+    title,
+    summary: chartContext?.chartSummary ?? insight,
     metadata: metadata ?? null,
   });
   const [isOpen, setIsOpen] = useState(false);
@@ -132,6 +106,7 @@ export function AIInsightBubble({
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
   const threadRef = useRef<HTMLDivElement>(null);
   const didBootstrapRef = useRef(false);
@@ -165,10 +140,11 @@ export function AIInsightBubble({
     setConversationId(null);
     setQuery("");
     setError(null);
+    setErrorCode(null);
     didBootstrapRef.current = false;
   }, [chartContext?.chartKey]);
 
-  async function runChartChat(message: string, showUserMessage: boolean) {
+  const runChartChat = useCallback(async (message: string, showUserMessage: boolean) => {
     if (!chartContext || isLoading) return;
 
     const trimmed = message.trim();
@@ -177,6 +153,7 @@ export function AIInsightBubble({
     const csrfToken = await ensureCsrfToken();
     if (!csrfToken) {
       setError("Chart insight is unavailable right now.");
+      setErrorCode(null);
       return;
     }
 
@@ -186,6 +163,7 @@ export function AIInsightBubble({
 
     setIsLoading(true);
     setError(null);
+    setErrorCode(null);
 
     try {
       const response = await fetch("/api/ai/chat", {
@@ -202,10 +180,11 @@ export function AIInsightBubble({
           chartContext,
         }),
       });
-      const payload = (await response.json()) as AIChatResponse & { error?: string };
+      const payload = (await response.json()) as AIChatResponse;
 
       if (!response.ok || payload.safetyDisposition === "blocked") {
         setError(payload.error || payload.answer || "Unable to analyze this chart right now.");
+        setErrorCode(payload.code ?? null);
         return;
       }
 
@@ -223,16 +202,17 @@ export function AIInsightBubble({
       ]);
     } catch {
       setError("Unable to analyze this chart right now.");
+      setErrorCode(null);
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [chartContext, conversationId, isLoading]);
 
   useEffect(() => {
     if (!isOpen || !chartContext || didBootstrapRef.current) return;
     didBootstrapRef.current = true;
     void runChartChat(buildInitialChartPrompt(chartContext), false);
-  }, [chartContext, isOpen]);
+  }, [chartContext, isOpen, runChartChat]);
 
   const latestAssistantMessage = useMemo(
     () => [...messages].reverse().find((message) => message.role === "assistant") ?? null,
@@ -403,7 +383,25 @@ export function AIInsightBubble({
                                 <div className="rounded-[1.25rem] border border-red-100 bg-red-50 px-4 py-4 text-sm text-red-700">
                                   <div className="flex items-start gap-2">
                                     <AlertCircle size={14} className="mt-0.5 shrink-0" />
-                                    <span>{error}</span>
+                                    <div className="space-y-3">
+                                      <span className="block">{error}</span>
+                                      {errorCode === "AI_AUTH_REQUIRED" ? (
+                                        <a
+                                          href="/login?next=/profile"
+                                          className="inline-flex h-10 items-center justify-center rounded-full border border-red-200 bg-white px-4 text-[10px] font-black uppercase tracking-[0.14em] text-red-700 transition hover:border-red-300"
+                                        >
+                                          Sign In To Ask Follow-Ups
+                                        </a>
+                                      ) : null}
+                                      {errorCode === "AI_VERIFIED_REQUIRED" ? (
+                                        <a
+                                          href="/profile"
+                                          className="inline-flex h-10 items-center justify-center rounded-full border border-amber-200 bg-white px-4 text-[10px] font-black uppercase tracking-[0.14em] text-amber-700 transition hover:border-amber-300"
+                                        >
+                                          Verify Email To Continue
+                                        </a>
+                                      ) : null}
+                                    </div>
                                   </div>
                                 </div>
                               ) : null}

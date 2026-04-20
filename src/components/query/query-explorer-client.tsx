@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
+import { ensureCsrfToken } from "@/lib/client/csrf";
 import { inferCopilotContext } from "@/lib/copilot-context";
 import type { AIChatResponse } from "@/lib/types";
 import type { ViewMode } from "@/lib/view-mode";
@@ -61,9 +62,17 @@ export function QueryExplorerClient({ mode }: { mode: ViewMode }) {
     setLoading(true);
     setResult(null);
     try {
+      const csrfToken = await ensureCsrfToken();
+      if (!csrfToken) {
+        setResult({ error: "Sign in and verify your email to use AiBS AI." } as AIChatResponse);
+        return;
+      }
       const res = await fetch("/api/ai/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-csrf-token": csrfToken,
+        },
         body: JSON.stringify({ message: question, context, delivery: "sync", surface: "copilot" }),
       });
       const payload = (await res.json()) as AIChatResponse;

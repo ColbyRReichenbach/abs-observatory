@@ -7,6 +7,7 @@ import { X, Send } from "lucide-react";
 import { AIFeedback } from "@/components/ai-feedback";
 import { AiBSIcon } from "@/components/ui/aibs-icon";
 
+import { ensureCsrfToken } from "@/lib/client/csrf";
 import { inferCopilotContext } from "@/lib/copilot-context";
 import type { AIChatResponse } from "@/lib/types";
 
@@ -78,6 +79,7 @@ export function ContextualCopilotFAB() {
   const [isHovered, setIsHovered] = useState(false);
   const [viewW, setViewW] = useState(0);
   const [viewH, setViewH] = useState(0);
+  const [inlineError, setInlineError] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -163,6 +165,13 @@ export function ContextualCopilotFAB() {
 
   async function runQuery(q: string = question) {
     if (!q.trim() || isTyping) return;
+    const csrfToken = await ensureCsrfToken();
+    if (!csrfToken) {
+      setInlineError("Sign in and verify your email to use AiBS AI.");
+      return;
+    }
+
+    setInlineError(null);
     setMessages((prev) => [...prev, { role: "user", content: q }]);
     setQuestion("");
     setIsTyping(true);
@@ -170,7 +179,10 @@ export function ContextualCopilotFAB() {
     try {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-csrf-token": csrfToken,
+        },
         body: JSON.stringify({ message: q, context, delivery: "sync", surface: "copilot" }),
       });
       const payload = (await res.json()) as AIChatResponse;
@@ -302,6 +314,11 @@ export function ContextualCopilotFAB() {
                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3">
                     Throw aiBS anything.
                   </p>
+                  {inlineError ? (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] font-semibold text-amber-800">
+                      {inlineError}
+                    </div>
+                  ) : null}
                   {smartQuestions.map((sq) => (
                     <button
                       key={sq}

@@ -349,4 +349,79 @@ describe("ai-chat", () => {
       ),
     ).rejects.toMatchObject<AiPolicyError>({ code: "AI_AUTH_REQUIRED", status: 404 });
   });
+
+  it("allows the first chart insight turn without authentication", async () => {
+    const { runChat } = await import("@/lib/server/ai-chat");
+    getViewerProfileMock.mockResolvedValueOnce(null);
+    isBaseballRelatedMock.mockReturnValueOnce(true);
+    sqlOneMock
+      .mockResolvedValueOnce({ conversationid: "conversation-1" })
+      .mockResolvedValueOnce({ messageid: "message-1" });
+    withTransactionMock.mockImplementation(async (callback) =>
+      callback(async (statement: string) => {
+        if (statement.includes("RETURNING message_id")) {
+          return [{ message_id: "assistant-1" }];
+        }
+        return [];
+      }),
+    );
+    resolveToolResultsMock.mockResolvedValueOnce([]);
+
+    const result = await runChat(
+      new Request("http://localhost/api/ai/chat", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: "aibs_csrf=test",
+          "x-csrf-token": "test",
+        },
+        body: JSON.stringify({
+          message: "Explain this chart.",
+          surface: "chart_insight",
+          chartContext: {
+            chartType: "heatmap",
+            chartKey: "chart-1",
+            chartTitle: "Zone heatmap",
+            baseballQuestion: "Where are challenges clustering?",
+            chartSummary: "Heatmap summary.",
+            payload: { sample: true },
+          },
+        }),
+      }),
+    );
+
+    expect(result.safetyDisposition).toBe("allowed");
+    expect(assertAiUsageAllowedMock).not.toHaveBeenCalled();
+  });
+
+  it("requires authentication for chart insight follow-ups", async () => {
+    const { AiPolicyError, runChat } = await import("@/lib/server/ai-chat");
+    getViewerProfileMock.mockResolvedValueOnce(null);
+
+    await expect(
+      runChat(
+        new Request("http://localhost/api/ai/chat", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            cookie: "aibs_csrf=test",
+            "x-csrf-token": "test",
+          },
+          body: JSON.stringify({
+            conversationId: crypto.randomUUID(),
+            message: "What should I take away from the upper zone?",
+            surface: "chart_insight",
+            chartContext: {
+              chartType: "heatmap",
+              chartKey: "chart-1",
+              chartTitle: "Zone heatmap",
+              baseballQuestion: "Where are challenges clustering?",
+              chartSummary: "Heatmap summary.",
+              payload: { sample: true },
+            },
+          }),
+        }),
+      ),
+    ).rejects.toMatchObject<AiPolicyError>({ code: "AI_AUTH_REQUIRED", status: 401 });
+  });
 });

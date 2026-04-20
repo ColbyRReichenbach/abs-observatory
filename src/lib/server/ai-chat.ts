@@ -742,12 +742,13 @@ export async function executeQueuedChatJob(payload: {
 export async function runChat(request: Request): Promise<ChatResponse> {
   const body = CHAT_REQUEST_SCHEMA.parse(await request.json());
   const isPublicChartInsight = body.surface === "chart_insight";
+  const isChartInsightFollowUp = isPublicChartInsight && Boolean(body.conversationId);
   if (isPublicChartInsight && !body.chartContext) {
     throw new AiPolicyError("Chart context required", AI_ERROR_CODES.OUT_OF_SCOPE, 400);
   }
   const viewer = await getViewerProfile(request);
   assertValidCsrf(request);
-  if (!isPublicChartInsight) {
+  if (!isPublicChartInsight || isChartInsightFollowUp) {
     assertViewerCanUseAi(viewer);
   }
   if (process.env.AI_GLOBAL_KILL_SWITCH === "true") {
@@ -831,7 +832,13 @@ export async function runChat(request: Request): Promise<ChatResponse> {
   }
 
   const shouldQueue = isPublicChartInsight ? false : shouldQueueAiRequest({ message: body.message, context, delivery: body.delivery });
-  const featureKey: AiUsageFeature | undefined = isPublicChartInsight ? undefined : shouldQueue ? "ai_chat_heavy" : "ai_chat_basic";
+  const featureKey: AiUsageFeature | undefined = isPublicChartInsight
+    ? isChartInsightFollowUp
+      ? "ai_chart_followup"
+      : undefined
+    : shouldQueue
+      ? "ai_chat_heavy"
+      : "ai_chat_basic";
   const modelName = process.env.OPENAI_SUMMARY_MODEL || "gpt-4.1-mini";
   const usagePolicy =
     viewer && featureKey
