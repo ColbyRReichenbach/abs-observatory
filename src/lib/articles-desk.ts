@@ -1,4 +1,9 @@
-export type ArticleDeskKey = "daily_ai_recap" | "weekly_analysis";
+export type ArticleDeskKey =
+  | "daily_observer"
+  | "weekly_editorial"
+  | "game_audit"
+  | "feature_story"
+  | "analysis_notebook";
 
 type DeskMeta = {
   key: ArticleDeskKey;
@@ -8,22 +13,53 @@ type DeskMeta = {
 };
 
 const DESKS: Record<ArticleDeskKey, DeskMeta> = {
-  daily_ai_recap: {
-    key: "daily_ai_recap",
-    label: "The Daily Lead",
-    deskName: "The Daily Lead",
-    description: "AI-generated daily ABS desk recap.",
+  daily_observer: {
+    key: "daily_observer",
+    label: "Daily Observer",
+    deskName: "The Absolute Observer",
+    description: "Daily same-day ABS recap built from the editorial serving layer.",
   },
-  weekly_analysis: {
-    key: "weekly_analysis",
-    label: "The Weekly Rotation",
+  weekly_editorial: {
+    key: "weekly_editorial",
+    label: "Weekly Editorial",
     deskName: "The Weekly Rotation",
-    description: "Authored weekly baseball analysis.",
+    description: "Longer-form editorial analysis and weekly desk framing.",
+  },
+  game_audit: {
+    key: "game_audit",
+    label: "Game Audit",
+    deskName: "The Postgame Desk",
+    description: "Single-game ABS recap and postgame challenge review.",
+  },
+  feature_story: {
+    key: "feature_story",
+    label: "Feature Story",
+    deskName: "The Feature Desk",
+    description: "Narrative feature work built around AiBS reporting and baseball context.",
+  },
+  analysis_notebook: {
+    key: "analysis_notebook",
+    label: "Analysis Notebook",
+    deskName: "The Analysis Notebook",
+    description: "Model-backed analysis, breakdowns, and evidence-first baseball notes.",
   },
 };
 
 function normalizeArticleType(articleType: string | null | undefined): ArticleDeskKey {
-  return articleType === "daily_auto" ? "daily_ai_recap" : "weekly_analysis";
+  switch (articleType) {
+    case "daily_auto":
+      return "daily_observer";
+    case "weekly_editorial":
+      return "weekly_editorial";
+    case "game_daily":
+      return "game_audit";
+    case "feature":
+      return "feature_story";
+    case "analysis":
+      return "analysis_notebook";
+    default:
+      return "analysis_notebook";
+  }
 }
 
 export function getArticleDeskMeta(articleType: string | null | undefined): DeskMeta {
@@ -31,8 +67,11 @@ export function getArticleDeskMeta(articleType: string | null | undefined): Desk
 }
 
 export function getArticleDisplayAuthor(articleType: string | null | undefined, authorName: string | null | undefined): string {
-  if (normalizeArticleType(articleType) === "daily_ai_recap") {
+  if (articleType === "daily_auto") {
     return authorName?.trim() || "AiBS Editorial Desk";
+  }
+  if (articleType === "game_daily") {
+    return authorName?.trim() || "AiBS Postgame Desk";
   }
   return authorName?.trim() || "Colby Reichenbach";
 }

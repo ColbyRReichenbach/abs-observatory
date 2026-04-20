@@ -20,7 +20,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           Admin Hub
         </h1>
         <p className="mt-3 max-w-2xl text-sm text-[var(--ink-2)]">
-          Internal analytics, editorial operations, and owner access controls for AiBS.
+          Keep track of users, AI operations, editorial, community, and owner access from one place.
         </p>
       </div>
       <AdminTabs />

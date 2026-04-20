@@ -10,16 +10,16 @@ export async function generateMetadata({ params }: { params: Promise<{ vizId: st
     const { vizId } = await params;
     return {
         title: `Visualization ${vizId} — ABS Observatory`,
-        description: "Visualization sharing is not enabled for this environment.",
+        description: "Public visualization sharing remains deferred until private visualization persistence is real.",
         openGraph: {
             title: `ABS Visualization — ABS Observatory`,
-            description: "Visualization sharing is not enabled for this environment.",
+            description: "Public visualization sharing remains deferred until private visualization persistence is real.",
             type: "website",
         },
         twitter: {
             card: "summary",
             title: `ABS Visualization — ABS Observatory`,
-            description: "Visualization sharing is not enabled for this environment.",
+            description: "Public visualization sharing remains deferred until private visualization persistence is real.",
         },
     };
 }
@@ -35,13 +35,13 @@ export default async function VizPage({ params }: { params: Promise<{ vizId: str
 
             <header className="mb-12 text-center">
                 <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-600 mb-2">
-                    Shared Visualization
+                    Visual Lab Decision Gate
                 </p>
                 <h1 className="text-4xl md:text-5xl font-display uppercase tracking-tight text-gray-900 mb-4">
                     ABS Observatory
                 </h1>
                 <p className="text-sm text-gray-500 max-w-md mx-auto">
-                    Visualization sharing is not available yet, so this link cannot render a stored chart.
+                    AiBS now saves private AI artifacts in the signed-in workspace, but public visualization links remain intentionally off.
                 </p>
             </header>
 
@@ -53,12 +53,20 @@ export default async function VizPage({ params }: { params: Promise<{ vizId: str
                             Viz #{vizId}
                         </h4>
                     </div>
-                    <Link
-                        href="/"
-                        className="px-6 py-3 rounded-2xl bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
-                    >
-                        Create Your Own →
-                    </Link>
+                    <div className="flex flex-wrap gap-3">
+                        <Link
+                            href="/profile"
+                            className="px-6 py-3 rounded-2xl border border-black/10 bg-white text-[10px] font-black uppercase tracking-widest text-gray-700 hover:border-black/20 transition-all"
+                        >
+                            Open Workspace
+                        </Link>
+                        <Link
+                            href="/"
+                            className="px-6 py-3 rounded-2xl bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
+                        >
+                            Return Home →
+                        </Link>
+                    </div>
                 </div>
 
                 <div className="aspect-[21/9] w-full bg-gray-50 relative flex items-center justify-center p-20">
@@ -69,7 +77,7 @@ export default async function VizPage({ params }: { params: Promise<{ vizId: str
                         </div>
                         <p className="text-2xl font-display uppercase tracking-tight text-gray-900 mb-2">No Stored Visualization</p>
                         <p className="text-sm font-medium text-gray-400 max-w-xs mx-auto">
-                            This route remains disabled until a real saved-visualization backend exists.
+                            Public chart pages stay disabled until owned visualization persistence and moderation rules are real.
                         </p>
                     </div>
                 </div>
@@ -78,16 +86,16 @@ export default async function VizPage({ params }: { params: Promise<{ vizId: str
                     <div className="flex items-center gap-6">
                         <div className="flex items-center gap-2">
                             <span className="h-2 w-2 rounded-full bg-amber-500" />
-                            <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Saved Charts Disabled</p>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Public Viz Disabled</p>
                         </div>
                         <div className="flex items-center gap-2">
                             <span className="h-2 w-2 rounded-full bg-blue-500" />
-                            <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Use AI Briefs Instead</p>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Private AI Workspace Live</p>
                         </div>
                     </div>
                     <div className="text-center md:text-right">
                         <p className="text-[10px] font-bold text-gray-400 italic">
-                            Saved visualization rendering will return when a real persistence pipeline exists.
+                            The next acceptable step is private saved visualizations, not a gallery, like-counts, or public remix links.
                         </p>
                     </div>
                 </div>

@@ -167,8 +167,10 @@ type ScoutBriefPayload = {
   } | null;
   leadCandidates: Array<{
     teamId: number;
+    teamName: string;
     challengeTotal: number;
     overturnRate: number;
+    watchScore: number;
   }>;
   auditCandidates: Array<{
     kind: string;
@@ -204,6 +206,14 @@ type TelemetryResearchPayload = {
     key: string;
     sourceDate: string;
   }>;
+};
+
+type DailySummaryTeamCandidate = {
+  teamId: number;
+  teamName: string;
+  challengeTotal: number;
+  overturnRate: number;
+  watchScore: number;
 };
 
 type GazetteDraftPayload = {
@@ -1486,13 +1496,43 @@ function buildScoutBrief(
   const teamSummaries = Array.isArray(summary?.teamSummaries) ? summary.teamSummaries : [];
   const leadCandidates = teamSummaries
     .filter((team): team is Record<string, unknown> => typeof team === "object" && team !== null)
-    .slice(0, 3)
-    .map((team) => ({
-      teamId: Number(team.teamId ?? team.teamid ?? 0),
-      challengeTotal: Number(team.challengesTotal ?? team.challengestotal ?? 0),
-      overturnRate: Number(team.overturnRate ?? team.overturnrate ?? 0),
-    }))
-    .filter((team) => Number.isFinite(team.teamId) && team.teamId > 0);
+    .map((team) => {
+      const teamId = Number(team.teamId ?? team.teamid ?? 0);
+      const challengeTotal = Number(team.challengesTotal ?? team.challengestotal ?? 0);
+      const overturnRate = Number(team.overturnRate ?? team.overturnrate ?? 0);
+      const challengeValue =
+        Number(
+          team.realizedChallengeValue ??
+            team.realizedchallengevalue ??
+            team.averageRealizedChallengeValue ??
+            team.averagerealizedchallengevalue ??
+            team.decisionSurplus ??
+            team.decisionsurplus ??
+            0,
+        ) || 0;
+      const lateCloseShare =
+        Number(team.lateCloseShare ?? team.latecloseshare ?? team.lateCloseChallengeShare ?? team.lateclosechallengeshare ?? 0) || 0;
+      const fallbackTeamName =
+        getTeamMeta(teamId)?.name ??
+        `Team ${teamId}`;
+
+      const watchScore =
+        challengeTotal * 12 +
+        Math.min(overturnRate, 1) * 18 +
+        Math.abs(challengeValue) * 10 +
+        lateCloseShare * 8;
+
+      return {
+        teamId,
+        teamName: String(team.teamName ?? team.teamname ?? fallbackTeamName),
+        challengeTotal,
+        overturnRate,
+        watchScore,
+      };
+    })
+    .filter((team): team is DailySummaryTeamCandidate => Number.isFinite(team.teamId) && team.teamId > 0 && team.challengeTotal > 0)
+    .sort((left, right) => right.watchScore - left.watchScore || right.challengeTotal - left.challengeTotal || right.overturnRate - left.overturnRate)
+    .slice(0, 3);
 
   if (!summary) {
     return {
@@ -1529,7 +1569,7 @@ function buildScoutBrief(
     auditCandidates: leadCandidates.length
       ? leadCandidates.slice(0, 1).map((team) => ({
           kind: "team_volume",
-          label: `Team ${team.teamId} drove the heaviest challenge volume of the day.`,
+          label: `${team.teamName} drove the heaviest desk priority of the day.`,
         }))
       : [],
     milestones: [
@@ -1546,6 +1586,21 @@ function buildScoutBrief(
   };
 }
 
+function getEditorialTeamStylePriority(team: TeamLeaderboardEntry) {
+  const realizedValue = Math.abs(team.averageRealizedChallengeValue ?? 0) * 18;
+  const decisionSurplus = Math.abs(team.decisionSurplus ?? 0) * 22;
+  const pressureShare = (team.highPressureExpectedValueShare + team.lateCloseExpectedValueShare + team.capturedValueShare) * 40;
+  const volumeBase = team.challengeRatePerGame * 12 + team.challengesTotal * 0.8;
+  const confidenceBonus =
+    team.decisionValueConfidence === "high" || team.winValueConfidence === "high" || team.runValueConfidence === "high"
+      ? 6
+      : team.decisionValueConfidence === "medium" || team.winValueConfidence === "medium" || team.runValueConfidence === "medium"
+        ? 3
+        : 0;
+
+  return volumeBase + realizedValue + decisionSurplus + pressureShare + confidenceBonus;
+}
+
 function buildTelemetryResearch(
   sourceDate: string,
   summary: DailyEditorialSummary | null,
@@ -1559,7 +1614,7 @@ function buildTelemetryResearch(
     evidenceRefs.push({ kind: "standings_snapshot", key: "editorial.standings_snapshots", sourceDate });
   }
 
-  const topTeamStyle = [...teamLeaderboard].sort((left, right) => right.overturnRate - left.overturnRate)[0] ?? null;
+  const topTeamStyle = [...teamLeaderboard].sort((left, right) => getEditorialTeamStylePriority(right) - getEditorialTeamStylePriority(left))[0] ?? null;
   const watchUmpire =
     [...umpireLeaderboard].sort((left, right) => getEditorialWatchPriority(right) - getEditorialWatchPriority(left))[0] ?? null;
 
@@ -1711,7 +1766,9 @@ function buildDailyGazetteDraft(
           heading: "Scout's Notes",
           bodyMd: [
             ...scout.leagueNotes.map((note) => `- ${note}`),
-            ...scout.leadCandidates.slice(0, 2).map((candidate) => `- Team ${candidate.teamId} logged ${candidate.challengeTotal} challenges at a ${(candidate.overturnRate * 100).toFixed(1)}% overturn rate.`),
+            ...scout.leadCandidates
+              .slice(0, 2)
+              .map((candidate) => `- ${candidate.teamName} logged ${candidate.challengeTotal} challenges and flipped ${(candidate.overturnRate * 100).toFixed(1)}% of them.`),
           ].join("\n"),
           sectionOrder: 6,
           evidencePayload: {

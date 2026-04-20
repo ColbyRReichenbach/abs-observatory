@@ -164,6 +164,64 @@ describe("editorial article generation", () => {
     );
   });
 
+  it("prioritizes real desk volume over a tiny perfect sample in scout notes", async () => {
+    sqlOneMock.mockResolvedValueOnce({
+      summarydate: "2026-03-07",
+      gamestracked: 10,
+      challengestotal: 14,
+      overturnstotal: 6,
+      overturnrate: 0.4286,
+      teamschallenging: 8,
+      avgteamchallenges: 1.4,
+      teamsummaries: [
+        {
+          teamId: 111,
+          teamName: "Small Sample Club",
+          challengesTotal: 1,
+          overturnRate: 1,
+        },
+        {
+          teamId: 147,
+          teamName: "New York Yankees",
+          challengesTotal: 4,
+          overturnRate: 0.25,
+          lateCloseShare: 0.5,
+        },
+      ],
+    });
+    sqlMock
+      .mockResolvedValueOnce([{ teamid: 147, wins: 13, losses: 5 }])
+      .mockResolvedValueOnce([{ teamid: 147, leagueid: 104, divisionrank: 1, wins: 13, losses: 5 }])
+      .mockResolvedValueOnce([{ teamid: 147, leagueid: 104, divisionrank: 1, wins: 12, losses: 5 }])
+      .mockResolvedValueOnce([]);
+
+    const queryMock = vi.fn(async (statement: string, values: unknown[] = []) => {
+      void values;
+      if (statement.includes("RETURNING generation_run_id AS generationRunId")) {
+        return [{ generationrunid: "run-4" }];
+      }
+      if (statement.includes("RETURNING article_id AS articleId")) {
+        return [{ articleid: "article-4" }];
+      }
+      if (statement.includes("SELECT section_id AS sectionId")) {
+        return [];
+      }
+      return [];
+    });
+    const txQuery = queryMock as unknown as TxQuery;
+
+    withTransactionMock.mockImplementationOnce(async (callback: (query: TxQuery) => Promise<unknown>) => callback(txQuery));
+
+    await generateDailyAutoArticle("2026-03-07");
+
+    const articleInsertCall = queryMock.mock.calls.find(([statement]) =>
+      String(statement).includes("INSERT INTO editorial.articles"),
+    );
+    const factsPayload = articleInsertCall?.[1]?.[7] as { scoutBrief?: { leadCandidates?: Array<{ teamId: number }> } };
+
+    expect(factsPayload.scoutBrief?.leadCandidates?.[0]?.teamId).toBe(147);
+  });
+
   it("suppresses a daily auto article when daily evidence is missing", async () => {
     sqlOneMock.mockResolvedValueOnce(null);
     sqlMock

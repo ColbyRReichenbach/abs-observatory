@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Archive, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { ModeAwareLink } from "@/components/ui/mode-aware-link";
+import { getArticleDeskMeta } from "@/lib/articles-desk";
 
 type Article = {
   articleId: string;
@@ -54,7 +55,7 @@ export function ArticlesGrid({ articles }: { articles: Article[] }) {
               className="block rounded-[2rem] border border-black/10 bg-white/80 p-8 shadow-[0_20px_50px_rgba(0,0,0,0.04)] transition hover:-translate-y-1 hover:shadow-lg"
             >
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[#7d6c54]">
-                Featured • {leadArticle.articleType.replace("_", " ")}
+                Featured • {getArticleDeskMeta(leadArticle.articleType).label}
               </p>
               <h2 className="mt-4 text-4xl font-display uppercase tracking-tight leading-[0.95] text-[#2c2c2c] md:text-5xl">
                 {leadArticle.title}
@@ -78,7 +79,7 @@ export function ArticlesGrid({ articles }: { articles: Article[] }) {
                 >
                   <div className="flex flex-wrap items-center gap-3 text-[11px] font-black uppercase tracking-[0.24em] text-[#7d6c54]">
                     <span className="rounded-full border border-[#e8dfd1] bg-[#f5f0e8] px-2 py-0.5">
-                      {article.articleType.replace("_", " ")}
+                      {getArticleDeskMeta(article.articleType).label}
                     </span>
                     <span>{article.publishedAt ? new Date(article.publishedAt).toLocaleDateString() : "Draft"}</span>
                   </div>

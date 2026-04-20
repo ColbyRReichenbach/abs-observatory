@@ -230,7 +230,7 @@ export function GazetteArticle({ article, relatedArticles = [] }: GazetteArticle
                     </div>
 
                     <div className="p-8 border-4 border-double border-black/20 text-center rounded-lg">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[#2d5a27] mb-4 block">Daily AI Recap</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[#2d5a27] mb-4 block">{deskMeta.label}</span>
                         <div className="text-4xl font-display leading-[0.85] mb-4 uppercase">
                             {article.title.replace("ABS Daily Recap: ", "")}
                         </div>
@@ -238,7 +238,7 @@ export function GazetteArticle({ article, relatedArticles = [] }: GazetteArticle
                             {deskMeta.deskName}
                         </p>
                         <p className="text-[10px] font-bold uppercase tracking-tighter mb-3">
-                            Editorial AI Voice • Same-Day ABS Desk <br /> Built from challenge, standings, and controversy evidence.
+                            {deskMeta.deskName} • Same-Day ABS Desk <br /> {deskMeta.description}
                         </p>
                         <p className="text-[10px] leading-relaxed text-black/70 mb-6">
                             Filed by <span className="font-semibold">{displayAuthor ?? "the desk"}</span> from a locked recap template and
