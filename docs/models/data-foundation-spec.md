@@ -439,9 +439,9 @@ Current implemented state in Warehouse as of April 8, 2026:
   - `4,967` validation rows
   - `9,768` test rows
 - current validation artifact:
-  - [called-pitch-status-20260408T140553.json](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/.runtime/called-pitch-status/called-pitch-status-20260408T140553.json)
+  - [called-pitch-status-20260408T140553.json](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/.runtime/called-pitch-status/called-pitch-status-20260408T140553.json)
 - current geometry validation artifact:
-  - [called-pitch-geometry-validation-20260408T140829.json](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/.runtime/called-pitch-geometry/called-pitch-geometry-validation-20260408T140829.json)
+  - [called-pitch-geometry-validation-20260408T140829.json](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/.runtime/called-pitch-geometry/called-pitch-geometry-validation-20260408T140829.json)
   - current challenged-sample result favors `center_only` over `radius_adjusted`
 - current limitation:
   - the current split policy is provisional and early-window only; it should be revisited as the 2026 sample grows

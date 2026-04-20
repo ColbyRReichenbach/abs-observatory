@@ -15,7 +15,7 @@ Do not use archived sprint plans or older launch notes as parallel sources of tr
 Related docs:
 
 - [page-route-coverage.md](./page-route-coverage.md)
-- [frontend-surface-verdict-2026-04-08.md](./frontend-surface-verdict-2026-04-08.md)
+- [frontend-surface-verdict-2026-04-08.md](../archive/product/frontend-surface-verdict-2026-04-08.md)
 - [roadmap.md](./roadmap.md)
 - [technical.md](../reference/technical.md)
 - [security.md](../reference/security.md)
@@ -48,10 +48,12 @@ Current shipped product families:
 
 - `Editorial and community`
   - articles
-  - comments
-  - profiles
-  - follows
+  - profile editing and onboarding
   - public profile pages
+  - saved AI artifact workspace
+  - comments
+  - editorial admin tooling
+  - moderation-aware identity surfaces
 
 - `Admin and AI operations`
   - admin access, editorial, community, and AI review surfaces
@@ -177,9 +179,16 @@ The Absolute Observer and the community system are part of the current product, 
 Current shipped capabilities include:
 
 - article listing and article detail pages
+- profile editing and onboarding
+- public profile pages
+- saved AI artifact workspace
 - editorial persistence and generation telemetry
 - authenticated comments and moderation flows
-- public profiles and follows
+
+Currently deferred or intentionally disabled:
+
+- follow relationships
+- public visualization sharing
 
 ## Analytical Truth Boundaries
 
@@ -238,6 +247,7 @@ These should not be overstated in product or docs:
 - full multi-provider live AI runtime
 - fully distinct fan and org products with separate route structures
 - enterprise-grade org workflows beyond the current public org-mode framing
+- broad public social graph or visualization-sharing loops
 
 ## Documentation Rule
 

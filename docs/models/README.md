@@ -25,7 +25,7 @@ Key files:
 - [model-history.md](./model-history.md)
 - [audit-cadence.md](./audit-cadence.md)
 - [benchmarking-plan.md](./benchmarking-plan.md)
-- [audits/README.md](./audits/README.md)
+- [archive audit evidence](../archive/models/audits/README.md)
 
 ## Current Scope
 
@@ -39,7 +39,7 @@ The retained model docs cover:
 - rubric calibration
 - zone and controversy audits
 
-The dated files under `audits/` and `audits/artifacts/` are historical evidence packages. They may preserve superseded labels or earlier terminology because they capture what the audit recorded at that time.
+The dated files under `docs/archive/models/audits/` and `docs/archive/models/audits/artifacts/` are historical evidence packages. They may preserve superseded labels or earlier terminology because they capture what the audit recorded at that time.
 
 ## Model Cards
 

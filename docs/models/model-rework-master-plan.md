@@ -41,16 +41,16 @@ This plan governs:
 
 Superseded planning docs are archived under:
 
-- [docs/archive/model-rework/challenge-value-model-plan.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/archive/model-rework/challenge-value-model-plan.md)
-- [docs/archive/model-rework/challenge-model-data-plan.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/archive/model-rework/challenge-model-data-plan.md)
-- [docs/archive/model-rework/challenge-context-analytics-plan.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/archive/model-rework/challenge-context-analytics-plan.md)
-- [docs/archive/model-rework/org-view-analytics-refactor.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/archive/model-rework/org-view-analytics-refactor.md)
+- [docs/launch/challenge-value-model-plan.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/launch/challenge-value-model-plan.md)
+- [docs/launch/challenge-model-data-plan.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/launch/challenge-model-data-plan.md)
+- [docs/launch/challenge-context-analytics-plan.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/launch/challenge-context-analytics-plan.md)
+- [docs/archive/product/org-view-analytics-refactor.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/product/org-view-analytics-refactor.md)
 
 This plan is downstream of the current data-platform program:
 
-- [data-platform-master-plan.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/data-platform-master-plan.md)
-- [data-platform-execution-tracker.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/data-platform-execution-tracker.md)
-- [data-foundation-spec.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/data-foundation-spec.md)
+- [data-platform-master-plan.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/data-platform-master-plan.md)
+- [data-platform-execution-tracker.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/data-platform-execution-tracker.md)
+- [data-foundation-spec.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/data-foundation-spec.md)
 
 ## Governing Rules
 
@@ -302,7 +302,7 @@ Required rigor:
 - interval estimates for sparse states
 
 Implementation note:
-- the first split-aware held-out RE rebuild is now live on Warehouse, with `train`-only audit fitting and `train + validation` serving fitting; current evidence is in [2026-04-08-re-benchmark.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-re-benchmark.md)
+- the first split-aware held-out RE rebuild is now live on Warehouse, with `train`-only audit fitting and `train + validation` serving fitting; current evidence is in [2026-04-08-re-benchmark.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-re-benchmark.md)
 
 Publication boundary:
 - may be described as empirical pitch-state RE
@@ -336,7 +336,7 @@ Required rigor:
 - external MLB benchmark only as secondary validation
 
 Implementation note:
-- the first split-aware WE rebuild is now live on Warehouse, with primary held-out evidence in [2026-04-08-we-benchmark.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-we-benchmark.md) and secondary MLB comparison in [2026-04-08-mlb-we-benchmark.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-mlb-we-benchmark.md)
+- the first split-aware WE rebuild is now live on Warehouse, with primary held-out evidence in [2026-04-08-we-benchmark.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-we-benchmark.md) and secondary MLB comparison in [2026-04-08-mlb-we-benchmark.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-mlb-we-benchmark.md)
 
 Publication boundary:
 - may be described as empirical count-aware WE if out-of-sample validated
@@ -602,7 +602,7 @@ Publication boundary:
 - if heuristic, call it heuristic everywhere
 
 Implementation note:
-- current audit evidence supports retaining leverage as a heuristic pressure proxy rather than rebuilding it as a calibrated model; see [2026-04-08-leverage-audit.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-leverage-audit.md)
+- current audit evidence supports retaining leverage as a heuristic pressure proxy rather than rebuilding it as a calibrated model; see [2026-04-08-leverage-audit.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-leverage-audit.md)
 
 ### 7. Zone / Edge Geometry
 
@@ -656,7 +656,7 @@ Implementation note:
 - the shared rubric layer is now explicitly confidence-damped and warehouse-audited:
   - low-confidence umpire grade and risk extremes are softened
   - team style now has a neutral `Balanced` / `Mixed profile` outcome when no strong identity separates
-  - current evidence is in [2026-04-08-rubric-audit.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-rubric-audit.md)
+  - current evidence is in [2026-04-08-rubric-audit.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-rubric-audit.md)
 
 Publication boundary:
 - descriptive translation layer only
@@ -685,7 +685,7 @@ Publication boundary:
 - editorial ranking, not predictive model truth
 
 Implementation note:
-- controversy is now versioned as `controversy_editorial_v2`, uses modeled value where available, and is audited as an editorial composite in [2026-04-08-controversy-audit.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-controversy-audit.md)
+- controversy is now versioned as `controversy_editorial_v2`, uses modeled value where available, and is audited as an editorial composite in [2026-04-08-controversy-audit.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-controversy-audit.md)
 
 ### 10. Derived Org Analytics
 
@@ -717,7 +717,7 @@ Required rigor:
 Implementation note:
 - the first org-surface hardening pass is now live in the app layer:
   - umpire-facing value boards only aggregate trusted `win_expectancy` outputs
-  - shared team decision-value summaries in [data.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/data.ts) now restrict expected / realized value, surplus, and value-share calculations to `win_expectancy` rows instead of blending heuristic fallback rows into org-facing value totals
+  - shared team decision-value summaries in [data.ts](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/lib/data.ts) now restrict expected / realized value, surplus, and value-share calculations to `win_expectancy` rows instead of blending heuristic fallback rows into org-facing value totals
 
 Publication boundary:
 - only publish if upstream models meet their own standards
@@ -825,14 +825,14 @@ Forbidden claim examples until stronger evidence exists:
 
 Current implementation note:
 
-- active model cards now live under [model-cards/README.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/model-cards/README.md)
-- the publication gate now lives in [publication-checklist.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/launch/publication-checklist.md)
-- the current overall status memo now lives in [publication-readiness.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/publication-readiness.md)
+- active model cards now live under [model-cards/README.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/model-cards/README.md)
+- the publication gate now lives in [publication-checklist.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/launch/publication-checklist.md)
+- the current overall status memo now lives in [publication-readiness.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/publication-readiness.md)
 - the remaining publication work is no longer missing documentation; it is closing the remaining claim and evidence gaps honestly
 
 ## Current Source References
 
-- [docs/models/README.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/README.md)
-- [docs/models/operating-procedure.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/operating-procedure.md)
-- [docs/models/audit-cadence.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audit-cadence.md)
-- [docs/models/benchmarking-plan.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/benchmarking-plan.md)
+- [docs/models/README.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/README.md)
+- [docs/models/operating-procedure.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/operating-procedure.md)
+- [docs/models/audit-cadence.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/audit-cadence.md)
+- [docs/models/benchmarking-plan.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/benchmarking-plan.md)

@@ -6,9 +6,9 @@ Last updated: April 8, 2026
 
 Primary methodology and architecture sources:
 
-- [data-platform-master-plan.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/data-platform-master-plan.md)
-- [data-foundation-spec.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/data-foundation-spec.md)
-- [../launch/serving-publish-contract.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/launch/serving-publish-contract.md)
+- [data-platform-master-plan.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/data-platform-master-plan.md)
+- [data-foundation-spec.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/data-foundation-spec.md)
+- [../launch/serving-publish-contract.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/launch/serving-publish-contract.md)
 
 ## Purpose
 
@@ -109,8 +109,8 @@ Tasks:
 
 Primary file targets:
 
-- [data-foundation-spec.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/data-foundation-spec.md)
-- [data-platform-master-plan.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/data-platform-master-plan.md)
+- [data-foundation-spec.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/data-foundation-spec.md)
+- [data-platform-master-plan.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/data-platform-master-plan.md)
 
 Exit criteria:
 
@@ -133,10 +133,10 @@ Tasks:
 
 Primary file targets:
 
-- [.env.example](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/.env.example)
-- [docs/launch/vercel-neon-runbook.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/launch/vercel-neon-runbook.md)
-- [docs/launch/serving-db-policy.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/launch/serving-db-policy.md)
-- [docs/reference/technical.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/reference/technical.md)
+- [.env.example](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/.env.example)
+- [docs/launch/vercel-neon-runbook.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/launch/vercel-neon-runbook.md)
+- [docs/launch/serving-db-policy.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/launch/serving-db-policy.md)
+- [docs/reference/technical.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/reference/technical.md)
 
 Exit criteria:
 
@@ -159,10 +159,10 @@ Tasks:
 
 Primary file targets:
 
-- [etl/ingest_mlb_abs.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/ingest_mlb_abs.py)
-- [etl/ingest_savant_abs_gamefeed.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/ingest_savant_abs_gamefeed.py)
-- [etl/backfill_statcast_pitch_history.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/backfill_statcast_pitch_history.py)
-- [etl/build_historical_pitch_states.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/build_historical_pitch_states.py)
+- [etl/ingest_mlb_abs.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/ingest_mlb_abs.py)
+- [etl/ingest_savant_abs_gamefeed.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/ingest_savant_abs_gamefeed.py)
+- [etl/backfill_statcast_pitch_history.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/backfill_statcast_pitch_history.py)
+- [etl/build_historical_pitch_states.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/build_historical_pitch_states.py)
 
 Dependencies:
 
@@ -190,9 +190,9 @@ Tasks:
 
 Primary file targets:
 
-- [etl/poll_active_games.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/poll_active_games.py)
-- [etl/poll_local_window.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/poll_local_window.py)
-- [package.json](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/package.json)
+- [etl/poll_active_games.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/poll_active_games.py)
+- [etl/poll_local_window.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/poll_local_window.py)
+- [package.json](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/package.json)
 
 Dependencies:
 
@@ -228,8 +228,8 @@ Primary file targets:
 
 - new script recommended:
   - `scripts/reconcile-warehouse-serving.mjs`
-- [docs/models/data-foundation-spec.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/data-foundation-spec.md)
-- [docs/models/data-platform-master-plan.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/data-platform-master-plan.md)
+- [docs/models/data-foundation-spec.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/data-foundation-spec.md)
+- [docs/models/data-platform-master-plan.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/data-platform-master-plan.md)
 
 Dependencies:
 
@@ -257,10 +257,10 @@ Tasks:
 
 Primary file targets:
 
-- [scripts/publish-serving-db.sh](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/publish-serving-db.sh)
+- [scripts/publish-serving-db.sh](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/publish-serving-db.sh)
 - new manifest path recommended under:
   - `.runtime/publish-manifests/`
-- [docs/launch/serving-db-policy.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/launch/serving-db-policy.md)
+- [docs/launch/serving-db-policy.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/launch/serving-db-policy.md)
 
 Dependencies:
 
@@ -291,10 +291,10 @@ Tasks:
 
 Primary file targets:
 
-- [etl/backfill_statcast_pitch_history.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/backfill_statcast_pitch_history.py)
-- [etl/validate_historical_games.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/validate_historical_games.py)
-- [etl/report_warehouse_backfill_status.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/report_warehouse_backfill_status.py)
-- [data-foundation-spec.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/data-foundation-spec.md)
+- [etl/backfill_statcast_pitch_history.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/backfill_statcast_pitch_history.py)
+- [etl/validate_historical_games.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/validate_historical_games.py)
+- [etl/report_warehouse_backfill_status.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/report_warehouse_backfill_status.py)
+- [data-foundation-spec.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/data-foundation-spec.md)
 
 Dependencies:
 
@@ -342,10 +342,10 @@ Tasks:
 
 Primary file targets:
 
-- [etl/build_historical_pitch_states.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/build_historical_pitch_states.py)
-- [db/schema.sql](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/db/schema.sql)
-- [scripts/sync-historical-backbone-to-warehouse.sh](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/sync-historical-backbone-to-warehouse.sh)
-- [data-foundation-spec.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/data-foundation-spec.md)
+- [etl/build_historical_pitch_states.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/build_historical_pitch_states.py)
+- [db/schema.sql](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/db/schema.sql)
+- [scripts/sync-historical-backbone-to-warehouse.sh](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/sync-historical-backbone-to-warehouse.sh)
+- [data-foundation-spec.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/data-foundation-spec.md)
 
 Dependencies:
 
@@ -359,7 +359,7 @@ Exit criteria:
 Current observed Warehouse state after historical backbone sync:
 
 - sync manifest:
-  - [historical-backbone-2019-03-20-to-2025-09-28-20260408-165223.json](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/.runtime/historical-backbone-sync/historical-backbone-2019-03-20-to-2025-09-28-20260408-165223.json)
+  - [historical-backbone-2019-03-20-to-2025-09-28-20260408-165223.json](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/.runtime/historical-backbone-sync/historical-backbone-2019-03-20-to-2025-09-28-20260408-165223.json)
 - Warehouse now contains:
   - `raw.statcast_games` historical backbone: `15,480`
   - `raw.statcast_pitches` historical backbone: `4,566,992`
@@ -391,12 +391,12 @@ Tasks:
 
 Primary file targets:
 
-- [db/schema.sql](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/db/schema.sql)
-- [etl/build_called_pitch_decisions.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/build_called_pitch_decisions.py)
-- [etl/report_called_pitch_decisions_status.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/report_called_pitch_decisions_status.py)
-- [scripts/sync-players-to-warehouse.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/sync-players-to-warehouse.mjs)
-- [scripts/sync-live-context-to-warehouse.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/sync-live-context-to-warehouse.mjs)
-- [data-foundation-spec.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/data-foundation-spec.md)
+- [db/schema.sql](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/db/schema.sql)
+- [etl/build_called_pitch_decisions.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/build_called_pitch_decisions.py)
+- [etl/report_called_pitch_decisions_status.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/report_called_pitch_decisions_status.py)
+- [scripts/sync-players-to-warehouse.mjs](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/sync-players-to-warehouse.mjs)
+- [scripts/sync-live-context-to-warehouse.mjs](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/sync-live-context-to-warehouse.mjs)
+- [data-foundation-spec.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/data-foundation-spec.md)
 
 Dependencies:
 
@@ -431,10 +431,10 @@ Current observed warehouse state after rebuilt full-window canonical build:
   - `4,967` validation rows
   - `9,768` test rows
 - artifact-backed validation:
-  - [called-pitch-status-20260408T140553.json](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/.runtime/called-pitch-status/called-pitch-status-20260408T140553.json)
+  - [called-pitch-status-20260408T140553.json](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/.runtime/called-pitch-status/called-pitch-status-20260408T140553.json)
   - strict report passed with zero duplicate natural keys and zero strict failures
 - geometry head-to-head validation:
-  - [called-pitch-geometry-validation-20260408T140829.json](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/.runtime/called-pitch-geometry/called-pitch-geometry-validation-20260408T140829.json)
+  - [called-pitch-geometry-validation-20260408T140829.json](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/.runtime/called-pitch-geometry/called-pitch-geometry-validation-20260408T140829.json)
   - `center_only` outperformed `radius_adjusted` on the current challenged sample:
     - accuracy: `0.4938` vs `0.4590`
     - overturn precision: `0.5733` vs `0.4707`
@@ -459,8 +459,8 @@ Tasks:
 
 Primary file targets:
 
-- [scripts/model-audits](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/model-audits)
-- [docs/models/operating-procedure.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/operating-procedure.md)
+- [scripts/model-audits](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/model-audits)
+- [docs/models/operating-procedure.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/operating-procedure.md)
 
 Dependencies:
 
@@ -489,9 +489,9 @@ Tasks:
 
 Primary file targets:
 
-- [docs/launch/vercel-neon-runbook.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/launch/vercel-neon-runbook.md)
-- [docs/launch/serving-db-policy.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/launch/serving-db-policy.md)
-- [docs/reference/technical.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/reference/technical.md)
+- [docs/launch/vercel-neon-runbook.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/launch/vercel-neon-runbook.md)
+- [docs/launch/serving-db-policy.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/launch/serving-db-policy.md)
+- [docs/reference/technical.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/reference/technical.md)
 
 Dependencies:
 

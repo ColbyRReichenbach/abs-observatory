@@ -70,7 +70,7 @@ Supporting foundation now exists for all of that work:
 
 Source:
 
-- [2026-04-08-count-state-audit.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-count-state-audit.md)
+- [2026-04-08-count-state-audit.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-count-state-audit.md)
 
 Held-out test weighted MAE:
 
@@ -88,7 +88,7 @@ Verdict:
 
 Source:
 
-- [2026-04-08-re-benchmark.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-re-benchmark.md)
+- [2026-04-08-re-benchmark.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-re-benchmark.md)
 
 Held-out test:
 
@@ -106,8 +106,8 @@ Verdict:
 
 Sources:
 
-- [2026-04-08-we-benchmark.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-we-benchmark.md)
-- [2026-04-08-mlb-we-benchmark.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-mlb-we-benchmark.md)
+- [2026-04-08-we-benchmark.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-we-benchmark.md)
+- [2026-04-08-mlb-we-benchmark.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-mlb-we-benchmark.md)
 
 Held-out internal test:
 
@@ -133,8 +133,8 @@ Verdict:
 
 Sources:
 
-- [2026-04-08-overturn-calibration.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-overturn-calibration.md)
-- geometry validation artifacts under [audits/artifacts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/artifacts)
+- [2026-04-08-overturn-calibration.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-overturn-calibration.md)
+- geometry validation artifacts under [audits/artifacts](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/artifacts)
 
 Current state:
 
@@ -152,7 +152,7 @@ Verdict:
 
 Source:
 
-- [2026-04-08-overturn-calibration.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-overturn-calibration.md)
+- [2026-04-08-overturn-calibration.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-overturn-calibration.md)
 
 Held-out test:
 
@@ -177,7 +177,7 @@ Verdict:
 
 Source:
 
-- [2026-04-08-decision-value-audit.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-decision-value-audit.md)
+- [2026-04-08-decision-value-audit.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-decision-value-audit.md)
 
 Held-out opportunity set:
 
@@ -212,7 +212,7 @@ Current unapproved use:
 
 Source:
 
-- [2026-04-08-leverage-audit.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-leverage-audit.md)
+- [2026-04-08-leverage-audit.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-leverage-audit.md)
 
 Key readout:
 
@@ -230,8 +230,8 @@ Verdict:
 
 Sources:
 
-- [2026-04-08-rubric-audit.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-rubric-audit.md)
-- [2026-04-08-controversy-audit.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-controversy-audit.md)
+- [2026-04-08-rubric-audit.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-rubric-audit.md)
+- [2026-04-08-controversy-audit.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-controversy-audit.md)
 
 Key rubric readout:
 

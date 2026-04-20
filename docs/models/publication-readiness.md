@@ -61,7 +61,7 @@ Current nuance:
 
 The concrete closeout plan for these blockers now lives in:
 
-- [final-sprint-plan.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/final-sprint-plan.md)
+- [final-sprint-plan.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/final-sprint-plan.md)
 
 High-level split:
 

@@ -18,7 +18,10 @@ Current product strengths:
 - fan and org framing across public analytics surfaces
 - team and umpire detail pages with model-backed readouts
 - editorial system with persisted generation telemetry
-- authenticated community and profile system
+- editorial daily automation wired through the internal job queue
+- profile, onboarding, and public profile surfaces
+- saved AI artifact workspace tied to signed-in ownership
+- authenticated comments and moderation-aware identity surfaces
 - bounded AI tooling and feedback/review flows
 
 Current product focus:
@@ -27,14 +30,16 @@ Current product focus:
 - reliability of live and serving data
 - clear fan versus org storytelling
 - stable operations for AI, editorial, and internal jobs
+- keeping docs and route claims aligned with the shipped repo
 
 ## Next
 
 Near-term product work should prioritize:
 
 - tighter live decision support and review storytelling
-- better postgame comparative analysis
+- better postgame comparative analysis built on computed audit outputs
 - sharper team and umpire drilldowns
+- polishing the signed-in workspace and saved-artifact retrieval surfaces
 - continued model calibration and audit discipline
 - docs and operational clarity that match the shipped codebase
 
@@ -44,8 +49,8 @@ Longer-term opportunities:
 
 - deeper org-oriented challenge preparation workflows
 - stronger public editorial cadence
-- more durable AI artifacts and explainability surfaces
-- broader profile/community loops around game and article discussion
+- richer AI artifact explainability and retrieval surfaces
+- broader profile/community loops around game and article discussion once moderation and ownership rules are broader than the current profile layer
 - additional infrastructure hardening where product usage justifies it
 
 ## Not A Current Claim

@@ -6,13 +6,13 @@ Last updated: April 8, 2026
 
 Primary methodology source:
 
-- [model-rework-master-plan.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/model-rework-master-plan.md)
+- [model-rework-master-plan.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/model-rework-master-plan.md)
 
 Required upstream platform sources:
 
-- [data-platform-master-plan.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/data-platform-master-plan.md)
-- [data-platform-execution-tracker.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/data-platform-execution-tracker.md)
-- [data-foundation-spec.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/data-foundation-spec.md)
+- [data-platform-master-plan.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/data-platform-master-plan.md)
+- [data-platform-execution-tracker.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/data-platform-execution-tracker.md)
+- [data-foundation-spec.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/data-foundation-spec.md)
 
 ## Purpose
 
@@ -40,7 +40,7 @@ Execution must follow these rules:
 
 ## Upstream Platform Gates
 
-This tracker assumes the following platform phases from [data-platform-execution-tracker.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/data-platform-execution-tracker.md):
+This tracker assumes the following platform phases from [data-platform-execution-tracker.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/data-platform-execution-tracker.md):
 
 - Platform Phase 1: environment and database role cutover
 - Platform Phase 2: ETL writer cutover
@@ -104,10 +104,10 @@ Tasks:
 
 Primary file targets:
 
-- [docs/models/model-rework-master-plan.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/model-rework-master-plan.md)
-- [docs/models/README.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/README.md)
-- [scripts/model-audits](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/model-audits)
-- [src/lib/server](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/server)
+- [docs/models/model-rework-master-plan.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/model-rework-master-plan.md)
+- [docs/models/README.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/README.md)
+- [scripts/model-audits](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/model-audits)
+- [src/lib/server](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/lib/server)
 
 Exit criteria:
 
@@ -133,11 +133,11 @@ Tasks:
 
 Primary file targets:
 
-- [etl/build_historical_pitch_states.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/build_historical_pitch_states.py)
-- [db/schema.sql](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/db/schema.sql)
-- [db/views.sql](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/db/views.sql)
-- [scripts/model-audits/audit-runtime.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/model-audits/audit-runtime.mjs)
-- [scripts/model-audits/shared-audit-utils.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/model-audits/shared-audit-utils.mjs)
+- [etl/build_historical_pitch_states.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/build_historical_pitch_states.py)
+- [db/schema.sql](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/db/schema.sql)
+- [db/views.sql](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/db/views.sql)
+- [scripts/model-audits/audit-runtime.mjs](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/model-audits/audit-runtime.mjs)
+- [scripts/model-audits/shared-audit-utils.mjs](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/model-audits/shared-audit-utils.mjs)
 
 New assets to add:
 
@@ -172,9 +172,9 @@ Tasks:
 
 Primary file targets:
 
-- [db/views.sql](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/db/views.sql)
-- [src/lib/challenge-value.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/challenge-value.ts)
-- [src/lib/server](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/server)
+- [db/views.sql](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/db/views.sql)
+- [src/lib/challenge-value.ts](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/lib/challenge-value.ts)
+- [src/lib/server](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/lib/server)
 
 Potential new assets:
 
@@ -189,12 +189,12 @@ Statistical acceptance criteria:
 
 Current progress:
 
-- split-aware Warehouse views are now live in [views.sql](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/db/views.sql)
+- split-aware Warehouse views are now live in [views.sql](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/db/views.sql)
 - app fallback reads now prefer the split-aware train-validation fit when serving tables are unavailable:
-  - [data.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/data.ts)
+  - [data.ts](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/lib/data.ts)
 - held-out count-state audit now exists:
-  - [2026-04-08-count-state-audit.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-count-state-audit.md)
-  - [2026-04-08-count-state-audit.json](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/artifacts/2026-04-08-count-state-audit.json)
+  - [2026-04-08-count-state-audit.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-count-state-audit.md)
+  - [2026-04-08-count-state-audit.json](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/artifacts/2026-04-08-count-state-audit.json)
 - current held-out results are directionally strong:
   - validation weighted MAE:
     - batting average `0.36%`
@@ -224,10 +224,10 @@ Tasks:
 
 Primary file targets:
 
-- [db/views.sql](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/db/views.sql)
-- [src/lib/server/run-expectancy.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/server/run-expectancy.ts)
-- [src/lib/server/run-environment.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/server/run-environment.ts)
-- [scripts/model-audits/run-re-benchmark.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/model-audits/run-re-benchmark.mjs)
+- [db/views.sql](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/db/views.sql)
+- [src/lib/server/run-expectancy.ts](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/lib/server/run-expectancy.ts)
+- [src/lib/server/run-environment.ts](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/lib/server/run-environment.ts)
+- [scripts/model-audits/run-re-benchmark.mjs](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/model-audits/run-re-benchmark.mjs)
 
 Statistical acceptance criteria:
 
@@ -243,7 +243,7 @@ Current progress:
 - held-out benchmark now runs on:
   - validation rows: `712,528`
   - test rows: `49,854`
-- current held-out readout from [2026-04-08-re-benchmark.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-re-benchmark.md):
+- current held-out readout from [2026-04-08-re-benchmark.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-re-benchmark.md):
   - validation MAE: `0.032`
   - validation RMSE: `0.061`
   - test MAE: `0.105`
@@ -266,10 +266,10 @@ Tasks:
 
 Primary file targets:
 
-- [db/views.sql](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/db/views.sql)
-- [src/lib/server/win-expectancy.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/server/win-expectancy.ts)
-- [src/lib/server/run-environment.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/server/run-environment.ts)
-- [scripts/model-audits/run-mlb-we-benchmark.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/model-audits/run-mlb-we-benchmark.mjs)
+- [db/views.sql](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/db/views.sql)
+- [src/lib/server/win-expectancy.ts](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/lib/server/win-expectancy.ts)
+- [src/lib/server/run-environment.ts](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/lib/server/run-environment.ts)
+- [scripts/model-audits/run-mlb-we-benchmark.mjs](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/model-audits/run-mlb-we-benchmark.mjs)
 
 Statistical acceptance criteria:
 
@@ -283,9 +283,9 @@ Current progress:
   - `mart_win_expectancy_fallbacks_train` fits on `train`
   - `mart_win_expectancy_fallbacks` now fits on `train + validation`
 - a new primary held-out internal audit is now in place:
-  - [2026-04-08-we-benchmark.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-we-benchmark.md)
+  - [2026-04-08-we-benchmark.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-we-benchmark.md)
 - MLB public WE is now explicitly retained as secondary external evidence:
-  - [2026-04-08-mlb-we-benchmark.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-mlb-we-benchmark.md)
+  - [2026-04-08-mlb-we-benchmark.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-mlb-we-benchmark.md)
 - current held-out WE readout:
   - validation: Brier `0.0107`, log loss `0.4736`, MAE `6.0%`
   - test: Brier `0.0538`, log loss `0.4992`, MAE `15.5%`
@@ -312,9 +312,9 @@ Tasks:
 
 Primary file targets:
 
-- [db/schema.sql](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/db/schema.sql)
-- [db/views.sql](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/db/views.sql)
-- [etl](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl)
+- [db/schema.sql](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/db/schema.sql)
+- [db/views.sql](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/db/views.sql)
+- [etl](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl)
 
 Likely new assets:
 
@@ -342,8 +342,8 @@ Tasks:
 
 Primary file targets:
 
-- [scripts/model-audits/run-zone-edge-audit.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/model-audits/run-zone-edge-audit.mjs)
-- [scripts/model-audits/shared-audit-utils.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/model-audits/shared-audit-utils.mjs)
+- [scripts/model-audits/run-zone-edge-audit.mjs](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/model-audits/run-zone-edge-audit.mjs)
+- [scripts/model-audits/shared-audit-utils.mjs](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/model-audits/shared-audit-utils.mjs)
 - challenge geometry logic in ETL and serving layers
 
 Statistical acceptance criteria:
@@ -389,9 +389,9 @@ Implementation order:
 
 Primary file targets:
 
-- [db/views.sql](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/db/views.sql)
-- [src/lib/server/challenge-decision-value.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/server/challenge-decision-value.ts)
-- [scripts/model-audits/run-overturn-calibration.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/model-audits/run-overturn-calibration.mjs)
+- [db/views.sql](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/db/views.sql)
+- [src/lib/server/challenge-decision-value.ts](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/lib/server/challenge-decision-value.ts)
+- [scripts/model-audits/run-overturn-calibration.mjs](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/model-audits/run-overturn-calibration.mjs)
 
 Known blocker to resolve:
 
@@ -399,8 +399,8 @@ Known blocker to resolve:
 
 Current progress:
 
-- exact-edge join bug fixed in [db/views.sql](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/db/views.sql)
-- held-out calibration audit rebuilt in [run-overturn-calibration.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/model-audits/run-overturn-calibration.mjs)
+- exact-edge join bug fixed in [db/views.sql](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/db/views.sql)
+- held-out calibration audit rebuilt in [run-overturn-calibration.mjs](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/model-audits/run-overturn-calibration.mjs)
 - current audit now trains on `train`, selects geometry on `validation`, and reports held-out `test`
 - current validation winner is `center_only`
 
@@ -461,8 +461,8 @@ Current progress:
   - overturn geometry variant
   - overturn split policy version
 - server overturn lookups now read from `mart_modeled_abs_overturn_probability_fallbacks`
-- [run-decision-value-audit.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/model-audits/run-decision-value-audit.mjs) now scores the full held-out opportunity set instead of only historical challenges
-- empirical inventory-cost audit added in [run-inventory-cost-audit.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/model-audits/run-inventory-cost-audit.mjs)
+- [run-decision-value-audit.mjs](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/model-audits/run-decision-value-audit.mjs) now scores the full held-out opportunity set instead of only historical challenges
+- empirical inventory-cost audit added in [run-inventory-cost-audit.mjs](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/model-audits/run-inventory-cost-audit.mjs)
 - current leading inventory-cost version is `inventory_future_opportunity_v1`
   - selected from held-out comparison as the best current bucketed option-value model
   - grouped by remaining challenges, inning bucket, and close-game flag
@@ -479,11 +479,11 @@ Current progress:
 
 Primary file targets:
 
-- [src/lib/server/challenge-decision-value.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/server/challenge-decision-value.ts)
-- [src/lib/v2.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/v2.ts)
-- [src/app/api/v2/challenge-value/route.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/app/api/v2/challenge-value/route.ts)
-- [scripts/model-audits/run-decision-value-audit.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/model-audits/run-decision-value-audit.mjs)
-- team decision marts in [db/views.sql](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/db/views.sql)
+- [src/lib/server/challenge-decision-value.ts](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/lib/server/challenge-decision-value.ts)
+- [src/lib/v2.ts](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/lib/v2.ts)
+- [src/app/api/v2/challenge-value/route.ts](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/app/api/v2/challenge-value/route.ts)
+- [scripts/model-audits/run-decision-value-audit.mjs](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/model-audits/run-decision-value-audit.mjs)
+- team decision marts in [db/views.sql](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/db/views.sql)
 
 Statistical acceptance criteria:
 
@@ -518,18 +518,18 @@ Tasks:
 Current progress:
 
 - leverage has now been re-audited against the rebuilt WE layer:
-  - [2026-04-08-leverage-audit.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-leverage-audit.md)
+  - [2026-04-08-leverage-audit.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-leverage-audit.md)
 - current evidence supports retaining leverage as a heuristic pressure proxy, not rebuilding it as a calibrated model:
   - Pearson correlation to absolute WE swing: `0.190`
   - `high` bucket mean abs WE swing: `5.5%`
   - `low` bucket mean abs WE swing: `2.2%`
-- product surfaces already mostly say `Estimated Leverage`; code now carries explicit heuristic metadata in [estimated-leverage.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/estimated-leverage.ts)
+- product surfaces already mostly say `Estimated Leverage`; code now carries explicit heuristic metadata in [estimated-leverage.ts](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/lib/estimated-leverage.ts)
 - recommendation: close leverage as an honesty/relabeling phase, not an empirical model-build phase
 
 Primary file targets:
 
-- [src/lib/estimated-leverage.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/estimated-leverage.ts)
-- [scripts/model-audits/run-leverage-audit.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/model-audits/run-leverage-audit.mjs)
+- [src/lib/estimated-leverage.ts](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/lib/estimated-leverage.ts)
+- [scripts/model-audits/run-leverage-audit.mjs](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/model-audits/run-leverage-audit.mjs)
 - product surfaces consuming leverage
 
 Statistical acceptance criteria:
@@ -552,8 +552,8 @@ Tasks:
 
 Primary file targets:
 
-- [scripts/model-audits/run-rubric-audit.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/model-audits/run-rubric-audit.mjs)
-- rubric helpers in [src/lib](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib)
+- [scripts/model-audits/run-rubric-audit.mjs](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/model-audits/run-rubric-audit.mjs)
+- rubric helpers in [src/lib](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/lib)
 
 Statistical acceptance criteria:
 
@@ -563,13 +563,13 @@ Statistical acceptance criteria:
 
 Current progress:
 
-- shared rubric helpers in [rubrics.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/rubrics.ts) now behave as explicit translation layers instead of hard-edged labelers:
+- shared rubric helpers in [rubrics.ts](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/lib/rubrics.ts) now behave as explicit translation layers instead of hard-edged labelers:
   - low-confidence umpire grade extremes are softened
   - org watch risk tiers are softened for low-confidence umpire profiles
   - team style now includes a neutral `Balanced` bucket with org label `Mixed profile`
 - the rubric audit was rebuilt to run directly on canonical Warehouse data instead of depending on stale summary tables:
-  - [2026-04-08-rubric-audit.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-rubric-audit.md)
-  - [2026-04-08-rubric-audit.json](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/artifacts/2026-04-08-rubric-audit.json)
+  - [2026-04-08-rubric-audit.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-rubric-audit.md)
+  - [2026-04-08-rubric-audit.json](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/artifacts/2026-04-08-rubric-audit.json)
 - current audit readout is directionally healthy for a translation layer:
   - team styles now separate into `3` buckets, with `Balanced` the largest at `63.3%`
   - umpire report cards now cover `108` tracked HP umpires across `3` grade buckets
@@ -587,11 +587,11 @@ Tasks:
 
 Current progress:
 
-- controversy scoring in [rubrics.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/rubrics.ts) is now versioned as `controversy_editorial_v2`
+- controversy scoring in [rubrics.ts](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/lib/rubrics.ts) is now versioned as `controversy_editorial_v2`
 - the production scorer now includes modeled value instead of relying only on leverage, impact, miss distance, and recency
-- recent home moments now attach expected / realized challenge value before ranking in [data.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/data.ts)
+- recent home moments now attach expected / realized challenge value before ranking in [data.ts](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/lib/data.ts)
 - the controversy audit now matches the editorial framing and the current product formula:
-  - [2026-04-08-controversy-audit.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/audits/2026-04-08-controversy-audit.md)
+  - [2026-04-08-controversy-audit.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-controversy-audit.md)
 - current audit readout is strong for an editorial layer:
   - top-decile overturned share `100%`
   - top-decile modeled value `>= 0.5%` share `97.8%`
@@ -599,8 +599,8 @@ Current progress:
 
 Primary file targets:
 
-- [scripts/model-audits/run-controversy-audit.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/model-audits/run-controversy-audit.mjs)
-- controversy helpers in [src/lib](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib)
+- [scripts/model-audits/run-controversy-audit.mjs](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/model-audits/run-controversy-audit.mjs)
+- controversy helpers in [src/lib](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/lib)
 
 Statistical acceptance criteria:
 
@@ -619,12 +619,12 @@ Tasks:
 Current progress:
 
 - first downstream confidence-hardening pass is now in place on umpire analytics surfaces:
-  - [umpire-consequence-board.tsx](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/components/analytics/umpire-consequence-board.tsx)
-  - [umpire-consequence-matrix.tsx](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/components/analytics/umpire-consequence-matrix.tsx)
-  - [umpire-pitch-trait-scatter.tsx](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/components/analytics/umpire-pitch-trait-scatter.tsx)
-  - [umpire-handedness-board.tsx](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/components/analytics/umpire-handedness-board.tsx)
+  - [umpire-consequence-board.tsx](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/components/analytics/umpire-consequence-board.tsx)
+  - [umpire-consequence-matrix.tsx](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/components/analytics/umpire-consequence-matrix.tsx)
+  - [umpire-pitch-trait-scatter.tsx](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/components/analytics/umpire-pitch-trait-scatter.tsx)
+  - [umpire-handedness-board.tsx](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/components/analytics/umpire-handedness-board.tsx)
 - those boards now only aggregate `expectedChallengeValue` when it comes from the trusted `win_expectancy` path, instead of blending heuristic fallback values into org-facing averages
-- the shared team decision-value aggregators in [data.ts](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/lib/data.ts) now follow the same rule:
+- the shared team decision-value aggregators in [data.ts](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/lib/data.ts) now follow the same rule:
   - expected / realized review value
   - surplus
   - captured / wasted shares
@@ -636,7 +636,7 @@ Current progress:
 
 Primary file targets:
 
-- [src/app/teams/[teamId]/page.tsx](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/src/app/teams/[teamId]/page.tsx)
+- [src/app/teams/[teamId]/page.tsx](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/src/app/teams/[teamId]/page.tsx)
 - `src/app/umpires/[umpireId]/page.tsx` if present in current branch
 - related analytics components and read-model helpers
 - org analytics data builders described in the archived refactor memo
@@ -673,12 +673,12 @@ Current progress:
   - refresh cards and checklist as the 2026 sample grows
   - make the final publication package cite dated audit artifacts directly
 - a consolidated readiness memo now exists:
-  - [publication-readiness.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/publication-readiness.md)
+  - [publication-readiness.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/publication-readiness.md)
 
 Primary file targets:
 
-- [docs/models](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models)
-- [docs/launch/publication-checklist.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/launch/publication-checklist.md)
+- [docs/models](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models)
+- [docs/archive/launch/publication-checklist.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/launch/publication-checklist.md)
 
 Exit criteria:
 
@@ -868,4 +868,4 @@ Priority order:
 
 Primary reference:
 
-- [final-sprint-plan.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/final-sprint-plan.md)
+- [final-sprint-plan.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/final-sprint-plan.md)

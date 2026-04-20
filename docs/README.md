@@ -29,6 +29,12 @@ Use these first:
 - [reference/gap-list.md](./reference/gap-list.md)
   - current documentation and platform truth boundaries
 
+- [product/aibs-spec-rewrite-task-index.json](./product/aibs-spec-rewrite-task-index.json)
+  - current execution tracker for the repo-specific cleanup and product rewrite
+
+- [reference/repo-drift-audit-2026-04-20.md](./reference/repo-drift-audit-2026-04-20.md)
+  - current inventory of deleted drift, retained historical docs, and archive guidance
+
 - [models/README.md](./models/README.md)
   - model audit framework and retained model-history references
 
@@ -46,6 +52,14 @@ These remain useful, but are narrower in scope:
   - operational runbooks and launch records
   - some files are historical and should not be treated as current product truth
 
+- `archive/`
+  - dated product specs, historical launch/status material, and dated model audit evidence
+
 ## Historical Material
 
 Historical planning material is intentionally not part of the retained docs set. Current-reference docs should stand on their own without requiring archived sprint notes or exploratory plans.
+
+Practical rule:
+
+- dated files are historical by default unless a current-reference doc links to them as active support material
+- `docs/archive/models/audits/`, `docs/launch/lighthouse/`, dated launch notes, and dated product verdict/spec files should not be treated as current product truth

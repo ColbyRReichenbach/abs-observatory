@@ -19,20 +19,28 @@ Current public page routes:
 - `/umpires`
 - `/umpires/[umpireId]`
 - `/reports/[gamePk]`
+
+Present but not fully shipped:
+
 - `/v/[vizId]`
+  - route exists, but public visualization sharing is intentionally deferred
 - `/u/[username]`
+  - route exists and is backed by the current public profile layer
 
 ## Auth And User Pages
 
 Current authenticated or identity-related pages:
 
 - `/login`
-- `/profile`
-- `/welcome`
+- `/sign-in`
+- `/sign-up`
 - `/dev-auth`
 - `/query`
 
-Some of these are environment- or launch-gated, but they are still part of the current route surface.
+Current profile and onboarding pages:
+
+- `/profile`
+- `/welcome`
 
 ## Admin Pages
 
@@ -43,6 +51,7 @@ Current admin surface:
 - `/admin/ai`
 - `/admin/ai/review`
 - `/admin/community`
+  - scope-control page, not a live social-graph console
 - `/admin/editorial`
 
 ## Core Public API Routes
@@ -70,26 +79,38 @@ Current public-facing or product-serving API routes include:
 
 - `/api/me`
 - `/api/profile`
-- `/api/profile/onboarding`
-- `/api/public-profiles/[username]`
-- `/api/follows/[userId]`
 - `/api/comments`
 - `/api/comments/[commentId]`
 - `/api/comments/[commentId]/like`
 - `/api/comments/[commentId]/report`
 
+Current identity/community routes:
+
+- `/api/profile/onboarding`
+- `/api/public-profiles/[username]`
+
+Present but intentionally disabled:
+
+- `/api/follows/[userId]`
+  - returns `501`
+  - public follow relationships remain deferred
+
 ## AI, Editorial, And Internal API Routes
 
 - `/api/ai/chat`
 - `/api/ai/artifacts`
+  - registers owned AI artifacts for signed-in viewers
+  - lists saved artifacts back into the profile workspace
 - `/api/ai/feedback`
 - `/api/articles`
 - `/api/articles/[slug]`
-- `/api/cron/editorial-daily`
 - `/api/internal/jobs`
 - `/api/internal/jobs/process`
 - `/api/jobs/[jobRunId]`
 - `/api/webhooks/clerk`
+- `/api/cron/editorial-daily`
+  - secured by `CRON_SECRET`
+  - enqueues the previous Eastern Time slate into `ops.job_runs`
 
 ## Legacy Or Gated Routes
 

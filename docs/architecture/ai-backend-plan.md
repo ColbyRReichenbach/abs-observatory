@@ -16,7 +16,7 @@ The AI backend is treated as a protected subsystem, not just a single model call
 ## Execution Tracking
 
 Canonical sprint tracking lives in [roadmap.md](../product/roadmap.md).
-Canonical sprint verification lives in [sprint-test-plan.md](../product/sprint-test-plan.md).
+Canonical sprint verification lives in [sprint-test-plan.md](../archive/product/sprint-test-plan.md).
 
 This checklist keeps the major AI backend milestones visible here:
 - [x] AI route is authenticated, validated, and refusal-capable before model execution. `[Stack: Clerk, Next.js, OpenAI]`

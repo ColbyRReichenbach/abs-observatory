@@ -38,7 +38,6 @@ Deploy the AiBS web product on Vercel with Neon as the production serving Postgr
 ### Keep off Vercel
 
 - `etl/ingest_mlb_abs.py`
-- `etl/player_abs_profiles.py`
 - `npm run qa:abs`
 - `npm run model:audit:all`
 - backfills and long-running recomputes
@@ -203,10 +202,10 @@ If the web app needs to call the worker directly, also set a worker URL in the w
 
 ## Current Repo Notes
 
-- `vercel.json` is intentionally minimal right now.
-- The daily editorial cron route is currently disabled, so there is no launch-critical cron config to wire yet.
-- The site is launch-scoped to public visualizer only.
-- Query Lab and public copilot remain gated.
+- `vercel.json` now includes the daily editorial cron for `/api/cron/editorial-daily`.
+- The site is no longer scoped to only the public visualizer; core public analytics, articles, profile, and public profile surfaces are live.
+- Public visualization sharing remains intentionally deferred.
+- Query Lab and the legacy public NL-to-SQL path remain gated or deprecated.
 
 ## First Healthy Deploy Checklist
 

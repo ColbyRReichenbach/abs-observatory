@@ -5,20 +5,24 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 if [[ -f "$ROOT_DIR/.env" ]]; then
+  set +u
   set -a
   # shellcheck disable=SC1091
   . "$ROOT_DIR/.env"
   set +a
+  set -u
 fi
 
 if [[ -f "$ROOT_DIR/.env.local" ]]; then
+  set +u
   set -a
   # shellcheck disable=SC1091
   . "$ROOT_DIR/.env.local"
   set +a
+  set -u
 fi
 
-SCHEMA_DATABASE_URL="${SCHEMA_DATABASE_URL:-${WAREHOUSE_DATABASE_URL:-${DATABASE_URL:-}}}"
+SCHEMA_DATABASE_URL="${SCHEMA_DATABASE_URL:-${DATABASE_URL:-${SERVING_DATABASE_URL:-${WAREHOUSE_DATABASE_URL:-}}}}"
 : "${SCHEMA_DATABASE_URL:?SCHEMA_DATABASE_URL, WAREHOUSE_DATABASE_URL, or DATABASE_URL is required.}"
 
 echo "[run-db-schema] target=${SCHEMA_DATABASE_URL}"

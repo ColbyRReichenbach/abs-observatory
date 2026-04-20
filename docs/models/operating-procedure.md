@@ -16,8 +16,8 @@ npm run model:audit:evaluate-alerts
 
 These commands write dated outputs into:
 
-- `docs/models/audits/`
-- `docs/models/audits/artifacts/`
+- `docs/archive/models/audits/`
+- `docs/archive/models/audits/artifacts/`
 
 ## 2. What Each Step Covers
 

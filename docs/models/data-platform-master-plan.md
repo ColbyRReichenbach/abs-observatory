@@ -29,7 +29,7 @@ The goal is a system that is:
 
 The exact per-table Warehouse -> Serving slice rules live in:
 
-- [../launch/serving-publish-contract.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/launch/serving-publish-contract.md)
+- [../launch/serving-publish-contract.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/launch/serving-publish-contract.md)
 
 ## Decision
 
@@ -214,10 +214,10 @@ The following file changes are required.
 
 Files:
 
-- [etl/ingest_mlb_abs.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/ingest_mlb_abs.py)
-- [etl/ingest_savant_abs_gamefeed.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/ingest_savant_abs_gamefeed.py)
-- [etl/backfill_statcast_pitch_history.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/backfill_statcast_pitch_history.py)
-- [etl/build_historical_pitch_states.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/build_historical_pitch_states.py)
+- [etl/ingest_mlb_abs.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/ingest_mlb_abs.py)
+- [etl/ingest_savant_abs_gamefeed.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/ingest_savant_abs_gamefeed.py)
+- [etl/backfill_statcast_pitch_history.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/backfill_statcast_pitch_history.py)
+- [etl/build_historical_pitch_states.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/build_historical_pitch_states.py)
 
 Required change:
 
@@ -239,8 +239,8 @@ Acceptance criteria:
 
 Files:
 
-- [etl/poll_active_games.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/poll_active_games.py)
-- [etl/poll_local_window.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/poll_local_window.py)
+- [etl/poll_active_games.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/poll_active_games.py)
+- [etl/poll_local_window.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/poll_local_window.py)
 
 Required change:
 
@@ -260,7 +260,7 @@ Acceptance criteria:
 
 File:
 
-- [scripts/publish-serving-db.sh](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/publish-serving-db.sh)
+- [scripts/publish-serving-db.sh](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/publish-serving-db.sh)
 
 Required change:
 
@@ -290,7 +290,7 @@ Acceptance criteria:
 
 Files:
 
-- all scripts under [scripts/model-audits](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/model-audits)
+- all scripts under [scripts/model-audits](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/model-audits)
 
 Required change:
 
@@ -306,9 +306,9 @@ Acceptance criteria:
 
 Files:
 
-- [docs/reference/technical.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/reference/technical.md)
-- [docs/launch/serving-db-policy.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/launch/serving-db-policy.md)
-- [docs/launch/vercel-neon-runbook.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/launch/vercel-neon-runbook.md)
+- [docs/reference/technical.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/reference/technical.md)
+- [docs/launch/serving-db-policy.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/launch/serving-db-policy.md)
+- [docs/launch/vercel-neon-runbook.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/launch/vercel-neon-runbook.md)
 
 Required change:
 
@@ -366,7 +366,7 @@ Add:
 
 - `modeling.called_pitch_decisions`
 
-This dataset must be implemented exactly as defined in [data-foundation-spec.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/data-foundation-spec.md).
+This dataset must be implemented exactly as defined in [data-foundation-spec.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/data-foundation-spec.md).
 
 Required additions at creation time:
 
@@ -390,8 +390,8 @@ No other database polls independently.
 
 The live poller should run:
 
-- MLB Stats API ingest via [etl/ingest_mlb_abs.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/ingest_mlb_abs.py)
-- official Savant ABS event ingest via [etl/ingest_savant_abs_gamefeed.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/ingest_savant_abs_gamefeed.py)
+- MLB Stats API ingest via [etl/ingest_mlb_abs.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/ingest_mlb_abs.py)
+- official Savant ABS event ingest via [etl/ingest_savant_abs_gamefeed.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/ingest_savant_abs_gamefeed.py)
 
 Operational rule:
 
@@ -423,8 +423,8 @@ Backfill `2026` regular-season Statcast into Warehouse.
 
 Files:
 
-- [etl/backfill_statcast_pitch_history.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/backfill_statcast_pitch_history.py)
-- [etl/build_historical_pitch_states.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/build_historical_pitch_states.py)
+- [etl/backfill_statcast_pitch_history.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/backfill_statcast_pitch_history.py)
+- [etl/build_historical_pitch_states.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/build_historical_pitch_states.py)
 
 Why:
 
@@ -443,7 +443,7 @@ Important statistical guardrail:
 1. Point script at `WAREHOUSE_DATABASE_URL`
 2. backfill `raw.statcast_games`
 3. backfill `raw.statcast_pitches`
-4. validate game identity with [etl/validate_historical_games.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/validate_historical_games.py)
+4. validate game identity with [etl/validate_historical_games.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/validate_historical_games.py)
 5. rebuild `historical_pitch_states` for the backfilled window
 6. record resulting min/max dates and row counts
 
@@ -608,10 +608,10 @@ Create:
 ### 6. Current implemented state as of April 8, 2026
 
 - `modeling.called_pitch_decisions` now exists in Warehouse and is populated by:
-  - [build_called_pitch_decisions.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/build_called_pitch_decisions.py)
-  - [sync-players-to-warehouse.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/sync-players-to-warehouse.mjs)
-  - [report_called_pitch_decisions_status.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/report_called_pitch_decisions_status.py)
-  - [sync-live-context-to-warehouse.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/sync-live-context-to-warehouse.mjs)
+  - [build_called_pitch_decisions.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/build_called_pitch_decisions.py)
+  - [sync-players-to-warehouse.mjs](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/sync-players-to-warehouse.mjs)
+  - [report_called_pitch_decisions_status.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/report_called_pitch_decisions_status.py)
+  - [sync-live-context-to-warehouse.mjs](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/sync-live-context-to-warehouse.mjs)
 - current row inventory for `2026-02-20` through `2026-04-07`:
   - `28,557` total rows
   - `26,646` regular-season rows
@@ -630,9 +630,9 @@ Create:
   - `4,967` validation rows
   - `9,768` test rows
 - current validation artifact:
-  - [called-pitch-status-20260408T140553.json](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/.runtime/called-pitch-status/called-pitch-status-20260408T140553.json)
+  - [called-pitch-status-20260408T140553.json](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/.runtime/called-pitch-status/called-pitch-status-20260408T140553.json)
 - current geometry validation artifact:
-  - [called-pitch-geometry-validation-20260408T140829.json](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/.runtime/called-pitch-geometry/called-pitch-geometry-validation-20260408T140829.json)
+  - [called-pitch-geometry-validation-20260408T140829.json](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/.runtime/called-pitch-geometry/called-pitch-geometry-validation-20260408T140829.json)
   - current challenged-sample result favors `center_only` over `radius_adjusted`
 - current limitation:
   - the current split policy is provisional and early-window only; it should be revisited as the 2026 sample grows
