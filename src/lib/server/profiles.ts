@@ -30,7 +30,23 @@ export type ViewerProfile = {
   isVerified: boolean;
   createdAt: string;
   verifiedAt: string | null;
+  commentCount: number;
+  savedArtifactCount: number;
   roles: string[];
+};
+
+export type PublicProfile = {
+  displayName: string | null;
+  avatarUrl: string | null;
+  avatarPreset: ApprovedAvatarPreset | null;
+  username: string;
+  bio: string | null;
+  favoriteTeamId: number | null;
+  favoriteTeamName: string | null;
+  isVerified: boolean;
+  createdAt: string;
+  commentCount: number;
+  savedArtifactCount: number;
 };
 
 function deriveUsername(seed: string | null | undefined): string | null {
@@ -53,6 +69,32 @@ export async function syncUserFromIdentity(identity: NonNullable<Awaited<ReturnT
 
   if (!existing && process.env.SIGNUPS_GLOBAL_KILL_SWITCH === "true") {
     throw new Error("New signups are temporarily disabled");
+  }
+
+  if (identity.email) {
+    const emailOwner = await sqlOne<{
+      userid: string;
+      authprovider: string;
+      externalauthid: string;
+    }>(
+      `
+      SELECT
+        user_id AS userId,
+        external_auth_provider AS authProvider,
+        external_auth_id AS externalAuthId
+      FROM product.users
+      WHERE LOWER(primary_email) = LOWER($1)
+      LIMIT 1
+      `,
+      [identity.email],
+    );
+
+    if (
+      emailOwner &&
+      (emailOwner.authprovider !== identity.provider || emailOwner.externalauthid !== identity.externalAuthId)
+    ) {
+      throw new Error("Email is already attached to another account");
+    }
   }
 
   const username = deriveUsername(identity.displayName ?? identity.email ?? identity.externalAuthId);
@@ -171,6 +213,8 @@ export async function getViewerProfile(request?: Request): Promise<ViewerProfile
     isverified: boolean;
     createdat: string;
     verifiedat: string | null;
+    commentcount: number;
+    savedartifactcount: number;
     roles: string[] | null;
   }>(
     `
@@ -195,6 +239,18 @@ export async function getViewerProfile(request?: Request): Promise<ViewerProfile
       u.is_verified AS isVerified,
       u.created_at AS createdAt,
       u.verified_at AS verifiedAt,
+      (
+        SELECT COUNT(*)::int
+        FROM community.comments c
+        WHERE c.user_id = u.user_id
+          AND c.deleted_at IS NULL
+          AND c.moderation_status = 'published'
+      ) AS commentCount,
+      (
+        SELECT COUNT(*)::int
+        FROM ai.saved_artifacts sa
+        WHERE sa.user_id = u.user_id
+      ) AS savedArtifactCount,
       ARRAY_REMOVE(ARRAY_AGG(DISTINCT r.role), NULL) AS roles
     FROM product.users u
     LEFT JOIN product.user_profiles p ON p.user_id = u.user_id
@@ -246,10 +302,80 @@ export async function getViewerProfile(request?: Request): Promise<ViewerProfile
           isVerified: row.isverified,
           createdAt: row.createdat,
           verifiedAt: row.verifiedat,
+          commentCount: row.commentcount,
+          savedArtifactCount: row.savedartifactcount,
           roles: row.roles ?? [],
         }
       : null,
   );
+}
+
+export async function getPublicProfileByUsername(rawUsername: string): Promise<PublicProfile | null> {
+  const validation = validateUsername(rawUsername);
+  if (!validation.ok) {
+    return null;
+  }
+
+  const row = await sqlOne<{
+    displayname: string | null;
+    avatarurl: string | null;
+    avatarpreset: ApprovedAvatarPreset | null;
+    username: string;
+    bio: string | null;
+    favoriteteamid: number | null;
+    favoriteteamname: string | null;
+    isverified: boolean;
+    createdat: string;
+    commentcount: number;
+    savedartifactcount: number;
+  }>(
+    `
+    SELECT
+      u.display_name AS displayName,
+      u.avatar_url AS avatarUrl,
+      p.avatar_preset AS avatarPreset,
+      p.username,
+      p.bio,
+      p.favorite_team_id AS favoriteTeamId,
+      t.name AS favoriteTeamName,
+      u.is_verified AS isVerified,
+      u.created_at AS createdAt,
+      (
+        SELECT COUNT(*)::int
+        FROM community.comments c
+        WHERE c.user_id = u.user_id
+          AND c.deleted_at IS NULL
+          AND c.moderation_status = 'published'
+      ) AS commentCount,
+      (
+        SELECT COUNT(*)::int
+        FROM ai.saved_artifacts sa
+        WHERE sa.user_id = u.user_id
+      ) AS savedArtifactCount
+    FROM product.users u
+    JOIN product.user_profiles p ON p.user_id = u.user_id
+    LEFT JOIN teams t ON t.team_id = p.favorite_team_id
+    WHERE p.username = $1
+      AND p.is_public = TRUE
+    `,
+    [validation.username],
+  );
+
+  return row
+    ? {
+        displayName: row.displayname,
+        avatarUrl: row.avatarurl,
+        avatarPreset: row.avatarpreset,
+        username: row.username,
+        bio: row.bio,
+        favoriteTeamId: row.favoriteteamid,
+        favoriteTeamName: row.favoriteteamname,
+        isVerified: row.isverified,
+        createdAt: row.createdat,
+        commentCount: row.commentcount,
+        savedArtifactCount: row.savedartifactcount,
+      }
+    : null;
 }
 
 export async function updateViewerProfile(
@@ -289,6 +415,23 @@ export async function updateViewerProfile(
   }
 
   await withTransaction(async (query) => {
+    if (username !== null) {
+      const existing = await query<{ user_id: string }>(
+        `
+        SELECT user_id
+        FROM product.user_profiles
+        WHERE username = $1
+          AND user_id <> $2
+        LIMIT 1
+        `,
+        [username, profile.userId],
+      );
+
+      if (existing.length > 0) {
+        throw new Error("Username is already taken");
+      }
+    }
+
     await query(
       `
       UPDATE product.user_profiles

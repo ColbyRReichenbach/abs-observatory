@@ -14,7 +14,7 @@ describe("proxy security headers", () => {
     delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
     delete process.env.CLERK_SECRET_KEY;
 
-    const { proxy } = await import("./proxy");
+    const { proxy } = await import("./src/proxy");
     const response = proxy(new NextRequest("http://localhost/teams"));
 
     expect(response.headers.get("x-frame-options")).toBe("DENY");

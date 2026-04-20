@@ -298,6 +298,7 @@ CREATE TABLE IF NOT EXISTS ingest_errors (
 CREATE INDEX IF NOT EXISTS idx_games_date ON games (game_date DESC);
 CREATE INDEX IF NOT EXISTS idx_games_status ON games (status_abstract);
 CREATE INDEX IF NOT EXISTS idx_abs_challenges_game ON abs_challenges (game_pk, challenged_at DESC);
+CREATE INDEX IF NOT EXISTS idx_abs_challenges_game_team ON abs_challenges (game_pk, challenge_team_id, challenged_at DESC);
 CREATE INDEX IF NOT EXISTS idx_abs_challenges_team ON abs_challenges (challenge_team_id, challenged_at DESC);
 CREATE INDEX IF NOT EXISTS idx_abs_challenges_umpire_context ON abs_challenges (inning, half_inning);
 CREATE INDEX IF NOT EXISTS idx_pitches_game_atbat ON pitches (game_pk, at_bat_index);
@@ -741,7 +742,7 @@ CREATE TABLE IF NOT EXISTS ai.cost_events (
 CREATE TABLE IF NOT EXISTS ai.user_entitlements (
   user_id UUID PRIMARY KEY REFERENCES product.users(user_id) ON DELETE CASCADE,
   plan_code TEXT NOT NULL DEFAULT 'free',
-  ai_requests_per_day INTEGER NOT NULL DEFAULT 8,
+  ai_requests_per_day INTEGER NOT NULL DEFAULT 5,
   ai_tokens_per_month INTEGER NOT NULL DEFAULT 25000,
   ai_cost_usd_per_month NUMERIC NOT NULL DEFAULT 5,
   feature_flags JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -797,6 +798,28 @@ CREATE TABLE IF NOT EXISTS ai.generation_events (
   metadata JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT ai_generation_events_status_check CHECK (status IN ('succeeded', 'fallback', 'failed', 'cached'))
+);
+
+CREATE TABLE IF NOT EXISTS ai.saved_artifacts (
+  artifact_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES product.users(user_id) ON DELETE CASCADE,
+  generation_id UUID REFERENCES ai.generation_events(generation_id) ON DELETE SET NULL,
+  surface_key TEXT NOT NULL,
+  surface_detail TEXT,
+  target_type TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  route_scope TEXT,
+  route_entity_id TEXT,
+  article_id UUID,
+  game_pk BIGINT REFERENCES games(game_pk) ON DELETE SET NULL,
+  title TEXT,
+  summary TEXT,
+  artifact_payload JSONB,
+  metadata JSONB,
+  last_viewed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT ai_saved_artifacts_unique_owner_target UNIQUE (user_id, surface_key, target_type, target_id)
 );
 
 CREATE TABLE IF NOT EXISTS ai.feedback (
@@ -1269,6 +1292,7 @@ CREATE TABLE IF NOT EXISTS historical_pitch_states (
 );
 
 CREATE INDEX IF NOT EXISTS idx_product_users_external_auth ON product.users (external_auth_provider, external_auth_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_product_users_primary_email_unique ON product.users (LOWER(primary_email)) WHERE primary_email IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_product_profiles_favorite_team ON product.user_profiles (favorite_team_id);
 CREATE INDEX IF NOT EXISTS idx_editorial_articles_status_published ON editorial.articles (status, published_at DESC);
 CREATE INDEX IF NOT EXISTS idx_editorial_articles_game_pk ON editorial.articles (game_pk);
@@ -1297,6 +1321,9 @@ CREATE INDEX IF NOT EXISTS idx_ai_generation_events_provider_model_created ON ai
 CREATE INDEX IF NOT EXISTS idx_ai_generation_events_target_created ON ai.generation_events (target_type, target_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_generation_events_game_created ON ai.generation_events (game_pk, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_generation_events_article_created ON ai.generation_events (article_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_saved_artifacts_user_updated ON ai.saved_artifacts (user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_saved_artifacts_generation ON ai.saved_artifacts (generation_id) WHERE generation_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_ai_saved_artifacts_target_updated ON ai.saved_artifacts (target_type, target_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_feedback_surface_created ON ai.feedback (surface, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_feedback_sentiment_created ON ai.feedback (sentiment, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_feedback_target_created ON ai.feedback (target_type, target_id, created_at DESC);
@@ -1422,6 +1449,9 @@ CREATE TRIGGER trg_ai_conversations_touch BEFORE UPDATE ON ai.conversations FOR 
 
 DROP TRIGGER IF EXISTS trg_ai_user_entitlements_touch ON ai.user_entitlements;
 CREATE TRIGGER trg_ai_user_entitlements_touch BEFORE UPDATE ON ai.user_entitlements FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+
+DROP TRIGGER IF EXISTS trg_ai_saved_artifacts_touch ON ai.saved_artifacts;
+CREATE TRIGGER trg_ai_saved_artifacts_touch BEFORE UPDATE ON ai.saved_artifacts FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
 
 DROP TRIGGER IF EXISTS trg_historical_pitch_states_touch ON historical_pitch_states;
 CREATE TRIGGER trg_historical_pitch_states_touch BEFORE UPDATE ON historical_pitch_states FOR EACH ROW EXECUTE FUNCTION touch_updated_at();

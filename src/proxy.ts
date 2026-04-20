@@ -1,5 +1,6 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+
 import { getCsrfCookieName, issueCsrfToken } from "@/lib/server/csrf";
 
 const hasClerkCredentials =
@@ -24,6 +25,7 @@ function withSecurityHeaders(response: NextResponse) {
       path: "/",
     });
   }
+
   return response;
 }
 

@@ -20,7 +20,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.03),transparent)] pt-36">
       <Suspense fallback={null}>
-        <HomeBroadcastSection />
+        <HomeBroadcastSection viewMode={viewMode} />
       </Suspense>
 
       <div className="px-6 py-8 text-center">
@@ -39,11 +39,11 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   );
 }
 
-async function HomeBroadcastSection() {
+async function HomeBroadcastSection({ viewMode }: { viewMode: "fan" | "org" }) {
   const moments = await getHomeChallengeMoments(12);
   return (
     <div className="relative z-40 bg-white/50 border-b border-gray-100">
-      <BroadcastStrip moments={moments} />
+      <BroadcastStrip moments={moments} viewMode={viewMode} />
     </div>
   );
 }
@@ -112,7 +112,7 @@ async function HomePageBody({
     [...teams].sort((a, b) => (b.avgRemaining * b.overturnRate) - (a.avgRemaining * a.overturnRate))[0] ?? null;
   return (
     <>
-      <GameStrip games={games} />
+      <GameStrip games={games} viewMode={viewMode} />
 
       <main className="mx-auto max-w-7xl px-6 pt-4 pb-40">
         <div className="mb-6 text-center">
@@ -363,7 +363,7 @@ async function HomePageBody({
           </div>
         )}
 
-        <HomeExpandableGrid games={games} />
+        <HomeExpandableGrid games={games} viewMode={viewMode} />
 
         {/* S2-5: Reduced gap (mt-16 instead of mt-32) */}
         <section className="mt-10">
