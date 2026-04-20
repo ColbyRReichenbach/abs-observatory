@@ -1,6 +1,7 @@
 import { AIFeedback } from "@/components/ai-feedback";
 import { MotionIn } from "@/components/motion-in";
 import { ChallengeExplorer } from "@/components/challenge-explorer";
+import { PostgameAuditSummary } from "@/components/game-hub/postgame-audit-summary";
 import { ChallengeValueTimeline } from "@/components/game-hub/challenge-value-timeline";
 import { GameTeamComparisonChart } from "@/components/game-hub/game-team-comparison-chart";
 import { UmpireInGameCard } from "@/components/game-hub/umpire-in-game-card";
@@ -9,7 +10,7 @@ import { LocalTime } from "@/components/local-time";
 import { getGameReport } from "@/lib/game-reports";
 import { normalizeNarrativeMarkdown, REPORT_SECTION_LABELS } from "@/lib/game-report-markdown";
 import { assertCanManageGameReports, canManageGameReports, regenerateGameReport } from "@/lib/server/game-reports";
-import { getGameChallengeValueTimeline, getGameTeamChallengeComparison, getGameUmpireInGameSummary } from "@/lib/data";
+import { getGameChallengeValueTimeline, getGamePostgameAudit, getGameTeamChallengeComparison, getGameUmpireInGameSummary } from "@/lib/data";
 import ReactMarkdown from "react-markdown";
 import type { ChallengeEvent, GameHubGame } from "@/lib/types";
 import type { ViewMode } from "@/lib/view-mode";
@@ -18,8 +19,9 @@ import { getGameViewCopy } from "@/lib/view-mode-contract";
 import { formatDisplayTime } from "@/lib/display-time";
 
 export async function PostgameAAR({ game, challenges, initialChallengeId = null, viewMode }: { game: GameHubGame, challenges: ChallengeEvent[], initialChallengeId?: string | null, viewMode: ViewMode }) {
-    const [report, challengeValueTimeline, teamComparison, umpireSummary] = await Promise.all([
+    const [report, audit, challengeValueTimeline, teamComparison, umpireSummary] = await Promise.all([
         getGameReport(game.gamepk),
+        getGamePostgameAudit(game.gamepk),
         getGameChallengeValueTimeline(game.gamepk),
         getGameTeamChallengeComparison(game.gamepk),
         getGameUmpireInGameSummary(game.gamepk),
@@ -121,6 +123,10 @@ export async function PostgameAAR({ game, challenges, initialChallengeId = null,
                 />
             </div>
         </section>
+    ) : audit ? (
+        <div className="mb-16">
+            <PostgameAuditSummary audit={audit} viewMode={viewMode} />
+        </div>
     ) : null;
 
     const recapSection = (

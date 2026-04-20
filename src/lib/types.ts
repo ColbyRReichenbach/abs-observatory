@@ -594,6 +594,81 @@ export type GameTeamChallengeComparison = {
   valueMode: "win" | "run" | "estimated";
 };
 
+export type GamePostgameAuditSide = {
+  teamId: number | null;
+  teamName: string;
+  abbreviation: string | null;
+  primaryColor: string | null;
+  totalChallenges: number;
+  overturnedChallenges: number;
+  overturnRate: number | null;
+  averageLeverage: number | null;
+  lateCloseShare: number | null;
+  totalValue: number | null;
+  expectedValueSum: number | null;
+  valueSurplus: number | null;
+};
+
+export type GamePostgameAuditTeamVerdict = {
+  teamId: number | null;
+  teamName: string;
+  summary: string;
+  wonReviewBattle: boolean;
+};
+
+export type GamePostgameAuditUmpireVerdict = {
+  summary: string;
+  highestRiskSplitLabel: string | null;
+  topPitchType: string | null;
+  topLane: string | null;
+};
+
+export type GamePostgameAuditCoverage = {
+  valueMode: "win" | "run" | "estimated";
+  hasExpectedValueLayer: boolean;
+  hasTrustedActualValueLayer: boolean;
+  methodologyNote: string;
+};
+
+export type GamePostgameAuditNarrative = {
+  headline: string;
+  summary: string;
+  valueRead: string;
+  umpireRead: string;
+};
+
+export type GamePostgameAudit = {
+  gamePk: number;
+  gameDate: string;
+  statusAbstract: string;
+  venue: string | null;
+  homeTeamName: string;
+  awayTeamName: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  totalChallenges: number;
+  overturnedChallenges: number;
+  confirmedChallenges: number;
+  lateCloseChallenges: number;
+  positiveExpectedChallengeCount: number;
+  lowValueChallengeCount: number;
+  valueMode: "win" | "run" | "estimated";
+  totalExpectedValue: number | null;
+  totalActualValue: number | null;
+  totalValueSurplus: number | null;
+  home: GamePostgameAuditSide;
+  away: GamePostgameAuditSide;
+  impactSummary: GameChallengeImpactSummary;
+  umpireSummary: GameUmpireInGameSummary | null;
+  narrative: GamePostgameAuditNarrative;
+  coverage: GamePostgameAuditCoverage;
+  teamVerdicts: {
+    home: GamePostgameAuditTeamVerdict;
+    away: GamePostgameAuditTeamVerdict;
+  };
+  umpireVerdict: GamePostgameAuditUmpireVerdict;
+};
+
 export type AIQueryResponse = {
   answer: string;
   sql: string;

@@ -6,6 +6,9 @@ DROP VIEW IF EXISTS mart_historical_abs_overturn_probability_fallbacks CASCADE;
 DROP VIEW IF EXISTS mart_historical_abs_overturn_probability CASCADE;
 DROP VIEW IF EXISTS mart_historical_abs_team_summary CASCADE;
 DROP VIEW IF EXISTS mart_historical_abs_overturn_inputs CASCADE;
+DROP VIEW IF EXISTS mart_game_abs_team_impact_metrics CASCADE;
+DROP VIEW IF EXISTS mart_game_abs_impact_metrics CASCADE;
+DROP VIEW IF EXISTS mart_game_abs_challenge_values CASCADE;
 DROP VIEW IF EXISTS mart_team_challenge_decision_value CASCADE;
 DROP VIEW IF EXISTS mart_team_challenge_win_value CASCADE;
 DROP VIEW IF EXISTS mart_team_challenge_run_value CASCADE;
@@ -1523,6 +1526,516 @@ SELECT
     ELSE 'low'
   END AS confidence_band
 FROM drop_count_bucket_rows dcb;
+
+CREATE OR REPLACE VIEW mart_game_abs_challenge_values AS
+WITH challenge_context AS (
+  SELECT
+    c.challenge_id,
+    c.game_pk,
+    c.challenge_team_id,
+    t.name AS challenge_team_name,
+    c.challenge_team_side,
+    c.challenged_at,
+    c.is_overturned,
+    c.inning,
+    INITCAP(c.half_inning) AS half_inning,
+    c.outs,
+    c.bases_state,
+    c.home_score,
+    c.away_score,
+    c.balls,
+    c.strikes,
+    p.balls_before,
+    p.strikes_before,
+    p.balls_after,
+    p.strikes_after,
+    COALESCE(p.called_description, c.called_description, '') AS resolved_called_description,
+    CASE
+      WHEN c.bases_state IS NULL THEN 0
+      WHEN LOWER(c.bases_state) = 'bases loaded' THEN 3
+      WHEN c.bases_state ~ '^[01]{3}$' THEN LENGTH(REPLACE(c.bases_state, '0', ''))
+      ELSE
+        CASE WHEN LOWER(c.bases_state) LIKE '%1b%' OR LOWER(c.bases_state) LIKE '%first%' THEN 1 ELSE 0 END
+        + CASE WHEN LOWER(c.bases_state) LIKE '%2b%' OR LOWER(c.bases_state) LIKE '%second%' THEN 1 ELSE 0 END
+        + CASE WHEN LOWER(c.bases_state) LIKE '%3b%' OR LOWER(c.bases_state) LIKE '%third%' THEN 1 ELSE 0 END
+    END AS runners_on_base,
+    CASE
+      WHEN COALESCE(c.pitch_number, c.inferred_pitch_number) IS NULL THEN 'non_pitch_review'
+      WHEN c.is_overturned = FALSE THEN 'confirmed'
+      WHEN p.ended_plate_appearance = TRUE
+        AND (
+          (COALESCE(p.strikes_before, c.strikes) = 2 AND LOWER(COALESCE(p.called_description, c.called_description, '')) LIKE '%strike%')
+          OR (COALESCE(p.balls_before, c.balls) = 3 AND LOWER(COALESCE(p.called_description, c.called_description, '')) LIKE '%ball%')
+        )
+        THEN 'direct_ending_impact'
+      WHEN p.balls_before IS NOT NULL
+        AND p.strikes_before IS NOT NULL
+        AND (p.balls_before IS DISTINCT FROM p.balls_after OR p.strikes_before IS DISTINCT FROM p.strikes_after)
+        THEN 'direct_count_impact'
+      ELSE 'downstream_inferred_impact'
+    END AS impact_type,
+    CASE
+      WHEN UPPER(COALESCE(p.called_description, c.called_description, '')) LIKE 'CALLED STRIKE%' THEN 'called_strike'
+      WHEN UPPER(COALESCE(p.called_description, c.called_description, '')) LIKE 'BALL%' THEN 'ball'
+      ELSE NULL
+    END AS called_pitch,
+    CASE
+      WHEN UPPER(COALESCE(p.called_description, c.called_description, '')) LIKE 'CALLED STRIKE%' THEN 'strike_to_ball'
+      WHEN UPPER(COALESCE(p.called_description, c.called_description, '')) LIKE 'BALL%' THEN 'ball_to_strike'
+      ELSE NULL
+    END AS challenge_direction,
+    CASE
+      WHEN COALESCE(c.px, c.inferred_px) IS NULL
+        OR COALESCE(c.pz, c.inferred_pz) IS NULL
+        OR COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) IS NULL
+        OR COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) IS NULL
+      THEN NULL
+      WHEN UPPER(COALESCE(p.called_description, c.called_description, '')) LIKE 'CALLED STRIKE%' THEN
+        CASE
+          WHEN SQRT(
+            POWER(GREATEST(ABS(COALESCE(c.px, c.inferred_px)) - 0.8291666667, 0), 2)
+            + POWER(
+              GREATEST(
+                COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) - COALESCE(c.pz, c.inferred_pz),
+                COALESCE(c.pz, c.inferred_pz) - COALESCE(c.strike_zone_top, c.inferred_strike_zone_top),
+                0
+              ),
+              2
+            )
+          ) <= 0.015 THEN 'edge'
+          WHEN SQRT(
+            POWER(GREATEST(ABS(COALESCE(c.px, c.inferred_px)) - 0.8291666667, 0), 2)
+            + POWER(
+              GREATEST(
+                COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) - COALESCE(c.pz, c.inferred_pz),
+                COALESCE(c.pz, c.inferred_pz) - COALESCE(c.strike_zone_top, c.inferred_strike_zone_top),
+                0
+              ),
+              2
+            )
+          ) <= 0.16 THEN 'near_edge'
+          ELSE 'clear_miss'
+        END
+      WHEN UPPER(COALESCE(p.called_description, c.called_description, '')) LIKE 'BALL%' THEN
+        CASE
+          WHEN GREATEST(
+            LEAST(
+              0.8291666667 - ABS(COALESCE(c.px, c.inferred_px)),
+              COALESCE(c.pz, c.inferred_pz) - COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom),
+              COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) - COALESCE(c.pz, c.inferred_pz)
+            ),
+            0
+          ) <= 0.003 THEN 'edge'
+          ELSE 'near_edge'
+        END
+      ELSE NULL
+    END AS edge_bucket,
+    CASE
+      WHEN INITCAP(c.half_inning) = 'Top' THEN
+        CASE
+          WHEN c.away_score IS NULL OR c.home_score IS NULL THEN NULL
+          WHEN c.away_score - c.home_score <= -4 THEN 'trail4plus'
+          WHEN c.away_score - c.home_score = -3 THEN 'trail3'
+          WHEN c.away_score - c.home_score = -2 THEN 'trail2'
+          WHEN c.away_score - c.home_score = -1 THEN 'trail1'
+          WHEN c.away_score - c.home_score = 0 THEN 'tied'
+          WHEN c.away_score - c.home_score = 1 THEN 'lead1'
+          WHEN c.away_score - c.home_score = 2 THEN 'lead2'
+          WHEN c.away_score - c.home_score = 3 THEN 'lead3'
+          ELSE 'lead4plus'
+        END
+      WHEN INITCAP(c.half_inning) = 'Bottom' THEN
+        CASE
+          WHEN c.home_score IS NULL OR c.away_score IS NULL THEN NULL
+          WHEN c.home_score - c.away_score <= -4 THEN 'trail4plus'
+          WHEN c.home_score - c.away_score = -3 THEN 'trail3'
+          WHEN c.home_score - c.away_score = -2 THEN 'trail2'
+          WHEN c.home_score - c.away_score = -1 THEN 'trail1'
+          WHEN c.home_score - c.away_score = 0 THEN 'tied'
+          WHEN c.home_score - c.away_score = 1 THEN 'lead1'
+          WHEN c.home_score - c.away_score = 2 THEN 'lead2'
+          WHEN c.home_score - c.away_score = 3 THEN 'lead3'
+          ELSE 'lead4plus'
+        END
+      ELSE NULL
+    END AS score_diff_bucket,
+    CASE
+      WHEN c.inning >= 9 THEN '9+'
+      WHEN c.inning >= 7 THEN '7-8'
+      WHEN c.inning >= 4 THEN '4-6'
+      ELSE '1-3'
+    END AS inning_bucket,
+    CASE
+      WHEN COALESCE(c.pitch_number, c.inferred_pitch_number) IS NULL THEN NULL
+      WHEN p.balls_before IS NULL OR p.strikes_before IS NULL THEN NULL
+      WHEN c.is_overturned = FALSE THEN
+        CASE WHEN p.balls_after IS NULL OR p.strikes_after IS NULL THEN NULL ELSE CONCAT(p.balls_after, '-', p.strikes_after) END
+      WHEN p.balls_after IS NOT NULL AND p.balls_before IS NOT NULL AND p.balls_after > p.balls_before THEN CONCAT(p.balls_before, '-', p.strikes_before + 1)
+      WHEN p.strikes_after IS NOT NULL AND p.strikes_before IS NOT NULL AND p.strikes_after > p.strikes_before THEN CONCAT(p.balls_before + 1, '-', p.strikes_before)
+      ELSE CASE WHEN p.balls_after IS NULL OR p.strikes_after IS NULL THEN NULL ELSE CONCAT(p.balls_after, '-', p.strikes_after) END
+    END AS held_count_key,
+    CASE
+      WHEN p.balls_after IS NULL OR p.strikes_after IS NULL THEN NULL
+      ELSE CONCAT(p.balls_after, '-', p.strikes_after)
+    END AS corrected_count_key
+  FROM abs_challenges c
+  LEFT JOIN teams t ON t.team_id = c.challenge_team_id
+  LEFT JOIN pitches p
+    ON p.game_pk = c.game_pk
+   AND p.at_bat_index = c.at_bat_index
+   AND p.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
+),
+run_lookup AS (
+  SELECT
+    cc.challenge_id,
+    ROUND(COALESCE(run_pre_exact.expected_runs_to_end_inning, run_pre_no_inning.expected_runs_to_end_inning, run_pre_base_out.expected_runs_to_end_inning)::NUMERIC, 3) AS pre_run_expectancy,
+    ROUND(COALESCE(run_post_exact.expected_runs_to_end_inning, run_post_no_inning.expected_runs_to_end_inning, run_post_base_out.expected_runs_to_end_inning)::NUMERIC, 3) AS post_run_expectancy,
+    CASE
+      WHEN COALESCE(run_pre_exact.expected_runs_to_end_inning, run_pre_no_inning.expected_runs_to_end_inning, run_pre_base_out.expected_runs_to_end_inning) IS NULL
+        OR COALESCE(run_post_exact.expected_runs_to_end_inning, run_post_no_inning.expected_runs_to_end_inning, run_post_base_out.expected_runs_to_end_inning) IS NULL
+      THEN NULL
+      ELSE ROUND((
+        COALESCE(run_post_exact.expected_runs_to_end_inning, run_post_no_inning.expected_runs_to_end_inning, run_post_base_out.expected_runs_to_end_inning)
+        - COALESCE(run_pre_exact.expected_runs_to_end_inning, run_pre_no_inning.expected_runs_to_end_inning, run_pre_base_out.expected_runs_to_end_inning)
+      )::NUMERIC, 3)
+    END AS run_expectancy_delta,
+    CASE
+      WHEN COALESCE(run_pre_exact.confidence_band, run_pre_no_inning.confidence_band, run_pre_base_out.confidence_band, run_post_exact.confidence_band, run_post_no_inning.confidence_band, run_post_base_out.confidence_band) IS NULL THEN NULL
+      WHEN COALESCE(run_pre_exact.confidence_band, '') = 'low'
+        OR COALESCE(run_pre_no_inning.confidence_band, '') = 'low'
+        OR COALESCE(run_pre_base_out.confidence_band, '') = 'low'
+        OR COALESCE(run_post_exact.confidence_band, '') = 'low'
+        OR COALESCE(run_post_no_inning.confidence_band, '') = 'low'
+        OR COALESCE(run_post_base_out.confidence_band, '') = 'low'
+        THEN 'low'
+      WHEN COALESCE(run_pre_exact.confidence_band, '') = 'medium'
+        OR COALESCE(run_pre_no_inning.confidence_band, '') = 'medium'
+        OR COALESCE(run_pre_base_out.confidence_band, '') = 'medium'
+        OR COALESCE(run_post_exact.confidence_band, '') = 'medium'
+        OR COALESCE(run_post_no_inning.confidence_band, '') = 'medium'
+        OR COALESCE(run_post_base_out.confidence_band, '') = 'medium'
+        THEN 'medium'
+      ELSE 'high'
+    END AS run_expectancy_confidence
+  FROM challenge_context cc
+  LEFT JOIN serving_run_expectancy_fallbacks run_pre_exact
+    ON run_pre_exact.fallback_tier = 'exact'
+   AND run_pre_exact.inning_bucket = cc.inning_bucket
+   AND run_pre_exact.outs = cc.outs
+   AND run_pre_exact.bases_state = cc.bases_state
+   AND run_pre_exact.count_key = cc.held_count_key
+  LEFT JOIN serving_run_expectancy_fallbacks run_post_exact
+    ON run_post_exact.fallback_tier = 'exact'
+   AND run_post_exact.inning_bucket = cc.inning_bucket
+   AND run_post_exact.outs = cc.outs
+   AND run_post_exact.bases_state = cc.bases_state
+   AND run_post_exact.count_key = cc.corrected_count_key
+  LEFT JOIN serving_run_expectancy_fallbacks run_pre_no_inning
+    ON run_pre_no_inning.fallback_tier = 'drop_inning_bucket'
+   AND run_pre_no_inning.outs = cc.outs
+   AND run_pre_no_inning.bases_state = cc.bases_state
+   AND run_pre_no_inning.count_key = cc.held_count_key
+  LEFT JOIN serving_run_expectancy_fallbacks run_post_no_inning
+    ON run_post_no_inning.fallback_tier = 'drop_inning_bucket'
+   AND run_post_no_inning.outs = cc.outs
+   AND run_post_no_inning.bases_state = cc.bases_state
+   AND run_post_no_inning.count_key = cc.corrected_count_key
+  LEFT JOIN serving_run_expectancy_fallbacks run_pre_base_out
+    ON run_pre_base_out.fallback_tier = 'drop_count_key'
+   AND run_pre_base_out.outs = cc.outs
+   AND run_pre_base_out.bases_state = cc.bases_state
+  LEFT JOIN serving_run_expectancy_fallbacks run_post_base_out
+    ON run_post_base_out.fallback_tier = 'drop_count_key'
+   AND run_post_base_out.outs = cc.outs
+   AND run_post_base_out.bases_state = cc.bases_state
+),
+win_lookup AS (
+  SELECT
+    cc.challenge_id,
+    ROUND(COALESCE(win_pre_exact.batting_team_win_probability, win_pre_bucket.batting_team_win_probability, win_pre_drop_count.batting_team_win_probability, win_pre_drop_count_bucket.batting_team_win_probability)::NUMERIC, 4) AS pre_win_expectancy,
+    ROUND(COALESCE(win_post_exact.batting_team_win_probability, win_post_bucket.batting_team_win_probability, win_post_drop_count.batting_team_win_probability, win_post_drop_count_bucket.batting_team_win_probability)::NUMERIC, 4) AS post_win_expectancy,
+    CASE
+      WHEN COALESCE(win_pre_exact.batting_team_win_probability, win_pre_bucket.batting_team_win_probability, win_pre_drop_count.batting_team_win_probability, win_pre_drop_count_bucket.batting_team_win_probability) IS NULL
+        OR COALESCE(win_post_exact.batting_team_win_probability, win_post_bucket.batting_team_win_probability, win_post_drop_count.batting_team_win_probability, win_post_drop_count_bucket.batting_team_win_probability) IS NULL
+      THEN NULL
+      ELSE ROUND((
+        COALESCE(win_post_exact.batting_team_win_probability, win_post_bucket.batting_team_win_probability, win_post_drop_count.batting_team_win_probability, win_post_drop_count_bucket.batting_team_win_probability)
+        - COALESCE(win_pre_exact.batting_team_win_probability, win_pre_bucket.batting_team_win_probability, win_pre_drop_count.batting_team_win_probability, win_pre_drop_count_bucket.batting_team_win_probability)
+      )::NUMERIC, 4)
+    END AS win_expectancy_delta,
+    CASE
+      WHEN COALESCE(win_pre_exact.confidence_band, win_pre_bucket.confidence_band, win_pre_drop_count.confidence_band, win_pre_drop_count_bucket.confidence_band, win_post_exact.confidence_band, win_post_bucket.confidence_band, win_post_drop_count.confidence_band, win_post_drop_count_bucket.confidence_band) IS NULL THEN NULL
+      WHEN COALESCE(win_pre_exact.confidence_band, '') = 'low'
+        OR COALESCE(win_pre_bucket.confidence_band, '') = 'low'
+        OR COALESCE(win_pre_drop_count.confidence_band, '') = 'low'
+        OR COALESCE(win_pre_drop_count_bucket.confidence_band, '') = 'low'
+        OR COALESCE(win_post_exact.confidence_band, '') = 'low'
+        OR COALESCE(win_post_bucket.confidence_band, '') = 'low'
+        OR COALESCE(win_post_drop_count.confidence_band, '') = 'low'
+        OR COALESCE(win_post_drop_count_bucket.confidence_band, '') = 'low'
+        THEN 'low'
+      WHEN COALESCE(win_pre_exact.confidence_band, '') = 'medium'
+        OR COALESCE(win_pre_bucket.confidence_band, '') = 'medium'
+        OR COALESCE(win_pre_drop_count.confidence_band, '') = 'medium'
+        OR COALESCE(win_pre_drop_count_bucket.confidence_band, '') = 'medium'
+        OR COALESCE(win_post_exact.confidence_band, '') = 'medium'
+        OR COALESCE(win_post_bucket.confidence_band, '') = 'medium'
+        OR COALESCE(win_post_drop_count.confidence_band, '') = 'medium'
+        OR COALESCE(win_post_drop_count_bucket.confidence_band, '') = 'medium'
+        THEN 'medium'
+      ELSE 'high'
+    END AS win_expectancy_confidence
+  FROM challenge_context cc
+  LEFT JOIN serving_win_expectancy_fallbacks win_pre_exact
+    ON win_pre_exact.fallback_tier = 'exact'
+   AND win_pre_exact.inning = cc.inning
+   AND win_pre_exact.half_inning = cc.half_inning
+   AND win_pre_exact.score_diff_bucket = cc.score_diff_bucket
+   AND win_pre_exact.outs = cc.outs
+   AND win_pre_exact.bases_state = cc.bases_state
+   AND win_pre_exact.count_key = cc.held_count_key
+  LEFT JOIN serving_win_expectancy_fallbacks win_post_exact
+    ON win_post_exact.fallback_tier = 'exact'
+   AND win_post_exact.inning = cc.inning
+   AND win_post_exact.half_inning = cc.half_inning
+   AND win_post_exact.score_diff_bucket = cc.score_diff_bucket
+   AND win_post_exact.outs = cc.outs
+   AND win_post_exact.bases_state = cc.bases_state
+   AND win_post_exact.count_key = cc.corrected_count_key
+  LEFT JOIN serving_win_expectancy_fallbacks win_pre_bucket
+    ON win_pre_bucket.fallback_tier = 'drop_inning_to_bucket'
+   AND win_pre_bucket.inning_bucket = cc.inning_bucket
+   AND win_pre_bucket.half_inning = cc.half_inning
+   AND win_pre_bucket.score_diff_bucket = cc.score_diff_bucket
+   AND win_pre_bucket.outs = cc.outs
+   AND win_pre_bucket.bases_state = cc.bases_state
+   AND win_pre_bucket.count_key = cc.held_count_key
+  LEFT JOIN serving_win_expectancy_fallbacks win_post_bucket
+    ON win_post_bucket.fallback_tier = 'drop_inning_to_bucket'
+   AND win_post_bucket.inning_bucket = cc.inning_bucket
+   AND win_post_bucket.half_inning = cc.half_inning
+   AND win_post_bucket.score_diff_bucket = cc.score_diff_bucket
+   AND win_post_bucket.outs = cc.outs
+   AND win_post_bucket.bases_state = cc.bases_state
+   AND win_post_bucket.count_key = cc.corrected_count_key
+  LEFT JOIN serving_win_expectancy_fallbacks win_pre_drop_count
+    ON win_pre_drop_count.fallback_tier = 'drop_count_key_exact_inning'
+   AND win_pre_drop_count.inning = cc.inning
+   AND win_pre_drop_count.half_inning = cc.half_inning
+   AND win_pre_drop_count.score_diff_bucket = cc.score_diff_bucket
+   AND win_pre_drop_count.outs = cc.outs
+   AND win_pre_drop_count.bases_state = cc.bases_state
+  LEFT JOIN serving_win_expectancy_fallbacks win_post_drop_count
+    ON win_post_drop_count.fallback_tier = 'drop_count_key_exact_inning'
+   AND win_post_drop_count.inning = cc.inning
+   AND win_post_drop_count.half_inning = cc.half_inning
+   AND win_post_drop_count.score_diff_bucket = cc.score_diff_bucket
+   AND win_post_drop_count.outs = cc.outs
+   AND win_post_drop_count.bases_state = cc.bases_state
+  LEFT JOIN serving_win_expectancy_fallbacks win_pre_drop_count_bucket
+    ON win_pre_drop_count_bucket.fallback_tier = 'drop_count_key_bucketed_inning'
+   AND win_pre_drop_count_bucket.inning_bucket = cc.inning_bucket
+   AND win_pre_drop_count_bucket.half_inning = cc.half_inning
+   AND win_pre_drop_count_bucket.score_diff_bucket = cc.score_diff_bucket
+   AND win_pre_drop_count_bucket.outs = cc.outs
+   AND win_pre_drop_count_bucket.bases_state = cc.bases_state
+  LEFT JOIN serving_win_expectancy_fallbacks win_post_drop_count_bucket
+    ON win_post_drop_count_bucket.fallback_tier = 'drop_count_key_bucketed_inning'
+   AND win_post_drop_count_bucket.inning_bucket = cc.inning_bucket
+   AND win_post_drop_count_bucket.half_inning = cc.half_inning
+   AND win_post_drop_count_bucket.score_diff_bucket = cc.score_diff_bucket
+   AND win_post_drop_count_bucket.outs = cc.outs
+   AND win_post_drop_count_bucket.bases_state = cc.bases_state
+),
+decision_lookup AS (
+  SELECT
+    cc.challenge_id,
+    COALESCE(prob_exact.overturn_probability, prob_direction.overturn_probability, prob_global.overturn_probability, 0.5) AS estimated_overturn_probability,
+    COALESCE(prob_exact.confidence_band, prob_direction.confidence_band, prob_global.confidence_band, 'low') AS overturn_probability_confidence
+  FROM challenge_context cc
+  LEFT JOIN serving_abs_overturn_probability_fallbacks prob_exact
+    ON prob_exact.fallback_tier = 'exact'
+   AND prob_exact.challenge_direction = cc.challenge_direction
+   AND prob_exact.edge_bucket = cc.edge_bucket
+  LEFT JOIN serving_abs_overturn_probability_fallbacks prob_direction
+    ON prob_direction.fallback_tier = 'direction_only'
+   AND prob_direction.challenge_direction = cc.challenge_direction
+   AND prob_direction.edge_bucket IS NULL
+  LEFT JOIN serving_abs_overturn_probability_fallbacks prob_global
+    ON prob_global.fallback_tier = 'global'
+   AND prob_global.challenge_direction IS NULL
+   AND prob_global.edge_bucket IS NULL
+),
+metrics AS (
+  SELECT
+    cc.*,
+    run_lookup.pre_run_expectancy,
+    run_lookup.post_run_expectancy,
+    run_lookup.run_expectancy_delta,
+    run_lookup.run_expectancy_confidence,
+    win_lookup.pre_win_expectancy,
+    win_lookup.post_win_expectancy,
+    win_lookup.win_expectancy_delta,
+    win_lookup.win_expectancy_confidence,
+    decision_lookup.estimated_overturn_probability,
+    decision_lookup.overturn_probability_confidence,
+    GREATEST(
+      0,
+      LEAST(
+        100,
+        (
+          CASE WHEN COALESCE(cc.inning, 1) >= 9 THEN 28 WHEN COALESCE(cc.inning, 1) >= 7 THEN 22 WHEN COALESCE(cc.inning, 1) >= 5 THEN 14 ELSE 8 END
+          + CASE
+              WHEN ABS(COALESCE(cc.home_score, 0) - COALESCE(cc.away_score, 0)) = 0 THEN 28
+              WHEN ABS(COALESCE(cc.home_score, 0) - COALESCE(cc.away_score, 0)) = 1 THEN 24
+              WHEN ABS(COALESCE(cc.home_score, 0) - COALESCE(cc.away_score, 0)) = 2 THEN 18
+              WHEN ABS(COALESCE(cc.home_score, 0) - COALESCE(cc.away_score, 0)) = 3 THEN 12
+              ELSE 6
+            END
+          + CASE WHEN COALESCE(cc.outs, 0) >= 2 THEN 14 WHEN COALESCE(cc.outs, 0) = 1 THEN 9 ELSE 5 END
+          + CASE WHEN cc.runners_on_base >= 3 THEN 14 WHEN cc.runners_on_base = 2 THEN 11 WHEN cc.runners_on_base = 1 THEN 8 ELSE 0 END
+          + CASE
+              WHEN COALESCE(cc.balls, 0) = 3 AND COALESCE(cc.strikes, 0) = 2 THEN 16
+              WHEN COALESCE(cc.strikes, 0) >= 2 THEN 12
+              WHEN COALESCE(cc.balls, 0) >= 3 THEN 10
+              ELSE 5
+            END
+        )
+      )
+    )::NUMERIC AS estimated_leverage_index,
+    GREATEST(
+      0.2,
+      LEAST(
+        3.0,
+        GREATEST(0.1, LEAST(COALESCE(cc.inning, 1)::NUMERIC / 9.0, 1.7))
+        * GREATEST(0.3, LEAST(1.5 - ABS(COALESCE(cc.home_score, 0) - COALESCE(cc.away_score, 0)) * 0.15, 1.5))
+        * CASE
+            WHEN COALESCE(cc.balls_before, cc.balls, 0) = 3 AND COALESCE(cc.strikes_before, cc.strikes, 0) = 2 THEN 1.2
+            WHEN COALESCE(cc.strikes_before, cc.strikes, 0) = 2 THEN 1.1
+            ELSE 1.0
+          END
+        * CASE
+            WHEN cc.runners_on_base > 0 THEN 1 + (cc.runners_on_base * 0.12)
+            ELSE 0.95
+          END
+      )
+    )::NUMERIC AS leverage_index_approx
+  FROM challenge_context cc
+  LEFT JOIN run_lookup ON run_lookup.challenge_id = cc.challenge_id
+  LEFT JOIN win_lookup ON win_lookup.challenge_id = cc.challenge_id
+  LEFT JOIN decision_lookup ON decision_lookup.challenge_id = cc.challenge_id
+)
+SELECT
+  metrics.game_pk,
+  metrics.challenge_id,
+  metrics.challenge_team_id,
+  metrics.challenge_team_name,
+  metrics.challenge_team_side,
+  metrics.challenged_at,
+  metrics.is_overturned,
+  metrics.inning,
+  metrics.half_inning,
+  metrics.outs,
+  metrics.bases_state,
+  metrics.home_score,
+  metrics.away_score,
+  metrics.impact_type,
+  CASE
+    WHEN metrics.inning >= 7 AND metrics.home_score IS NOT NULL AND metrics.away_score IS NOT NULL AND ABS(metrics.home_score - metrics.away_score) <= 2 THEN TRUE
+    ELSE FALSE
+  END AS is_late_close,
+  metrics.estimated_leverage_index,
+  CASE
+    WHEN metrics.is_overturned = FALSE THEN ROUND((metrics.estimated_leverage_index * -0.35)::NUMERIC, 0)
+    WHEN metrics.impact_type = 'direct_ending_impact' THEN ROUND(metrics.estimated_leverage_index::NUMERIC, 0)
+    WHEN metrics.impact_type = 'direct_count_impact' THEN ROUND((metrics.estimated_leverage_index * 0.72)::NUMERIC, 0)
+    ELSE ROUND((metrics.estimated_leverage_index * 0.45)::NUMERIC, 0)
+  END AS estimated_challenge_swing,
+  metrics.pre_run_expectancy,
+  metrics.post_run_expectancy,
+  metrics.run_expectancy_delta,
+  metrics.run_expectancy_confidence,
+  metrics.pre_win_expectancy,
+  metrics.post_win_expectancy,
+  metrics.win_expectancy_delta,
+  metrics.win_expectancy_confidence,
+  metrics.estimated_overturn_probability,
+  metrics.overturn_probability_confidence,
+  CASE
+    WHEN metrics.called_pitch IS NULL THEN NULL
+    WHEN metrics.win_expectancy_delta IS NOT NULL THEN 'win_expectancy'
+    ELSE 'heuristic'
+  END AS decision_value_mode,
+  CASE
+    WHEN metrics.called_pitch IS NULL THEN NULL
+    ELSE ROUND((
+      metrics.estimated_overturn_probability
+      * COALESCE(metrics.win_expectancy_delta, ROUND((0.012 * metrics.leverage_index_approx)::NUMERIC, 4))
+      + (1 - metrics.estimated_overturn_probability) * ROUND((-0.0025 * metrics.leverage_index_approx)::NUMERIC, 4)
+    )::NUMERIC, 4)
+  END AS expected_challenge_value
+FROM metrics;
+
+CREATE OR REPLACE VIEW mart_game_abs_impact_metrics AS
+SELECT
+  game_pk,
+  COUNT(*) AS total_challenges,
+  COUNT(*) FILTER (WHERE is_overturned) AS overturned_challenges,
+  COUNT(*) FILTER (WHERE NOT is_overturned) AS confirmed_challenges,
+  COUNT(*) FILTER (WHERE is_late_close) AS late_close_challenges,
+  COUNT(*) FILTER (
+    WHERE decision_value_mode = 'win_expectancy'
+      AND expected_challenge_value IS NOT NULL
+      AND expected_challenge_value > 0.0005
+  ) AS positive_expected_challenge_count,
+  COUNT(*) FILTER (
+    WHERE decision_value_mode = 'win_expectancy'
+      AND expected_challenge_value IS NOT NULL
+      AND expected_challenge_value <= 0.0005
+  ) AS low_value_challenge_count,
+  ROUND(SUM(CASE WHEN win_expectancy_confidence IN ('high', 'medium') THEN win_expectancy_delta ELSE NULL END)::NUMERIC, 4) AS total_win_value,
+  ROUND(SUM(CASE WHEN run_expectancy_confidence IN ('high', 'medium') THEN run_expectancy_delta ELSE NULL END)::NUMERIC, 4) AS total_run_value,
+  ROUND(SUM(estimated_challenge_swing)::NUMERIC, 2) AS total_estimated_swing,
+  ROUND(SUM(
+    CASE
+      WHEN decision_value_mode = 'win_expectancy' AND win_expectancy_confidence IN ('high', 'medium')
+      THEN expected_challenge_value
+      ELSE NULL
+    END
+  )::NUMERIC, 4) AS expected_value_sum
+FROM mart_game_abs_challenge_values
+GROUP BY game_pk;
+
+CREATE OR REPLACE VIEW mart_game_abs_team_impact_metrics AS
+SELECT
+  game_pk,
+  challenge_team_id AS team_id,
+  challenge_team_name AS team_name,
+  challenge_team_side AS team_side,
+  COUNT(*) AS total_challenges,
+  COUNT(*) FILTER (WHERE is_overturned) AS overturned_challenges,
+  CASE
+    WHEN COUNT(*) > 0 THEN ROUND((COUNT(*) FILTER (WHERE is_overturned)::NUMERIC / COUNT(*))::NUMERIC, 4)
+    ELSE NULL
+  END AS overturn_rate,
+  ROUND(AVG(estimated_leverage_index)::NUMERIC, 4) AS average_leverage,
+  CASE
+    WHEN COUNT(*) > 0 THEN ROUND(AVG(CASE WHEN is_late_close THEN 1 ELSE 0 END)::NUMERIC, 4)
+    ELSE NULL
+  END AS late_close_share,
+  ROUND(SUM(CASE WHEN win_expectancy_confidence IN ('high', 'medium') THEN win_expectancy_delta ELSE NULL END)::NUMERIC, 4) AS total_win_value,
+  ROUND(SUM(CASE WHEN run_expectancy_confidence IN ('high', 'medium') THEN run_expectancy_delta ELSE NULL END)::NUMERIC, 4) AS total_run_value,
+  ROUND(SUM(estimated_challenge_swing)::NUMERIC, 2) AS total_estimated_swing,
+  ROUND(SUM(
+    CASE
+      WHEN decision_value_mode = 'win_expectancy' AND win_expectancy_confidence IN ('high', 'medium')
+      THEN expected_challenge_value
+      ELSE NULL
+    END
+  )::NUMERIC, 4) AS expected_value_sum
+FROM mart_game_abs_challenge_values
+WHERE challenge_team_id IS NOT NULL
+GROUP BY game_pk, challenge_team_id, challenge_team_name, challenge_team_side;
 
 CREATE OR REPLACE VIEW mart_zone_outcome_baselines AS
 SELECT

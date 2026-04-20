@@ -11,6 +11,12 @@ import {
 import { buildChallengeValueSnapshot, buildCountStateBaselineMap, type CountStateBaseline } from "@/lib/challenge-value";
 import { summarizeEstimatedLeverage } from "@/lib/estimated-leverage";
 import {
+  buildPostgameAuditCoverage,
+  buildPostgameAuditNarrative,
+  buildPostgameAuditTeamVerdicts,
+  buildPostgameAuditUmpireVerdict,
+} from "@/lib/postgame-audit-copy";
+import {
   buildHomeChallengeMoments,
   buildTeamLeaderboardEntries,
   buildUmpireLeaderboardEntries,
@@ -19,6 +25,11 @@ import {
 import { estimateChallengeDecisionValue, getOverturnProbabilityFallbackRows, type CalledPitch } from "@/lib/server/challenge-decision-value";
 import { withServerTiming } from "@/lib/server/performance";
 import { getGameDataVersion, getGlobalLiveDataVersion, getLatestSuccessfulEtlDataVersion } from "@/lib/server/data-version";
+import {
+  resolveComparableExpectedWinValue,
+  resolveDisplayedExpectedWinValue,
+  resolvePostgameValueMode,
+} from "@/lib/postgame-audit-metrics";
 import { confidenceBandFromRank, getDecisionValueConfidenceBand, hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
 import { getChallengeRunExpectancyDelta, getRunExpectancyFallbackRows, resolveRunExpectancyWithFallback } from "@/lib/server/run-expectancy";
 import { getChallengeWinExpectancyDelta, getWinExpectancyFallbackRows, resolveWinExpectancyWithFallback } from "@/lib/server/win-expectancy";
@@ -38,6 +49,8 @@ import type {
   ChallengePitchLaneBaseline,
   ChallengePitchTypeBaseline,
   GameChallengeImpactSummary,
+  GamePostgameAudit,
+  GamePostgameAuditSide,
   GameTeamChallengeComparison,
   GameUmpireInGameSummary,
   GameChallengeOpportunityBoard,
@@ -2116,18 +2129,166 @@ function sumNullable(values: Array<number | null | undefined>) {
   return roundMetric(present.reduce((sum, value) => sum + value, 0), 4);
 }
 
-function isLateCloseChallenge(challenge: ChallengeEvent) {
-  const inning = challenge.inning ?? 0;
-  const homeScore = challenge.homeScore;
-  const awayScore = challenge.awayScore;
+type GameAbsImpactMetricsViewRow = {
+  total_challenges: number | string;
+  overturned_challenges: number | string;
+  confirmed_challenges: number | string;
+  late_close_challenges: number | string;
+  positive_expected_challenge_count: number | string;
+  low_value_challenge_count: number | string;
+  total_win_value: number | string | null;
+  total_run_value: number | string | null;
+  total_estimated_swing: number | string | null;
+  expected_value_sum: number | string | null;
+};
+
+type GameAbsImpactMetrics = {
+  totalChallenges: number;
+  overturnedChallenges: number;
+  confirmedChallenges: number;
+  lateCloseChallenges: number;
+  positiveExpectedChallengeCount: number;
+  lowValueChallengeCount: number;
+  totalWinValue: number | null;
+  totalRunValue: number | null;
+  totalEstimatedSwing: number | null;
+  expectedValueSum: number | null;
+};
+
+type GameAbsTeamImpactMetricsViewRow = {
+  team_id: number | string | null;
+  team_name: string | null;
+  total_challenges: number | string;
+  overturned_challenges: number | string;
+  overturn_rate: number | string | null;
+  average_leverage: number | string | null;
+  late_close_share: number | string | null;
+  total_win_value: number | string | null;
+  total_run_value: number | string | null;
+  total_estimated_swing: number | string | null;
+  expected_value_sum: number | string | null;
+};
+
+type GameAbsTeamImpactMetrics = {
+  teamId: number | null;
+  teamName: string | null;
+  totalChallenges: number;
+  overturnedChallenges: number;
+  overturnRate: number | null;
+  averageLeverage: number | null;
+  lateCloseShare: number | null;
+  totalWinValue: number | null;
+  totalRunValue: number | null;
+  totalEstimatedSwing: number;
+  expectedValueSum: number | null;
+};
+
+function nullableMetric(value: number | string | null | undefined) {
+  return value === null || value === undefined ? null : Number(value);
+}
+
+async function getGameAbsImpactMetrics(gamePk: number): Promise<GameAbsImpactMetrics | null> {
+  return withGameVersionedCache("game-abs-impact-metrics-view", gamePk, 10_000, async () => {
+    try {
+      const rows = await sql<GameAbsImpactMetricsViewRow>(
+        `
+        SELECT
+          total_challenges,
+          overturned_challenges,
+          confirmed_challenges,
+          late_close_challenges,
+          positive_expected_challenge_count,
+          low_value_challenge_count,
+          total_win_value,
+          total_run_value,
+          total_estimated_swing,
+          expected_value_sum
+        FROM mart_game_abs_impact_metrics
+        WHERE game_pk = $1
+        `,
+        [gamePk],
+      );
+      const row = rows[0];
+      if (!row) return null;
+
+      return {
+        totalChallenges: Number(row.total_challenges),
+        overturnedChallenges: Number(row.overturned_challenges),
+        confirmedChallenges: Number(row.confirmed_challenges),
+        lateCloseChallenges: Number(row.late_close_challenges),
+        positiveExpectedChallengeCount: Number(row.positive_expected_challenge_count),
+        lowValueChallengeCount: Number(row.low_value_challenge_count),
+        totalWinValue: nullableMetric(row.total_win_value),
+        totalRunValue: nullableMetric(row.total_run_value),
+        totalEstimatedSwing: nullableMetric(row.total_estimated_swing),
+        expectedValueSum: nullableMetric(row.expected_value_sum),
+      };
+    } catch {
+      return null;
+    }
+  });
+}
+
+async function getGameAbsTeamImpactMetrics(gamePk: number): Promise<GameAbsTeamImpactMetrics[]> {
+  return withGameVersionedCache("game-abs-team-impact-metrics-view", gamePk, 10_000, async () => {
+    try {
+      const rows = await sql<GameAbsTeamImpactMetricsViewRow>(
+        `
+        SELECT
+          team_id,
+          team_name,
+          total_challenges,
+          overturned_challenges,
+          overturn_rate,
+          average_leverage,
+          late_close_share,
+          total_win_value,
+          total_run_value,
+          total_estimated_swing,
+          expected_value_sum
+        FROM mart_game_abs_team_impact_metrics
+        WHERE game_pk = $1
+        ORDER BY team_id ASC NULLS LAST
+        `,
+        [gamePk],
+      );
+
+      return rows.map((row) => ({
+        teamId: row.team_id === null ? null : Number(row.team_id),
+        teamName: row.team_name ?? null,
+        totalChallenges: Number(row.total_challenges),
+        overturnedChallenges: Number(row.overturned_challenges),
+        overturnRate: nullableMetric(row.overturn_rate),
+        averageLeverage: nullableMetric(row.average_leverage),
+        lateCloseShare: nullableMetric(row.late_close_share),
+        totalWinValue: nullableMetric(row.total_win_value),
+        totalRunValue: nullableMetric(row.total_run_value),
+        totalEstimatedSwing: nullableMetric(row.total_estimated_swing) ?? 0,
+        expectedValueSum: nullableMetric(row.expected_value_sum),
+      }));
+    } catch {
+      return [];
+    }
+  });
+}
+
+function isLateCloseState(inning: number | null, homeScore: number | null, awayScore: number | null) {
+  const safeInning = inning ?? 0;
   const scoreMargin =
     typeof homeScore === "number" && typeof awayScore === "number" ? Math.abs(homeScore - awayScore) : null;
-  return inning >= 7 && (scoreMargin === null || scoreMargin <= 2);
+  return safeInning >= 7 && (scoreMargin === null || scoreMargin <= 2);
+}
+
+function isLateCloseChallenge(challenge: ChallengeEvent) {
+  return isLateCloseState(challenge.inning, challenge.homeScore, challenge.awayScore);
 }
 
 export async function getGameChallengeImpactSummary(gamePk: number): Promise<GameChallengeImpactSummary> {
   return withGameVersionedCache("game-challenge-impact-summary", gamePk, 10_000, async () => {
-    const entries = await getGameChallengeValueTimeline(gamePk);
+    const [entries, impactMetrics] = await Promise.all([
+      getGameChallengeValueTimeline(gamePk),
+      getGameAbsImpactMetrics(gamePk),
+    ]);
     const biggestSwing =
       [...entries].sort((left, right) => Math.abs(right.estimatedChallengeSwing) - Math.abs(left.estimatedChallengeSwing))[0] ??
       null;
@@ -2143,9 +2304,9 @@ export async function getGameChallengeImpactSummary(gamePk: number): Promise<Gam
         .sort((left, right) => Math.abs(right.winExpectancyDelta ?? 0) - Math.abs(left.winExpectancyDelta ?? 0))[0] ?? null;
 
     return {
-      totalChallenges: entries.length,
-      overturnedChallenges: entries.filter((entry) => entry.isOverturned).length,
-      confirmedChallenges: entries.filter((entry) => !entry.isOverturned).length,
+      totalChallenges: impactMetrics?.totalChallenges ?? entries.length,
+      overturnedChallenges: impactMetrics?.overturnedChallenges ?? entries.filter((entry) => entry.isOverturned).length,
+      confirmedChallenges: impactMetrics?.confirmedChallenges ?? entries.filter((entry) => !entry.isOverturned).length,
       biggestSwing,
       highestLeverage,
       biggestRunValue,
@@ -2154,13 +2315,196 @@ export async function getGameChallengeImpactSummary(gamePk: number): Promise<Gam
   });
 }
 
+function sumPresent(values: Array<number | null | undefined>) {
+  const present = values.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  if (!present.length) return null;
+  return roundMetric(present.reduce((sum, value) => sum + value, 0), 4);
+}
+
+function resolveEntryActualValue(
+  entry: ChallengeValueTimelineEntry,
+  valueMode: GamePostgameAudit["valueMode"],
+): number | null {
+  if (valueMode === "win") {
+    return entry.winExpectancyDelta !== null && hasTrustedModelConfidenceBand(entry.winExpectancyConfidence)
+      ? entry.winExpectancyDelta
+      : null;
+  }
+
+  if (valueMode === "run") {
+    return entry.runExpectancyDelta !== null && hasTrustedModelConfidenceBand(entry.runExpectancyConfidence)
+      ? entry.runExpectancyDelta
+      : null;
+  }
+
+  return entry.estimatedChallengeSwing;
+}
+
+export async function getGamePostgameAudit(gamePk: number): Promise<GamePostgameAudit | null> {
+  return withGameVersionedCache("game-postgame-audit", gamePk, 10_000, async () => {
+    const [game, impactSummary, impactMetrics, teamComparison, umpireSummary, entries] = await Promise.all([
+      getGame(gamePk),
+      getGameChallengeImpactSummary(gamePk),
+      getGameAbsImpactMetrics(gamePk),
+      getGameTeamChallengeComparison(gamePk),
+      getGameUmpireInGameSummary(gamePk),
+      getGameChallengeValueTimeline(gamePk),
+    ]);
+
+    if (!game || !teamComparison) return null;
+    if (!["Final", "Game Over"].includes(game.statusabstract)) return null;
+
+    const rawTotalExpectedValue = impactMetrics?.expectedValueSum ?? sumPresent(entries.map((entry) => resolveComparableExpectedWinValue(entry)));
+    const totalExpectedValue = resolveDisplayedExpectedWinValue(teamComparison.valueMode, rawTotalExpectedValue);
+
+    const totalActualValue =
+      teamComparison.valueMode === "win"
+        ? impactMetrics?.totalWinValue ?? sumPresent(entries.map((entry) => resolveEntryActualValue(entry, teamComparison.valueMode)))
+        : teamComparison.valueMode === "run"
+          ? impactMetrics?.totalRunValue ?? sumPresent(entries.map((entry) => resolveEntryActualValue(entry, teamComparison.valueMode)))
+          : impactMetrics?.totalEstimatedSwing ?? sumPresent(entries.map((entry) => resolveEntryActualValue(entry, teamComparison.valueMode)));
+    const totalValueSurplus =
+      teamComparison.valueMode === "win" && totalExpectedValue !== null && totalActualValue !== null
+        ? roundMetric(totalActualValue - totalExpectedValue, 4)
+        : null;
+
+    const buildAuditSide = (side: GameTeamChallengeComparison["home"], teamName: string): GamePostgameAuditSide => {
+      const overturnedChallenges = entries.filter(
+        (entry) => entry.challengeTeamName === teamName && entry.isOverturned,
+      ).length;
+
+      return {
+        teamId: side.teamId,
+        teamName,
+        abbreviation: side.abbreviation,
+        primaryColor: side.primaryColor,
+        totalChallenges: side.totalChallenges,
+        overturnedChallenges,
+        overturnRate: side.overturnRate,
+        averageLeverage: side.averageLeverage,
+        lateCloseShare: side.lateCloseShare,
+        totalValue:
+          teamComparison.valueMode === "win"
+            ? side.totalWinValue
+            : teamComparison.valueMode === "run"
+              ? side.totalRunValue
+              : side.totalEstimatedSwing,
+        expectedValueSum: resolveDisplayedExpectedWinValue(teamComparison.valueMode, side.expectedValueSum),
+        valueSurplus:
+          teamComparison.valueMode === "win" &&
+          side.expectedValueSum !== null &&
+          side.totalWinValue !== null
+            ? roundMetric(side.totalWinValue - side.expectedValueSum, 4)
+            : null,
+      };
+    };
+
+    const baseAudit = {
+      gamePk,
+      gameDate: game.gamedate,
+      statusAbstract: game.statusabstract,
+      venue: game.venue,
+      homeTeamName: game.hometeamname,
+      awayTeamName: game.awayteamname,
+      homeScore: game.homescore,
+      awayScore: game.awayscore,
+      totalChallenges: impactSummary.totalChallenges,
+      overturnedChallenges: impactSummary.overturnedChallenges,
+      confirmedChallenges: impactSummary.confirmedChallenges,
+      lateCloseChallenges:
+        impactMetrics?.lateCloseChallenges ??
+        entries.filter((entry) => isLateCloseState(entry.inning, entry.homeScore, entry.awayScore)).length,
+      positiveExpectedChallengeCount:
+        impactMetrics?.positiveExpectedChallengeCount ??
+        entries.filter(
+          (entry) =>
+            entry.decisionValueMode === "win_expectancy" &&
+            typeof entry.expectedChallengeValue === "number" &&
+            entry.expectedChallengeValue > 0.0005,
+        ).length,
+      lowValueChallengeCount:
+        impactMetrics?.lowValueChallengeCount ??
+        entries.filter(
+          (entry) =>
+            entry.decisionValueMode === "win_expectancy" &&
+            typeof entry.expectedChallengeValue === "number" &&
+            entry.expectedChallengeValue <= 0.0005,
+        ).length,
+      valueMode: teamComparison.valueMode,
+      totalExpectedValue,
+      totalActualValue,
+      totalValueSurplus,
+      home: buildAuditSide(teamComparison.home, game.hometeamname),
+      away: buildAuditSide(teamComparison.away, game.awayteamname),
+      impactSummary,
+      umpireSummary,
+    } satisfies Omit<
+      GamePostgameAudit,
+      "narrative" | "coverage" | "teamVerdicts" | "umpireVerdict"
+    >;
+
+    return {
+      ...baseAudit,
+      narrative: buildPostgameAuditNarrative(baseAudit as GamePostgameAudit),
+      coverage: buildPostgameAuditCoverage(baseAudit as GamePostgameAudit),
+      teamVerdicts: buildPostgameAuditTeamVerdicts(baseAudit as GamePostgameAudit),
+      umpireVerdict: buildPostgameAuditUmpireVerdict(baseAudit as GamePostgameAudit),
+    };
+  });
+}
+
 export async function getGameTeamChallengeComparison(gamePk: number): Promise<GameTeamChallengeComparison | null> {
   return withGameVersionedCache("game-team-challenge-comparison", gamePk, 10_000, async () => {
-    const [game, challenges] = await Promise.all([getGame(gamePk), getGameChallenges(gamePk)]);
+    const [game, teamMetrics, challenges] = await Promise.all([
+      getGame(gamePk),
+      getGameAbsTeamImpactMetrics(gamePk),
+      getGameChallenges(gamePk),
+    ]);
     if (!game) return null;
 
     const homeTeamId = Number(game.hometeamid);
     const awayTeamId = Number(game.awayteamid);
+
+    if (teamMetrics.length) {
+      const buildMetricsSide = (
+        metrics: GameAbsTeamImpactMetrics | undefined,
+        teamId: number,
+        abbreviation: string | null,
+        primaryColor: string | null,
+      ) => ({
+        teamId,
+        abbreviation,
+        primaryColor,
+        totalChallenges: metrics?.totalChallenges ?? 0,
+        overturnRate: metrics?.overturnRate ?? null,
+        averageLeverage: metrics?.averageLeverage ?? null,
+        lateCloseShare: metrics?.lateCloseShare ?? null,
+        totalWinValue: metrics?.totalWinValue ?? null,
+        totalRunValue: metrics?.totalRunValue ?? null,
+        totalEstimatedSwing: metrics?.totalEstimatedSwing ?? 0,
+        expectedValueSum: metrics?.expectedValueSum ?? null,
+      });
+
+      const home = buildMetricsSide(
+        teamMetrics.find((row) => row.teamId === homeTeamId),
+        homeTeamId,
+        game.homeabbreviation,
+        game.homeprimarycolor,
+      );
+      const away = buildMetricsSide(
+        teamMetrics.find((row) => row.teamId === awayTeamId),
+        awayTeamId,
+        game.awayabbreviation,
+        game.awayprimarycolor,
+      );
+
+      return {
+        home,
+        away,
+        valueMode: resolvePostgameValueMode(home, away),
+      };
+    }
+
     const homeBucket = challenges.filter((challenge) => Number(challenge.challengeTeamId) === homeTeamId);
     const awayBucket = challenges.filter((challenge) => Number(challenge.challengeTeamId) === awayTeamId);
 
@@ -2199,24 +2543,12 @@ export async function getGameTeamChallengeComparison(gamePk: number): Promise<Ga
         bucket.reduce((sum, challenge) => sum + (challenge.estimatedChallengeSwing ?? 0), 0),
         2,
       ) ?? 0,
-      expectedValueSum: sumNullable(
-        bucket
-          .filter(
-            (challenge) =>
-              challenge.decisionValueMode === "win_expectancy" && typeof challenge.expectedChallengeValue === "number",
-          )
-          .map((challenge) => challenge.expectedChallengeValue ?? null),
-      ),
+      expectedValueSum: sumNullable(bucket.map((challenge) => resolveComparableExpectedWinValue(challenge))),
     });
 
     const home = buildSide(homeBucket, homeTeamId, game.homeabbreviation, game.homeprimarycolor);
     const away = buildSide(awayBucket, awayTeamId, game.awayabbreviation, game.awayprimarycolor);
-    const valueMode =
-      home.totalWinValue !== null || away.totalWinValue !== null
-        ? "win"
-        : home.totalRunValue !== null || away.totalRunValue !== null
-          ? "run"
-          : "estimated";
+    const valueMode = resolvePostgameValueMode(home, away);
 
     return { home, away, valueMode };
   });
