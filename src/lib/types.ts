@@ -680,14 +680,14 @@ export type AIQueryResponse = {
 };
 
 export type AIVisualizerPlan = {
-  chartType: string;
-  whyThisChart: string;
+  chartTitle: string;
+  chartType: "bar_chart" | "line_chart" | "scatter_plot" | "heatmap" | "timeline" | "table";
   xAxis: string;
   yAxis: string;
-  grouping: string;
+  compareBy: string | null;
   filters: string[];
-  signalsToWatch: string[];
-  caveats: string[];
+  highlight: string;
+  honorsUserChartRequest: boolean;
 };
 
 export type AIChatResponse = {

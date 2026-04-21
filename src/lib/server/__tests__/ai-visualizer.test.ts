@@ -47,9 +47,10 @@ describe("runVisualizerSurface", () => {
       context: { scope: "global" },
     });
 
-    expect(result.structuredPlan?.chartType).toBe("inning-phase leverage heatmap");
-    expect(result.structuredPlan?.caveats[0]).toMatch(/Fallback plan/i);
-    expect(result.answer).toContain("Chart Type:");
+    expect(result.structuredPlan?.chartType).toBe("heatmap");
+    expect(result.structuredPlan?.chartTitle).toBe("Timing And Leverage Map");
+    expect(result.structuredPlan?.highlight).toMatch(/challenge value/i);
+    expect(result.answer).toContain("Chart Title:");
     expect(result.answer).not.toContain("vague essay");
   });
 });

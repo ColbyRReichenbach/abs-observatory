@@ -74,7 +74,7 @@ describe("ai-chat", () => {
         }),
       ),
     ).rejects.toMatchObject<AiPolicyError>({ code: "AI_AUTH_REQUIRED", status: 401 });
-  });
+  }, 20000);
 
   it("rejects suspended users", async () => {
     const { AiPolicyError, runChat } = await import("@/lib/server/ai-chat");

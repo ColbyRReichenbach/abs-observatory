@@ -1,5 +1,6 @@
 import { sql, sqlOne } from "@/lib/db";
 import { AI_ERROR_CODES, AiPolicyError } from "./ai-policy";
+import { getOwnerClerkUserId } from "./owner-admin";
 
 export const AI_PLAN_CODES = ["free", "tier1", "tier2", "tier3"] as const;
 export type AiPlanCode = (typeof AI_PLAN_CODES)[number];
@@ -127,7 +128,44 @@ function serializeEntitlement(row: {
   };
 }
 
+async function getOwnerEntitlementOverride(userId: string): Promise<AiEntitlement | null> {
+  const ownerClerkUserId = getOwnerClerkUserId();
+  if (!ownerClerkUserId) return null;
+
+  const ownerRow = await sqlOne<{
+    externalauthprovider: string;
+    externalauthid: string;
+  }>(
+    `
+    SELECT
+      external_auth_provider AS externalAuthProvider,
+      external_auth_id AS externalAuthId
+    FROM product.users
+    WHERE user_id = $1
+    `,
+    [userId],
+  );
+
+  if (!ownerRow || ownerRow.externalauthprovider !== "clerk" || ownerRow.externalauthid !== ownerClerkUserId) {
+    return null;
+  }
+
+  const defaults = PLAN_DEFAULTS.tier3;
+  return {
+    userId,
+    planCode: "tier3",
+    aiRequestsPerDay: defaults.aiRequestsPerDay,
+    aiTokensPerMonth: defaults.aiTokensPerMonth,
+    aiCostUsdPerMonth: defaults.aiCostUsdPerMonth,
+    aiChartFollowupsPerWeek: defaults.aiChartFollowupsPerWeek,
+    featureFlags: {
+      ...defaults.featureFlags,
+    },
+  };
+}
+
 export async function getOrCreateAiEntitlement(userId: string): Promise<AiEntitlement> {
+  const ownerOverride = await getOwnerEntitlementOverride(userId);
   const existing = await sqlOne<{
     userid: string;
     plancode: AiPlanCode;
@@ -151,10 +189,64 @@ export async function getOrCreateAiEntitlement(userId: string): Promise<AiEntitl
   );
 
   if (existing) {
-    return serializeEntitlement(existing);
+    if (!ownerOverride) {
+      return serializeEntitlement(existing);
+    }
+
+    const current = serializeEntitlement(existing);
+    if (
+      current.planCode === ownerOverride.planCode &&
+      current.aiRequestsPerDay === ownerOverride.aiRequestsPerDay &&
+      current.aiTokensPerMonth === ownerOverride.aiTokensPerMonth &&
+      current.aiCostUsdPerMonth === ownerOverride.aiCostUsdPerMonth &&
+      JSON.stringify(current.featureFlags) === JSON.stringify(ownerOverride.featureFlags)
+    ) {
+      return current;
+    }
+
+    const upgraded = await sqlOne<{
+      userid: string;
+      plancode: AiPlanCode;
+      airequestsperday: number;
+      aitokenspermonth: number;
+      aicostusdpermonth: number | string;
+      featureflags: Record<string, boolean> | null;
+    }>(
+      `
+      UPDATE ai.user_entitlements
+      SET
+        plan_code = $2,
+        ai_requests_per_day = $3,
+        ai_tokens_per_month = $4,
+        ai_cost_usd_per_month = $5,
+        feature_flags = $6
+      WHERE user_id = $1
+      RETURNING
+        user_id AS userId,
+        plan_code AS planCode,
+        ai_requests_per_day AS aiRequestsPerDay,
+        ai_tokens_per_month AS aiTokensPerMonth,
+        ai_cost_usd_per_month AS aiCostUsdPerMonth,
+        feature_flags AS featureFlags
+      `,
+      [
+        userId,
+        ownerOverride.planCode,
+        ownerOverride.aiRequestsPerDay,
+        ownerOverride.aiTokensPerMonth,
+        ownerOverride.aiCostUsdPerMonth,
+        JSON.stringify(ownerOverride.featureFlags),
+      ],
+    );
+
+    if (!upgraded) {
+      throw new Error("Failed to upgrade owner AI entitlement");
+    }
+
+    return serializeEntitlement(upgraded);
   }
 
-  const defaults = PLAN_DEFAULTS.free;
+  const defaults = ownerOverride ? PLAN_DEFAULTS.tier3 : PLAN_DEFAULTS.free;
   const inserted = await sqlOne<{
     userid: string;
     plancode: AiPlanCode;

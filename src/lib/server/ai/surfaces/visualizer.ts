@@ -7,14 +7,14 @@ import { resolveToolResults } from "@/lib/server/ai-tools";
 import type { AIVisualizerPlan } from "@/lib/types";
 
 const visualizerPlanSchema = z.object({
-  chartType: z.string().min(1).max(120),
-  whyThisChart: z.string().min(1).max(500),
+  chartTitle: z.string().min(1).max(120),
+  chartType: z.enum(["bar_chart", "line_chart", "scatter_plot", "heatmap", "timeline", "table"]),
   xAxis: z.string().min(1).max(160),
   yAxis: z.string().min(1).max(160),
-  grouping: z.string().min(1).max(160),
+  compareBy: z.string().min(1).max(160).nullable(),
   filters: z.array(z.string().min(1).max(160)).min(0).max(6),
-  signalsToWatch: z.array(z.string().min(1).max(220)).min(2).max(6),
-  caveats: z.array(z.string().min(1).max(220)).min(1).max(5),
+  highlight: z.string().min(1).max(220),
+  honorsUserChartRequest: z.boolean(),
 });
 
 type VisualizerPlan = z.infer<typeof visualizerPlanSchema>;
@@ -38,14 +38,13 @@ function tryParseJsonObject(raw: string) {
 
 function flattenStructuredPlan(plan: AIVisualizerPlan) {
   return [
+    `Chart Title: ${plan.chartTitle}`,
     `Chart Type: ${plan.chartType}`,
-    `Why: ${plan.whyThisChart}`,
     `X-Axis: ${plan.xAxis}`,
     `Y-Axis: ${plan.yAxis}`,
-    `Grouping: ${plan.grouping}`,
+    `Compare By: ${plan.compareBy ?? "None"}`,
     `Filters: ${plan.filters.join(", ") || "None"}`,
-    `Signals To Watch: ${plan.signalsToWatch.join("; ")}`,
-    `Caveats: ${plan.caveats.join("; ")}`,
+    `Highlight: ${plan.highlight}`,
   ].join("\n\n");
 }
 
@@ -54,39 +53,39 @@ function buildFallbackPlan(message: string, taskFamily: string): VisualizerPlan 
 
   if (taskFamily === "compare_entities_visual_plan") {
     return {
-      chartType: "grouped comparison bar chart",
-      whyThisChart: `A grouped comparison bar chart is the clearest fallback for comparing entities on ${normalizedMessage}.`,
+      chartTitle: "Comparison Snapshot",
+      chartType: "bar_chart",
       xAxis: "Compared team, umpire, or game split",
       yAxis: "Primary ABS metric or modeled value gap",
-      grouping: "Entity category or comparison cohort",
+      compareBy: "Entity category or comparison cohort",
       filters: ["Keep the sample window consistent across compared entities"],
-      signalsToWatch: ["Largest gap between entities", "Whether the leader also has stable sample size"],
-      caveats: ["Fallback plan is generic because live visual planning was unavailable."],
+      highlight: `Compare entities directly around ${normalizedMessage}.`,
+      honorsUserChartRequest: false,
     };
   }
 
   if (taskFamily === "timing_and_leverage_visual_plan") {
     return {
-      chartType: "inning-phase leverage heatmap",
-      whyThisChart: `A leverage heatmap is the clearest fallback for showing when challenge value concentrates around ${normalizedMessage}.`,
+      chartTitle: "Timing And Leverage Map",
+      chartType: "heatmap",
       xAxis: "Inning phase or game state bucket",
       yAxis: "Leverage or expected challenge value band",
-      grouping: "Late/close versus all other windows",
+      compareBy: "Late/close versus all other windows",
       filters: ["Focus on leverage-aware challenge windows"],
-      signalsToWatch: ["Where modeled value clusters late", "Whether usage aligns with leverage"],
-      caveats: ["Fallback plan is generic because live visual planning was unavailable."],
+      highlight: `Show where challenge value concentrates around ${normalizedMessage}.`,
+      honorsUserChartRequest: false,
     };
   }
 
   return {
-    chartType: "comparison table",
-    whyThisChart: `A comparison table is the safest fallback for planning around ${normalizedMessage} when live visualization planning is unavailable.`,
+    chartTitle: "ABS Comparison Table",
+    chartType: "table",
     xAxis: "Entity or split bucket",
     yAxis: "Key ABS metric",
-    grouping: "Primary comparison group",
+    compareBy: "Primary comparison group",
     filters: ["Current context only"],
-    signalsToWatch: ["Biggest separation between groups", "Sample stability"],
-    caveats: ["Fallback plan is generic because live visual planning is unavailable."],
+    highlight: `Surface the cleanest comparison for ${normalizedMessage}.`,
+    honorsUserChartRequest: false,
   };
 }
 
@@ -126,18 +125,23 @@ export const runVisualizerSurface: SurfaceRunner = async (params) => {
       terminologyAppendix: params.terminologyAppendix,
     },
     `Return strict JSON with this shape:
-{
-  "chartType": "specific chart or table recommendation",
-  "whyThisChart": "why this is the best fit for the question",
+    {
+  "chartTitle": "short chart title",
+  "chartType": "bar_chart | line_chart | scatter_plot | heatmap | timeline | table",
   "xAxis": "x-axis definition",
   "yAxis": "y-axis definition",
-  "grouping": "grouping or split dimension",
+  "compareBy": "grouping or split dimension, or null",
   "filters": ["filter 1", "filter 2"],
-  "signalsToWatch": ["signal 1", "signal 2"],
-  "caveats": ["caveat 1"]
+  "highlight": "single-sentence rendering goal",
+  "honorsUserChartRequest": true
 }
 
-Use only AiBS-supported or clearly implementable baseball/ABS chart forms.
+Rules:
+- Return JSON only. No markdown. No prose outside the JSON object.
+- The output will be rendered directly as a chart preview, so do not write essay-style explanation.
+- If the user names a chart type and it is implementable, honor it.
+- If the user does not name a chart type, choose the best chart form from the allowed set.
+- Use only AiBS-supported baseball/ABS views and labels.
 
 Context: ${formatContextWindow(params.context)}
 Recent conversation:

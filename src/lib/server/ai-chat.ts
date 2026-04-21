@@ -723,9 +723,10 @@ export async function executeQueuedChatJob(payload: {
           chartContext: payload.chartContext,
         });
   const modelName = process.env.OPENAI_SUMMARY_MODEL || "gpt-4.1-mini";
+  const featureKey: AiUsageFeature = surface === "visualizer" ? "ai_chart_generation" : "ai_chat_heavy";
   const usagePolicy = await assertAiUsageAllowed({
     userId: payload.userId,
-    featureKey: "ai_chat_heavy",
+    featureKey,
     estimatedInputTokens: estimateTokenCount(payload.message),
     modelName,
   });
@@ -735,7 +736,7 @@ export async function executeQueuedChatJob(payload: {
     audienceMode,
     taskFamily,
     planCode: usagePolicy.entitlement.planCode,
-    featureKey: "ai_chat_heavy",
+    featureKey,
   });
 }
 
@@ -836,6 +837,8 @@ export async function runChat(request: Request): Promise<ChatResponse> {
     ? isChartInsightFollowUp
       ? "ai_chart_followup"
       : undefined
+    : body.surface === "visualizer"
+      ? "ai_chart_generation"
     : shouldQueue
       ? "ai_chat_heavy"
       : "ai_chat_basic";
