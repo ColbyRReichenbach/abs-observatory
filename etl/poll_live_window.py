@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Set
 from zoneinfo import ZoneInfo
@@ -12,19 +13,46 @@ EASTERN = ZoneInfo("America/New_York")
 CATCHUP_HOURS = int(os.getenv("POLL_CATCHUP_HOURS", "8"))
 STALE_BACKFILL_HOURS = int(os.getenv("POLL_STALE_BACKFILL_HOURS", "8"))
 MAX_BACKFILL_DAYS = int(os.getenv("POLL_MAX_BACKFILL_DAYS", "7"))
+SCHEDULE_FETCH_TIMEOUT_SECONDS = int(os.getenv("SCHEDULE_FETCH_TIMEOUT_SECONDS", "30"))
+SCHEDULE_FETCH_RETRIES = max(1, int(os.getenv("SCHEDULE_FETCH_RETRIES", "3")))
+SCHEDULE_FETCH_BACKOFF_SECONDS = float(os.getenv("SCHEDULE_FETCH_BACKOFF_SECONDS", "2"))
 
 
 def fetch_schedule_games(date_text: str, game_type: str) -> List[Dict[str, Any]]:
     require_requests()
-    payload = requests.get(
-        f"{API_BASE}/schedule",
-        params={
-            "sportId": 1,
-            "date": date_text,
-            "gameType": game_type,
-        },
-        timeout=30,
-    ).json()
+    last_error: Exception | None = None
+    for attempt in range(1, SCHEDULE_FETCH_RETRIES + 1):
+        try:
+            response = requests.get(
+                f"{API_BASE}/schedule",
+                params={
+                    "sportId": 1,
+                    "date": date_text,
+                    "gameType": game_type,
+                },
+                timeout=SCHEDULE_FETCH_TIMEOUT_SECONDS,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            break
+        except requests.exceptions.RequestException as exc:
+            last_error = exc
+            if attempt == SCHEDULE_FETCH_RETRIES:
+                print(
+                    f"[poll] Schedule fetch failed for {date_text} after {attempt} attempt(s): {exc}. "
+                    "Skipping this tick."
+                )
+                return []
+            sleep_seconds = SCHEDULE_FETCH_BACKOFF_SECONDS * attempt
+            print(
+                f"[poll] Schedule fetch attempt {attempt}/{SCHEDULE_FETCH_RETRIES} failed for {date_text}: {exc}. "
+                f"Retrying in {sleep_seconds:.1f}s."
+            )
+            time.sleep(sleep_seconds)
+    else:  # pragma: no cover - defensive fallback; loop always breaks or returns
+        if last_error is not None:
+            print(f"[poll] Schedule fetch failed for {date_text}: {last_error}. Skipping this tick.")
+        return []
 
     games: List[Dict[str, Any]] = []
     for day in payload.get("dates", []):

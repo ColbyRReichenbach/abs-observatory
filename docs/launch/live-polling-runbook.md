@@ -28,6 +28,9 @@ Program: /Users/colbyreichenbach/Code/abs-observatory-polling/scripts/local-live
 Env file: /Users/colbyreichenbach/Code/abs-observatory-polling/.env.poll
 ```
 
+The LaunchAgent should run from a non-TCC-protected working directory such as `~/Code`.
+macOS background agents cannot reliably execute from `Desktop` or `Downloads`.
+
 That heartbeat is intentionally simple. The scheduler always wakes on five-minute marks, and the poll gate decides whether real ingest work should run.
 
 Core scripts:
