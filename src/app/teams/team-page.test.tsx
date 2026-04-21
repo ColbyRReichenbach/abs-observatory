@@ -131,8 +131,9 @@ describe("team detail page", () => {
     expect(html).toContain("Challenge");
     expect(html).toContain("ABS challenge profile");
     expect(html).toContain("Trend Overview");
-    expect(html).toContain("Challenge Value Matrix");
-    expect(html).toContain("Timing Efficiency");
-    expect(html).toContain("Challenge Style");
+    expect(html).toContain("What kind of");
+    expect(html).toContain("ABS team");
+    expect(html).toContain("Challenge Timing");
+    expect(html).toContain("ABS Identity");
   });
 });

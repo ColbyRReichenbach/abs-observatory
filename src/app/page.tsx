@@ -2,7 +2,6 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { BroadcastStrip } from "@/components/broadcast-strip";
 import { ChallengeMomentCards } from "@/components/challenge-moment-cards";
-import { GameStrip } from "@/components/game-strip";
 import { HomeExpandableGrid } from "@/components/home-expandable-grid";
 import { TeamIcon } from "@/components/team-icon";
 import { getHomeChallengeMoments, getLiveGames, getTeamLeaderboardModel, getUmpireLeaderboardModel } from "@/lib/data";
@@ -112,8 +111,6 @@ async function HomePageBody({
     [...teams].sort((a, b) => (b.avgRemaining * b.overturnRate) - (a.avgRemaining * a.overturnRate))[0] ?? null;
   return (
     <>
-      <GameStrip games={games} viewMode={viewMode} />
-
       <main className="mx-auto max-w-7xl px-6 pt-4 pb-40">
         <div className="mb-6 text-center">
           <p className="text-[11px] font-medium text-[var(--ink-3)]">
@@ -417,14 +414,6 @@ function HomePageFallback({
 }) {
   return (
     <>
-      <div className="relative w-full bg-white/50 backdrop-blur-xl border-y border-gray-100 py-4">
-        <div className="mx-auto flex max-w-7xl gap-4 overflow-hidden px-6">
-          {Array.from({ length: 5 }).map((_, index) => (
-            <div key={index} className="h-16 w-[220px] shrink-0 rounded-xl border border-gray-100 bg-white/60" />
-          ))}
-        </div>
-      </div>
-
       <main className="mx-auto max-w-7xl px-6 pt-4 pb-40">
         <div className="mb-6 text-center">
           <p className="text-[11px] font-medium text-[var(--ink-3)]">

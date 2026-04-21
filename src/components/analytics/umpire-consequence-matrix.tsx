@@ -6,19 +6,6 @@ import { ChartTooltip } from "@/components/ui/chart-tooltip";
 import { DirectionalCaution } from "@/components/analytics/directional-caution";
 import type { ChallengeEvent } from "@/lib/types";
 
-type MatrixCell = {
-  pitchFamily: string;
-  countBucket: string;
-  challenges: number;
-  overturned: number;
-  overturnRate: number;
-  avgAbsWin: number | null;
-  avgAbsRun: number | null;
-  avgExpected: number | null;
-  avgVelocity: number | null;
-  avgSpin: number | null;
-};
-
 const COUNT_BUCKETS = ["Pitcher Ahead", "Even", "Hitter Ahead", "Full Count"];
 
 export function UmpireConsequenceMatrix({ challenges }: { challenges: ChallengeEvent[] }) {
@@ -145,8 +132,8 @@ export function UmpireConsequenceMatrix({ challenges }: { challenges: ChallengeE
                   extra={[
                     { label: "Challenges", value: selected.challenges },
                     { label: "Overturn Rate", value: `${(selected.overturnRate * 100).toFixed(1)}%` },
-                    { label: "Abs WE / WPA (overturned)", value: formatPercent(selected.avgAbsWin, selected.overturned) },
-                    { label: "Abs RE (overturned)", value: formatRun(selected.avgAbsRun, selected.overturned) },
+                    { label: "Abs WE (OT)", value: formatPercent(selected.avgAbsWin, selected.overturned) },
+                    { label: "Abs RE (OT)", value: formatRun(selected.avgAbsRun, selected.overturned) },
                     { label: "Expected WE", value: formatPercent(selected.avgExpected) },
                     { label: "Avg Velo", value: selected.avgVelocity ? `${selected.avgVelocity.toFixed(1)} mph` : "N/A", mono: false },
                     { label: "Avg Spin", value: selected.avgSpin ? `${Math.round(selected.avgSpin)} rpm` : "N/A", mono: false },
@@ -242,7 +229,7 @@ function classifyCountBucket(
   umpireCount?: string | null,
   countAfter?: string | null,
 ) {
-  const countKey = countBefore ?? umpireCount ?? countAfter;
+  const countKey = resolveBucketCountKey(countBefore, umpireCount, countAfter);
   if (!countKey) return "Even";
   if (countKey === "3-2") return "Full Count";
   const [ballsRaw, strikesRaw] = countKey.split("-");
@@ -252,6 +239,27 @@ function classifyCountBucket(
   if (balls > strikes) return "Hitter Ahead";
   if (strikes > balls) return "Pitcher Ahead";
   return "Even";
+}
+
+function resolveBucketCountKey(
+  countBefore: string | null | undefined,
+  umpireCount?: string | null,
+  countAfter?: string | null,
+) {
+  const candidates = [countBefore, umpireCount, countAfter]
+    .map((value) => value?.trim() ?? null)
+    .filter((value): value is string => Boolean(value));
+
+  for (const candidate of candidates) {
+    const [ballsRaw, strikesRaw] = candidate.split("-");
+    const balls = Number(ballsRaw);
+    const strikes = Number(strikesRaw);
+    if (!Number.isFinite(balls) || !Number.isFinite(strikes)) continue;
+    if (balls > 3 || strikes > 2) continue;
+    return candidate;
+  }
+
+  return null;
 }
 
 function normalizePitchFamily(pitchType: string | null) {

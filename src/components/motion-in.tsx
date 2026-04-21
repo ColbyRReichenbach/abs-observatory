@@ -19,7 +19,7 @@ export function MotionIn({
     <motion.div
       className={className}
       initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y }}
-      animate={{ opacity: 1, y: 0 }}
+      animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
       transition={reduceMotion ? { duration: 0 } : { duration: 0.32, delay, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { motion, useReducedMotion, AnimatePresence } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
 import { StrikeZonePlot } from "@/components/strike-zone-plot";
 import { replayIntervalMs, stepReplayIndex, type ReplaySpeed } from "@/lib/replay";
@@ -230,7 +230,7 @@ export function ChallengeExplorer({
             {selected ? (
               <motion.div
                 key={selected.challengeId}
-                initial={reduceMotion ? false : { opacity: 0, x: 10 }}
+                initial={reduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: 10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={reduceMotion ? undefined : { duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                 className="mt-6 space-y-4"

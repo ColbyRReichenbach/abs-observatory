@@ -11,12 +11,12 @@ type ChartTooltipRowProps = {
 
 export function ChartTooltipRow({ label, value, color, mono = true }: ChartTooltipRowProps) {
     return (
-        <div className="flex items-center justify-between gap-6">
-            <span className="text-[10px] font-black uppercase text-gray-400">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-6 gap-y-1">
+            <span className="pr-2 text-[10px] font-black uppercase leading-4 tracking-[0.14em] text-gray-400">
                 {label}
             </span>
             <span
-                className={`text-xs font-black ${mono ? "font-mono" : ""} text-gray-900`}
+                className={`text-right text-xs font-black leading-5 tabular-nums ${mono ? "font-mono" : ""} text-gray-900`}
                 style={color ? { color } : undefined}
             >
                 {value}
@@ -41,17 +41,14 @@ export function ChartTooltip({ title, value, subValueLabel, extra, children, use
         () => true,
         () => false,
     );
-    const [hiddenWhileScrolling, setHiddenWhileScrolling] = useState(false);
-
-    useEffect(() => {
-        if (!usePortal) return;
-        setHiddenWhileScrolling(false);
-    }, [usePortal, portalProps?.x, portalProps?.y]);
+    const portalSignature = usePortal ? `${portalProps?.x ?? "na"}:${portalProps?.y ?? "na"}` : null;
+    const [dismissedPortalSignature, setDismissedPortalSignature] = useState<string | null>(null);
+    const hiddenWhileScrolling = usePortal && dismissedPortalSignature === portalSignature;
 
     useEffect(() => {
         if (!usePortal || typeof window === "undefined") return;
 
-        const dismiss = () => setHiddenWhileScrolling(true);
+        const dismiss = () => setDismissedPortalSignature(portalSignature);
 
         window.addEventListener("scroll", dismiss, true);
         window.addEventListener("wheel", dismiss, { passive: true });
@@ -64,7 +61,7 @@ export function ChartTooltip({ title, value, subValueLabel, extra, children, use
             window.removeEventListener("touchmove", dismiss);
             window.removeEventListener("resize", dismiss);
         };
-    }, [usePortal]);
+    }, [portalSignature, usePortal]);
 
     if (usePortal && hiddenWhileScrolling) {
         return null;

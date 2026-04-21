@@ -1,25 +1,21 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import type { ReactNode } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { MotionIn } from "@/components/motion-in";
 import { RangeSelector } from "@/components/range-selector";
-import { TeamIcon } from "@/components/team-icon";
 import { UmpireAccuracyChart } from "@/components/analytics-charts";
 import { UmpireHeadshot } from "@/components/umpire-headshot";
 import { FilterStrip } from "@/components/analytics/filter-strip";
 import { AIInsightBubble } from "@/components/analytics/ai-insight-bubble";
 import { HeatmapDeepDive } from "@/components/analytics/heatmap-deep-dive";
-import { getUmpireChallenges, getUmpireLeaderboardModel, getUmpireMatchupVulnerabilities, getUmpirePerformanceDNA, getUmpirePitchTypeBreakdown, getUmpireProfile, getUmpireSeasonTrend, getUmpireSummary, getUmpireTrend } from "@/lib/data";
-import { UmpireRhythmChart } from "@/components/analytics/umpire-rhythm-chart";
+import { getUmpireChallenges, getUmpireLeaderboardModel, getUmpireMatchupVulnerabilities, getUmpirePerformanceDNA, getUmpireProfile, getUmpireSeasonTrend, getUmpireSummary, getUmpireTrend } from "@/lib/data";
 import { ExtremeMissesSection } from "@/components/analytics/extreme-misses-section";
-import { PitchTypeBreakdownChart } from "@/components/analytics/pitch-type-breakdown-chart";
 import { SeasonOverSeasonChart } from "@/components/analytics/season-over-season-chart";
 import { parseRange } from "@/lib/range";
 import { computeEstimatedLeverageIndex } from "@/lib/estimated-leverage";
 import { resolveViewMode } from "@/lib/view-mode";
-import type { ChallengeEvent, SituationalFilters, UmpireTrendPoint } from "@/lib/types";
+import type { ChallengeEvent, SituationalFilters } from "@/lib/types";
 import { BackPill } from "@/components/ui/back-pill";
 import { getUmpireDetailViewCopy } from "@/lib/view-mode-contract";
 import { UmpireConsequenceBoard } from "@/components/analytics/umpire-consequence-board";
@@ -27,7 +23,7 @@ import { UmpireGamesMorph } from "@/components/analytics/umpire-games-morph";
 import { UmpireConsequenceMatrix } from "@/components/analytics/umpire-consequence-matrix";
 import { UmpireHandednessBoard } from "@/components/analytics/umpire-handedness-board";
 import { UmpirePitchTraitScatter } from "@/components/analytics/umpire-pitch-trait-scatter";
-import { buildUmpireRhythmChartPayload, buildUmpireZoneMapChartPayload } from "@/lib/chart-insight-payload";
+import { buildUmpireZoneMapChartPayload } from "@/lib/chart-insight-payload";
 
 function toInningRange(value?: string): SituationalFilters["inningRange"] {
   if (value === "early" || value === "middle" || value === "late" || value === "extras") return value;
@@ -183,6 +179,14 @@ export default async function UmpirePage({
         </div>
       </MotionIn>
 
+      {viewMode === "fan" ? (
+        <MotionIn delay={0.12}>
+          <div className="mb-12">
+            <FanUmpireSummaryCard currentUmpire={currentUmpire} umpireName={summary.umpireName} overturnRate={summary.overturnRate} />
+          </div>
+        </MotionIn>
+      ) : null}
+
       <Suspense fallback={<UmpireAnalyticsFallback showHistory={copy.historyPlacement === "early"} />}>
         <UmpireAnalyticsSections
           umpireId={summary.umpireId}
@@ -190,10 +194,6 @@ export default async function UmpirePage({
           range={range}
           filters={filters}
           viewMode={viewMode}
-          currentUmpire={currentUmpire}
-          displayRank={displayRank}
-          rankedByScoreLength={rankedUmpires.length}
-          overturnRate={summary.overturnRate}
           copy={copy}
         />
       </Suspense>
@@ -232,10 +232,6 @@ async function UmpireAnalyticsSections({
   range,
   filters,
   viewMode,
-  currentUmpire,
-  displayRank,
-  rankedByScoreLength,
-  overturnRate,
   copy,
 }: {
   umpireId: number;
@@ -243,28 +239,20 @@ async function UmpireAnalyticsSections({
   range: ReturnType<typeof parseRange>;
   filters: SituationalFilters;
   viewMode: "fan" | "org";
-  currentUmpire: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number] | null;
-  displayRank: number | null;
-  rankedByScoreLength: number;
-  overturnRate: number;
   copy: ReturnType<typeof getUmpireDetailViewCopy>;
 }) {
-  const [profile, trend, challenges, dna, pitchTypes, seasonTrend, matchupVulnerabilities] = await Promise.all([
+  const [profile, trend, challenges, dna, seasonTrend, matchupVulnerabilities] = await Promise.all([
     getUmpireProfile(umpireId, range, filters),
     getUmpireTrend(umpireId, range, filters),
     getUmpireChallenges(umpireId, range, filters),
     getUmpirePerformanceDNA(umpireId, range),
-    getUmpirePitchTypeBreakdown(umpireId, range, filters),
     getUmpireSeasonTrend(umpireId),
     getUmpireMatchupVulnerabilities(umpireId, range, filters),
   ]);
 
   const shouldShowSeasonTrend = seasonTrend.filter((point) => point.gamesWorked > 0).length >= 2;
   const zoneGrid = buildNineZoneGrid(challenges);
-  const rhythmChartContext = buildUmpireRhythmChartPayload(umpireId, umpireName, dna.rhythm);
   const zoneChartContext = buildUmpireZoneMapChartPayload(umpireId, umpireName, zoneGrid);
-  const highLeverageShare =
-    challenges.length > 0 ? challenges.filter((challenge) => computeEstimatedLeverageIndex(challenge) >= 65).length / challenges.length : 0;
   const showHistoryEarly = copy.historyPlacement === "early";
   const showHistoryLate = copy.historyPlacement !== "early";
 
@@ -284,7 +272,7 @@ async function UmpireAnalyticsSections({
             <UmpireConsequenceMatrix challenges={challenges} />
           </MotionIn>
           <MotionIn delay={0.18}>
-            <div className="grid gap-8 xl:grid-cols-[1.05fr_0.95fr]">
+            <div className="grid gap-8 xl:grid-cols-2">
               <UmpireHandednessBoard challenges={challenges} matchupVulnerabilities={matchupVulnerabilities} />
               <UmpirePitchTraitScatter challenges={challenges} />
             </div>
@@ -296,71 +284,18 @@ async function UmpireAnalyticsSections({
       ) : (
         <>
           <MotionIn delay={0.15}>
-            <section className="grid gap-8 lg:grid-cols-2 mb-12">
-              <div className="panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col">
-                <div className="flex items-center justify-between gap-4 mb-4">
-                  <div>
-                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
-                      Performance DNA
-                    </h4>
-                    <p className="text-3xl font-display leading-none text-gray-900">
-                      Umpire <span className="text-gray-400 italic">Rhythm</span>
-                    </p>
-                  </div>
-                  <AIInsightBubble
-                    insight={buildRhythmInsight(umpireName, dna.rhythm)}
-                    insightContent={buildRhythmInsightContent(umpireName, dna.rhythm)}
-                    insightId={`umpire-rhythm:${umpireId}`}
-                    metadata={{ umpireId, surface: "umpire_rhythm" }}
-                    chartContext={rhythmChartContext}
-                    spotlightTitle="Umpire Rhythm"
-                    spotlight={
-                      <div className="min-h-[320px] w-full">
-                        <UmpireRhythmChart data={dna.rhythm} />
-                      </div>
-                    }
-                  />
-                </div>
-
-                <div className="w-full">
-                  <UmpireRhythmChart data={dna.rhythm} />
-                </div>
-
-                {dna.rhythm.length >= 7 && (() => {
-                  const earlyAvg = dna.rhythm.slice(0, 3).reduce((sum, rhythmPoint) => sum + (rhythmPoint.accuracy || 0), 0) / 3;
-                  const lateAvg = dna.rhythm.slice(-3).reduce((sum, rhythmPoint) => sum + (rhythmPoint.accuracy || 0), 0) / 3;
-                  const drop = earlyAvg - lateAvg;
-                  if (drop > 0.05) {
-                    return (
-                      <div className="mt-6 bg-amber-50 border border-amber-200 rounded-2xl px-6 py-4 text-xs font-black text-amber-700 flex items-center gap-3">
-                        <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-                        Accuracy drops {(drop * 100).toFixed(1)} percentage points from the first three innings to the last three tracked innings.
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
+            <section className="mb-12 panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col">
+              <div>
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mb-1">
+                  Accuracy Trajectory
+                </h4>
+                <p className="text-3xl font-display leading-none text-gray-900">
+                  Call <span className="text-gray-400 italic">Correctness</span> Over Time
+                </p>
               </div>
-
-              <div className="panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50 flex flex-col">
-                <div>
-                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mb-1">
-                    Accuracy Trajectory
-                  </h4>
-                  <p className="text-3xl font-display leading-none text-gray-900">
-                    Call <span className="text-gray-400 italic">Correctness</span> Over Time
-                  </p>
-                </div>
-                <div className="flex-1 w-full mt-6">
-                  <UmpireAccuracyChart data={trend} />
-                </div>
+              <div className="flex-1 w-full mt-6">
+                <UmpireAccuracyChart data={trend} />
               </div>
-            </section>
-          </MotionIn>
-
-          <MotionIn delay={0.18}>
-            <section className="mb-12">
-              <PitchTypeBreakdownChart data={pitchTypes} />
             </section>
           </MotionIn>
         </>
@@ -468,11 +403,13 @@ async function UmpireAnalyticsSections({
         </section>
       </MotionIn>
 
-      <MotionIn delay={0.25}>
-        <div className="mb-12">
-          <ExtremeMissesSection extremes={dna.extremes} />
-        </div>
-      </MotionIn>
+      {viewMode === "fan" ? (
+        <MotionIn delay={0.25}>
+          <div className="mb-12">
+            <ExtremeMissesSection extremes={dna.extremes} />
+          </div>
+        </MotionIn>
+      ) : null}
 
       {showHistoryLate ? historySection : null}
 
@@ -580,91 +517,6 @@ function UmpireChallengeOpportunityRead({ profile }: { profile: Awaited<ReturnTy
   );
 }
 
-function buildRhythmInsight(
-  umpireName: string,
-  rhythm: Array<{ inning: number; total: number; overturned: number; accuracy: number }>,
-) {
-  if (rhythm.length < 2) {
-    return `${umpireName} does not have enough inning-level challenge samples to summarize rhythm trends yet.`;
-  }
-
-  const sorted = [...rhythm].sort((a, b) => a.accuracy - b.accuracy);
-  const best = sorted.at(-1);
-  const worst = sorted[0];
-
-  if (!best || !worst) {
-    return `${umpireName} does not have enough inning-level challenge samples to summarize rhythm trends yet.`;
-  }
-
-  return `Best tracked inning: ${best.inning} (${(best.accuracy * 100).toFixed(1)}% accuracy across ${best.total} challenges). Lowest tracked inning: ${worst.inning} (${(worst.accuracy * 100).toFixed(1)}% across ${worst.total}).`;
-}
-
-function buildRhythmInsightContent(
-  umpireName: string,
-  rhythm: Array<{ inning: number; total: number; overturned: number; accuracy: number }>,
-): ReactNode {
-  if (rhythm.length < 2) {
-    return (
-      <InsightSections
-        headline={`${umpireName} does not have enough inning-level review volume to read a real rhythm pattern yet.`}
-        sections={[
-          {
-            label: "What this chart shows",
-            body: "Each point tracks challenged-call accuracy by inning, using only the review sample we have logged for this umpire.",
-          },
-          {
-            label: "Baseball meaning",
-            body: "Once the sample grows, this becomes a quick way to see whether command through the zone holds late or slips as the game stretches on.",
-          },
-        ]}
-      />
-    );
-  }
-
-  const sortedByAccuracy = [...rhythm].sort((a, b) => a.accuracy - b.accuracy);
-  const best = sortedByAccuracy.at(-1);
-  const worst = sortedByAccuracy[0];
-  const early = rhythm.filter((entry) => entry.inning <= 3);
-  const late = rhythm.filter((entry) => entry.inning >= 7);
-  const avg = (entries: typeof rhythm) => entries.length ? entries.reduce((sum, entry) => sum + entry.accuracy, 0) / entries.length : null;
-  const earlyAvg = avg(early);
-  const lateAvg = avg(late);
-  const swing = earlyAvg !== null && lateAvg !== null ? (lateAvg - earlyAvg) * 100 : null;
-
-  if (!best || !worst) {
-    return null;
-  }
-
-  const directionalRead =
-    swing === null
-      ? "The sample is spread across innings, but not enough late-game buckets are filled to call a true early-vs-late trend."
-      : swing <= -5
-        ? `Late innings run ${Math.abs(swing).toFixed(1)} percentage points below the early-game sample, which suggests his challenged-call quality fades as the game moves on.`
-        : swing >= 5
-          ? `Late innings run ${swing.toFixed(1)} percentage points above the early-game sample, which suggests he settles in rather than losing the zone deeper into games.`
-          : "Early and late innings are broadly flat, so the chart reads more like isolated inning volatility than a true stamina pattern.";
-
-  return (
-    <InsightSections
-      headline={`This chart is asking a baseball question: does ${umpireName} hold challenged-call quality throughout the game, or does the zone move as innings pile up?`}
-      sections={[
-        {
-          label: "What the chart shows",
-          body: `Best tracked inning is ${best.inning} at ${(best.accuracy * 100).toFixed(1)}% accuracy across ${best.total} reviewed calls. Lowest tracked inning is ${worst.inning} at ${(worst.accuracy * 100).toFixed(1)}% across ${worst.total}.`,
-        },
-        {
-          label: "Baseball read",
-          body: directionalRead,
-        },
-        {
-          label: "How to use it",
-          body: "For clubs, this is a command-stability read. If an umpire’s challenged accuracy weakens late, that raises the value of preserving review leverage for tighter innings rather than spending it early.",
-        },
-      ]}
-    />
-  );
-}
-
 function buildZoneInsight(zoneBuckets: ZoneNineCell[]) {
   const ranked = [...zoneBuckets].sort((a, b) => b.challenges - a.challenges);
   const busiest = ranked[0];
@@ -762,6 +614,30 @@ function StatCard({ label, value, highlight, subLabel }: { label: string; value:
         {value}
       </p>
       {subLabel && <p className="mt-2 text-[10px] font-medium text-[var(--ink-3)] uppercase tracking-widest">{subLabel}</p>}
+    </div>
+  );
+}
+
+function FanUmpireSummaryCard({
+  currentUmpire,
+  umpireName,
+  overturnRate,
+}: {
+  currentUmpire: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number] | null;
+  umpireName: string;
+  overturnRate: number;
+}) {
+  return (
+    <div className="panel border-gray-100 bg-white p-6 shadow-2xl shadow-black/[0.03]">
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-500">Umpire Snapshot</p>
+      <p className="mt-2 text-2xl font-display text-[var(--ink-0)]">
+        What kind of <span className="text-gray-400">ABS umpire</span> is this?
+      </p>
+      <p className="mt-4 max-w-3xl text-sm leading-7 text-[var(--ink-2)]">
+        {umpireName} is currently running a {(overturnRate * 100).toFixed(1)}% overturn rate
+        {currentUmpire ? ` with a ${currentUmpire.fanDescriptor.toLowerCase()} read` : ""}. The public read here is simple:
+        does this umpire stay steady game to game, and where do reviews actually find daylight once clubs challenge the call?
+      </p>
     </div>
   );
 }

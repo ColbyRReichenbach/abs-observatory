@@ -65,6 +65,14 @@ export default async function UmpiresPage({ searchParams }: { searchParams: Prom
       leagueAvgRate={leagueAvgRate}
     />
   );
+  const volatilityWatch = [...umpires]
+    .filter((umpire) => umpire.recentOverturnRate !== null)
+    .sort((left, right) => {
+      const leftDrift = Math.abs((left.recentOverturnRate ?? left.overturnRate) - left.overturnRate);
+      const rightDrift = Math.abs((right.recentOverturnRate ?? right.overturnRate) - right.overturnRate);
+      return rightDrift - leftDrift;
+    })
+    .slice(0, 4);
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-24 lg:py-40">
@@ -82,50 +90,118 @@ export default async function UmpiresPage({ searchParams }: { searchParams: Prom
         <RangeSelector basePath="/umpires" range={range} searchParams={sp} />
       </div>
 
-      {copy.leaderboardPlacement === "early" ? <div className="mt-10">{leaderboardSection}</div> : null}
-
       {viewMode === "org" ? (
-        <div className="mt-8 mb-8 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-          <UmpireRiskScatter data={riskScatterData} />
-          <div className="panel h-full flex flex-col border-gray-100 bg-white p-6 shadow-2xl shadow-black/[0.03]">
-            <div className="mb-4">
-              <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
-                This Week&apos;s Review Watch
-              </h4>
-              <p className="text-2xl font-display leading-none text-gray-900">
-                {copy.watchTitle.split(" ").slice(0, 1).join(" ")} <span className="text-gray-400 italic">{copy.watchTitle.split(" ").slice(1).join(" ")}</span>
-              </p>
-            </div>
-            <div className="space-y-3">
-              {watchList.map((umpire) => (
-                <Link
-                  key={umpire.umpireId}
-                  href={withViewModeHref(`/umpires/${umpire.umpireId}?range=${range}`, viewMode)}
-                  className="block rounded-2xl border border-gray-100 bg-[var(--surface-infield)] p-4 transition hover:border-blue-100 hover:bg-white"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-[var(--ink-0)]">{umpire.umpireName}</p>
-                      <p className="mt-1 text-xs text-[var(--ink-3)]">
-                        {buildWatchCopy(umpire)}
-                      </p>
+        <>
+          <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <SummaryCard
+              eyebrow="Top WE Signal"
+              title={bestByMetric(umpires, (umpire) => umpire.averageWinExpectancyDelta ?? Number.NEGATIVE_INFINITY)?.umpireName ?? "No signal"}
+              body={(() => {
+                const umpire = bestByMetric(umpires, (item) => item.averageWinExpectancyDelta ?? Number.NEGATIVE_INFINITY);
+                return umpire?.averageWinExpectancyDelta !== null && umpire?.averageWinExpectancyDelta !== undefined
+                  ? `${umpire.averageWinExpectancyDelta >= 0 ? "+" : ""}${(umpire.averageWinExpectancyDelta * 100).toFixed(2)}% average WE change per review.`
+                  : "Win-probability coverage has not stabilized enough yet.";
+              })()}
+            />
+            <SummaryCard
+              eyebrow="Lowest WE Signal"
+              title={bestByMetric(umpires, (umpire) => -(umpire.averageWinExpectancyDelta ?? Number.POSITIVE_INFINITY))?.umpireName ?? "No signal"}
+              body={(() => {
+                const umpire = bestByMetric(umpires, (item) => -(item.averageWinExpectancyDelta ?? Number.POSITIVE_INFINITY));
+                return umpire?.averageWinExpectancyDelta !== null && umpire?.averageWinExpectancyDelta !== undefined
+                  ? `${umpire.averageWinExpectancyDelta >= 0 ? "+" : ""}${(umpire.averageWinExpectancyDelta * 100).toFixed(2)}% average WE change per review.`
+                  : "Win-probability coverage has not stabilized enough yet.";
+              })()}
+            />
+            <SummaryCard
+              eyebrow="Highest Variance"
+              title={bestByMetric(umpires, (umpire) => umpire.overturnRateVariance)?.umpireName ?? "No signal"}
+              body={(() => {
+                const umpire = bestByMetric(umpires, (item) => item.overturnRateVariance);
+                return umpire ? `${umpire.overturnRateVariance.toFixed(2)} variance with a ${umpire.riskTier.toLowerCase()} risk label.` : "No variance signal is available yet.";
+              })()}
+            />
+            <SummaryCard
+              eyebrow="League Overturn"
+              title={`${(leagueAvgRate * 100).toFixed(1)}%`}
+              body="Current league overturn rate across tracked umpires in this range."
+            />
+          </div>
+
+          <div className="mt-8 mb-8 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+            <UmpireRiskScatter data={riskScatterData} />
+            <div className="panel h-full flex flex-col border-gray-100 bg-white p-6 shadow-2xl shadow-black/[0.03]">
+              <div className="mb-4">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
+                  This Week&apos;s Review Watch
+                </h4>
+                <p className="text-2xl font-display leading-none text-gray-900">
+                  {copy.watchTitle.split(" ").slice(0, 1).join(" ")} <span className="text-gray-400 italic">{copy.watchTitle.split(" ").slice(1).join(" ")}</span>
+                </p>
+              </div>
+              <div className="space-y-3">
+                {watchList.map((umpire) => (
+                  <Link
+                    key={umpire.umpireId}
+                    href={withViewModeHref(`/umpires/${umpire.umpireId}?range=${range}`, viewMode)}
+                    className="block rounded-2xl border border-gray-100 bg-[var(--surface-infield)] p-4 transition hover:border-blue-100 hover:bg-white"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-[var(--ink-0)]">{umpire.umpireName}</p>
+                        <p className="mt-1 text-xs text-[var(--ink-3)]">
+                          {buildWatchCopy(umpire)}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-blue-700">
+                        {buildWatchLabel(umpire)}
+                      </span>
                     </div>
-                    <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-blue-700">
-                      {buildWatchLabel(umpire)}
-                    </span>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+          <div className="mt-10">{leaderboardSection}</div>
+        </>
       ) : (
-        <div className="mt-12">
-          <UmpireDistributionHistogram data={histogramData} />
-        </div>
+        <>
+          <div className="mt-12">
+            <UmpireDistributionHistogram data={histogramData} />
+          </div>
+          {volatilityWatch.length > 0 ? (
+            <div className="mt-8 panel border-gray-100 bg-white p-5 shadow-2xl shadow-black/[0.03]">
+              <div className="mb-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500">Volatile Lately</p>
+                <p className="mt-1 text-2xl font-display leading-none text-[var(--ink-0)]">
+                  Recent <span className="text-gray-400">Movement</span>
+                </p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {volatilityWatch.map((umpire) => {
+                  const drift = (umpire.recentOverturnRate ?? umpire.overturnRate) - umpire.overturnRate;
+                  return (
+                    <Link
+                      key={umpire.umpireId}
+                      href={withViewModeHref(`/umpires/${umpire.umpireId}?range=${range}`, viewMode)}
+                      className="rounded-2xl border border-gray-100 bg-[var(--surface-infield)] p-4 transition hover:border-blue-100 hover:bg-white"
+                    >
+                      <p className="text-sm font-semibold text-[var(--ink-0)]">{umpire.umpireName}</p>
+                      <p className="mt-2 text-[10px] font-black uppercase tracking-[0.1em] text-[var(--ink-3)]">
+                        {drift >= 0 ? "OT rate up" : "OT rate down"} · {Math.abs(drift * 100).toFixed(1)} pts
+                      </p>
+                      <p className="mt-2 text-xs leading-6 text-[var(--ink-3)]">
+                        Recent sample is {(umpire.recentOverturnRate ?? 0) >= umpire.overturnRate ? "running hotter" : "settling lower"} than season baseline.
+                      </p>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+          <div className="mt-10">{leaderboardSection}</div>
+        </>
       )}
-
-      {copy.leaderboardPlacement === "late" ? <div className="mt-10">{leaderboardSection}</div> : null}
     </main>
   );
 }
@@ -197,4 +273,27 @@ function buildWatchLabel(umpire: {
   if (umpire.riskTier === "High" || umpire.overturnRateVariance >= 0.2) return "Elevated Watch";
   if (drift >= 0.05) return "Trend Up";
   return umpire.riskTier;
+}
+
+function SummaryCard({
+  eyebrow,
+  title,
+  body,
+}: {
+  eyebrow: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="panel border-gray-100 bg-white p-5 shadow-2xl shadow-black/[0.03]">
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-500">{eyebrow}</p>
+      <p className="mt-2 text-lg font-semibold text-[var(--ink-0)]">{title}</p>
+      <p className="mt-1 text-xs leading-6 text-[var(--ink-3)]">{body}</p>
+    </div>
+  );
+}
+
+function bestByMetric<T>(items: T[], getValue: (item: T) => number) {
+  if (items.length === 0) return null;
+  return [...items].sort((left, right) => getValue(right) - getValue(left))[0] ?? null;
 }

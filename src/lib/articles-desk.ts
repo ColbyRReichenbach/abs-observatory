@@ -50,6 +50,7 @@ function normalizeArticleType(articleType: string | null | undefined): ArticleDe
     case "daily_auto":
       return "daily_observer";
     case "weekly_editorial":
+    case "weekly_analysis":
       return "weekly_editorial";
     case "game_daily":
       return "game_audit";
