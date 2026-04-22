@@ -234,6 +234,7 @@ export default async function TeamPage({
               context={`${summary.teamName} ${viewMode === "org" ? "team strategy and review operations" : "team trends and challenge story"} across the ${range} range`}
               teamColor={teamPrimary}
               audience={viewMode}
+              aiContext={{ scope: "team", entityId: String(summary.teamId), range: range === "all" ? "season" : range }}
             />
           </MotionIn>
         ) : null}

@@ -15,11 +15,12 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const sp = await searchParams;
   const viewMode = await resolveViewMode(sp);
   const copy = getHomePageViewCopy(viewMode);
+  const momentsPromise = getHomeChallengeMoments(12);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.03),transparent)] pt-36">
       <Suspense fallback={null}>
-        <HomeBroadcastSection viewMode={viewMode} />
+        <HomeBroadcastSection viewMode={viewMode} momentsPromise={momentsPromise} />
       </Suspense>
 
       <div className="px-6 py-8 text-center">
@@ -32,14 +33,20 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       </div>
 
       <Suspense fallback={<HomePageFallback viewMode={viewMode} copy={copy} />}>
-        <HomePageBody viewMode={viewMode} copy={copy} />
+        <HomePageBody viewMode={viewMode} copy={copy} momentsPromise={momentsPromise} />
       </Suspense>
     </div>
   );
 }
 
-async function HomeBroadcastSection({ viewMode }: { viewMode: "fan" | "org" }) {
-  const moments = await getHomeChallengeMoments(12);
+async function HomeBroadcastSection({
+  viewMode,
+  momentsPromise,
+}: {
+  viewMode: "fan" | "org";
+  momentsPromise: Promise<Awaited<ReturnType<typeof getHomeChallengeMoments>>>;
+}) {
+  const moments = await momentsPromise;
   return (
     <div className="relative z-40 bg-white/50 border-b border-gray-100">
       <BroadcastStrip moments={moments} viewMode={viewMode} />
@@ -50,13 +57,15 @@ async function HomeBroadcastSection({ viewMode }: { viewMode: "fan" | "org" }) {
 async function HomePageBody({
   viewMode,
   copy,
+  momentsPromise,
 }: {
   viewMode: "fan" | "org";
   copy: ReturnType<typeof getHomePageViewCopy>;
+  momentsPromise: Promise<Awaited<ReturnType<typeof getHomeChallengeMoments>>>;
 }) {
   const [games, moments, teams, umpires] = await Promise.all([
     getLiveGames(),
-    getHomeChallengeMoments(12),
+    momentsPromise,
     getTeamLeaderboardModel("season", {
       includeDecisionMetrics: viewMode === "org",
       includeValueMetrics: viewMode === "org",

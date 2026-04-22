@@ -127,4 +127,59 @@ describe("/api/ai/artifacts", () => {
       }),
     );
   });
+
+  it("accepts visualizer artifacts for shared charts", async () => {
+    const { POST } = await import("./route");
+    getViewerProfileMock.mockResolvedValueOnce({
+      userId: "user-4",
+      aiHistoryEnabled: true,
+    });
+    registerAiArtifactMock.mockResolvedValueOnce({
+      generationId: "gen-3",
+      artifactId: "artifact-visualizer",
+      saved: true,
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/ai/artifacts", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          surfaceKey: "visualizer",
+          surfaceDetail: "team_chart_builder",
+          targetType: "visualizer_chart",
+          targetId: "gen-3",
+          title: "Cardinals Overturn Rate by Count State",
+          artifactPayload: {
+            structuredPlan: {
+              chartTitle: "Cardinals Overturn Rate by Count State",
+              chartType: "bar_chart",
+              xAxis: "Count State",
+              yAxis: "Overturn Rate",
+              compareBy: null,
+              filters: [],
+              highlight: "Compare overturn rate by count state.",
+              honorsUserChartRequest: true,
+              dataPoints: [
+                { x: "Pitcher Ahead", y: 0.59 },
+                { x: "Even Count", y: 0.7 },
+                { x: "Hitter Ahead", y: 0.8 },
+              ],
+            },
+          },
+          metadata: {
+            publicShare: true,
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(registerAiArtifactMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        surfaceKey: "visualizer",
+        targetType: "visualizer_chart",
+      }),
+    );
+  });
 });

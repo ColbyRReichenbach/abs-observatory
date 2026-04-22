@@ -84,6 +84,8 @@ const AI_SURFACE_PROMPT_REGISTRY: Record<AiChatSurface, AiSurfacePromptDefinitio
     instructionBlocks: [
       "You are returning a baseball chart specification, not a generic answer.",
       "Honor an explicit user chart request when it is implementable; otherwise choose the best supported chart type for the question.",
+      "Treat the current page context as the default entity and sample window unless the user explicitly asks to compare or switch scope.",
+      "Use the supplied page-scoped tool outputs as the source of truth for plotted values and labels.",
     ],
   },
 };

@@ -224,6 +224,15 @@ function situationalWhere(filters?: SituationalFilters, alias = "c"): { clause: 
   return { clause: clauses.join(" AND "), params };
 }
 
+function getSituationalFilterCacheParts(filters?: SituationalFilters) {
+  return [
+    filters?.inningRange ?? "all",
+    filters?.leverage ?? "all",
+    filters?.side ?? "all",
+    filters?.result ?? "all",
+  ];
+}
+
 async function getCountStateBaselines(): Promise<CountStateBaseline[]> {
   return withCachedValue(getCacheKey(["count-state-baselines"]), 60_000, async () => {
     let rawRows: Array<{
@@ -643,11 +652,21 @@ function buildDecisionBaseOutLabel(input: { basesState: string | null; outs: num
   return outs < 2 ? "Runner On, <2 Outs" : "Runner On, 2 Outs";
 }
 
-async function getTeamDecisionMetricRows(range: RangeKey = "season", filters?: SituationalFilters) {
-  const window = rangeWhere(range, "g.game_date");
-  const situational = situationalWhere(filters, "c");
+async function getTeamDecisionMetricRows(range: RangeKey = "season", filters?: SituationalFilters, teamId?: number) {
+  return withVersionedCache(
+    ["team-decision-metric-rows", range, teamId ?? "all", ...getSituationalFilterCacheParts(filters)],
+    getLatestSuccessfulEtlDataVersion(),
+    30_000,
+    async () => {
+      const window = rangeWhere(range, "g.game_date");
+      const situational = situationalWhere(filters, "c");
+      const params = [...window.params, ...situational.params];
+      const teamClause =
+        teamId === undefined
+          ? ""
+          : `\n      AND c.challenge_team_id = $${params.push(teamId)}`;
 
-  return sql<{
+      return sql<{
     challenge_id: string;
     team_id: number;
     team_name: string | null;
@@ -664,7 +683,7 @@ async function getTeamDecisionMetricRows(range: RangeKey = "season", filters?: S
     strikes: number | null;
     called_description: string | null;
   }>(
-    `
+        `
     SELECT
       c.challenge_id,
       c.challenge_team_id AS team_id,
@@ -691,27 +710,30 @@ async function getTeamDecisionMetricRows(range: RangeKey = "season", filters?: S
     WHERE c.challenge_team_id IS NOT NULL
       AND ${window.clause}
       AND ${situational.clause}
+      ${teamClause}
     ORDER BY c.challenge_team_id ASC, c.challenged_at ASC NULLS LAST
     `,
-    [...window.params, ...situational.params],
-  ).then((rows) =>
-    rows.map((row) => ({
-      challengeId: row.challenge_id,
-      teamId: Number(row.team_id),
-      teamName: row.team_name,
-      isOverturned: row.is_overturned,
-      inning: row.inning === null ? null : Number(row.inning),
-      halfInning: row.half_inning,
-      outs: row.outs === null ? null : Number(row.outs),
-      basesState: row.bases_state,
-      homeScore: row.home_score === null ? null : Number(row.home_score),
-      awayScore: row.away_score === null ? null : Number(row.away_score),
-      ballsBefore: row.balls_before === null ? null : Number(row.balls_before),
-      strikesBefore: row.strikes_before === null ? null : Number(row.strikes_before),
-      balls: row.balls === null ? null : Number(row.balls),
-      strikes: row.strikes === null ? null : Number(row.strikes),
-      calledDescription: row.called_description,
-    })),
+        params,
+      ).then((rows) =>
+        rows.map((row) => ({
+          challengeId: row.challenge_id,
+          teamId: Number(row.team_id),
+          teamName: row.team_name,
+          isOverturned: row.is_overturned,
+          inning: row.inning === null ? null : Number(row.inning),
+          halfInning: row.half_inning,
+          outs: row.outs === null ? null : Number(row.outs),
+          basesState: row.bases_state,
+          homeScore: row.home_score === null ? null : Number(row.home_score),
+          awayScore: row.away_score === null ? null : Number(row.away_score),
+          ballsBefore: row.balls_before === null ? null : Number(row.balls_before),
+          strikesBefore: row.strikes_before === null ? null : Number(row.strikes_before),
+          balls: row.balls === null ? null : Number(row.balls),
+          strikes: row.strikes === null ? null : Number(row.strikes),
+          calledDescription: row.called_description,
+        })),
+      );
+    },
   );
 }
 
@@ -721,46 +743,46 @@ async function modelTeamDecisionRows(rows: TeamDecisionMetricRow[]) {
     getWinExpectancyFallbackRows(),
   ]);
 
-  const modeledRows: ModeledTeamDecisionRow[] = [];
+  const modeledRows = await Promise.all(
+    rows.map(async (row) => {
+      const calledPitch = resolveCalledPitchFromDescription(row.calledDescription);
+      if (!calledPitch) {
+        return null;
+      }
 
-  for (const row of rows) {
-    const calledPitch = resolveCalledPitchFromDescription(row.calledDescription);
-    if (!calledPitch) {
-      continue;
-    }
+      const decision = await estimateChallengeDecisionValue(
+        {
+          inning: row.inning ?? 1,
+          halfInning: row.halfInning === "Bottom" ? "Bottom" : "Top",
+          balls: row.ballsBefore ?? row.balls ?? 0,
+          strikes: row.strikesBefore ?? row.strikes ?? 0,
+          outs: row.outs ?? 0,
+          scoreDiffBattingTeam: getScoreDiffBattingTeam(row.halfInning, row.homeScore, row.awayScore),
+          basesState: row.basesState ?? "000",
+          calledPitch,
+          challengesRemaining: 1,
+        },
+        { probabilityRows: overturnProbabilityRows, winRows: winExpectancyRows },
+      );
 
-    const decision = await estimateChallengeDecisionValue(
-      {
-        inning: row.inning ?? 1,
-        halfInning: row.halfInning === "Bottom" ? "Bottom" : "Top",
-        balls: row.ballsBefore ?? row.balls ?? 0,
-        strikes: row.strikesBefore ?? row.strikes ?? 0,
-        outs: row.outs ?? 0,
-        scoreDiffBattingTeam: getScoreDiffBattingTeam(row.halfInning, row.homeScore, row.awayScore),
-        basesState: row.basesState ?? "000",
-        calledPitch,
-        challengesRemaining: 1,
-      },
-      { probabilityRows: overturnProbabilityRows, winRows: winExpectancyRows },
-    );
+      const realizedValue = row.isOverturned ? decision.wpDeltaIfSuccess : decision.wpDeltaIfFail;
+      const highPressure = (row.inning ?? 0) >= 7 || Math.abs((row.homeScore ?? 0) - (row.awayScore ?? 0)) <= 2;
+      const lateClose = isLateCloseDecisionContext(row);
 
-    const realizedValue = row.isOverturned ? decision.wpDeltaIfSuccess : decision.wpDeltaIfFail;
-    const highPressure = (row.inning ?? 0) >= 7 || Math.abs((row.homeScore ?? 0) - (row.awayScore ?? 0)) <= 2;
-    const lateClose = isLateCloseDecisionContext(row);
+      return {
+        row,
+        label: buildDecisionWindowLabel(row),
+        expectedWpDelta: decision.expectedWpDelta,
+        realizedWpDelta: realizedValue,
+        recommendation: decision.recommendation,
+        decisionValueMode: decision.decisionValueMode,
+        highPressurePositive: highPressure && decision.expectedWpDelta > 0,
+        lateClosePositive: lateClose && decision.expectedWpDelta > 0,
+      } satisfies ModeledTeamDecisionRow;
+    }),
+  );
 
-    modeledRows.push({
-      row,
-      label: buildDecisionWindowLabel(row),
-      expectedWpDelta: decision.expectedWpDelta,
-      realizedWpDelta: realizedValue,
-      recommendation: decision.recommendation,
-      decisionValueMode: decision.decisionValueMode,
-      highPressurePositive: highPressure && decision.expectedWpDelta > 0,
-      lateClosePositive: lateClose && decision.expectedWpDelta > 0,
-    });
-  }
-
-  return modeledRows;
+  return modeledRows.filter((row): row is ModeledTeamDecisionRow => row !== null);
 }
 
 async function buildTeamDecisionValueMetrics(rows: TeamDecisionMetricRow[], modeledRows?: ModeledTeamDecisionRow[]) {
@@ -1085,8 +1107,15 @@ function buildTeamDecisionBreakdownSection(
 }
 
 export async function getTeamDecisionValueLeaderboard(range: RangeKey = "season") {
-  const rows = await getTeamDecisionMetricRows(range);
-  return buildTeamDecisionValueMetrics(rows);
+  return withVersionedCache(
+    ["team-decision-value-leaderboard", range],
+    getLatestSuccessfulEtlDataVersion(),
+    30_000,
+    async () => {
+      const rows = await getTeamDecisionMetricRows(range);
+      return buildTeamDecisionValueMetrics(rows);
+    },
+  );
 }
 
 export async function getHomeTeamDecisionValueLeaders(range: RangeKey = "season") {
@@ -1103,27 +1132,34 @@ export async function getTeamDecisionValueSummary(
   range: RangeKey = "season",
   filters?: SituationalFilters,
 ): Promise<TeamDecisionValueSummary> {
-  const rows = await getTeamDecisionMetricRows(range, filters);
-  const metrics = await buildTeamDecisionValueMetrics(rows.filter((row) => row.teamId === teamId));
-  return (
-    metrics.get(teamId) ?? {
-      totalChallenges: 0,
-      averageExpectedChallengeValue: null,
-      averageRealizedChallengeValue: null,
-      decisionSurplus: null,
-      challengeRecommendationRate: 0,
-      holdRecommendationRate: 0,
-      capturedValueShare: 0,
-      wastedValueShare: 0,
-      highPressureExpectedValueShare: 0,
-      lateCloseChallengeShare: 0,
-      lateCloseExpectedValueShare: 0,
-      bestDecisionWindowLabel: null,
-      bestDecisionWindowExpectedValue: null,
-      bestDecisionWindowChallenges: 0,
-      modelConfidence: null,
-      modeledWinCoverageRate: 0,
-    }
+  return withVersionedCache(
+    ["team-decision-value-summary", teamId, range, ...getSituationalFilterCacheParts(filters)],
+    getLatestSuccessfulEtlDataVersion(),
+    30_000,
+    async () => {
+      const rows = await getTeamDecisionMetricRows(range, filters, teamId);
+      const metrics = await buildTeamDecisionValueMetrics(rows);
+      return (
+        metrics.get(teamId) ?? {
+          totalChallenges: 0,
+          averageExpectedChallengeValue: null,
+          averageRealizedChallengeValue: null,
+          decisionSurplus: null,
+          challengeRecommendationRate: 0,
+          holdRecommendationRate: 0,
+          capturedValueShare: 0,
+          wastedValueShare: 0,
+          highPressureExpectedValueShare: 0,
+          lateCloseChallengeShare: 0,
+          lateCloseExpectedValueShare: 0,
+          bestDecisionWindowLabel: null,
+          bestDecisionWindowExpectedValue: null,
+          bestDecisionWindowChallenges: 0,
+          modelConfidence: null,
+          modeledWinCoverageRate: 0,
+        }
+      );
+    },
   );
 }
 
@@ -1132,48 +1168,55 @@ export async function getTeamDecisionValueReport(
   range: RangeKey = "season",
   filters?: SituationalFilters,
 ): Promise<TeamDecisionValueReport> {
-  const rows = (await getTeamDecisionMetricRows(range, filters)).filter((row) => row.teamId === teamId);
-  const modeledRows = await modelTeamDecisionRows(rows);
-  const [metrics, windows] = await Promise.all([
-    buildTeamDecisionValueMetrics(rows, modeledRows),
-    buildTeamDecisionWindowReport(modeledRows),
-  ]);
+  return withVersionedCache(
+    ["team-decision-value-report", teamId, range, ...getSituationalFilterCacheParts(filters)],
+    getLatestSuccessfulEtlDataVersion(),
+    30_000,
+    async () => {
+      const rows = await getTeamDecisionMetricRows(range, filters, teamId);
+      const modeledRows = await modelTeamDecisionRows(rows);
+      const [metrics, windows] = await Promise.all([
+        buildTeamDecisionValueMetrics(rows, modeledRows),
+        buildTeamDecisionWindowReport(modeledRows),
+      ]);
 
-  const summary =
-    metrics.get(teamId) ?? {
-      totalChallenges: 0,
-      averageExpectedChallengeValue: null,
-      averageRealizedChallengeValue: null,
-      decisionSurplus: null,
-      challengeRecommendationRate: 0,
-      holdRecommendationRate: 0,
-      capturedValueShare: 0,
-      wastedValueShare: 0,
-      highPressureExpectedValueShare: 0,
-      lateCloseChallengeShare: 0,
-      lateCloseExpectedValueShare: 0,
-      bestDecisionWindowLabel: null,
-      bestDecisionWindowExpectedValue: null,
-      bestDecisionWindowChallenges: 0,
-      modelConfidence: null,
-      modeledWinCoverageRate: 0,
-    };
+      const summary =
+        metrics.get(teamId) ?? {
+          totalChallenges: 0,
+          averageExpectedChallengeValue: null,
+          averageRealizedChallengeValue: null,
+          decisionSurplus: null,
+          challengeRecommendationRate: 0,
+          holdRecommendationRate: 0,
+          capturedValueShare: 0,
+          wastedValueShare: 0,
+          highPressureExpectedValueShare: 0,
+          lateCloseChallengeShare: 0,
+          lateCloseExpectedValueShare: 0,
+          bestDecisionWindowLabel: null,
+          bestDecisionWindowExpectedValue: null,
+          bestDecisionWindowChallenges: 0,
+          modelConfidence: null,
+          modeledWinCoverageRate: 0,
+        };
 
-  return {
-    summary,
-    ...windows,
-    breakdownSections: [
-      buildTeamDecisionBreakdownSection("inning_phase", "Inning Phase", modeledRows, (modeled) =>
-        buildDecisionInningLabel(modeled.row.inning),
-      ),
-      buildTeamDecisionBreakdownSection("count_state", "Count State", modeledRows, (modeled) =>
-        buildDecisionCountLabel(modeled.row),
-      ),
-      buildTeamDecisionBreakdownSection("base_out_state", "Base / Out State", modeledRows, (modeled) =>
-        buildDecisionBaseOutLabel(modeled.row),
-      ),
-    ],
-  };
+      return {
+        summary,
+        ...windows,
+        breakdownSections: [
+          buildTeamDecisionBreakdownSection("inning_phase", "Inning Phase", modeledRows, (modeled) =>
+            buildDecisionInningLabel(modeled.row.inning),
+          ),
+          buildTeamDecisionBreakdownSection("count_state", "Count State", modeledRows, (modeled) =>
+            buildDecisionCountLabel(modeled.row),
+          ),
+          buildTeamDecisionBreakdownSection("base_out_state", "Base / Out State", modeledRows, (modeled) =>
+            buildDecisionBaseOutLabel(modeled.row),
+          ),
+        ],
+      };
+    },
+  );
 }
 
 export async function getLiveGames(): Promise<LiveGameCard[]> {
@@ -3223,8 +3266,13 @@ export async function getUmpireLeaderboard(range: RangeKey = "season"): Promise<
 }
 
 async function getUmpireRubricMetrics(range: RangeKey = "season") {
-  const window = rangeWhere(range, "g.game_date");
-  const [rows, challengeRows, runExpectancyRows, winExpectancyRows] = await Promise.all([
+  return withVersionedCache(
+    ["umpire-rubric-metrics", range],
+    getLatestSuccessfulEtlDataVersion(),
+    30_000,
+    async () => {
+      const window = rangeWhere(range, "g.game_date");
+      const [rows, challengeRows, runExpectancyRows, winExpectancyRows] = await Promise.all([
     sql<{
       umpireid: number;
       overturnratevariance: number | null;
@@ -3329,73 +3377,75 @@ async function getUmpireRubricMetrics(range: RangeKey = "season") {
     ),
     getRunExpectancyFallbackRows(),
     getWinExpectancyFallbackRows(),
-  ]);
+      ]);
 
-  const valueMetrics = new Map<
-    number,
-    { runDeltaSum: number; runDeltaCount: number; winDeltaSum: number; winDeltaCount: number }
-  >();
+      const valueMetrics = new Map<
+        number,
+        { runDeltaSum: number; runDeltaCount: number; winDeltaSum: number; winDeltaCount: number }
+      >();
 
-  for (const row of challengeRows) {
-    const umpireCount =
-      resolveUmpireCountState(
-        row.ballsbefore,
-        row.strikesbefore,
-        row.ballsafter,
-        row.strikesafter,
-        row.isoverturned,
-      ) ?? row.heldcountkey ?? null;
-    const countAfter =
-      row.ballsafter === null || row.strikesafter === null
-        ? row.correctedcountkey ?? null
-        : `${row.ballsafter}-${row.strikesafter}`;
-    const challengeState = {
-      inning: row.inning === null ? null : Number(row.inning),
-      halfInning: row.halfinning,
-      outs: row.outs === null ? null : Number(row.outs),
-      basesState: row.basesstate,
-      homeScore: row.homescore === null ? null : Number(row.homescore),
-      awayScore: row.awayscore === null ? null : Number(row.awayscore),
-      umpireCount,
-      countAfter,
-    };
-    const runDelta = getChallengeRunExpectancyDelta(challengeState, runExpectancyRows).runExpectancyDelta;
-    const winDelta = getChallengeWinExpectancyDelta(challengeState, winExpectancyRows).winExpectancyDelta;
-    const bucket = valueMetrics.get(Number(row.umpireid)) ?? {
-      runDeltaSum: 0,
-      runDeltaCount: 0,
-      winDeltaSum: 0,
-      winDeltaCount: 0,
-    };
+      for (const row of challengeRows) {
+        const umpireCount =
+          resolveUmpireCountState(
+            row.ballsbefore,
+            row.strikesbefore,
+            row.ballsafter,
+            row.strikesafter,
+            row.isoverturned,
+          ) ?? row.heldcountkey ?? null;
+        const countAfter =
+          row.ballsafter === null || row.strikesafter === null
+            ? row.correctedcountkey ?? null
+            : `${row.ballsafter}-${row.strikesafter}`;
+        const challengeState = {
+          inning: row.inning === null ? null : Number(row.inning),
+          halfInning: row.halfinning,
+          outs: row.outs === null ? null : Number(row.outs),
+          basesState: row.basesstate,
+          homeScore: row.homescore === null ? null : Number(row.homescore),
+          awayScore: row.awayscore === null ? null : Number(row.awayscore),
+          umpireCount,
+          countAfter,
+        };
+        const runDelta = getChallengeRunExpectancyDelta(challengeState, runExpectancyRows).runExpectancyDelta;
+        const winDelta = getChallengeWinExpectancyDelta(challengeState, winExpectancyRows).winExpectancyDelta;
+        const bucket = valueMetrics.get(Number(row.umpireid)) ?? {
+          runDeltaSum: 0,
+          runDeltaCount: 0,
+          winDeltaSum: 0,
+          winDeltaCount: 0,
+        };
 
-    if (runDelta !== null) {
-      bucket.runDeltaSum += runDelta;
-      bucket.runDeltaCount += 1;
-    }
-    if (winDelta !== null) {
-      bucket.winDeltaSum += winDelta;
-      bucket.winDeltaCount += 1;
-    }
-    valueMetrics.set(Number(row.umpireid), bucket);
-  }
+        if (runDelta !== null) {
+          bucket.runDeltaSum += runDelta;
+          bucket.runDeltaCount += 1;
+        }
+        if (winDelta !== null) {
+          bucket.winDeltaSum += winDelta;
+          bucket.winDeltaCount += 1;
+        }
+        valueMetrics.set(Number(row.umpireid), bucket);
+      }
 
-  return new Map(
-    rows.map((row) => [
-      Number(row.umpireid),
-      {
-        umpireId: Number(row.umpireid),
-        overturnRateVariance: Number(row.overturnratevariance ?? 0),
-        recentOverturnRate: row.recentoverturnrate === null ? null : Number(row.recentoverturnrate),
-        averageRunExpectancyDelta: (() => {
-          const metric = valueMetrics.get(Number(row.umpireid));
-          return metric && metric.runDeltaCount > 0 ? roundMetric(metric.runDeltaSum / metric.runDeltaCount) : null;
-        })(),
-        averageWinExpectancyDelta: (() => {
-          const metric = valueMetrics.get(Number(row.umpireid));
-          return metric && metric.winDeltaCount > 0 ? roundMetric(metric.winDeltaSum / metric.winDeltaCount, 4) : null;
-        })(),
-      },
-    ]),
+      return new Map(
+        rows.map((row) => [
+          Number(row.umpireid),
+          {
+            umpireId: Number(row.umpireid),
+            overturnRateVariance: Number(row.overturnratevariance ?? 0),
+            recentOverturnRate: row.recentoverturnrate === null ? null : Number(row.recentoverturnrate),
+            averageRunExpectancyDelta: (() => {
+              const metric = valueMetrics.get(Number(row.umpireid));
+              return metric && metric.runDeltaCount > 0 ? roundMetric(metric.runDeltaSum / metric.runDeltaCount) : null;
+            })(),
+            averageWinExpectancyDelta: (() => {
+              const metric = valueMetrics.get(Number(row.umpireid));
+              return metric && metric.winDeltaCount > 0 ? roundMetric(metric.winDeltaSum / metric.winDeltaCount, 4) : null;
+            })(),
+          },
+        ]),
+      );
+    },
   );
 }
 

@@ -31,6 +31,12 @@ describe("ai-policy", () => {
     expect(getAllowedToolNames({ scope: "team", entityId: "147" })).toEqual([
       "get_team_summary",
       "get_team_trend",
+      "get_team_inning_efficiency",
+      "get_team_side_splits",
+      "get_team_aggression",
+      "get_team_challenge_scenario_matrix",
+      "get_team_challenge_value_summary",
+      "get_team_decision_value_report",
     ]);
   });
 

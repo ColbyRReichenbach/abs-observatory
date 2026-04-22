@@ -10,9 +10,9 @@ const PRIVATE_RESPONSE_HEADERS = {
 };
 
 const artifactSchema = z.object({
-  surfaceKey: z.literal("chart_insight"),
+  surfaceKey: z.enum(["chart_insight", "visualizer"]),
   surfaceDetail: z.string().trim().min(1).max(120).optional().nullable(),
-  targetType: z.enum(["chart_insight", "challenge_summary"]),
+  targetType: z.enum(["chart_insight", "challenge_summary", "visualizer_chart"]),
   targetId: z.string().trim().min(1).max(512),
   routeScope: z.string().trim().max(80).optional().nullable(),
   routeEntityId: z.string().trim().max(120).optional().nullable(),

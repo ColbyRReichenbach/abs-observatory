@@ -688,6 +688,13 @@ export type AIVisualizerPlan = {
   filters: string[];
   highlight: string;
   honorsUserChartRequest: boolean;
+  dataPoints: Array<{
+    x: string | number;
+    y: string | number;
+    value?: number | null;
+    series?: string | null;
+    label?: string | null;
+  }>;
 };
 
 export type AIChatResponse = {

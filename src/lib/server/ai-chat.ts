@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import { buildAiPromptRegistrySnapshot, getAiPromptDefinition } from "@/lib/ai-prompt-registry";
 import type { ChartInsightPayload, StructuredChartInsight } from "@/lib/chart-insight-payload";
 import type { CopilotContext } from "@/lib/copilot-context";
-import { formatContextWindow } from "@/lib/copilot-context";
+import { formatContextWindow, withContextPrompt } from "@/lib/copilot-context";
 import { sql, sqlOne, withTransaction } from "@/lib/db";
 import { isBaseballRelated } from "@/lib/guardrails";
 import { buildSurfaceCacheKey } from "@/lib/server/ai/cache";
@@ -821,13 +821,15 @@ export async function runChat(request: Request): Promise<ChatResponse> {
     throw new AiPolicyError(misuse.reason ?? "AI misuse detected", AI_ERROR_CODES.MISUSE, 403);
   }
 
-  if (!isBaseballRelated(body.message)) {
+  const scopedMessage = withContextPrompt(body.message, context);
+
+  if (!isBaseballRelated(scopedMessage)) {
     await recordSafetyEvent({
       conversationId: persistedTurn.conversationId,
       messageId: persistedTurn.userMessageId,
       disposition: "blocked",
       reason: "Question rejected by baseball scope classifier.",
-      details: { message: body.message },
+      details: { message: body.message, scopedMessage },
     });
     throw new AiPolicyError("Question rejected by baseball scope classifier.", AI_ERROR_CODES.OUT_OF_SCOPE, 400);
   }

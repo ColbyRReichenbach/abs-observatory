@@ -10,7 +10,7 @@ vi.mock("@/lib/db", () => ({
   sqlOne: sqlOneMock,
 }));
 
-import { listViewerAiArtifacts, registerAiArtifact } from "@/lib/server/ai-generations";
+import { getPublicAiArtifactById, listViewerAiArtifacts, registerAiArtifact } from "@/lib/server/ai-generations";
 
 describe("ai artifact persistence", () => {
   beforeEach(() => {
@@ -114,5 +114,43 @@ describe("ai artifact persistence", () => {
         gamePk: 823727,
       }),
     ]);
+  });
+
+  it("returns a public shared artifact only when publicShare metadata is enabled", async () => {
+    sqlOneMock.mockResolvedValueOnce({
+      artifactid: "artifact-public",
+      userid: "user-1",
+      generationid: "gen-public",
+      surfacekey: "visualizer",
+      surfacedetail: "team_chart_builder",
+      targettype: "visualizer_chart",
+      targetid: "generation-1",
+      routescope: "/teams/138",
+      routeentityid: "138",
+      articleid: null,
+      gamepk: null,
+      title: "Cardinals Count-State Overturn Rate",
+      summary: "Compare overturn rate by count state.",
+      artifactpayload: {
+        structuredPlan: {
+          chartType: "bar",
+          chartTitle: "Cardinals Count-State Overturn Rate",
+        },
+      },
+      metadata: { publicShare: true },
+      lastviewedat: "2026-04-21T00:00:00Z",
+      createdat: "2026-04-21T00:00:00Z",
+      updatedat: "2026-04-21T00:00:00Z",
+    });
+
+    const artifact = await getPublicAiArtifactById("artifact-public");
+
+    expect(artifact).toEqual(
+      expect.objectContaining({
+        artifactId: "artifact-public",
+        surfaceKey: "visualizer",
+        title: "Cardinals Count-State Overturn Rate",
+      }),
+    );
   });
 });

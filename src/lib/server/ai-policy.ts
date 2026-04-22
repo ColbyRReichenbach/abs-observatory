@@ -92,7 +92,16 @@ export function getAllowedToolNames(context?: CopilotContext): string[] {
   }
 
   if (context?.scope === "team") {
-    return ["get_team_summary", "get_team_trend"];
+    return [
+      "get_team_summary",
+      "get_team_trend",
+      "get_team_inning_efficiency",
+      "get_team_side_splits",
+      "get_team_aggression",
+      "get_team_challenge_scenario_matrix",
+      "get_team_challenge_value_summary",
+      "get_team_decision_value_report",
+    ];
   }
 
   if (context?.scope === "umpire") {

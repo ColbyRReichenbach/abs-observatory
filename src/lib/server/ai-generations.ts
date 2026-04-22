@@ -450,3 +450,67 @@ export async function listViewerAiArtifacts(userId: string, limit = 12): Promise
 
   return rows.map(mapSavedArtifact);
 }
+
+export async function getViewerAiArtifactById(userId: string, artifactId: string): Promise<AiSavedArtifact | null> {
+  const row = await sqlOne<AiSavedArtifactRow>(
+    `
+    SELECT
+      artifact_id AS artifactId,
+      user_id AS userId,
+      generation_id AS generationId,
+      surface_key AS surfaceKey,
+      surface_detail AS surfaceDetail,
+      target_type AS targetType,
+      target_id AS targetId,
+      route_scope AS routeScope,
+      route_entity_id AS routeEntityId,
+      article_id AS articleId,
+      game_pk AS gamePk,
+      title,
+      summary,
+      artifact_payload AS artifactPayload,
+      metadata,
+      last_viewed_at AS lastViewedAt,
+      created_at AS createdAt,
+      updated_at AS updatedAt
+    FROM ai.saved_artifacts
+    WHERE user_id = $1::uuid
+      AND artifact_id = $2::uuid
+    `,
+    [userId, artifactId],
+  );
+
+  return row ? mapSavedArtifact(row) : null;
+}
+
+export async function getPublicAiArtifactById(artifactId: string): Promise<AiSavedArtifact | null> {
+  const row = await sqlOne<AiSavedArtifactRow>(
+    `
+    SELECT
+      artifact_id AS artifactId,
+      user_id AS userId,
+      generation_id AS generationId,
+      surface_key AS surfaceKey,
+      surface_detail AS surfaceDetail,
+      target_type AS targetType,
+      target_id AS targetId,
+      route_scope AS routeScope,
+      route_entity_id AS routeEntityId,
+      article_id AS articleId,
+      game_pk AS gamePk,
+      title,
+      summary,
+      artifact_payload AS artifactPayload,
+      metadata,
+      last_viewed_at AS lastViewedAt,
+      created_at AS createdAt,
+      updated_at AS updatedAt
+    FROM ai.saved_artifacts
+    WHERE artifact_id = $1::uuid
+      AND COALESCE((metadata ->> 'publicShare')::boolean, FALSE) = TRUE
+    `,
+    [artifactId],
+  );
+
+  return row ? mapSavedArtifact(row) : null;
+}
