@@ -5,7 +5,7 @@ import { Pool } from "pg";
 import { loadTestEnvValue } from "./env";
 
 const articleId = randomUUID();
-const articleSlug = `e2e-${articleId}`;
+const articleSlug = `e2e-auth-${articleId}`;
 const userId = `dev-e2e-${articleId}`;
 const adminUserId = `admin-e2e-${articleId}`;
 const username = `e2e_${articleId.replace(/-/g, "").slice(0, 10)}`;
@@ -21,6 +21,13 @@ const pool = new Pool({
 });
 
 test.beforeAll(async () => {
+  await pool.query(
+    `
+    DELETE FROM editorial.articles
+    WHERE slug LIKE 'e2e-auth-%'
+    `,
+  );
+
   await pool.query(
     `
     INSERT INTO editorial.articles (

@@ -14,11 +14,18 @@ const pool = new Pool({
 });
 
 const baseId = randomUUID();
-const dailySlug = `daily-auto-${baseId}`;
-const weeklySlug = `weekly-editorial-${baseId}`;
-const draftSlug = `weekly-draft-${baseId}`;
+const dailySlug = `e2e-articles-daily-${baseId}`;
+const weeklySlug = `e2e-articles-weekly-${baseId}`;
+const draftSlug = `e2e-articles-draft-${baseId}`;
 
 test.beforeAll(async () => {
+  await pool.query(
+    `
+    DELETE FROM editorial.articles
+    WHERE slug LIKE 'e2e-articles-%'
+    `,
+  );
+
   await pool.query(
     `
     INSERT INTO editorial.articles (

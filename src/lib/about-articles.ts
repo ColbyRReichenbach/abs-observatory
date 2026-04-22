@@ -80,7 +80,11 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
       "ABS was the right subject because it naturally produces disagreement. It changes strategy, changes how people talk about officiating, and creates very confident opinions that are often much less precise than the underlying evidence. I built AiBS to tighten that gap.",
     ],
     quickFacts: [
-      { label: "Product scope", value: "ABS-first baseball product with live, team, umpire, game, article, and documentation desks" },
+      {
+        label: "Product scope",
+        value:
+          "ABS-first baseball product spanning live, game, team, umpire, article, about, profile, admin, and shareable AI chart surfaces",
+      },
       { label: "User goal", value: "Give fans and analysts one place to inspect the data behind ABS conversations" },
       { label: "Long-term direction", value: "A combined data, visualization, and conversation platform with AI support built in" },
     ],
@@ -353,7 +357,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         paragraphs: [
           "The application is SQL-first and server-rendered. Server components and route handlers read from shared helpers in src/lib. Analytics pages are built from page-model helpers rather than doing route-local math in every file. Query logic and data-shaping logic live close to the server-side model of the product rather than being recreated differently in each route.",
           "Centralizing that work also helps with consistency. When the same summary or model output appears in multiple places, there is one retrieval and shaping path rather than several that diverge over time. The browser is not treated as a trusted data or authorization layer. Product logic, data loading, and permission boundaries hold on the server side.",
-          "The current codebase serves 24 page routes and 37 API routes. Server components handle the initial data load and rendering. Client components handle interactivity, chart rendering, and AI chat surfaces. That split keeps the product responsive while keeping data integrity server-side.",
+          "The current codebase serves 27 page routes and 37 API routes. Server components handle the initial data load and rendering. Client components handle interactivity, chart rendering, and AI chat surfaces. That split keeps the product responsive while keeping data integrity server-side.",
         ],
         pullQuote: "I wanted the page purpose to feel obvious enough that the route structure becomes invisible.",
       },
@@ -513,7 +517,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
     heroHeading: "I built the AI layer as application architecture, not as a chat box sitting on top of baseball data.",
     leadParagraphs: [
       "The AI layer in AiBS is not one assistant trying to handle every job. The product asks different kinds of questions, expects different response shapes, and has different failure modes depending on where the user is and what they are looking at. Three separate surfaces handle three separate responsibilities: copilot, chart insight, and visualizer.",
-      "Each surface receives different input, follows a different prompt contract, and returns a different kind of output. Copilot answers scoped baseball questions from server-side tool results. Chart insight explains one chart payload in a structured format. Visualizer returns a chart plan. Keeping those jobs separate keeps response behavior close to what the user actually asked for.",
+      "Each surface receives different input, follows a different prompt contract, and returns a different kind of output. Copilot answers scoped baseball questions from server-side tool results. Chart insight explains one chart payload in a structured format. Visualizer returns a structured chart spec that the app can render, persist, and share. Keeping those jobs separate keeps response behavior close to what the user actually asked for.",
       "The other half of the design is reviewability. I store more than the final response. Conversations, tool calls, safety events, cost records, usage ledger entries, prompt metadata, terminology selections, and generation details are all persisted so I can trace how any response was produced after the fact.",
     ],
     quickFacts: [
@@ -528,7 +532,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         paragraphs: [
           "Treating every AI interaction as the same kind of request makes failures harder to diagnose. A chart explanation is a different job from a scoped baseball question, and a visual planning task is different again. Running all of those through one prompt and response path blurs behavior and makes the system harder to test.",
           "Every inbound request declares its surface up front: copilot, chart_insight, or visualizer. From there, the server routes into a narrower path with its own prompt builder, surface runner, and output contract.",
-          "Copilot is the broadest surface but still bounded. It works from scoped context and server-side tool results. Chart insight only runs when the system has a structured chart payload, and it returns a structured interpretation, not loose prose. Visualizer returns a chart plan with axes, grouping, filters, signals, and caveats. Planning a view is a separate product job from explaining one that already exists.",
+          "Copilot is the broadest surface but still bounded. It works from scoped context and server-side tool results. Chart insight only runs when the system has a structured chart payload, and it returns a structured interpretation, not loose prose. Visualizer returns a structured chart spec with axes, grouping, filters, signals, and caveats, and the product can persist that output into a shareable chart artifact. Planning a view is a separate product job from explaining one that already exists.",
         ],
         diagram: `flowchart LR
     A["User Request"] --> B{"Surface"}
@@ -644,7 +648,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         paragraphs: [
           "The warehouse side handles heavier ingest, historical backfills, model development, and audit work. Raw baseball inputs, historical pitch-level data, and model-oriented tables live there without forcing the public-facing app to carry that weight in its normal serving path.",
           "The serving side handles page-facing baseball state, product metadata, editorial records, community data, AI records, and operational bookkeeping. This is the data the routes actually read to render pages, along with the broader application data that makes AiBS more than a baseball feed viewer.",
-          "The product-facing system stays tighter because of that separation. The app does not need the full historical working set on every deployed path. It needs structured outputs, summaries, and compact serving tables that support the pages and workflows people actually use.",
+          "The product-facing system stays tighter because of that separation. The app does not need the full historical working set on every deployed path. It needs structured outputs, summaries, and compact serving tables that support the pages and workflows people actually use. In the current serving environment, that work is handled through SQL-first helpers and serving tables rather than a dedicated mart schema.",
         ],
       },
       {
@@ -656,9 +660,9 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
           "This structure matters because different parts of the application need different guarantees. Baseball data needs relational integrity. User state and AI usage need stable transactional behavior. Editorial history needs to be auditable. The namespace boundaries exist to keep those concerns clear rather than mixed together.",
         ],
         stats: [
-          { label: "Total tables", value: "56" },
-          { label: "Schema namespaces", value: "public, ops, product, editorial, community, ai, raw, modeling" },
-          { label: "Mart views", value: "34 (analytics, serving, split-aware training)" },
+          { label: "Total tables", value: "61" },
+          { label: "Schema namespaces", value: "8 active schemas: public, ops, product, editorial, community, ai, raw, modeling" },
+          { label: "Mart schema views", value: "0 in the current serving environment" },
         ],
       },
       {
@@ -718,7 +722,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
     ],
     quickFacts: [
       { label: "Core validation style", value: "Held-out evaluation with dated artifacts and explicit claim boundaries" },
-      { label: "Audit inventory", value: "48 dated reports, 44 JSON artifacts, 9 model cards, all in version control" },
+      { label: "Audit inventory", value: "44 dated reports, 44 JSON artifacts, 9 model cards, all in version control" },
       { label: "Audit types implemented", value: "Product QA, current-state, controversy, decision-value, leverage, RE benchmark, WE benchmark, overturn calibration, rubric, zone-edge" },
     ],
     sections: [
