@@ -43,6 +43,21 @@ function hasUsableOpenAiKey(rawKey: string | undefined): rawKey is string {
   return !normalized.startsWith("test-") && !normalized.includes("placeholder");
 }
 
+function buildScopeCheckMessage(params: {
+  message: string;
+  context?: CopilotContext;
+  chartContext?: { chartType: string; chartTitle: string; baseballQuestion: string } | null;
+}) {
+  const contextualMessage = withContextPrompt(params.message, params.context);
+  if (!params.chartContext) return contextualMessage;
+  return [
+    contextualMessage,
+    `[Chart Type: ${params.chartContext.chartType}]`,
+    `[Chart Title: ${params.chartContext.chartTitle}]`,
+    `[Baseball Question: ${params.chartContext.baseballQuestion}]`,
+  ].join(" ");
+}
+
 const openai = hasUsableOpenAiKey(process.env.OPENAI_API_KEY)
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null;
@@ -821,7 +836,17 @@ export async function runChat(request: Request): Promise<ChatResponse> {
     throw new AiPolicyError(misuse.reason ?? "AI misuse detected", AI_ERROR_CODES.MISUSE, 403);
   }
 
-  const scopedMessage = withContextPrompt(body.message, context);
+  const scopedMessage = buildScopeCheckMessage({
+    message: body.message,
+    context,
+    chartContext: body.chartContext
+      ? {
+          chartType: body.chartContext.chartType,
+          chartTitle: body.chartContext.chartTitle,
+          baseballQuestion: body.chartContext.baseballQuestion,
+        }
+      : null,
+  });
 
   if (!isBaseballRelated(scopedMessage)) {
     await recordSafetyEvent({

@@ -23,6 +23,7 @@
     "qa:launch": "node scripts/launch-readiness.mjs",
     "qa:launch:browser": "node scripts/launch-browser-check.mjs",
     "qa:launch:capture-auth": "node scripts/capture-launch-storage-state.mjs",
+    "qa:ai-sweep": "node scripts/ai-prompt-sweep.mjs",
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots",
     "db:schema": "bash scripts/run-db-schema.sh",

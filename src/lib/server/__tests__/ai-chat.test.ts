@@ -9,6 +9,11 @@ const resolveToolResultsMock = vi.fn();
 const writeAuditLogMock = vi.fn();
 const enqueueJobMock = vi.fn();
 const assertAiUsageAllowedMock = vi.fn();
+const consumeRateLimitMock = vi.fn();
+const getCacheKeyMock = vi.fn();
+const getCachedValueMock = vi.fn();
+const setCachedValueMock = vi.fn();
+const withConcurrencyGateMock = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   sql: sqlMock,
@@ -40,6 +45,15 @@ vi.mock("@/lib/server/entitlements", () => ({
   assertAiUsageAllowed: assertAiUsageAllowedMock,
 }));
 
+vi.mock("@/lib/server/scale", () => ({
+  ConcurrencyLimitError: class ConcurrencyLimitError extends Error {},
+  consumeRateLimit: consumeRateLimitMock,
+  getCacheKey: getCacheKeyMock,
+  getCachedValue: getCachedValueMock,
+  setCachedValue: setCachedValueMock,
+  withConcurrencyGate: withConcurrencyGateMock,
+}));
+
 describe("ai-chat", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -55,10 +69,20 @@ describe("ai-chat", () => {
     writeAuditLogMock.mockReset();
     enqueueJobMock.mockReset();
     assertAiUsageAllowedMock.mockReset();
+    consumeRateLimitMock.mockReset();
+    getCacheKeyMock.mockReset();
+    getCachedValueMock.mockReset();
+    setCachedValueMock.mockReset();
+    withConcurrencyGateMock.mockReset();
     assertAiUsageAllowedMock.mockResolvedValue({
       entitlement: { planCode: "free" },
       usage: {},
     });
+    consumeRateLimitMock.mockResolvedValue({ allowed: true, currentCount: 1 });
+    getCacheKeyMock.mockReturnValue("cache-key");
+    getCachedValueMock.mockReturnValue(null);
+    setCachedValueMock.mockImplementation(() => {});
+    withConcurrencyGateMock.mockImplementation(async (_bucket, _limit, fn) => fn());
   });
 
   it("rejects unauthenticated requests", async () => {
@@ -273,6 +297,59 @@ describe("ai-chat", () => {
     expect(isBaseballRelatedMock).toHaveBeenCalledWith("[Context: Team 138 scope (season)] Compare overturn rate by count state.");
     expect(result.safetyDisposition).toBe("allowed");
     expect(result.structuredPlan?.chartType).toBeTruthy();
+  });
+
+  it("allows generic chart-insight prompts when chart context supplies baseball scope", async () => {
+    const { runChat } = await import("@/lib/server/ai-chat");
+    getViewerProfileMock.mockResolvedValueOnce({
+      userId: "user-1",
+      isVerified: true,
+      aiBannedAt: null,
+      aiSuspendedUntil: null,
+    });
+    isBaseballRelatedMock.mockReturnValueOnce(true);
+    sqlOneMock
+      .mockResolvedValueOnce({ conversationid: "conversation-1" })
+      .mockResolvedValueOnce({ messageid: "message-1" });
+    withTransactionMock.mockImplementation(async (callback) =>
+      callback(async (statement: string) => {
+        if (statement.includes("RETURNING message_id")) {
+          return [{ message_id: "assistant-1" }];
+        }
+        return [];
+      }),
+    );
+
+    const result = await runChat(
+      new Request("http://localhost/api/ai/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-dev-user-id": "user-1" },
+        body: JSON.stringify({
+          message: "What does this say about deployment discipline?",
+          surface: "chart_insight",
+          delivery: "sync",
+          chartContext: {
+            chartType: "team_inventory_deployment",
+            chartKey: "team-inventory-deployment",
+            chartTitle: "Usage vs Modeled Value Share",
+            baseballQuestion: "Where is challenge value showing up by inning phase?",
+            chartSummary: "Late innings are carrying a disproportionate share of modeled challenge value.",
+            payload: {
+              buckets: [
+                { inningBucket: "1-3", reviewShare: 0.18, valueShare: 0.1 },
+                { inningBucket: "7-9", reviewShare: 0.31, valueShare: 0.47 },
+              ],
+            },
+          },
+        }),
+      }),
+    );
+
+    expect(isBaseballRelatedMock).toHaveBeenCalledWith(
+      "What does this say about deployment discipline? [Chart Type: team_inventory_deployment] [Chart Title: Usage vs Modeled Value Share] [Baseball Question: Where is challenge value showing up by inning phase?]",
+    );
+    expect(result.safetyDisposition).toBe("allowed");
+    expect(result.structuredInsight?.sections.length).toBeGreaterThanOrEqual(2);
   });
 
   it("queues heavy analytical requests instead of blocking inline", async () => {
