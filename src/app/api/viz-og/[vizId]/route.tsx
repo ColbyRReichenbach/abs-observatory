@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 
+import { getSharedBarChartScale, getSharedBarSegment } from "@/lib/ai-share";
 import type { AIVisualizerPlan } from "@/lib/types";
 import { getPublicAiArtifactById } from "@/lib/server/ai-generations";
 
@@ -23,7 +24,11 @@ function BarChart({ plan }: { plan: AIVisualizerPlan }) {
   const points = plan.dataPoints
     .filter((point) => typeof point.y === "number")
     .map((point) => ({ x: String(point.x), y: Number(point.y) }));
-  const maxValue = Math.max(...points.map((point) => point.y), 1);
+  const scale = getSharedBarChartScale(points.map((point) => point.y));
+  const segments = points.map((point) => ({
+    ...point,
+    segment: getSharedBarSegment(point.y, scale),
+  }));
 
   return (
     <div
@@ -37,21 +42,37 @@ function BarChart({ plan }: { plan: AIVisualizerPlan }) {
         borderRadius: 28,
         border: "1px solid #e5e7eb",
         background: "#ffffff",
+        position: "relative",
       }}
     >
-      {points.map((point) => (
+      <div
+        style={{
+          position: "absolute",
+          left: 28,
+          right: 28,
+          bottom: `${18 + (170 * scale.baselinePct) / 100}px`,
+          borderTop: "1px dashed #e5e7eb",
+        }}
+      />
+      {segments.map((point) => (
         <div key={point.x} style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, gap: 10 }}>
           <div style={{ fontSize: 18, fontWeight: 700, color: "#6b7280" }}>{formatPointValue(point.y)}</div>
-          <div
-            style={{
-              width: "100%",
-              height: `${(point.y / maxValue) * 170}px`,
-              minHeight: 18,
-              borderTopLeftRadius: 22,
-              borderTopRightRadius: 22,
-              background: "#2563eb",
-            }}
-          />
+          <div style={{ position: "relative", width: "100%", height: 170 }}>
+            <div
+              style={{
+                position: "absolute",
+                width: "100%",
+                height: `${(point.segment.heightPct / 100) * 170}px`,
+                minHeight: point.y === 0 ? 0 : 8,
+                bottom: `${(point.segment.bottomPct / 100) * 170}px`,
+                borderTopLeftRadius: point.segment.isPositive ? 22 : 0,
+                borderTopRightRadius: point.segment.isPositive ? 22 : 0,
+                borderBottomLeftRadius: point.segment.isPositive ? 0 : 22,
+                borderBottomRightRadius: point.segment.isPositive ? 0 : 22,
+                background: point.segment.isPositive ? "#2563eb" : "#93c5fd",
+              }}
+            />
+          </div>
           <div style={{ fontSize: 14, fontWeight: 700, color: "#6b7280", textAlign: "center" }}>{point.x}</div>
         </div>
       ))}

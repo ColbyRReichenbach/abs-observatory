@@ -5,6 +5,7 @@ import { ProfilePlayerCard } from "@/components/community/profile-player-card";
 import { ProfileSignOutButton } from "@/components/community/profile-sign-out-button";
 import { ProfileSettingsForm } from "@/components/community/profile-settings-form";
 import { ProfileBadge } from "@/components/ui/profile-badge";
+import { coerceInternalRouteScope } from "@/lib/ai-share";
 import { getProfileOnboardingState } from "@/lib/profile-onboarding";
 import { listViewerAiArtifacts } from "@/lib/server/ai-generations";
 import { isClerkConfigured } from "@/lib/server/auth";
@@ -157,7 +158,7 @@ export default async function ProfilePage() {
         ) : (
           <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {savedArtifacts.map((artifact) => {
-              const href = artifact.routeScope?.startsWith("/") ? artifact.routeScope : null;
+              const href = coerceInternalRouteScope(artifact.routeScope);
               return (
                 <article key={artifact.artifactId} className="rounded-3xl border border-black/10 bg-[var(--surface-infield)] p-5">
                   <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">

@@ -182,4 +182,36 @@ describe("/api/ai/artifacts", () => {
       }),
     );
   });
+
+  it("drops non-internal routeScope values before persisting artifacts", async () => {
+    const { POST } = await import("./route");
+    getViewerProfileMock.mockResolvedValueOnce({
+      userId: "user-5",
+      aiHistoryEnabled: true,
+    });
+    registerAiArtifactMock.mockResolvedValueOnce({
+      generationId: "gen-4",
+      artifactId: "artifact-4",
+      saved: true,
+    });
+
+    await POST(
+      new Request("http://localhost/api/ai/artifacts", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          surfaceKey: "visualizer",
+          targetType: "visualizer_chart",
+          targetId: "gen-4",
+          routeScope: "https://evil.example/phish",
+        }),
+      }),
+    );
+
+    expect(registerAiArtifactMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeScope: null,
+      }),
+    );
+  });
 });

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { coerceInternalRouteScope, getSharedBarChartScale, getSharedBarSegment, normalizeInternalRouteScope } from "@/lib/ai-share";
 import type { AIVisualizerPlan } from "@/lib/types";
 import { getPublicAiArtifactById } from "@/lib/server/ai-generations";
 
@@ -90,18 +91,31 @@ function SharedBarChart({ plan }: { plan: AIVisualizerPlan }) {
   const points = plan.dataPoints
     .filter((point) => typeof point.y === "number")
     .map((point) => ({ x: String(point.x), y: Number(point.y) }));
-  const maxValue = Math.max(...points.map((point) => point.y), 1);
+  const scale = getSharedBarChartScale(points.map((point) => point.y));
+  const segments = points.map((point) => ({
+    ...point,
+    segment: getSharedBarSegment(point.y, scale),
+  }));
 
   return (
     <div className="rounded-[1.75rem] border border-gray-100 bg-[var(--surface-infield)] p-6">
-      <div className="flex h-72 items-end gap-4 rounded-[1.5rem] border border-gray-100 bg-white px-6 pb-6 pt-10">
-        {points.map((point) => (
+      <div className="relative flex h-72 gap-4 rounded-[1.5rem] border border-gray-100 bg-white px-6 pb-6 pt-10">
+        <div
+          className="pointer-events-none absolute left-6 right-6 border-t border-dashed border-gray-200"
+          style={{ bottom: `calc(1.5rem + ${scale.baselinePct}%)` }}
+        />
+        {segments.map((point) => (
           <div key={point.x} className="flex min-w-0 flex-1 flex-col items-center gap-3">
             <div className="text-xs font-bold text-gray-500">{point.y.toFixed(2).replace(/\.00$/, "")}</div>
-            <div
-              className="w-full rounded-t-3xl bg-blue-500"
-              style={{ height: `${(point.y / maxValue) * 100}%` }}
-            />
+            <div className="relative h-full w-full">
+              <div
+                className={`absolute w-full ${point.segment.isPositive ? "rounded-t-3xl bg-blue-500" : "rounded-b-3xl bg-blue-300"}`}
+                style={{
+                  bottom: `${point.segment.bottomPct}%`,
+                  height: `${point.segment.heightPct}%`,
+                }}
+              />
+            </div>
             <div className="truncate text-center text-[11px] font-semibold text-gray-500">{point.x}</div>
           </div>
         ))}
@@ -201,7 +215,7 @@ export default async function VizPage({ params }: { params: Promise<{ vizId: str
           </p>
         </div>
         <Link
-          href={shared.artifact.routeScope ?? "/profile"}
+          href={normalizeInternalRouteScope(shared.artifact.routeScope, "/profile")}
           className="rounded-2xl border border-gray-200 bg-white px-5 py-3 text-[10px] font-black uppercase tracking-[0.16em] text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
         >
           Open in AiBS
@@ -257,6 +271,9 @@ export default async function VizPage({ params }: { params: Promise<{ vizId: str
                 </li>
               ))}
             </ul>
+            {coerceInternalRouteScope(shared.artifact.routeScope) ? (
+              <p className="mt-4 text-[11px] text-gray-500">Shared from {shared.artifact.routeScope}</p>
+            ) : null}
           </div>
         </aside>
       </div>

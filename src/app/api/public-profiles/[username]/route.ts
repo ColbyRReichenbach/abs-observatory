@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getPublicProfileByUsername } from "@/lib/server/profiles";
 
 const PUBLIC_RESPONSE_HEADERS = {
-  "Cache-Control": "public, max-age=60, s-maxage=300",
+  "Cache-Control": "no-store",
 };
 
 export async function GET(

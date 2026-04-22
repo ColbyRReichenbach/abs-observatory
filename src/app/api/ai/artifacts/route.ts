@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { coerceInternalRouteScope } from "@/lib/ai-share";
 import { listViewerAiArtifacts, registerAiArtifact } from "@/lib/server/ai-generations";
 import { assertValidCsrf } from "@/lib/server/csrf";
 import { getViewerProfile } from "@/lib/server/profiles";
@@ -14,7 +15,13 @@ const artifactSchema = z.object({
   surfaceDetail: z.string().trim().min(1).max(120).optional().nullable(),
   targetType: z.enum(["chart_insight", "challenge_summary", "visualizer_chart"]),
   targetId: z.string().trim().min(1).max(512),
-  routeScope: z.string().trim().max(80).optional().nullable(),
+  routeScope: z
+    .string()
+    .trim()
+    .max(80)
+    .optional()
+    .nullable()
+    .transform((value) => coerceInternalRouteScope(value)),
   routeEntityId: z.string().trim().max(120).optional().nullable(),
   articleId: z.string().uuid().optional().nullable(),
   gamePk: z.number().int().optional().nullable(),

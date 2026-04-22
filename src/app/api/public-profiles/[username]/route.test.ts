@@ -39,6 +39,6 @@ describe("/api/public-profiles/[username]", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("cache-control")).toContain("public");
+    expect(response.headers.get("cache-control")).toBe("no-store");
   });
 });
