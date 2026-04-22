@@ -1,10 +1,10 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
+import { hasValidClerkCredentials } from "@/lib/auth-config";
 import { getCsrfCookieName, issueCsrfToken } from "@/lib/server/csrf";
 
-const hasClerkCredentials =
-  Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) && Boolean(process.env.CLERK_SECRET_KEY);
+const hasClerkCredentials = hasValidClerkCredentials();
 
 function withSecurityHeaders(response: NextResponse) {
   response.headers.set("X-Frame-Options", "DENY");

@@ -1,4 +1,5 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
+import { hasValidClerkCredentials } from "@/lib/auth-config";
 
 export type AuthIdentity = {
   provider: string;
@@ -11,7 +12,7 @@ export type AuthIdentity = {
 };
 
 export function isClerkConfigured(): boolean {
-  return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) && Boolean(process.env.CLERK_SECRET_KEY);
+  return hasValidClerkCredentials();
 }
 
 function parseBooleanHeader(value: string | null, fallback: boolean): boolean {
