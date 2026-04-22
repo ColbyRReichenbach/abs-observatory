@@ -48,7 +48,7 @@ test.afterAll(async () => {
   await pool.end();
 });
 
-test("published daily and weekly article pages render, but drafts stay private", async ({ page, request }) => {
+test("published daily and weekly article pages render, but drafts stay private", async ({ page }) => {
   await page.goto("/articles");
   await expect(page.getByRole("link", { name: "Daily Auto Fixture" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Weekly Editorial Fixture" })).toBeVisible();
@@ -59,6 +59,7 @@ test("published daily and weekly article pages render, but drafts stay private",
   await page.goto(`/articles/${weeklySlug}`);
   await expect(page.getByRole("heading", { name: "Weekly Editorial Fixture" }).first()).toBeVisible();
 
-  const draftResponse = await request.get(`/api/articles/${draftSlug}`);
-  expect(draftResponse.status()).toBe(404);
+  await page.goto(`/articles/${draftSlug}`);
+  await expect(page.getByRole("heading", { name: "404" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "This page could not be found." })).toBeVisible();
 });
