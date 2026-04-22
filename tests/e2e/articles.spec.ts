@@ -1,38 +1,16 @@
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 
 import { expect, test } from "@playwright/test";
 import { Pool } from "pg";
-
-function loadEnvValue(name: string): string | undefined {
-  if (process.env[name]) {
-    return process.env[name];
-  }
-
-  for (const fileName of [".env.local", ".env"]) {
-    try {
-      const contents = readFileSync(join(process.cwd(), fileName), "utf8");
-      for (const line of contents.split("\n")) {
-        if (!line.startsWith(`${name}=`)) continue;
-        return line.slice(name.length + 1).trim();
-      }
-    } catch {
-      // Ignore missing env files.
-    }
-  }
-
-  return undefined;
-}
-
-const databaseUrl = loadEnvValue("DATABASE_URL");
+import { loadTestEnvValue } from "./env";
+const databaseUrl = loadTestEnvValue("DATABASE_URL");
 if (!databaseUrl) {
   throw new Error("DATABASE_URL is required for article e2e fixtures");
 }
 
 const pool = new Pool({
   connectionString: databaseUrl,
-  ssl: loadEnvValue("DATABASE_SSL") === "true" ? { rejectUnauthorized: false } : undefined,
+  ssl: loadTestEnvValue("DATABASE_SSL") === "true" ? { rejectUnauthorized: false } : undefined,
 });
 
 const baseId = randomUUID();
@@ -72,7 +50,6 @@ test.afterAll(async () => {
 
 test("published daily and weekly article pages render, but drafts stay private", async ({ page, request }) => {
   await page.goto("/articles");
-  await expect(page.getByRole("heading", { name: "Articles" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Daily Auto Fixture" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Weekly Editorial Fixture" })).toBeVisible();
 

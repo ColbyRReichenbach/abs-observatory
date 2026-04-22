@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { expect, test } from "@playwright/test";
+import { loadTestEnvValue } from "./env";
 
 function buildHeaders(userId: string, verified = true) {
   return {
@@ -120,7 +121,7 @@ test("heavy analytical prompts queue to the worker path and can be processed", a
 
   const processResponse = await request.post("/api/internal/jobs/process?limit=1", {
     headers: {
-      "x-worker-token": process.env.INTERNAL_WORKER_TOKEN ?? "playwright-worker-token",
+      "x-worker-token": loadTestEnvValue("INTERNAL_WORKER_TOKEN") ?? "playwright-worker-token",
     },
   });
   expect(processResponse.ok()).toBeTruthy();

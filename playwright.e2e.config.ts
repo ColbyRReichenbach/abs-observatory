@@ -21,6 +21,7 @@ export default defineConfig({
     env: {
       ...process.env,
       INTERNAL_WORKER_TOKEN: process.env.INTERNAL_WORKER_TOKEN ?? "playwright-worker-token",
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY_E2E ?? "test-disabled",
     },
   },
 });
