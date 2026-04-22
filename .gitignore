@@ -38,7 +38,6 @@ coverage-final.json
 /.runtime
 /.runlogs
 /.tools/
-/docs/archive/
 /tmp
 /temp
 *.tmp
@@ -109,3 +108,4 @@ Thumbs.db
 
 # typescript
 *.tsbuildinfo
+.env*.local

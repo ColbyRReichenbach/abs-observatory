@@ -32,6 +32,8 @@ export function AIStatInsight({
     surfaceDetail: "challenge_summary_card",
     targetType: "challenge_summary",
     targetId: insightId ?? `${title}:${verdict}`,
+    title,
+    summary: impactDescription,
     metadata: { title, verdict, impactType: impactType ?? null },
   });
 

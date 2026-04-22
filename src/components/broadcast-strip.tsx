@@ -1,37 +1,32 @@
 "use client";
 
-import { useMemo } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { InningIcon } from "@/components/inning-icon";
 import { formatHalfInningLabel } from "@/lib/challenge-context";
-import { resolveClientViewMode } from "@/lib/view-mode-client";
+import type { ViewMode } from "@/lib/view-mode";
 import { withViewModeHref } from "@/lib/view-mode-href";
 
-import type { HomeChallengeMoment, LiveGameCard } from "@/lib/types";
+import type { HomeChallengeMoment } from "@/lib/types";
 
 type BroadcastStripProps = {
   moments: HomeChallengeMoment[];
+  viewMode: ViewMode;
 };
 
-export function BroadcastStrip({ moments }: BroadcastStripProps) {
-  const searchParams = useSearchParams();
-  const activeMode = resolveClientViewMode(searchParams);
-  const items = useMemo(() => {
-    return moments.map((moment) => ({
-      key: `m-${moment.challengeId}`,
-      href: withViewModeHref(`/game/${moment.gamePk}?challengeId=${moment.challengeId}#abs-explorer`, activeMode),
-      label: `${moment.playerName || "Player"} — (${moment.umpireCount || `${moment.balls ?? 0}-${moment.strikes ?? 0}`}) count in ${formatHalfInningLabel(moment.halfInning, "long")} ${moment.inning || "?"}`,
-      subLabel: moment.gameLabel,
-      score: `${moment.isOverturned ? "Overturned" : "Confirmed"}`,
-      tag: moment.gameStatus,
-      dateStr: null,
-      inning: moment.inning,
-      half: moment.halfInning,
-      type: "Challenge",
-    }));
-  }, [activeMode, moments]);
+export function BroadcastStrip({ moments, viewMode }: BroadcastStripProps) {
+  const items = moments.map((moment) => ({
+    key: `m-${moment.challengeId}`,
+    href: withViewModeHref(`/game/${moment.gamePk}?challengeId=${moment.challengeId}#abs-explorer`, viewMode),
+    label: `${moment.playerName || "Player"} — (${moment.umpireCount || `${moment.balls ?? 0}-${moment.strikes ?? 0}`}) count in ${formatHalfInningLabel(moment.halfInning, "long")} ${moment.inning || "?"}`,
+    subLabel: moment.gameLabel,
+    score: `${moment.isOverturned ? "Overturned" : "Confirmed"}`,
+    tag: moment.gameStatus,
+    dateStr: null,
+    inning: moment.inning,
+    half: moment.halfInning,
+    type: "Challenge",
+  }));
 
   // Double items for seamless loop
   const marqueeItems = [...items, ...items];

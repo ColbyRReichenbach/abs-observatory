@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import {
     BarChart,
     Bar,
@@ -9,7 +9,6 @@ import {
     CartesianGrid,
     Tooltip,
     ReferenceLine,
-    ResponsiveContainer,
     Cell,
 } from "recharts";
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
@@ -59,6 +58,17 @@ export function UmpireDistributionHistogram({ data, onBucketClick }: Props) {
 
     const [activeBucket, setActiveBucket] = useState<number | null>(null);
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [containerWidth, setContainerWidth] = useState(0);
+
+    useEffect(() => {
+        if (!containerRef.current) return;
+        const measure = () => setContainerWidth(containerRef.current?.clientWidth ?? 0);
+        measure();
+        const observer = new ResizeObserver(() => measure());
+        observer.observe(containerRef.current);
+        return () => observer.disconnect();
+    }, []);
 
     if (data.length === 0) return null;
 
@@ -76,10 +86,10 @@ export function UmpireDistributionHistogram({ data, onBucketClick }: Props) {
                 </p>
             </div>
 
-            <div className="h-[250px] w-full min-h-[250px]" onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}>
+            <div ref={containerRef} className="h-[250px] w-full min-h-[250px]" onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}>
                 <ClientOnly fallback={<div className="h-full w-full rounded-[1.5rem] bg-gradient-to-br from-gray-100 via-gray-50 to-white" />}>
-                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={250}>
-                        <BarChart data={buckets} margin={{ top: 25, right: 10, bottom: 40, left: 0 }}>
+                    {containerWidth > 0 ? (
+                        <BarChart width={containerWidth} height={250} data={buckets} margin={{ top: 25, right: 10, bottom: 40, left: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
                             <XAxis
                                 dataKey="rangeLabel"
@@ -156,7 +166,9 @@ export function UmpireDistributionHistogram({ data, onBucketClick }: Props) {
                                 ))}
                             </Bar>
                         </BarChart>
-                    </ResponsiveContainer>
+                    ) : (
+                        <div className="h-full w-full rounded-[1.5rem] bg-gradient-to-br from-gray-100 via-gray-50 to-white" />
+                    )}
                 </ClientOnly>
             </div>
         </div>

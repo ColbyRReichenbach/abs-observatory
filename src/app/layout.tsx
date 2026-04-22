@@ -9,7 +9,9 @@ import { Nav } from "@/components/nav";
 import { ViewModeSync } from "@/components/ui/view-mode-sync";
 import { launchConfig } from "@/lib/launch-config";
 import { canAccessAdmin } from "@/lib/server/admin";
+import { isClerkConfigured } from "@/lib/server/auth";
 import { validateServerEnv } from "@/lib/server/env";
+import { getViewerProfile } from "@/lib/server/profiles";
 import { resolveViewMode } from "@/lib/view-mode";
 
 import "./globals.css";
@@ -72,21 +74,49 @@ async function getSafeAdminVisibility() {
   }
 }
 
+async function getSafeViewerProfile() {
+  try {
+    return await getViewerProfile();
+  } catch {
+    return null;
+  }
+}
+
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   validateServerEnv(false);
-  const [initialMode, adminVisible] = await Promise.all([resolveViewMode(), getSafeAdminVisibility()]);
+  const [initialMode, adminVisible, viewer] = await Promise.all([
+    resolveViewMode(),
+    getSafeAdminVisibility(),
+    getSafeViewerProfile(),
+  ]);
 
   return (
     <html lang="en">
       <body className={`${bebas.variable} ${inter.variable} ${plexMono.variable}`}>
-        <AuthProvider>
+        <AuthProvider enabled={isClerkConfigured()}>
           <a href="#main-content" className="skip-link">
             Skip to main content
           </a>
           <Suspense fallback={null}>
             <ViewModeSync />
           </Suspense>
-          <Nav initialMode={initialMode} canAccessAdmin={adminVisible} />
+          <Nav
+            initialMode={initialMode}
+            canAccessAdmin={adminVisible}
+            viewer={
+              viewer
+                ? {
+                    authProvider: viewer.authProvider,
+                    displayName: viewer.displayName,
+                    avatarUrl: viewer.avatarUrl,
+                    username: viewer.username,
+                    favoriteTeamId: viewer.favoriteTeamId,
+                    isPublic: viewer.isPublic,
+                    isVerified: viewer.isVerified,
+                  }
+                : null
+            }
+          />
           <DataFreshnessBadge />
           <main id="main-content">
             {children}

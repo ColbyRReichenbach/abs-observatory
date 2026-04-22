@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
 import { AiBSIcon } from "@/components/ui/aibs-icon";
+import { NavAuthControls } from "@/components/nav-auth-controls";
 import { ViewModeToggle } from "@/components/ui/view-mode-toggle";
 import type { ViewMode } from "@/lib/view-mode";
 import { resolveClientViewMode } from "@/lib/view-mode-client";
@@ -24,7 +25,23 @@ const links = [
   { href: "/about", label: "About", match: "/about" },
 ];
 
-export function Nav({ initialMode, canAccessAdmin = false }: { initialMode?: ViewMode; canAccessAdmin?: boolean }) {
+export function Nav({
+  initialMode,
+  canAccessAdmin = false,
+  viewer = null,
+}: {
+  initialMode?: ViewMode;
+  canAccessAdmin?: boolean;
+  viewer?: {
+    authProvider: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    username: string | null;
+    favoriteTeamId: number | null;
+    isPublic: boolean;
+    isVerified: boolean;
+  } | null;
+}) {
   const pathname = usePathname();
   const activeMode = useSyncExternalStore(
     (onStoreChange) => {
@@ -86,6 +103,7 @@ export function Nav({ initialMode, canAccessAdmin = false }: { initialMode?: Vie
         </div>
 
         <div className="flex items-center gap-4 pr-1">
+          <NavAuthControls viewer={viewer} activeMode={activeMode} />
           <Suspense fallback={<div className="w-20 h-8 bg-gray-100 animate-pulse rounded-full" />}>
             <ViewModeToggle initialMode={activeMode} />
           </Suspense>

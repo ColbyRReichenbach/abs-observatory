@@ -20,9 +20,11 @@ describe("AI visualizer structure evals", () => {
       context: { scope: "global" },
     });
 
-    expect(result.structuredPlan?.chartType).toBe("grouped comparison bar chart");
-    expect(result.structuredPlan?.signalsToWatch.length).toBeGreaterThanOrEqual(2);
-    expect(result.answer).toContain("Grouping:");
+    expect(result.structuredPlan?.chartType).toBe("bar_chart");
+    expect(result.structuredPlan?.compareBy).toBeTruthy();
+    expect(result.structuredPlan?.dataPoints.length).toBeGreaterThanOrEqual(3);
+    expect(result.structuredPlan?.filters.length).toBeGreaterThanOrEqual(1);
+    expect(result.answer).toContain("Chart Type: bar_chart");
   });
 
   it("returns a leverage-oriented plan for timing and leverage asks", async () => {
@@ -38,8 +40,9 @@ describe("AI visualizer structure evals", () => {
       context: { scope: "global" },
     });
 
-    expect(result.structuredPlan?.chartType).toBe("inning-phase leverage heatmap");
+    expect(result.structuredPlan?.chartType).toBe("heatmap");
     expect(result.structuredPlan?.filters[0]).toMatch(/leverage/i);
-    expect(result.answer).toContain("Signals To Watch:");
+    expect(result.structuredPlan?.dataPoints.length).toBeGreaterThanOrEqual(3);
+    expect(result.answer).toContain("Chart Type: heatmap");
   });
 });

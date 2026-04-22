@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import { buildAiPromptRegistrySnapshot, getAiPromptDefinition } from "@/lib/ai-prompt-registry";
 import type { ChartInsightPayload, StructuredChartInsight } from "@/lib/chart-insight-payload";
 import type { CopilotContext } from "@/lib/copilot-context";
-import { formatContextWindow } from "@/lib/copilot-context";
+import { formatContextWindow, withContextPrompt } from "@/lib/copilot-context";
 import { sql, sqlOne, withTransaction } from "@/lib/db";
 import { isBaseballRelated } from "@/lib/guardrails";
 import { buildSurfaceCacheKey } from "@/lib/server/ai/cache";
@@ -41,6 +41,21 @@ function hasUsableOpenAiKey(rawKey: string | undefined): rawKey is string {
   if (!key) return false;
   const normalized = key.toLowerCase();
   return !normalized.startsWith("test-") && !normalized.includes("placeholder");
+}
+
+function buildScopeCheckMessage(params: {
+  message: string;
+  context?: CopilotContext;
+  chartContext?: { chartType: string; chartTitle: string; baseballQuestion: string } | null;
+}) {
+  const contextualMessage = withContextPrompt(params.message, params.context);
+  if (!params.chartContext) return contextualMessage;
+  return [
+    contextualMessage,
+    `[Chart Type: ${params.chartContext.chartType}]`,
+    `[Chart Title: ${params.chartContext.chartTitle}]`,
+    `[Baseball Question: ${params.chartContext.baseballQuestion}]`,
+  ].join(" ");
 }
 
 const openai = hasUsableOpenAiKey(process.env.OPENAI_API_KEY)
@@ -723,9 +738,10 @@ export async function executeQueuedChatJob(payload: {
           chartContext: payload.chartContext,
         });
   const modelName = process.env.OPENAI_SUMMARY_MODEL || "gpt-4.1-mini";
+  const featureKey: AiUsageFeature = surface === "visualizer" ? "ai_chart_generation" : "ai_chat_heavy";
   const usagePolicy = await assertAiUsageAllowed({
     userId: payload.userId,
-    featureKey: "ai_chat_heavy",
+    featureKey,
     estimatedInputTokens: estimateTokenCount(payload.message),
     modelName,
   });
@@ -735,19 +751,20 @@ export async function executeQueuedChatJob(payload: {
     audienceMode,
     taskFamily,
     planCode: usagePolicy.entitlement.planCode,
-    featureKey: "ai_chat_heavy",
+    featureKey,
   });
 }
 
 export async function runChat(request: Request): Promise<ChatResponse> {
   const body = CHAT_REQUEST_SCHEMA.parse(await request.json());
   const isPublicChartInsight = body.surface === "chart_insight";
+  const isChartInsightFollowUp = isPublicChartInsight && Boolean(body.conversationId);
   if (isPublicChartInsight && !body.chartContext) {
     throw new AiPolicyError("Chart context required", AI_ERROR_CODES.OUT_OF_SCOPE, 400);
   }
   const viewer = await getViewerProfile(request);
   assertValidCsrf(request);
-  if (!isPublicChartInsight) {
+  if (!isPublicChartInsight || isChartInsightFollowUp) {
     assertViewerCanUseAi(viewer);
   }
   if (process.env.AI_GLOBAL_KILL_SWITCH === "true") {
@@ -819,19 +836,39 @@ export async function runChat(request: Request): Promise<ChatResponse> {
     throw new AiPolicyError(misuse.reason ?? "AI misuse detected", AI_ERROR_CODES.MISUSE, 403);
   }
 
-  if (!isBaseballRelated(body.message)) {
+  const scopedMessage = buildScopeCheckMessage({
+    message: body.message,
+    context,
+    chartContext: body.chartContext
+      ? {
+          chartType: body.chartContext.chartType,
+          chartTitle: body.chartContext.chartTitle,
+          baseballQuestion: body.chartContext.baseballQuestion,
+        }
+      : null,
+  });
+
+  if (!isBaseballRelated(scopedMessage)) {
     await recordSafetyEvent({
       conversationId: persistedTurn.conversationId,
       messageId: persistedTurn.userMessageId,
       disposition: "blocked",
       reason: "Question rejected by baseball scope classifier.",
-      details: { message: body.message },
+      details: { message: body.message, scopedMessage },
     });
     throw new AiPolicyError("Question rejected by baseball scope classifier.", AI_ERROR_CODES.OUT_OF_SCOPE, 400);
   }
 
   const shouldQueue = isPublicChartInsight ? false : shouldQueueAiRequest({ message: body.message, context, delivery: body.delivery });
-  const featureKey: AiUsageFeature | undefined = isPublicChartInsight ? undefined : shouldQueue ? "ai_chat_heavy" : "ai_chat_basic";
+  const featureKey: AiUsageFeature | undefined = isPublicChartInsight
+    ? isChartInsightFollowUp
+      ? "ai_chart_followup"
+      : undefined
+    : body.surface === "visualizer"
+      ? "ai_chart_generation"
+    : shouldQueue
+      ? "ai_chat_heavy"
+      : "ai_chat_basic";
   const modelName = process.env.OPENAI_SUMMARY_MODEL || "gpt-4.1-mini";
   const usagePolicy =
     viewer && featureKey

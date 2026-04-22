@@ -4,9 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const tabs = [
+  { href: "/admin/users", label: "Users" },
   { href: "/admin/ai", label: "AI Analytics" },
   { href: "/admin/ai/review", label: "AI Review" },
   { href: "/admin/editorial", label: "Editorial Ops" },
+  { href: "/admin/community", label: "Community" },
   { href: "/admin/access", label: "Access" },
 ];
 

@@ -88,8 +88,8 @@ Then add MLB WE/WPA comparison as a second layer. That sequence avoids treating 
 
 Completed on March 23, 2026:
 
-- `docs/models/audits/2026-03-23-mlb-we-benchmark.md`
-- `docs/models/audits/artifacts/2026-03-23-mlb-we-benchmark.json`
+- `docs/archive/models/audits/2026-03-23-mlb-we-benchmark.md`
+- `docs/archive/models/audits/artifacts/2026-03-23-mlb-we-benchmark.json`
 
 Current readout:
 

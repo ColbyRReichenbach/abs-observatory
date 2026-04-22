@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, memo, useState } from "react";
+import { useMemo, memo, useRef, useState, useEffect } from "react";
 import {
     ScatterChart,
     Scatter,
@@ -9,7 +9,6 @@ import {
     CartesianGrid,
     Tooltip,
     ReferenceLine,
-    ResponsiveContainer,
     Label,
 } from "recharts";
 import type { ScatterShapeProps, TooltipContentProps } from "recharts";
@@ -149,6 +148,17 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [hoveredTeamId, setHoveredTeamId] = useState<number | null>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [containerWidth, setContainerWidth] = useState(0);
+
+    useEffect(() => {
+        if (!containerRef.current) return;
+        const measure = () => setContainerWidth(containerRef.current?.clientWidth ?? 0);
+        measure();
+        const observer = new ResizeObserver(() => measure());
+        observer.observe(containerRef.current);
+        return () => observer.disconnect();
+    }, []);
 
     const { xAxis, yAxis, avgChallengeRate, avgOverturnRate, xTickDigits } = useMemo(() => {
         if (data.length === 0) {
@@ -197,6 +207,7 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
             </div>
 
             <div
+                ref={containerRef}
                 className="relative h-[400px] w-full"
                 onMouseLeave={() => setHoveredTeamId(null)}
             >
@@ -217,8 +228,10 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                 </div>
 
                 <ClientOnly fallback={<div className="h-full w-full rounded-[1.5rem] bg-gradient-to-br from-gray-100 via-gray-50 to-white" />}>
-                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={400}>
+                    {containerWidth > 0 ? (
                         <ScatterChart
+                            width={containerWidth}
+                            height={400}
                             margin={{ top: 40, right: 100, bottom: 60, left: 80 }}
                             style={{ overflow: 'visible' }}
                             onMouseMove={(state: unknown) => {
@@ -317,7 +330,9 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                                 animationDuration={0}
                             />
                         </ScatterChart>
-                    </ResponsiveContainer>
+                    ) : (
+                        <div className="h-full w-full rounded-[1.5rem] bg-gradient-to-br from-gray-100 via-gray-50 to-white" />
+                    )}
                 </ClientOnly>
             </div>
         </div>

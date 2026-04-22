@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { Fragment } from "react";
 
 import { RangeSelector } from "@/components/range-selector";
 import { TeamIcon } from "@/components/team-icon";
@@ -172,6 +173,98 @@ async function TeamsPageBody({
     </div>
   );
 
+  const movers = [...teams]
+    .map((team) => {
+      const values = trendlineMap.get(team.teamId) ?? [];
+      const delta = values.length >= 2 ? values[values.length - 1] - values[0] : 0;
+      return { team, delta };
+    })
+    .filter((entry) => entry.delta !== 0)
+    .sort((left, right) => Math.abs(right.delta) - Math.abs(left.delta))
+    .slice(0, 4);
+
+  const moversSection = movers.length > 0 ? (
+    <div className="mt-8 panel border-gray-100 bg-white p-5 shadow-2xl shadow-black/[0.03]">
+      <div className="mb-4 flex items-baseline justify-between">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500">
+            {viewMode === "org" ? "Trend Movers" : "Who Is Moving"}
+          </p>
+          <p className="mt-1 text-2xl font-display leading-none text-[var(--ink-0)]">
+            {viewMode === "org" ? (
+              <>League <span className="text-gray-400">Movement</span></>
+            ) : (
+              <>Recent <span className="text-gray-400">Swings</span></>
+            )}
+          </p>
+        </div>
+        <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-3)]">
+          based on current trendlines
+        </span>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {movers.map(({ team, delta }) => {
+          const up = delta >= 0;
+          const values = trendlineMap.get(team.teamId) ?? [];
+          return (
+            <Link
+              key={team.teamId}
+              href={withViewModeHref(`/teams/${team.teamId}?range=${range}`, viewMode)}
+              className="rounded-2xl border border-gray-100 bg-[var(--surface-infield)] p-4 transition hover:border-blue-100 hover:bg-white"
+            >
+              <div className="flex items-center gap-3">
+                <TeamIcon teamId={team.teamId} name={team.teamName} size={30} variant="flat" className="shrink-0" />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-[var(--ink-0)]">{team.teamName}</p>
+                  <p className="mt-1 text-[10px] font-black uppercase tracking-[0.1em] text-[var(--ink-3)]">
+                    {up ? "Trending up" : "Trending down"} · {Math.abs(delta).toFixed(1)} pts
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 flex justify-center">
+                <TrendSparkline data={values} />
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  ) : null;
+
+  const deploymentSummarySection =
+    viewMode === "org" ? (
+      <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricSummaryCard
+          eyebrow="Review Surplus"
+          title={bestByMetric(teams, (team) => team.decisionSurplus ?? Number.NEGATIVE_INFINITY)?.teamName ?? "No signal"}
+          body={bestByMetric(teams, (team) => team.decisionSurplus ?? Number.NEGATIVE_INFINITY)
+            ? `${formatOrgValueCopy(bestByMetric(teams, (team) => team.decisionSurplus ?? Number.NEGATIVE_INFINITY)!, true, false).replace(/^ and /, "")}`
+            : "Modeled surplus leaders will appear once enough trusted sample is available."}
+        />
+        <MetricSummaryCard
+          eyebrow="Late-Close Usage"
+          title={bestByMetric(teams, (team) => team.lateLeverageShare)?.teamName ?? "No signal"}
+          body={bestByMetric(teams, (team) => team.lateLeverageShare)
+            ? `${Math.round((bestByMetric(teams, (team) => team.lateLeverageShare)!.lateLeverageShare) * 100)}% of reviews land in late-or-close spots.`
+            : "No late leverage leader is available yet."}
+        />
+        <MetricSummaryCard
+          eyebrow="Early Burn Risk"
+          title={bestByMetric(teams, (team) => team.earlyLowLeverageShare)?.teamName ?? "No signal"}
+          body={bestByMetric(teams, (team) => team.earlyLowLeverageShare)
+            ? `${Math.round((bestByMetric(teams, (team) => team.earlyLowLeverageShare)!.earlyLowLeverageShare) * 100)}% of reviews are spent in lower-leverage windows.`
+            : "No early-burn signal is available yet."}
+        />
+        <MetricSummaryCard
+          eyebrow="Usage Pressure"
+          title={bestByMetric(teams, (team) => team.challengeRatePerGame)?.teamName ?? "No signal"}
+          body={bestByMetric(teams, (team) => team.challengeRatePerGame)
+            ? `${bestByMetric(teams, (team) => team.challengeRatePerGame)!.challengeRatePerGame.toFixed(2)} reviews per game, the heaviest current usage clip in the league.`
+            : "No usage signal is available yet."}
+        />
+      </div>
+    ) : null;
+
   const tableSection = (
     <div className="panel overflow-hidden border-gray-100 bg-white shadow-2xl shadow-black/[0.03]">
       <div className="overflow-x-auto">
@@ -200,7 +293,7 @@ async function TeamsPageBody({
             {sorted.map((t, idx) => {
               const isBeforeAvg = idx === insertAt;
               return (
-                <>
+                <Fragment key={t.teamId}>
                   {isBeforeAvg && (
                     <tr key="mlb-avg" className="bg-[var(--surface-1)] border-y border-[var(--border-subtle)]">
                       <td>
@@ -209,7 +302,7 @@ async function TeamsPageBody({
                             —
                           </span>
                           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-[10px] font-black shrink-0 relative overflow-hidden">
-                            <img src="https://www.mlbstatic.com/team-logos/league-on-light/1.svg" alt="MLB Logo" className="w-[18px] opacity-80" />
+                            <span className="text-[9px] font-black tracking-[0.14em] text-gray-400">MLB</span>
                           </span>
                           <span className="font-bold italic text-gray-500 tracking-tight">
                             MLB Average
@@ -362,7 +455,7 @@ async function TeamsPageBody({
                     </td>
                     <td className="text-right font-mono text-gray-400 font-medium pr-8">{viewMode === "org" ? t.gamesTracked : t.challengesTotal}</td>
                   </tr>
-                </>
+                </Fragment>
               );
             })}
           </tbody>
@@ -373,11 +466,11 @@ async function TeamsPageBody({
 
   return (
     <>
-      {copy.sectionOrder.map((section) => (
-        <div key={section}>
-          {section === "spotlight" ? spotlightSection : section === "scatter" ? scatterSection : tableSection}
-        </div>
-      ))}
+      {spotlightSection}
+      {scatterSection}
+      {moversSection}
+      {deploymentSummarySection}
+      <div className="mt-8">{tableSection}</div>
     </>
   );
 }
@@ -582,4 +675,27 @@ function getTimingReadTone(
   if (lateDelta >= 0.08 && earlyDelta <= 0.03) return "emerald" as const;
   if (earlyDelta >= 0.08 && lateDelta <= 0.03) return "amber" as const;
   return "gray" as const;
+}
+
+function MetricSummaryCard({
+  eyebrow,
+  title,
+  body,
+}: {
+  eyebrow: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="panel border-gray-100 bg-white p-5 shadow-2xl shadow-black/[0.03]">
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-500">{eyebrow}</p>
+      <p className="mt-2 text-lg font-semibold text-[var(--ink-0)]">{title}</p>
+      <p className="mt-1 text-xs leading-6 text-[var(--ink-3)]">{body}</p>
+    </div>
+  );
+}
+
+function bestByMetric<T>(items: T[], getValue: (item: T) => number) {
+  if (items.length === 0) return null;
+  return [...items].sort((left, right) => getValue(right) - getValue(left))[0] ?? null;
 }

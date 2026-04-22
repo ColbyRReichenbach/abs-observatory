@@ -4,6 +4,12 @@ import {
   getGameLiveStatus,
   getHomeChallengeMoments,
   getLiveGames,
+  getTeamAggression,
+  getTeamChallengeScenarioMatrix,
+  getTeamChallengeValueSummary,
+  getTeamDecisionValueReport,
+  getTeamInningEfficiency,
+  getTeamSideSplits,
   getTeamSummary,
   getTeamTrend,
   getUmpireProfile,
@@ -16,6 +22,11 @@ export type ToolResult = {
   toolName: string;
   payload: unknown;
 };
+
+function getEntityRange(range?: CopilotContext["range"]) {
+  if (!range || range === "24h") return "season";
+  return range;
+}
 
 export async function resolveToolResults(context?: CopilotContext): Promise<ToolResult[]> {
   const allowed = new Set(getAllowedToolNames(context));
@@ -38,10 +49,26 @@ export async function resolveToolResults(context?: CopilotContext): Promise<Tool
 
   if (context?.scope === "team" && context.entityId) {
     const teamId = Number(context.entityId);
-    const [summary, trend] = await Promise.all([getTeamSummary(teamId), getTeamTrend(teamId)]);
+    const range = getEntityRange(context.range);
+    const [summary, trend, inningEfficiency, sideSplits, aggression, challengeScenarioMatrix, challengeValueSummary, decisionValueReport] = await Promise.all([
+      getTeamSummary(teamId, range),
+      getTeamTrend(teamId, range),
+      getTeamInningEfficiency(teamId, range),
+      getTeamSideSplits(teamId, range),
+      getTeamAggression(teamId, range),
+      getTeamChallengeScenarioMatrix(teamId, range),
+      getTeamChallengeValueSummary(teamId, range),
+      getTeamDecisionValueReport(teamId, range),
+    ]);
     return [
       { toolName: "get_team_summary", payload: summary },
       { toolName: "get_team_trend", payload: trend.slice(-10) },
+      { toolName: "get_team_inning_efficiency", payload: inningEfficiency },
+      { toolName: "get_team_side_splits", payload: sideSplits },
+      { toolName: "get_team_aggression", payload: aggression },
+      { toolName: "get_team_challenge_scenario_matrix", payload: challengeScenarioMatrix },
+      { toolName: "get_team_challenge_value_summary", payload: challengeValueSummary },
+      { toolName: "get_team_decision_value_report", payload: decisionValueReport },
     ]
       .filter((tool) => allowed.has(tool.toolName))
       .map((tool) => ({ ...tool, payload: sanitizeToolPayload(tool.payload) }));

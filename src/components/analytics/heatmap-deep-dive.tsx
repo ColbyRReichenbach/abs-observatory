@@ -23,15 +23,16 @@ export function HeatmapDeepDive({
         () => true,
         () => false,
     );
+    const insight = useMemo(() => buildHeatmapInsight(challenges), [challenges]);
     const generationId = useAiArtifactGeneration({
         surfaceKey: "chart_insight",
         surfaceDetail: "heatmap_deep_dive",
         targetType: "chart_insight",
         targetId: `heatmap-deep-dive:${umpireName}`,
+        title: `Heatmap Deep Dive: ${umpireName}`,
+        summary: insight,
         metadata: { umpireName, challengeCount: challenges.length },
     });
-
-    const insight = useMemo(() => buildHeatmapInsight(challenges), [challenges]);
 
     return (
         <>

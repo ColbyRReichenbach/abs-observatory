@@ -1,4 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
+import { loadTestEnvValue } from "./tests/e2e/env";
+
+const workerToken = loadTestEnvValue("INTERNAL_WORKER_TOKEN") ?? process.env.INTERNAL_WORKER_TOKEN ?? "playwright-worker-token";
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -20,7 +23,8 @@ export default defineConfig({
     reuseExistingServer: false,
     env: {
       ...process.env,
-      INTERNAL_WORKER_TOKEN: process.env.INTERNAL_WORKER_TOKEN ?? "playwright-worker-token",
+      INTERNAL_WORKER_TOKEN: workerToken,
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY_E2E ?? "test-disabled",
     },
   },
 });

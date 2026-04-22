@@ -2,24 +2,22 @@
 
 import { useMemo, useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { InningIcon } from "@/components/inning-icon";
 import { LocalTime } from "@/components/local-time";
 import { GameTypeBadge } from "@/components/ui/game-type-badge";
-import { resolveClientViewMode } from "@/lib/view-mode-client";
+import type { ViewMode } from "@/lib/view-mode";
 import { withViewModeHref } from "@/lib/view-mode-href";
 
 import type { LiveGameCard } from "@/lib/types";
 
 type GameStripProps = {
     games: LiveGameCard[];
+    viewMode: ViewMode;
 };
 
-export function GameStrip({ games }: GameStripProps) {
-    const searchParams = useSearchParams();
-    const activeMode = resolveClientViewMode(searchParams);
+export function GameStrip({ games, viewMode }: GameStripProps) {
     const [scrollIndex, setScrollIndex] = useState(0);
     const containerRef = useRef<HTMLDivElement>(null);
     const [containerWidth, setContainerWidth] = useState(0);
@@ -94,7 +92,7 @@ export function GameStrip({ games }: GameStripProps) {
                         {sortedGames.map((game) => (
                             <Link
                                 key={game.gamePk}
-                                href={withViewModeHref(`/game/${game.gamePk}`, activeMode)}
+                                href={withViewModeHref(`/game/${game.gamePk}`, viewMode)}
                                 className="flex-shrink-0 w-[220px] h-16 bg-white/50 border border-gray-100 rounded-xl px-4 flex items-center justify-between hover:bg-white hover:shadow-2xl hover:border-blue-100 transition-all group/item hover:scale-105 active:scale-95"
                             >
                                 <div className="flex flex-col gap-0.5">

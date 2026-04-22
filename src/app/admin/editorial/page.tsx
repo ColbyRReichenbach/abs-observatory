@@ -1,7 +1,9 @@
 import Link from "next/link";
 
+import { getArticleDeskMeta } from "@/lib/articles-desk";
 import { getEditorialOpsOverview, getEditorialRunDetail, listEditorialRuns } from "@/lib/server/admin-editorial";
 import { formatDisplayTime } from "@/lib/display-time";
+import { getEditorialWorkflowSummary, type EditorialDeskState } from "@/lib/editorial-workflow";
 import { publishArticleAction, rerunDailyAutoAction, suppressArticleAction } from "./actions";
 
 function formatDateTime(value: string | null) {
@@ -18,7 +20,7 @@ function formatCost(value: number) {
   }).format(value);
 }
 
-function statusTone(status: string) {
+function statusTone(status: string | null | undefined) {
   if (status === "published" || status === "persisted" || status === "passed" || status === "success") {
     return "border-emerald-200 bg-emerald-50 text-emerald-700";
   }
@@ -26,6 +28,22 @@ function statusTone(status: string) {
     return "border-amber-200 bg-amber-50 text-amber-700";
   }
   if (status === "suppressed" || status === "failed") {
+    return "border-red-200 bg-red-50 text-red-700";
+  }
+  return "border-gray-200 bg-gray-50 text-gray-600";
+}
+
+function deskStateTone(state: EditorialDeskState) {
+  if (state === "live") {
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  }
+  if (state === "ready") {
+    return "border-blue-200 bg-blue-50 text-blue-700";
+  }
+  if (state === "running") {
+    return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+  if (state === "blocked") {
     return "border-red-200 bg-red-50 text-red-700";
   }
   return "border-gray-200 bg-gray-50 text-gray-600";
@@ -41,6 +59,14 @@ export default async function AdminEditorialPage({
   const runs = await listEditorialRuns(14);
   const selectedRunId = sp.run ?? runs[0]?.generationRunId ?? null;
   const selectedRun = selectedRunId ? await getEditorialRunDetail(selectedRunId) : null;
+  const selectedWorkflow = selectedRun
+    ? getEditorialWorkflowSummary({
+        articleStatus: selectedRun.articleStatus,
+        validationState: selectedRun.validationState,
+        runStatus: selectedRun.status,
+      })
+    : null;
+  const selectedDeskMeta = selectedRun?.articleType ? getArticleDeskMeta(selectedRun.articleType) : null;
 
   return (
     <section className="space-y-8">
@@ -100,6 +126,12 @@ export default async function AdminEditorialPage({
           <div className="space-y-3">
             {runs.map((run) => {
               const active = run.generationRunId === selectedRun?.generationRunId;
+              const workflow = getEditorialWorkflowSummary({
+                articleStatus: run.articleStatus,
+                validationState: run.validationState,
+                runStatus: run.status,
+              });
+              const deskMeta = run.articleType ? getArticleDeskMeta(run.articleType) : null;
               return (
                 <Link
                   key={run.generationRunId}
@@ -117,13 +149,18 @@ export default async function AdminEditorialPage({
                       </p>
                       <p className="mt-2 text-sm font-semibold">{run.articleTitle ?? "Awaiting persisted article"}</p>
                       <p className={`mt-1 text-xs ${active ? "text-white/70" : "text-[var(--ink-3)]"}`}>
-                        {run.selectedAuthor ?? "No author"} · {run.authorProvider ?? "deterministic"}
+                        {deskMeta?.deskName ?? "Editorial desk"} · {run.selectedAuthor ?? "No author"} · {run.authorProvider ?? "deterministic"}
                         {run.authorModelName ? ` / ${run.authorModelName}` : ""}
                       </p>
                     </div>
-                    <span className={`rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] ${active ? "border-white/20 bg-white/10 text-white" : statusTone(run.status)}`}>
-                      {run.status}
-                    </span>
+                    <div className="flex flex-col items-end gap-2">
+                      <span className={`rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] ${active ? "border-white/20 bg-white/10 text-white" : deskStateTone(workflow.deskState)}`}>
+                        {workflow.label}
+                      </span>
+                      <span className={`rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] ${active ? "border-white/20 bg-white/10 text-white/80" : statusTone(run.status)}`}>
+                        {run.status}
+                      </span>
+                    </div>
                   </div>
                   <div className={`mt-4 flex flex-wrap items-center gap-3 text-[10px] font-bold uppercase tracking-[0.1em] ${active ? "text-white/60" : "text-[var(--ink-3)]"}`}>
                     <span>{run.totalTokens.toLocaleString()} tok</span>
@@ -147,14 +184,21 @@ export default async function AdminEditorialPage({
                       {selectedRun.articleTitle ?? selectedRun.sourceDate ?? "Observer Run"}
                     </h3>
                     <p className="mt-2 max-w-3xl text-sm text-[var(--ink-2)]">
+                      {selectedDeskMeta ? `${selectedDeskMeta.deskName}. ` : ""}
                       {selectedRun.storyTheme
                         ? `Story theme: ${selectedRun.storyTheme.replaceAll("_", " ")}.`
                         : "Story theme has not been resolved yet."}{" "}
-                      Validation is currently <strong>{selectedRun.validationState}</strong>.
+                      Validation is currently <strong>{selectedRun.validationState}</strong>.{" "}
+                      {selectedWorkflow?.detail}
                     </p>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
+                    {selectedWorkflow ? (
+                      <span className={`rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] ${deskStateTone(selectedWorkflow.deskState)}`}>
+                        Desk {selectedWorkflow.label}
+                      </span>
+                    ) : null}
                     <span className={`rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] ${statusTone(selectedRun.status)}`}>
                       Run {selectedRun.status}
                     </span>
@@ -167,10 +211,11 @@ export default async function AdminEditorialPage({
                 </div>
 
                 <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <OverviewCard label="Desk" value={selectedDeskMeta?.label ?? "Editorial"} detail={selectedDeskMeta?.description ?? "Desk metadata unavailable"} />
                   <OverviewCard label="Author Step" value={selectedRun.selectedAuthor ?? "Unassigned"} detail={`${selectedRun.authorProvider ?? "deterministic"}${selectedRun.authorModelName ? ` · ${selectedRun.authorModelName}` : ""}`} />
                   <OverviewCard label="Telemetry" value={selectedRun.totalTokens.toLocaleString()} detail={`${selectedRun.inputTokens.toLocaleString()} in · ${selectedRun.outputTokens.toLocaleString()} out`} />
                   <OverviewCard label="Estimated Cost" value={formatCost(selectedRun.estimatedCostUsd)} detail={selectedRun.latencyMs ? `${selectedRun.latencyMs} ms author latency` : "No latency captured"} />
-                  <OverviewCard label="Lifecycle" value={formatDateTime(selectedRun.finishedAt ?? selectedRun.startedAt)} detail={selectedRun.articlePublishedAt ? `Published ${formatDateTime(selectedRun.articlePublishedAt)}` : "Not published yet"} />
+                  <OverviewCard label="Lifecycle" value={formatDateTime(selectedRun.finishedAt ?? selectedRun.startedAt)} detail={selectedRun.articlePublishedAt ? `Published ${formatDateTime(selectedRun.articlePublishedAt)}` : selectedWorkflow?.detail ?? "Not published yet"} />
                 </div>
 
                 <div className="mt-8 flex flex-wrap gap-3">
@@ -186,31 +231,31 @@ export default async function AdminEditorialPage({
                     </form>
                   ) : null}
 
-                  {selectedRun.articleSlug && selectedRun.articleStatus !== "published" ? (
+                  {selectedRun.articleSlug && selectedWorkflow?.canApprove && selectedWorkflow.primaryActionLabel ? (
                     <form action={publishArticleAction}>
                       <input type="hidden" name="slug" value={selectedRun.articleSlug} />
                       <button
                         type="submit"
                         className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700 transition-transform hover:scale-105 active:scale-95"
                       >
-                        Publish Article
+                        {selectedWorkflow.primaryActionLabel}
                       </button>
                     </form>
                   ) : null}
 
-                  {selectedRun.articleId && selectedRun.articleStatus !== "suppressed" ? (
+                  {selectedRun.articleId && selectedWorkflow?.canReject && selectedWorkflow.secondaryActionLabel ? (
                     <form action={suppressArticleAction}>
                       <input type="hidden" name="articleId" value={selectedRun.articleId} />
                       <button
                         type="submit"
                         className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.18em] text-red-700 transition-transform hover:scale-105 active:scale-95"
                       >
-                        Suppress Article
+                        {selectedWorkflow.secondaryActionLabel}
                       </button>
                     </form>
                   ) : null}
 
-                  {selectedRun.articleSlug ? (
+                  {selectedRun.articleSlug && selectedRun.articleStatus === "published" ? (
                     <Link
                       href={`/articles/${selectedRun.articleSlug}`}
                       className="inline-flex items-center rounded-full border border-black/10 bg-white px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--ink-2)] transition hover:border-black/20 hover:text-black"

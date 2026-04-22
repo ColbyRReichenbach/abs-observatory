@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 
 import { sql, sqlOne } from "@/lib/db";
+import type { EditorialArticleStatus, EditorialRunStatus, EditorialValidationState } from "@/lib/editorial-workflow";
 import { clearCachedValue, getCacheKey } from "@/lib/server/scale";
 import { requireOwnerAdmin } from "@/lib/server/admin";
 import { writeAuditLog } from "@/lib/server/audit";
@@ -8,18 +9,19 @@ import { generateDailyAutoArticle } from "@/lib/server/articles";
 
 type EditorialRunRow = {
   generationrunid: string;
+  articletype: string | null;
   sourcedate: string | null;
-  status: string;
+  status: EditorialRunStatus;
   selectedauthor: string | null;
   storytheme: string | null;
-  validationstate: string;
+  validationstate: EditorialValidationState;
   errormessage: string | null;
   startedat: string;
   finishedat: string | null;
   articleid: string | null;
   articleslug: string | null;
   articletitle: string | null;
-  articlestatus: string | null;
+  articlestatus: EditorialArticleStatus;
   articlepublishedat: string | null;
   authorprovider: string | null;
   authormodelname: string | null;
@@ -51,18 +53,19 @@ type EditorialStepRow = {
 
 export type EditorialRunSummary = {
   generationRunId: string;
+  articleType: string | null;
   sourceDate: string | null;
-  status: string;
+  status: EditorialRunStatus;
   selectedAuthor: string | null;
   storyTheme: string | null;
-  validationState: string;
+  validationState: EditorialValidationState;
   errorMessage: string | null;
   startedAt: string;
   finishedAt: string | null;
   articleId: string | null;
   articleSlug: string | null;
   articleTitle: string | null;
-  articleStatus: string | null;
+  articleStatus: EditorialArticleStatus;
   articlePublishedAt: string | null;
   authorProvider: string | null;
   authorModelName: string | null;
@@ -116,6 +119,7 @@ function mapRun(row: EditorialRunRow): EditorialRunSummary {
   const outputTokens = toNumber(row.outputtokens);
   return {
     generationRunId: row.generationrunid,
+    articleType: row.articletype,
     sourceDate: row.sourcedate,
     status: row.status,
     selectedAuthor: row.selectedauthor,
@@ -145,6 +149,7 @@ async function listRunRows(limit: number) {
     `
     SELECT
       gr.generation_run_id AS generationRunId,
+      gr.article_type AS articleType,
       gr.source_date::text AS sourceDate,
       gr.status,
       gr.selected_author AS selectedAuthor,
@@ -170,6 +175,7 @@ async function listRunRows(limit: number) {
     LEFT JOIN editorial.generation_steps gs ON gs.generation_run_id = gr.generation_run_id
     GROUP BY
       gr.generation_run_id,
+      gr.article_type,
       gr.source_date,
       gr.status,
       gr.selected_author,
@@ -256,6 +262,7 @@ export async function getEditorialRunDetail(generationRunId: string): Promise<Ed
     `
     SELECT
       gr.generation_run_id AS generationRunId,
+      gr.article_type AS articleType,
       gr.source_date::text AS sourceDate,
       gr.status,
       gr.selected_author AS selectedAuthor,
@@ -282,6 +289,7 @@ export async function getEditorialRunDetail(generationRunId: string): Promise<Ed
     WHERE gr.generation_run_id = $1
     GROUP BY
       gr.generation_run_id,
+      gr.article_type,
       gr.source_date,
       gr.status,
       gr.selected_author,
@@ -395,6 +403,45 @@ export async function rerunDailyAutoArticleAdmin(sourceDate: string) {
 
 export async function publishArticleFromAdmin(slug: string) {
   const viewer = await requireOwnerAdmin();
+
+  const current = await sqlOne<{
+    articleid: string;
+    slug: string;
+    status: string;
+    validationstate: string;
+  }>(
+    `
+    SELECT
+      article_id AS articleId,
+      slug,
+      status,
+      validation_state AS validationState
+    FROM editorial.articles
+    WHERE slug = $1
+    LIMIT 1
+    `,
+    [slug],
+  );
+
+  if (!current) {
+    throw new Error("Article not found");
+  }
+
+  if (current.status === "published") {
+    return { articleId: current.articleid, slug: current.slug };
+  }
+
+  if (current.validationstate !== "passed") {
+    throw new Error("Only validation-passed articles can be published");
+  }
+
+  if (current.status === "suppressed" || current.status === "failed") {
+    throw new Error("Blocked articles cannot be published from the desk");
+  }
+
+  if (current.status !== "generated" && current.status !== "draft") {
+    throw new Error("Article is not in a publishable desk state");
+  }
 
   const row = await sqlOne<{ articleid: string; slug: string }>(
     `

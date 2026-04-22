@@ -27,7 +27,7 @@ The current system has five primary parts:
 - `Web product`
   - App Router pages
   - server-rendered analytics pages
-  - authenticated profile, community, and admin surfaces
+  - authenticated profile, public profile, artifact workspace, and admin surfaces
 
 - `Serving and product database`
   - baseball serving data
@@ -177,7 +177,8 @@ Product and identity:
 
 Community:
 
-- community threads, comments, reactions, moderation state
+- comments, reactions, moderation state
+- follow graph and broader public sharing remain deferred
 
 Editorial:
 
@@ -193,6 +194,7 @@ Editorial:
 AI and operations:
 
 - AI conversations, tool calls, usage, feedback, and safety state
+- owned saved artifacts
 - ops audit and job-run tables
 - `ops.game_linescores`
 - retained recent-only `ops.source_snapshots` in serving mode
@@ -258,6 +260,7 @@ Current persisted editorial state includes:
 - generation runs
 - generation steps
 - contributor metadata
+- daily automation through `/api/cron/editorial-daily` into `ops.job_runs`
 - standings snapshots used by editorial workflows
 
 The current backend reference is [gazette-backend-spec.md](../editorial/gazette-backend-spec.md).

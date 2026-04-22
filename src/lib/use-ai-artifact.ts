@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 const CSRF_COOKIE_NAME = "aibs_csrf";
 
@@ -39,16 +40,23 @@ type ArtifactParams = {
   surfaceDetail?: string | null;
   targetType: "chart_insight" | "challenge_summary";
   targetId: string;
+  title?: string | null;
+  summary?: string | null;
   routeScope?: string | null;
   routeEntityId?: string | null;
   articleId?: string | null;
   gamePk?: number | null;
+  artifactPayload?: unknown;
   metadata?: Record<string, unknown> | null;
 };
 
 export function useAiArtifactGeneration(params: ArtifactParams) {
   const [generationId, setGenerationId] = useState<string | null>(null);
-  const requestBody = JSON.stringify(params);
+  const pathname = usePathname();
+  const requestBody = JSON.stringify({
+    ...params,
+    routeScope: params.routeScope ?? pathname ?? null,
+  });
 
   useEffect(() => {
     let active = true;

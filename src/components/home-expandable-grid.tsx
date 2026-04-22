@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { GameCard } from "@/components/game-card";
+import type { ViewMode } from "@/lib/view-mode";
 import type { LiveGameCard } from "@/lib/types";
 
-export function HomeExpandableGrid({ games }: { games: LiveGameCard[] }) {
+export function HomeExpandableGrid({ games, viewMode }: { games: LiveGameCard[]; viewMode: ViewMode }) {
     const [expanded, setExpanded] = useState(false);
     const gameCount = games.length;
     const isEmpty = gameCount === 0;
@@ -49,7 +50,7 @@ export function HomeExpandableGrid({ games }: { games: LiveGameCard[] }) {
             ) : (
                 <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-3">
                     {visibleGames.map((g) => (
-                        <GameCard key={g.gamePk} game={g} />
+                        <GameCard key={g.gamePk} game={g} viewMode={viewMode} />
                     ))}
                 </div>
             )}

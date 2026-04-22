@@ -1,6 +1,6 @@
 export const launchConfig = {
   publicVisualizerEnabled: true,
-  publicCopilotEnabled: false,
+  publicCopilotEnabled: true,
   publicQueryLabEnabled: false,
   publicDailyAiEditorialEnabled: false,
   publicWeeklyEditorialEnabled: true,

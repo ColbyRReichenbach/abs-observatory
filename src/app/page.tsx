@@ -2,7 +2,6 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { BroadcastStrip } from "@/components/broadcast-strip";
 import { ChallengeMomentCards } from "@/components/challenge-moment-cards";
-import { GameStrip } from "@/components/game-strip";
 import { HomeExpandableGrid } from "@/components/home-expandable-grid";
 import { TeamIcon } from "@/components/team-icon";
 import { getHomeChallengeMoments, getLiveGames, getTeamLeaderboardModel, getUmpireLeaderboardModel } from "@/lib/data";
@@ -16,11 +15,12 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const sp = await searchParams;
   const viewMode = await resolveViewMode(sp);
   const copy = getHomePageViewCopy(viewMode);
+  const momentsPromise = getHomeChallengeMoments(12);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.03),transparent)] pt-36">
       <Suspense fallback={null}>
-        <HomeBroadcastSection />
+        <HomeBroadcastSection viewMode={viewMode} momentsPromise={momentsPromise} />
       </Suspense>
 
       <div className="px-6 py-8 text-center">
@@ -33,17 +33,23 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       </div>
 
       <Suspense fallback={<HomePageFallback viewMode={viewMode} copy={copy} />}>
-        <HomePageBody viewMode={viewMode} copy={copy} />
+        <HomePageBody viewMode={viewMode} copy={copy} momentsPromise={momentsPromise} />
       </Suspense>
     </div>
   );
 }
 
-async function HomeBroadcastSection() {
-  const moments = await getHomeChallengeMoments(12);
+async function HomeBroadcastSection({
+  viewMode,
+  momentsPromise,
+}: {
+  viewMode: "fan" | "org";
+  momentsPromise: Promise<Awaited<ReturnType<typeof getHomeChallengeMoments>>>;
+}) {
+  const moments = await momentsPromise;
   return (
     <div className="relative z-40 bg-white/50 border-b border-gray-100">
-      <BroadcastStrip moments={moments} />
+      <BroadcastStrip moments={moments} viewMode={viewMode} />
     </div>
   );
 }
@@ -51,13 +57,15 @@ async function HomeBroadcastSection() {
 async function HomePageBody({
   viewMode,
   copy,
+  momentsPromise,
 }: {
   viewMode: "fan" | "org";
   copy: ReturnType<typeof getHomePageViewCopy>;
+  momentsPromise: Promise<Awaited<ReturnType<typeof getHomeChallengeMoments>>>;
 }) {
   const [games, moments, teams, umpires] = await Promise.all([
     getLiveGames(),
-    getHomeChallengeMoments(12),
+    momentsPromise,
     getTeamLeaderboardModel("season", {
       includeDecisionMetrics: viewMode === "org",
       includeValueMetrics: viewMode === "org",
@@ -112,8 +120,6 @@ async function HomePageBody({
     [...teams].sort((a, b) => (b.avgRemaining * b.overturnRate) - (a.avgRemaining * a.overturnRate))[0] ?? null;
   return (
     <>
-      <GameStrip games={games} />
-
       <main className="mx-auto max-w-7xl px-6 pt-4 pb-40">
         <div className="mb-6 text-center">
           <p className="text-[11px] font-medium text-[var(--ink-3)]">
@@ -363,7 +369,7 @@ async function HomePageBody({
           </div>
         )}
 
-        <HomeExpandableGrid games={games} />
+        <HomeExpandableGrid games={games} viewMode={viewMode} />
 
         {/* S2-5: Reduced gap (mt-16 instead of mt-32) */}
         <section className="mt-10">
@@ -417,14 +423,6 @@ function HomePageFallback({
 }) {
   return (
     <>
-      <div className="relative w-full bg-white/50 backdrop-blur-xl border-y border-gray-100 py-4">
-        <div className="mx-auto flex max-w-7xl gap-4 overflow-hidden px-6">
-          {Array.from({ length: 5 }).map((_, index) => (
-            <div key={index} className="h-16 w-[220px] shrink-0 rounded-xl border border-gray-100 bg-white/60" />
-          ))}
-        </div>
-      </div>
-
       <main className="mx-auto max-w-7xl px-6 pt-4 pb-40">
         <div className="mb-6 text-center">
           <p className="text-[11px] font-medium text-[var(--ink-3)]">

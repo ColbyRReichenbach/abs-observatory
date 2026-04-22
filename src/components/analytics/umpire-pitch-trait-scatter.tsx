@@ -106,7 +106,7 @@ export function UmpirePitchTraitScatter({ challenges }: { challenges: ChallengeE
           </div>
         </div>
 
-        <div className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
           <div className="rounded-[1.5rem] border border-gray-100 bg-white p-5">
             <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Pitch Families</p>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -115,7 +115,7 @@ export function UmpirePitchTraitScatter({ challenges }: { challenges: ChallengeE
                   key={point.pitchFamily}
                   type="button"
                   onClick={() => setSelectedFamily(point.pitchFamily)}
-                  className={`rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] transition ${
+                  className={`rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] whitespace-nowrap transition ${
                     point.pitchFamily === selectedFamily ? "border-blue-300 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-500"
                   }`}
                 >
@@ -129,9 +129,13 @@ export function UmpirePitchTraitScatter({ challenges }: { challenges: ChallengeE
           <div className="rounded-[1.5rem] border border-gray-100 bg-white p-5">
             {selected ? (
               <>
-                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Selected Pitch Family</p>
-                <p className="mt-2 text-2xl font-display text-[var(--ink-0)]">{selected.pitchFamily}</p>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">Selected Pitch Family</p>
+                  <p className="mt-2 max-w-[16ch] text-2xl font-display leading-tight text-[var(--ink-0)] [text-wrap:balance] lg:text-[2rem]">
+                    {selected.pitchFamily}
+                  </p>
+                </div>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   <MiniStat label="Challenges" value={`${selected.sample}`} />
                   <MiniStat label="Overturn Rate" value={`${selected.overturnRate.toFixed(1)}%`} />
                   <MiniStat label="Abs WE" value={formatPercent(selected.avgAbsWin, selected.overturnedCount)} muted={selected.sample < 3} />

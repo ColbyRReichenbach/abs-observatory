@@ -1,0 +1,253 @@
+{
+  "version": "2026-04-20",
+  "source": "repo-specific rewrite of aibs_standout_specs_bundle",
+  "branch": "review/aibs-standout-specs",
+  "updated": "2026-04-20",
+  "principles": [
+    "Finish existing scaffolding before opening new product lines",
+    "Migrate live systems instead of replacing them blindly",
+    "Keep fan and org as lenses, not separate apps",
+    "Gate AI and saved work behind identity and entitlements",
+    "Delete or fill placeholders; do not leave fake capability mass in the repo"
+  ],
+  "phases": [
+    {
+      "id": "P0",
+      "title": "Reality Cleanup",
+      "status": "completed",
+      "goal": "Make docs and route claims match the actual codebase.",
+      "tasks": [
+        {
+          "id": "P0-1",
+          "title": "Correct product docs that overstate shipped community/profile features",
+          "type": "docs",
+          "files": [
+            "docs/product/product-source-of-truth.md",
+            "docs/product/page-route-coverage.md",
+            "docs/product/roadmap.md"
+          ]
+        },
+        {
+          "id": "P0-2",
+          "title": "Inventory placeholder and empty files and mark each one implement/delete/defer",
+          "type": "repo-hygiene",
+          "files": [
+            "src/components/nav-auth-controls.tsx",
+            "src/components/community/profile-settings-form.tsx",
+            "src/lib/server/editorial-automation.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P1",
+      "title": "Identity And Profile Completion",
+      "status": "completed",
+      "goal": "Turn current auth/profile scaffolding into a real minimal user system.",
+      "depends_on": [
+        "P0"
+      ],
+      "tasks": [
+        {
+          "id": "P1-1",
+          "title": "Implement nav auth controls and signed-in state entrypoints",
+          "type": "ui",
+          "files": [
+            "src/components/nav-auth-controls.tsx",
+            "src/components/nav.tsx",
+            "src/components/auth-provider.tsx"
+          ]
+        },
+        {
+          "id": "P1-2",
+          "title": "Implement profile page and profile settings form",
+          "type": "ui",
+          "files": [
+            "src/app/profile/page.tsx",
+            "src/components/community/profile-settings-form.tsx"
+          ]
+        },
+        {
+          "id": "P1-3",
+          "title": "Implement onboarding flow and welcome page",
+          "type": "ui-api",
+          "files": [
+            "src/app/welcome/page.tsx",
+            "src/app/api/profile/onboarding/route.ts"
+          ]
+        },
+        {
+          "id": "P1-4",
+          "title": "Implement public profile route backed by existing profile primitives",
+          "type": "ui-api",
+          "files": [
+            "src/app/u/[username]/page.tsx",
+            "src/app/api/public-profiles/[username]/route.ts",
+            "src/lib/server/profiles.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P2",
+      "title": "Computed Postgame Audit",
+      "status": "completed",
+      "goal": "Add structured audit outputs without breaking current report pages.",
+      "depends_on": [
+        "P0"
+      ],
+      "tasks": [
+        {
+          "id": "P2-1",
+          "title": "Define audit-serving contract for expected, actual, surplus, shortfall, leverage, and timing",
+          "type": "data-contract",
+          "status": "completed",
+          "files": [
+            "src/lib/data.ts",
+            "src/lib/server/challenge-decision-value.ts",
+            "db/views.sql"
+          ]
+        },
+        {
+          "id": "P2-2",
+          "title": "Create computed game ABS impact metrics store or view",
+          "type": "schema-serving",
+          "status": "completed",
+          "files": [
+            "db/schema.sql",
+            "db/views.sql"
+          ]
+        },
+        {
+          "id": "P2-3",
+          "title": "Bridge computed audit data into final game and report pages",
+          "type": "ui-integration",
+          "status": "completed",
+          "files": [
+            "src/components/game-hub/postgame-hub.tsx",
+            "src/app/reports/[gamePk]/page.tsx",
+            "src/lib/server/game-reports.ts",
+            "src/lib/game-reports.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P3",
+      "title": "Editorial Tightening",
+      "status": "completed",
+      "goal": "Make editorial selective and coherent using the existing system.",
+      "depends_on": [
+        "P2"
+      ],
+      "tasks": [
+        {
+          "id": "P3-1",
+          "title": "Rationalize article types and article desk workflow",
+          "type": "product-backend",
+          "status": "completed",
+          "files": [
+            "src/lib/server/articles.ts",
+            "src/lib/server/admin-editorial.ts",
+            "src/app/admin/editorial/actions.ts",
+            "src/lib/articles-desk.ts",
+            "src/app/admin/editorial/page.tsx"
+          ]
+        },
+        {
+          "id": "P3-2",
+          "title": "Implement daily automation only after the automation module is real",
+          "type": "automation",
+          "status": "completed",
+          "files": [
+            "src/lib/server/editorial-automation.ts",
+            "src/app/api/cron/editorial-daily/route.ts",
+            "vercel.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P4",
+      "title": "Saved AI Artifacts",
+      "status": "completed",
+      "goal": "Persist user AI work before any public sharing or remix features.",
+      "depends_on": [
+        "P1"
+      ],
+      "tasks": [
+        {
+          "id": "P4-1",
+          "title": "Back saved artifact records with identity ownership and retrieval",
+          "type": "backend",
+          "status": "completed",
+          "files": [
+            "src/app/api/ai/artifacts/route.ts",
+            "src/lib/server/ai-generations.ts"
+          ]
+        },
+        {
+          "id": "P4-2",
+          "title": "Expose saved artifacts inside a signed-in workspace",
+          "type": "ui",
+          "status": "completed",
+          "files": [
+            "src/app/profile/page.tsx",
+            "src/lib/use-ai-artifact.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P5",
+      "title": "Visual Lab Decision Gate",
+      "status": "completed",
+      "goal": "Do not start broad visualization sharing until identity and saved artifacts are stable.",
+      "depends_on": [
+        "P1",
+        "P4"
+      ],
+      "tasks": [
+        {
+          "id": "P5-1",
+          "title": "Decide whether to implement private saved visualization persistence",
+          "type": "product-decision",
+          "status": "completed",
+          "files": [
+            "src/app/v/[vizId]/page.tsx"
+          ]
+        },
+        {
+          "id": "P5-2",
+          "title": "Reject public gallery, likes, and forks until moderation and ownership are real",
+          "type": "scope-control",
+          "status": "completed",
+          "files": [
+            "src/app/admin/community/page.tsx",
+            "src/app/api/follows/[userId]/route.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P6",
+      "title": "Continuous Hygiene",
+      "status": "completed",
+      "goal": "Stop carrying placeholder and empty-file debt.",
+      "tasks": [
+        {
+          "id": "P6-1",
+          "title": "Delete empty tests that add no signal",
+          "type": "test-hygiene",
+          "status": "completed"
+        },
+        {
+          "id": "P6-2",
+          "title": "Keep docs synchronized with route and API changes",
+          "type": "docs",
+          "status": "completed"
+        }
+      ]
+    }
+  ]
+}

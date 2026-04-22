@@ -92,7 +92,7 @@ Expected deliverables:
 
 - refreshed benchmark artifact
 - updated audit markdown
-- explicit change log in `docs/models/audits/`
+- explicit change log in `docs/archive/models/audits/`
 - linked code commit if the model changes
 
 ## Reporting Standard
@@ -131,4 +131,4 @@ Next audits to add:
 
 See also:
 
-- [operating-procedure.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/operating-procedure.md)
+- [operating-procedure.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/operating-procedure.md)

@@ -78,12 +78,14 @@ const AI_SURFACE_PROMPT_REGISTRY: Record<AiChatSurface, AiSurfacePromptDefinitio
     surface: "visualizer",
     version: "visualizer_v1",
     label: "Visualizer Planning Prompt",
-    summary: "Structured baseball visualization planning with axes, grouping, signals, and caveats.",
+    summary: "Structured baseball chart specification with a strict visual output contract.",
     terminologyMode: "deterministic_seed_bundle_v1",
     promptBodyRole: "visual_plan",
     instructionBlocks: [
-      "You are planning a baseball chart, not writing a generic answer.",
-      "Recommend a concrete visualization with axes, grouping, signals, and caveats.",
+      "You are returning a baseball chart specification, not a generic answer.",
+      "Honor an explicit user chart request when it is implementable; otherwise choose the best supported chart type for the question.",
+      "Treat the current page context as the default entity and sample window unless the user explicitly asks to compare or switch scope.",
+      "Use the supplied page-scoped tool outputs as the source of truth for plotted values and labels.",
     ],
   },
 };

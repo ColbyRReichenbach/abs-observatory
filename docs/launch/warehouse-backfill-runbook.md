@@ -18,7 +18,7 @@ This runbook assumes the environment contract defined in:
 
 - [serving-db-policy.md](./serving-db-policy.md)
 - [serving-publish-contract.md](./serving-publish-contract.md)
-- [data-platform-master-plan.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/data-platform-master-plan.md)
+- [data-platform-master-plan.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/data-platform-master-plan.md)
 
 ## Preconditions
 
@@ -26,7 +26,7 @@ Before running a warehouse backfill:
 
 1. `WAREHOUSE_DATABASE_URL` is set to the canonical warehouse database.
 2. Warehouse schema has been applied.
-3. ETL dependencies are installed from [etl/requirements.txt](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/requirements.txt).
+3. ETL dependencies are installed from [etl/requirements.txt](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/requirements.txt).
 4. No one is treating local Postgres as the canonical warehouse.
 
 ## Commands

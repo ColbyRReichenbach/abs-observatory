@@ -6,7 +6,7 @@ Last updated: April 10, 2026
 
 Primary methodology source:
 
-- [ai-surface-terminology-master-plan.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/architecture/ai-surface-terminology-master-plan.md)
+- [ai-surface-terminology-master-plan.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/architecture/ai-surface-terminology-master-plan.md)
 
 ## Purpose
 

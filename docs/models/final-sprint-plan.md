@@ -43,9 +43,9 @@ Targeted fixes:
 
 Primary file targets:
 
-- [report_called_pitch_geometry_validation.py](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/etl/report_called_pitch_geometry_validation.py)
-- [called-pitch-geometry.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/model-cards/called-pitch-geometry.md)
-- [publication-readiness.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/publication-readiness.md)
+- [report_called_pitch_geometry_validation.py](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/etl/report_called_pitch_geometry_validation.py)
+- [called-pitch-geometry.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/model-cards/called-pitch-geometry.md)
+- [publication-readiness.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/publication-readiness.md)
 
 Acceptance criteria:
 
@@ -87,9 +87,9 @@ Targeted fixes:
 
 Primary file targets:
 
-- [run-overturn-calibration.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/model-audits/run-overturn-calibration.mjs)
-- [overturn-probability.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/model-cards/overturn-probability.md)
-- [publication-readiness.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/publication-readiness.md)
+- [run-overturn-calibration.mjs](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/model-audits/run-overturn-calibration.mjs)
+- [overturn-probability.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/model-cards/overturn-probability.md)
+- [publication-readiness.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/publication-readiness.md)
 
 Acceptance criteria:
 
@@ -125,10 +125,10 @@ Targeted fixes:
 
 Primary file targets:
 
-- [run-decision-value-audit.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/model-audits/run-decision-value-audit.mjs)
-- [challenge-now-policy.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/model-cards/challenge-now-policy.md)
-- [publication-checklist.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/launch/publication-checklist.md)
-- [publication-readiness.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/publication-readiness.md)
+- [run-decision-value-audit.mjs](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/model-audits/run-decision-value-audit.mjs)
+- [challenge-now-policy.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/model-cards/challenge-now-policy.md)
+- [publication-checklist.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/launch/publication-checklist.md)
+- [publication-readiness.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/publication-readiness.md)
 
 Acceptance criteria:
 
@@ -173,9 +173,9 @@ Targeted fixes:
 
 Primary file targets:
 
-- [publication-checklist.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/launch/publication-checklist.md)
-- [publication-readiness.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/publication-readiness.md)
-- [model-cards/README.md](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/docs/models/model-cards/README.md)
+- [publication-checklist.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/launch/publication-checklist.md)
+- [publication-readiness.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/publication-readiness.md)
+- [model-cards/README.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/model-cards/README.md)
 
 Acceptance criteria:
 

@@ -24,7 +24,7 @@ describe("entitlements", () => {
       .mockResolvedValueOnce({
         userid: "user-1",
         plancode: "free",
-        airequestsperday: 8,
+        airequestsperday: 5,
         aitokenspermonth: 25000,
         aicostusdpermonth: "5",
         featureflags: {
@@ -40,7 +40,7 @@ describe("entitlements", () => {
       expect.objectContaining({
         userId: "user-1",
         planCode: "free",
-        aiRequestsPerDay: 8,
+        aiRequestsPerDay: 5,
       }),
     );
   });
@@ -51,7 +51,7 @@ describe("entitlements", () => {
       .mockResolvedValueOnce({
         userid: "user-1",
         plancode: "free",
-        airequestsperday: 8,
+        airequestsperday: 5,
         aitokenspermonth: 100,
         aicostusdpermonth: "5",
         featureflags: {
@@ -82,7 +82,7 @@ describe("entitlements", () => {
       .mockResolvedValueOnce({
         userid: "user-1",
         plancode: "free",
-        airequestsperday: 8,
+        airequestsperday: 5,
         aitokenspermonth: 100,
         aicostusdpermonth: "5",
         featureflags: {
@@ -199,7 +199,7 @@ describe("entitlements", () => {
       .mockResolvedValueOnce({
         userid: "user-1",
         plancode: "free",
-        airequestsperday: 8,
+        airequestsperday: 5,
         aitokenspermonth: 25000,
         aicostusdpermonth: "5",
         featureflags: {
@@ -225,6 +225,41 @@ describe("entitlements", () => {
     });
 
     expect(allowed.entitlement.planCode).toBe("free");
+  });
+
+  it("limits free users to one chart follow-up per week", async () => {
+    const { assertAiUsageAllowed } = await import("@/lib/server/entitlements");
+    sqlOneMock
+      .mockResolvedValueOnce({
+        userid: "user-1",
+        plancode: "free",
+        airequestsperday: 5,
+        aitokenspermonth: 25000,
+        aicostusdpermonth: "5",
+        featureflags: {
+          premium_ai_limits: false,
+          ai_chart_generation: false,
+          ai_editorial_tools: false,
+        },
+      })
+      .mockResolvedValueOnce({
+        dailyrequests: "0",
+        monthlytokens: "0",
+        monthlycostusd: "0",
+      })
+      .mockResolvedValueOnce({ dailycostusd: "0" })
+      .mockResolvedValueOnce({ monthlycostusd: "0" })
+      .mockResolvedValueOnce({ monthlycostusd: "0" })
+      .mockResolvedValueOnce({ requestcount: "1" });
+
+    await expect(
+      assertAiUsageAllowed({
+        userId: "user-1",
+        featureKey: "ai_chart_followup",
+        estimatedInputTokens: 50,
+        modelName: "gpt-4.1-mini",
+      }),
+    ).rejects.toMatchObject({ code: "AI_QUOTA_EXCEEDED", status: 429 });
   });
 
   it("honors per-model monthly budget caps", async () => {

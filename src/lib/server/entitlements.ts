@@ -1,5 +1,6 @@
 import { sql, sqlOne } from "@/lib/db";
 import { AI_ERROR_CODES, AiPolicyError } from "./ai-policy";
+import { getOwnerClerkUserId } from "./owner-admin";
 
 export const AI_PLAN_CODES = ["free", "tier1", "tier2", "tier3"] as const;
 export type AiPlanCode = (typeof AI_PLAN_CODES)[number];
@@ -7,7 +8,7 @@ export type AiPlanCode = (typeof AI_PLAN_CODES)[number];
 export const AI_FEATURE_FLAGS = ["premium_ai_limits", "ai_chart_generation", "ai_editorial_tools"] as const;
 export type AiFeatureFlag = (typeof AI_FEATURE_FLAGS)[number];
 
-export const AI_USAGE_FEATURES = ["ai_chat_basic", "ai_chat_heavy", "ai_chart_generation", "ai_editorial_tools"] as const;
+export const AI_USAGE_FEATURES = ["ai_chat_basic", "ai_chat_heavy", "ai_chart_generation", "ai_chart_followup", "ai_editorial_tools"] as const;
 export type AiUsageFeature = (typeof AI_USAGE_FEATURES)[number];
 
 export type AiEntitlement = {
@@ -16,6 +17,7 @@ export type AiEntitlement = {
   aiRequestsPerDay: number;
   aiTokensPerMonth: number;
   aiCostUsdPerMonth: number;
+  aiChartFollowupsPerWeek: number;
   featureFlags: Record<string, boolean>;
 };
 
@@ -31,9 +33,10 @@ type AiUsageRollup = {
 const PLAN_DEFAULTS: Record<AiPlanCode, Omit<AiEntitlement, "userId">> = {
   free: {
     planCode: "free",
-    aiRequestsPerDay: 8,
+    aiRequestsPerDay: 5,
     aiTokensPerMonth: 25_000,
     aiCostUsdPerMonth: 5,
+    aiChartFollowupsPerWeek: 1,
     featureFlags: {
       premium_ai_limits: false,
       ai_chart_generation: false,
@@ -45,6 +48,7 @@ const PLAN_DEFAULTS: Record<AiPlanCode, Omit<AiEntitlement, "userId">> = {
     aiRequestsPerDay: 20,
     aiTokensPerMonth: 100_000,
     aiCostUsdPerMonth: 15,
+    aiChartFollowupsPerWeek: 5,
     featureFlags: {
       premium_ai_limits: true,
       ai_chart_generation: true,
@@ -56,6 +60,7 @@ const PLAN_DEFAULTS: Record<AiPlanCode, Omit<AiEntitlement, "userId">> = {
     aiRequestsPerDay: 50,
     aiTokensPerMonth: 250_000,
     aiCostUsdPerMonth: 40,
+    aiChartFollowupsPerWeek: 15,
     featureFlags: {
       premium_ai_limits: true,
       ai_chart_generation: true,
@@ -67,6 +72,7 @@ const PLAN_DEFAULTS: Record<AiPlanCode, Omit<AiEntitlement, "userId">> = {
     aiRequestsPerDay: 150,
     aiTokensPerMonth: 1_000_000,
     aiCostUsdPerMonth: 120,
+    aiChartFollowupsPerWeek: 50,
     featureFlags: {
       premium_ai_limits: true,
       ai_chart_generation: true,
@@ -114,6 +120,7 @@ function serializeEntitlement(row: {
     aiRequestsPerDay: Number(row.airequestsperday),
     aiTokensPerMonth: Number(row.aitokenspermonth),
     aiCostUsdPerMonth: Number(row.aicostusdpermonth),
+    aiChartFollowupsPerWeek: defaults.aiChartFollowupsPerWeek,
     featureFlags: {
       ...defaults.featureFlags,
       ...(row.featureflags ?? {}),
@@ -121,7 +128,44 @@ function serializeEntitlement(row: {
   };
 }
 
+async function getOwnerEntitlementOverride(userId: string): Promise<AiEntitlement | null> {
+  const ownerClerkUserId = getOwnerClerkUserId();
+  if (!ownerClerkUserId) return null;
+
+  const ownerRow = await sqlOne<{
+    externalauthprovider: string;
+    externalauthid: string;
+  }>(
+    `
+    SELECT
+      external_auth_provider AS externalAuthProvider,
+      external_auth_id AS externalAuthId
+    FROM product.users
+    WHERE user_id = $1
+    `,
+    [userId],
+  );
+
+  if (!ownerRow || ownerRow.externalauthprovider !== "clerk" || ownerRow.externalauthid !== ownerClerkUserId) {
+    return null;
+  }
+
+  const defaults = PLAN_DEFAULTS.tier3;
+  return {
+    userId,
+    planCode: "tier3",
+    aiRequestsPerDay: defaults.aiRequestsPerDay,
+    aiTokensPerMonth: defaults.aiTokensPerMonth,
+    aiCostUsdPerMonth: defaults.aiCostUsdPerMonth,
+    aiChartFollowupsPerWeek: defaults.aiChartFollowupsPerWeek,
+    featureFlags: {
+      ...defaults.featureFlags,
+    },
+  };
+}
+
 export async function getOrCreateAiEntitlement(userId: string): Promise<AiEntitlement> {
+  const ownerOverride = await getOwnerEntitlementOverride(userId);
   const existing = await sqlOne<{
     userid: string;
     plancode: AiPlanCode;
@@ -145,10 +189,64 @@ export async function getOrCreateAiEntitlement(userId: string): Promise<AiEntitl
   );
 
   if (existing) {
-    return serializeEntitlement(existing);
+    if (!ownerOverride) {
+      return serializeEntitlement(existing);
+    }
+
+    const current = serializeEntitlement(existing);
+    if (
+      current.planCode === ownerOverride.planCode &&
+      current.aiRequestsPerDay === ownerOverride.aiRequestsPerDay &&
+      current.aiTokensPerMonth === ownerOverride.aiTokensPerMonth &&
+      current.aiCostUsdPerMonth === ownerOverride.aiCostUsdPerMonth &&
+      JSON.stringify(current.featureFlags) === JSON.stringify(ownerOverride.featureFlags)
+    ) {
+      return current;
+    }
+
+    const upgraded = await sqlOne<{
+      userid: string;
+      plancode: AiPlanCode;
+      airequestsperday: number;
+      aitokenspermonth: number;
+      aicostusdpermonth: number | string;
+      featureflags: Record<string, boolean> | null;
+    }>(
+      `
+      UPDATE ai.user_entitlements
+      SET
+        plan_code = $2,
+        ai_requests_per_day = $3,
+        ai_tokens_per_month = $4,
+        ai_cost_usd_per_month = $5,
+        feature_flags = $6
+      WHERE user_id = $1
+      RETURNING
+        user_id AS userId,
+        plan_code AS planCode,
+        ai_requests_per_day AS aiRequestsPerDay,
+        ai_tokens_per_month AS aiTokensPerMonth,
+        ai_cost_usd_per_month AS aiCostUsdPerMonth,
+        feature_flags AS featureFlags
+      `,
+      [
+        userId,
+        ownerOverride.planCode,
+        ownerOverride.aiRequestsPerDay,
+        ownerOverride.aiTokensPerMonth,
+        ownerOverride.aiCostUsdPerMonth,
+        JSON.stringify(ownerOverride.featureFlags),
+      ],
+    );
+
+    if (!upgraded) {
+      throw new Error("Failed to upgrade owner AI entitlement");
+    }
+
+    return serializeEntitlement(upgraded);
   }
 
-  const defaults = PLAN_DEFAULTS.free;
+  const defaults = ownerOverride ? PLAN_DEFAULTS.tier3 : PLAN_DEFAULTS.free;
   const inserted = await sqlOne<{
     userid: string;
     plancode: AiPlanCode;
@@ -246,6 +344,25 @@ async function getUsageRollup(userId: string, modelName: string): Promise<AiUsag
   };
 }
 
+async function getFeatureUsageCount(params: {
+  userId: string;
+  featureKey: AiUsageFeature;
+  windowDays: number;
+}): Promise<number> {
+  const row = await sqlOne<{ requestcount: string }>(
+    `
+    SELECT COALESCE(SUM(request_count), 0)::text AS requestCount
+    FROM ai.usage_ledger
+    WHERE user_id = $1
+      AND feature_key = $2
+      AND created_at >= NOW() - ($3::text || ' days')::interval
+    `,
+    [params.userId, params.featureKey, params.windowDays],
+  );
+
+  return Number(row?.requestcount ?? 0);
+}
+
 export function isFeatureEnabled(entitlement: AiEntitlement, flag: AiFeatureFlag): boolean {
   return Boolean(entitlement.featureFlags[flag]);
 }
@@ -267,8 +384,20 @@ export async function assertAiUsageAllowed(params: {
     throw new AiPolicyError("Current plan does not allow editorial tools", AI_ERROR_CODES.PLAN_RESTRICTED, 403);
   }
 
+  if (params.featureKey === "ai_chart_followup") {
+    const weeklyChartFollowups = await getFeatureUsageCount({
+      userId: params.userId,
+      featureKey: "ai_chart_followup",
+      windowDays: 7,
+    });
+
+    if (weeklyChartFollowups >= entitlement.aiChartFollowupsPerWeek) {
+      throw new AiPolicyError("Weekly chart insight follow-up allowance exceeded", AI_ERROR_CODES.QUOTA_EXCEEDED, 429);
+    }
+  }
+
   if (usage.dailyRequests >= entitlement.aiRequestsPerDay) {
-    throw new AiPolicyError("Daily AI request allowance exceeded", AI_ERROR_CODES.QUOTA_EXCEEDED, 429);
+    throw new AiPolicyError("Daily copilot allowance exceeded", AI_ERROR_CODES.QUOTA_EXCEEDED, 429);
   }
 
   if (usage.monthlyTokens + params.estimatedInputTokens > entitlement.aiTokensPerMonth) {

@@ -78,6 +78,31 @@ export async function POST(request: NextRequest) {
     if (evt.type === "user.created" || evt.type === "user.updated") {
       const emailAddress = getPrimaryEmail(payload);
 
+      if (emailAddress) {
+        const existingByEmail = await sqlOne<{
+          userid: string;
+          externalauthid: string;
+        }>(
+          `
+          SELECT
+            user_id AS userId,
+            external_auth_id AS externalAuthId
+          FROM product.users
+          WHERE LOWER(primary_email) = LOWER($1)
+            AND NOT (
+              external_auth_provider = 'clerk'
+              AND external_auth_id = $2
+            )
+          LIMIT 1
+          `,
+          [emailAddress, getString(payload, "id")],
+        );
+
+        if (existingByEmail) {
+          return NextResponse.json({ error: "Email is already attached to another account" }, { status: 409 });
+        }
+      }
+
       const displayName = [getString(payload, "first_name"), getString(payload, "last_name")]
         .filter(Boolean)
         .join(" ")

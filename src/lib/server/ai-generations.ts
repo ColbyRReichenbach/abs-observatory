@@ -42,6 +42,58 @@ export type AiGenerationEventInput = {
   metadata?: unknown;
 };
 
+export type AiSavedArtifact = {
+  artifactId: string;
+  userId: string;
+  generationId: string | null;
+  surfaceKey: AiGenerationSurfaceKey;
+  surfaceDetail: string | null;
+  targetType: string;
+  targetId: string;
+  routeScope: string | null;
+  routeEntityId: string | null;
+  articleId: string | null;
+  gamePk: number | null;
+  title: string | null;
+  summary: string | null;
+  artifactPayload: unknown;
+  metadata: unknown;
+  lastViewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AiArtifactRegistrationInput = Pick<
+  AiGenerationEventInput,
+  "surfaceKey" | "surfaceDetail" | "targetType" | "targetId" | "routeScope" | "routeEntityId" | "articleId" | "gamePk" | "metadata"
+> & {
+  userId?: string | null;
+  title?: string | null;
+  summary?: string | null;
+  artifactPayload?: unknown;
+};
+
+type AiSavedArtifactRow = {
+  artifactid: string;
+  userid: string;
+  generationid: string | null;
+  surfacekey: AiGenerationSurfaceKey;
+  surfacedetail: string | null;
+  targettype: string;
+  targetid: string;
+  routescope: string | null;
+  routeentityid: string | null;
+  articleid: string | null;
+  gamepk: number | null;
+  title: string | null;
+  summary: string | null;
+  artifactpayload: unknown;
+  metadata: unknown;
+  lastviewedat: string | null;
+  createdat: string;
+  updatedat: string;
+};
+
 async function insertGenerationEvent(
   query: QueryFn,
   input: AiGenerationEventInput,
@@ -175,7 +227,7 @@ export async function recordAiGenerationEventWithQuery(
 
 export async function getOrCreateAiArtifactGeneration(
   input: Pick<
-    AiGenerationEventInput,
+    AiArtifactRegistrationInput,
     "surfaceKey" | "surfaceDetail" | "targetType" | "targetId" | "routeScope" | "routeEntityId" | "articleId" | "gamePk" | "metadata"
   >,
 ): Promise<string | null> {
@@ -233,4 +285,232 @@ export async function getOrCreateAiArtifactGeneration(
   );
 
   return row[0]?.generationid ?? null;
+}
+
+function mapSavedArtifact(row: AiSavedArtifactRow): AiSavedArtifact {
+  return {
+    artifactId: row.artifactid,
+    userId: row.userid,
+    generationId: row.generationid,
+    surfaceKey: row.surfacekey,
+    surfaceDetail: row.surfacedetail,
+    targetType: row.targettype,
+    targetId: row.targetid,
+    routeScope: row.routescope,
+    routeEntityId: row.routeentityid,
+    articleId: row.articleid,
+    gamePk: row.gamepk === null ? null : Number(row.gamepk),
+    title: row.title,
+    summary: row.summary,
+    artifactPayload: row.artifactpayload,
+    metadata: row.metadata,
+    lastViewedAt: row.lastviewedat,
+    createdAt: row.createdat,
+    updatedAt: row.updatedat,
+  };
+}
+
+async function upsertViewerAiArtifact(input: Required<Pick<AiArtifactRegistrationInput, "userId">> & AiArtifactRegistrationInput & { generationId?: string | null }) {
+  const row = await sqlOne<AiSavedArtifactRow>(
+    `
+    INSERT INTO ai.saved_artifacts (
+      user_id,
+      generation_id,
+      surface_key,
+      surface_detail,
+      target_type,
+      target_id,
+      route_scope,
+      route_entity_id,
+      article_id,
+      game_pk,
+      title,
+      summary,
+      artifact_payload,
+      metadata,
+      last_viewed_at
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW())
+    ON CONFLICT (user_id, surface_key, target_type, target_id)
+    DO UPDATE SET
+      generation_id = COALESCE(EXCLUDED.generation_id, ai.saved_artifacts.generation_id),
+      surface_detail = COALESCE(EXCLUDED.surface_detail, ai.saved_artifacts.surface_detail),
+      route_scope = COALESCE(EXCLUDED.route_scope, ai.saved_artifacts.route_scope),
+      route_entity_id = COALESCE(EXCLUDED.route_entity_id, ai.saved_artifacts.route_entity_id),
+      article_id = COALESCE(EXCLUDED.article_id, ai.saved_artifacts.article_id),
+      game_pk = COALESCE(EXCLUDED.game_pk, ai.saved_artifacts.game_pk),
+      title = COALESCE(EXCLUDED.title, ai.saved_artifacts.title),
+      summary = COALESCE(EXCLUDED.summary, ai.saved_artifacts.summary),
+      artifact_payload = COALESCE(EXCLUDED.artifact_payload, ai.saved_artifacts.artifact_payload),
+      metadata = CASE
+        WHEN EXCLUDED.metadata IS NULL THEN ai.saved_artifacts.metadata
+        WHEN ai.saved_artifacts.metadata IS NULL THEN EXCLUDED.metadata
+        ELSE ai.saved_artifacts.metadata || EXCLUDED.metadata
+      END,
+      last_viewed_at = NOW(),
+      updated_at = NOW()
+    RETURNING
+      artifact_id AS artifactId,
+      user_id AS userId,
+      generation_id AS generationId,
+      surface_key AS surfaceKey,
+      surface_detail AS surfaceDetail,
+      target_type AS targetType,
+      target_id AS targetId,
+      route_scope AS routeScope,
+      route_entity_id AS routeEntityId,
+      article_id AS articleId,
+      game_pk AS gamePk,
+      title,
+      summary,
+      artifact_payload AS artifactPayload,
+      metadata,
+      last_viewed_at AS lastViewedAt,
+      created_at AS createdAt,
+      updated_at AS updatedAt
+    `,
+    [
+      input.userId,
+      input.generationId ?? null,
+      input.surfaceKey,
+      input.surfaceDetail ?? null,
+      input.targetType,
+      input.targetId,
+      input.routeScope ?? null,
+      input.routeEntityId ?? null,
+      input.articleId ?? null,
+      input.gamePk ?? null,
+      input.title ?? null,
+      input.summary ?? null,
+      input.artifactPayload ?? null,
+      input.metadata ?? null,
+    ],
+  );
+
+  return row ? mapSavedArtifact(row) : null;
+}
+
+export async function registerAiArtifact(input: AiArtifactRegistrationInput): Promise<{
+  generationId: string | null;
+  artifactId: string | null;
+  saved: boolean;
+}> {
+  const generationId = await getOrCreateAiArtifactGeneration(input);
+
+  if (!input.userId) {
+    return {
+      generationId,
+      artifactId: null,
+      saved: false,
+    };
+  }
+
+  const artifact = await upsertViewerAiArtifact({
+    ...input,
+    userId: input.userId,
+    generationId,
+  });
+
+  return {
+    generationId,
+    artifactId: artifact?.artifactId ?? null,
+    saved: Boolean(artifact?.artifactId),
+  };
+}
+
+export async function listViewerAiArtifacts(userId: string, limit = 12): Promise<AiSavedArtifact[]> {
+  const rows = await sql<AiSavedArtifactRow>(
+    `
+    SELECT
+      artifact_id AS artifactId,
+      user_id AS userId,
+      generation_id AS generationId,
+      surface_key AS surfaceKey,
+      surface_detail AS surfaceDetail,
+      target_type AS targetType,
+      target_id AS targetId,
+      route_scope AS routeScope,
+      route_entity_id AS routeEntityId,
+      article_id AS articleId,
+      game_pk AS gamePk,
+      title,
+      summary,
+      artifact_payload AS artifactPayload,
+      metadata,
+      last_viewed_at AS lastViewedAt,
+      created_at AS createdAt,
+      updated_at AS updatedAt
+    FROM ai.saved_artifacts
+    WHERE user_id = $1::uuid
+    ORDER BY updated_at DESC, created_at DESC
+    LIMIT $2
+    `,
+    [userId, limit],
+  );
+
+  return rows.map(mapSavedArtifact);
+}
+
+export async function getViewerAiArtifactById(userId: string, artifactId: string): Promise<AiSavedArtifact | null> {
+  const row = await sqlOne<AiSavedArtifactRow>(
+    `
+    SELECT
+      artifact_id AS artifactId,
+      user_id AS userId,
+      generation_id AS generationId,
+      surface_key AS surfaceKey,
+      surface_detail AS surfaceDetail,
+      target_type AS targetType,
+      target_id AS targetId,
+      route_scope AS routeScope,
+      route_entity_id AS routeEntityId,
+      article_id AS articleId,
+      game_pk AS gamePk,
+      title,
+      summary,
+      artifact_payload AS artifactPayload,
+      metadata,
+      last_viewed_at AS lastViewedAt,
+      created_at AS createdAt,
+      updated_at AS updatedAt
+    FROM ai.saved_artifacts
+    WHERE user_id = $1::uuid
+      AND artifact_id = $2::uuid
+    `,
+    [userId, artifactId],
+  );
+
+  return row ? mapSavedArtifact(row) : null;
+}
+
+export async function getPublicAiArtifactById(artifactId: string): Promise<AiSavedArtifact | null> {
+  const row = await sqlOne<AiSavedArtifactRow>(
+    `
+    SELECT
+      artifact_id AS artifactId,
+      user_id AS userId,
+      generation_id AS generationId,
+      surface_key AS surfaceKey,
+      surface_detail AS surfaceDetail,
+      target_type AS targetType,
+      target_id AS targetId,
+      route_scope AS routeScope,
+      route_entity_id AS routeEntityId,
+      article_id AS articleId,
+      game_pk AS gamePk,
+      title,
+      summary,
+      artifact_payload AS artifactPayload,
+      metadata,
+      last_viewed_at AS lastViewedAt,
+      created_at AS createdAt,
+      updated_at AS updatedAt
+    FROM ai.saved_artifacts
+    WHERE artifact_id = $1::uuid
+      AND COALESCE((metadata ->> 'publicShare')::boolean, FALSE) = TRUE
+    `,
+    [artifactId],
+  );
+
+  return row ? mapSavedArtifact(row) : null;
 }

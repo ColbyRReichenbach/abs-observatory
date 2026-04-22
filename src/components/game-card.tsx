@@ -1,5 +1,3 @@
-import Image from "next/image";
-
 import { ChallengeHashes } from "@/components/challenge-hashes";
 import { TeamIcon } from "@/components/team-icon";
 import { LocalTime } from "@/components/local-time";
@@ -7,18 +5,18 @@ import { GameTypeBadge } from "@/components/ui/game-type-badge";
 import { ModeAwareLink } from "@/components/ui/mode-aware-link";
 import { useMemo } from "react";
 import { resolveTeamBranding } from "@/lib/team-branding";
+import type { ViewMode } from "@/lib/view-mode";
 
 import type { LiveGameCard } from "@/lib/types";
 
-export function GameCard({ game }: { game: LiveGameCard }) {
-  const awayAbbr = game.awayTeamAbbreviation ?? game.awayTeamName.slice(0, 3).toUpperCase();
-  const homeAbbr = game.homeTeamAbbreviation ?? game.homeTeamName.slice(0, 3).toUpperCase();
+export function GameCard({ game, viewMode }: { game: LiveGameCard; viewMode?: ViewMode | null }) {
   const liveScenarioLabel = getLiveScenarioLabel(game);
 
   return (
 
     <ModeAwareLink
       href={`/game/${game.gamePk}`}
+      mode={viewMode}
       className="group panel panel-interactive relative flex flex-col overflow-hidden p-0 border-gray-100 bg-white"
     >
       {/* Top bar with status */}
@@ -37,7 +35,6 @@ export function GameCard({ game }: { game: LiveGameCard }) {
         {/* Away team */}
         <TeamRow
           teamId={game.awayTeamId}
-          abbreviation={awayAbbr}
           name={game.awayTeamName}
           runs={game.awayScore}
           absRemaining={game.awayAbsRemaining}
@@ -55,7 +52,6 @@ export function GameCard({ game }: { game: LiveGameCard }) {
         {/* Home team */}
         <TeamRow
           teamId={game.homeTeamId}
-          abbreviation={homeAbbr}
           name={game.homeTeamName}
           runs={game.homeScore}
           absRemaining={game.homeAbsRemaining}
@@ -143,7 +139,6 @@ function StatusChip({ status }: { status: string }) {
 
 function TeamRow({
   teamId,
-  abbreviation,
   name,
   runs,
   absRemaining,
@@ -151,7 +146,6 @@ function TeamRow({
   isWinning,
 }: {
   teamId: number;
-  abbreviation: string;
   name: string;
   runs: number | null;
   absRemaining: number;

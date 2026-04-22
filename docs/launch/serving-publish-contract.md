@@ -204,8 +204,8 @@ If a table cannot be reconciled by a stable natural key, it should not be part o
 
 Current repo behavior already supports part of this contract:
 
-- [scripts/publish-serving-db.sh](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/publish-serving-db.sh) performs the current publish flow
-- [scripts/reconcile-warehouse-serving.mjs](/Users/colbyreichenbach/Desktop/mlb/abs-observatory/scripts/reconcile-warehouse-serving.mjs) performs current drift checks
+- [scripts/publish-serving-db.sh](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/publish-serving-db.sh) performs the current publish flow
+- [scripts/reconcile-warehouse-serving.mjs](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/reconcile-warehouse-serving.mjs) performs current drift checks
 
 Current gaps:
 

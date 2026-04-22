@@ -1,5 +1,20 @@
 import { NextResponse } from "next/server";
+import { getPublicProfileByUsername } from "@/lib/server/profiles";
 
-export async function GET() {
-  return NextResponse.json({ ok: false, disabled: true }, { status: 404 });
+const PUBLIC_RESPONSE_HEADERS = {
+  "Cache-Control": "no-store",
+};
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ username: string }> },
+) {
+  const { username } = await params;
+  const profile = await getPublicProfileByUsername(username);
+
+  if (!profile) {
+    return NextResponse.json({ error: "Profile not found" }, { status: 404, headers: PUBLIC_RESPONSE_HEADERS });
+  }
+
+  return NextResponse.json({ profile }, { headers: PUBLIC_RESPONSE_HEADERS });
 }

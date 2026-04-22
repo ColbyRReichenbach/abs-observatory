@@ -92,7 +92,16 @@ export function getAllowedToolNames(context?: CopilotContext): string[] {
   }
 
   if (context?.scope === "team") {
-    return ["get_team_summary", "get_team_trend"];
+    return [
+      "get_team_summary",
+      "get_team_trend",
+      "get_team_inning_efficiency",
+      "get_team_side_splits",
+      "get_team_aggression",
+      "get_team_challenge_scenario_matrix",
+      "get_team_challenge_value_summary",
+      "get_team_decision_value_report",
+    ];
   }
 
   if (context?.scope === "umpire") {
@@ -164,13 +173,18 @@ export function estimateCostUsd(modelName: string, inputTokens: number, outputTo
 }
 
 export function buildAiErrorPayload(error: AiPolicyError) {
+  const detail = error.message.toLowerCase();
   const messageByCode: Record<AiErrorCode, string> = {
-    AI_AUTH_REQUIRED: "Sign in to use the copilot.",
-    AI_VERIFIED_REQUIRED: "Verify your account before using the copilot.",
+    AI_AUTH_REQUIRED: "Sign in and set up your profile to use AiBS AI.",
+    AI_VERIFIED_REQUIRED: "Verify your email before using AiBS AI.",
     AI_SUSPENDED_USER: "You’ve been ejected. Appeal via support.",
     AI_BANNED_USER: "You’ve been ejected. Appeal via support.",
     AI_PLAN_RESTRICTED: "Your current plan does not include that AI action.",
-    AI_QUOTA_EXCEEDED: "You’ve used today’s scouting report budget.",
+    AI_QUOTA_EXCEEDED: detail.includes("weekly chart insight")
+      ? "You’ve used this week’s chart follow-up."
+      : detail.includes("daily copilot")
+        ? "You’ve used today’s copilot allowance."
+        : "You’ve used your current AiBS AI allowance.",
     AI_OUT_OF_SCOPE: "I can help with baseball-related questions and AiBS analytics.",
     AI_MISUSE_DETECTED:
       "We detected misuse of the copilot. Your account has been timed out and flagged for review.",
