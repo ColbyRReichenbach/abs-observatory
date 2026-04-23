@@ -24,6 +24,7 @@
     "qa:launch:browser": "node scripts/launch-browser-check.mjs",
     "qa:launch:capture-auth": "node scripts/capture-launch-storage-state.mjs",
     "qa:ai-sweep": "node scripts/ai-prompt-sweep.mjs",
+    "qa:charts": "vitest run src/lib/__tests__/chart-data-audit.test.ts src/lib/__tests__/pregame-intel.test.ts",
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots",
     "db:schema": "bash scripts/run-db-schema.sh",

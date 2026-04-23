@@ -46,6 +46,11 @@ function formatChartType(chartType: AIVisualizerPlan["chartType"]) {
 
 type NumericDisplayKind = "number" | "percent";
 
+type PreviewPoint = {
+  x: string;
+  y: number;
+};
+
 function niceCeil(value: number) {
   if (value <= 0) return 0;
   const magnitude = 10 ** Math.floor(Math.log10(value));
@@ -117,6 +122,27 @@ function slugifyChartTitle(value: string) {
     .slice(0, 60) || "aibs-chart";
 }
 
+export function getBarPreviewLayout(plan: AIVisualizerPlan) {
+  const points: PreviewPoint[] = plan.dataPoints
+    .filter((point) => typeof point.y === "number")
+    .map((point) => ({ x: String(point.x), y: Number(point.y) }));
+  const scale = getNumericScale(points.map((point) => point.y), inferDisplayKind(plan, points.map((point) => point.y)));
+  const range = Math.max(scale.max - scale.min, 1);
+  const zeroPosition = ((0 - scale.min) / range) * 100;
+
+  return {
+    points,
+    scale,
+    zeroPosition,
+    bars: points.map((point) => ({
+      ...point,
+      heightPercent: (Math.abs(point.y) / range) * 100,
+      bottomPercent: point.y >= 0 ? zeroPosition : null,
+      topPercent: point.y < 0 ? 100 - zeroPosition : null,
+    })),
+  };
+}
+
 function PreviewShell({
   children,
   xAxis,
@@ -155,11 +181,7 @@ function BrandStamp() {
 }
 
 function BarPreview({ plan }: { plan: AIVisualizerPlan }) {
-  const points = plan.dataPoints
-    .filter((point) => typeof point.y === "number")
-    .map((point) => ({ x: String(point.x), y: Number(point.y) }));
-  const scale = getNumericScale(points.map((point) => point.y), inferDisplayKind(plan, points.map((point) => point.y)));
-  const zeroPosition = ((scale.max - 0) / Math.max(scale.max - scale.min, 1)) * 100;
+  const { scale, zeroPosition, bars } = getBarPreviewLayout(plan);
 
   return (
     <PreviewShell xAxis={plan.xAxis} yAxis={plan.yAxis}>
@@ -177,16 +199,16 @@ function BarPreview({ plan }: { plan: AIVisualizerPlan }) {
           </div>
           <div className="absolute left-0 right-0 border-t border-gray-300" style={{ bottom: `${zeroPosition}%` }} />
           <div className="relative z-10 flex h-full items-end gap-4 px-4 pb-2">
-            {points.map((point) => (
+            {bars.map((point) => (
               <div key={point.x} className="flex min-w-0 flex-1 flex-col items-center gap-2">
                 <div className="text-xs font-bold text-gray-500">{formatTick(point.y, scale.kind, scale.max)}</div>
                 <div className="relative h-full w-full">
                   <div
                     className={`absolute left-0 w-full bg-blue-500/80 ${point.y >= 0 ? "rounded-t-2xl" : "rounded-b-2xl"}`}
                     style={{
-                      height: `${(Math.abs(point.y) / Math.max(Math.abs(scale.min), Math.abs(scale.max), 1)) * zeroPosition}%`,
-                      bottom: point.y >= 0 ? `${zeroPosition}%` : undefined,
-                      top: point.y < 0 ? `${100 - zeroPosition}%` : undefined,
+                      height: `${point.heightPercent}%`,
+                      bottom: point.bottomPercent === null ? undefined : `${point.bottomPercent}%`,
+                      top: point.topPercent === null ? undefined : `${point.topPercent}%`,
                     }}
                   />
                 </div>

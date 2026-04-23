@@ -60,15 +60,15 @@ export async function getGamePregameIntel(gamePk: number): Promise<PregameIntel 
         COUNT(DISTINCT c.game_pk) AS games_with_challenges,
         SUM(
           CASE
-            WHEN c.half_inning = 'Top' AND g.away_team_id = c.challenge_team_id THEN 1
-            WHEN c.half_inning = 'Bottom' AND g.home_team_id = c.challenge_team_id THEN 1
+            WHEN LOWER(c.half_inning) = 'top' AND g.away_team_id = c.challenge_team_id THEN 1
+            WHEN LOWER(c.half_inning) = 'bottom' AND g.home_team_id = c.challenge_team_id THEN 1
             ELSE 0
           END
         ) AS offensive_challenges,
         SUM(
           CASE
-            WHEN c.half_inning = 'Top' AND g.home_team_id = c.challenge_team_id THEN 1
-            WHEN c.half_inning = 'Bottom' AND g.away_team_id = c.challenge_team_id THEN 1
+            WHEN LOWER(c.half_inning) = 'top' AND g.home_team_id = c.challenge_team_id THEN 1
+            WHEN LOWER(c.half_inning) = 'bottom' AND g.away_team_id = c.challenge_team_id THEN 1
             ELSE 0
           END
         ) AS defensive_challenges,

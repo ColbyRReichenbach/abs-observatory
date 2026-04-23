@@ -128,12 +128,12 @@ export function PregameTeamComparisonChart({
                 );
               }}
             />
-            <Bar dataKey="home" radius={[10, 10, 0, 0]} maxBarSize={42}>
+            <Bar dataKey="home" radius={[10, 10, 0, 0]} maxBarSize={42} minPointSize={6}>
               {data.map((_, index) => (
                 <Cell key={`home-${index}`} fill={homeColor} />
               ))}
             </Bar>
-            <Bar dataKey="away" radius={[10, 10, 0, 0]} maxBarSize={42}>
+            <Bar dataKey="away" radius={[10, 10, 0, 0]} maxBarSize={42} minPointSize={6}>
               {data.map((_, index) => (
                 <Cell key={`away-${index}`} fill={awayColor} />
               ))}

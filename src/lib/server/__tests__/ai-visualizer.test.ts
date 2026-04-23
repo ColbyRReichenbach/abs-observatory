@@ -122,4 +122,45 @@ describe("runVisualizerSurface", () => {
       { x: "Full Count", y: 0.5 },
     ]);
   });
+
+  it("treats offense-v-defense shorthand as a deterministic heatmap request on team pages", async () => {
+    resolveToolResultsMock.mockResolvedValueOnce([
+      {
+        toolName: "get_team_summary",
+        payload: {
+          teamName: "St. Louis Cardinals",
+        },
+      },
+      {
+        toolName: "get_team_inning_efficiency",
+        payload: [
+          { inning: 1, category: "Offensive", sampleSize: 6, overturnRate: 0.5 },
+          { inning: 1, category: "Defensive", sampleSize: 4, overturnRate: 0.25 },
+          { inning: 2, category: "Offensive", sampleSize: 3, overturnRate: 0.67 },
+          { inning: 2, category: "Defensive", sampleSize: 2, overturnRate: 0.5 },
+        ],
+      },
+    ]);
+
+    const result = await runVisualizerSurface({
+      openaiClient: null,
+      modelName: "gpt-4.1-mini",
+      surface: "visualizer",
+      audienceMode: "fan",
+      taskFamily: "question_to_visual_plan",
+      message: "Show me challenges per offense v defense.",
+      transcript: "No prior turns.",
+      terminologyAppendix: "",
+      context: { scope: "team", entityId: "138", range: "season" },
+    });
+
+    expect(result.structuredPlan?.chartType).toBe("heatmap");
+    expect(result.structuredPlan?.chartTitle).toBe("St. Louis Cardinals Offensive vs Defensive Review Results by Inning");
+    expect(result.structuredPlan?.dataPoints).toEqual([
+      { x: "Inning 1", y: "Offensive", value: 0.5 },
+      { x: "Inning 1", y: "Defensive", value: 0.25 },
+      { x: "Inning 2", y: "Offensive", value: 0.67 },
+      { x: "Inning 2", y: "Defensive", value: 0.5 },
+    ]);
+  });
 });

@@ -166,9 +166,7 @@ function buildTeamDeterministicPlan(message: string, toolResults: ToolResult[]):
   const wantsChallengeCount = /challenge swings|challenge count|challenge usage|review count|review volume|count of challenge/.test(
     normalizedMessage,
   );
-  const wantsOffenseDefense = /offense vs defense|offensive vs defensive|offense and defense|offensive and defensive/.test(
-    normalizedMessage,
-  );
+  const wantsOffenseDefense = /(offense|offensive)\s*(?:vs|v|and|\/)\s*(defense|defensive)/.test(normalizedMessage);
 
   if (scenarioMatrix?.length && wantsCountState) {
     const buckets = new Map<string, { challenges: number; overturned: number }>();
@@ -203,7 +201,7 @@ function buildTeamDeterministicPlan(message: string, toolResults: ToolResult[]):
     }
   }
 
-  if (inningEfficiency?.length && wantsInning && wantsOffenseDefense) {
+  if (inningEfficiency?.length && wantsOffenseDefense) {
     const dataPoints = inningEfficiency.map((entry) => ({
       x: `Inning ${entry.inning}`,
       y: entry.category,
