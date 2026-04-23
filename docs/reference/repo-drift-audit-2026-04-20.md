@@ -33,7 +33,8 @@ If you want current repo truth, start with:
 - `docs/reference/technical.md`
 - `docs/reference/security.md`
 - `docs/reference/gap-list.md`
-- `docs/product/aibs-spec-rewrite-task-index.json`
+- `docs/launch/live-polling-runbook.md`
+- `docs/launch/vercel-neon-runbook.md`
 
 These docs should be updated in the same change whenever product scope, routes, or operational boundaries move.
 
@@ -56,7 +57,6 @@ Rule:
 These are deferred on purpose, not missing by accident:
 
 - public follow relationships
-- public visualization sharing
 - broader social/community graph features
 - optimization-grade live challenge strategy claims
 

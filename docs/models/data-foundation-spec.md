@@ -2,6 +2,8 @@
 
 Last verified: `2026-04-08`
 
+> Status note: this is a dated April 8 warehouse/data snapshot. Use it as evidence of that inspection, not as a blanket claim that all row counts and cutoffs remain current today.
+
 This document is the source of truth for:
 
 - what data exists today

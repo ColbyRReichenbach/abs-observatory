@@ -1,8 +1,10 @@
 # Model Rework Execution Tracker
 
-Status: `Execution Plan`
+Status: `Historical Execution Tracker`
 
 Last updated: April 8, 2026
+
+> Status note: this tracker records the April 2026 model-rework program state. It remains useful for lineage, but it is not the canonical current-state product/model reference.
 
 Primary methodology source:
 

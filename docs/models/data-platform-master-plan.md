@@ -1,8 +1,10 @@
 # Data Platform Master Plan
 
-Status: `Current Source Of Truth`
+Status: `Dated Program Reference`
 
 Last updated: April 8, 2026
+
+> Status note: this plan records the April 2026 target data-platform architecture and program decisions. Use the launch runbooks, technical overview, and serving policy docs for current operating truth.
 
 ## Purpose
 

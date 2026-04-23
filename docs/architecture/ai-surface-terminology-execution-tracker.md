@@ -1,8 +1,10 @@
 # AI Surface And Terminology Execution Tracker
 
-Status: `Execution Plan`
+Status: `Historical Execution Tracker`
 
 Last updated: April 10, 2026
+
+> Status note: this tracker records the April 2026 AI surface refactor program. It should not be used as the live current-state source of truth for the shipped AI runtime.
 
 Primary methodology source:
 
@@ -568,4 +570,3 @@ This implementation is complete only when all of the following are true:
 8. unit tests and AI health checks pass
 9. no DB schema change is required for terminology in this phase
 10. docs reflect the actual implemented architecture
-

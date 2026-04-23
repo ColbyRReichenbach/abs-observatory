@@ -34,8 +34,8 @@ AiBS currently ships four connected product layers:
 
 3. `AI-assisted interpretation`
    - bounded baseball-only copilot
-   - chart-level summaries
-   - AI artifact and debrief workflows
+   - chart-level summaries and follow-up analysis
+   - team-scoped chart generation and shareable AI artifacts
 
 4. `Editorial and community`
    - article publishing and daily automated editorial flow
@@ -72,7 +72,12 @@ Public AI does not get arbitrary database access.
 
 ## Live Polling
 
-AiBS now runs live MLB polling on a fixed `5` minute heartbeat with an ET-aware work gate.
+AiBS currently supports two documented polling paths:
+
+- a scheduled warehouse poll + publish workflow in `.github/workflows/live-polling.yml`
+- a local macOS `launchd` operator workflow in `scripts/local-live-poll.sh`
+
+Both use ET-aware gating so the scheduler heartbeat stays simple while the ingest path decides whether real work is needed.
 
 The important implementation detail is that the scheduler is simple, but the ingest path is conditional:
 

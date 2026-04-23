@@ -19,13 +19,9 @@ Current public page routes:
 - `/umpires`
 - `/umpires/[umpireId]`
 - `/reports/[gamePk]`
-
-Present but not fully shipped:
-
 - `/v/[vizId]`
-  - route exists, but public visualization sharing is intentionally deferred
 - `/u/[username]`
-  - route exists and is backed by the current public profile layer
+  - route is backed by the current public profile layer
 
 ## Auth And User Pages
 
@@ -51,8 +47,9 @@ Current admin surface:
 - `/admin/ai`
 - `/admin/ai/review`
 - `/admin/community`
-  - scope-control page, not a live social-graph console
+  - moderation console, not a social-graph console
 - `/admin/editorial`
+- `/admin/users`
 
 ## Core Public API Routes
 
@@ -60,6 +57,7 @@ Current public-facing or product-serving API routes include:
 
 - `/api/health`
 - `/api/csrf`
+- `/api/data-freshness`
 - `/api/dev-auth/session`
 - `/api/dev-auth/reset-walkthrough`
 - `/api/live/games`
@@ -74,6 +72,7 @@ Current public-facing or product-serving API routes include:
 - `/api/umpires/[umpireId]/pitch-types`
 - `/api/umpires/[umpireId]/season-trend`
 - `/api/v2/challenge-value`
+- `/api/viz-og/[vizId]`
 
 ## Auth, Profile, And Community API Routes
 
@@ -101,6 +100,7 @@ Present but intentionally disabled:
 - `/api/ai/artifacts`
   - registers owned AI artifacts for signed-in viewers
   - lists saved artifacts back into the profile workspace
+  - allows public-share-enabled visualizer artifacts to resolve through `/v/[vizId]` and `/api/viz-og/[vizId]`
 - `/api/ai/feedback`
 - `/api/articles`
 - `/api/articles/[slug]`

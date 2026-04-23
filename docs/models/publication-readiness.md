@@ -2,6 +2,8 @@
 
 Date: April 8, 2026
 
+> Status note: this is a dated April 8 publication-readiness snapshot for the model program, not a live claim that every recommendation still reflects the newest regular-season evidence.
+
 Current recommendation: do not publish external statistical claims yet.
 
 ## Executive Readout

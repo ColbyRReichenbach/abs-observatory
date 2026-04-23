@@ -1,8 +1,10 @@
 # Model Rework Master Plan
 
-Status: `Current Source Of Truth`
+Status: `Dated Program Reference`
 
 Last updated: April 8, 2026
+
+> Status note: this plan captures the April 2026 model-rework program. Use the current verdict, publication-readiness memo, and model cards for current model-truth boundaries.
 
 ## Purpose
 

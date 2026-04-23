@@ -1,8 +1,10 @@
 # Data Platform Execution Tracker
 
-Status: `Execution Plan`
+Status: `Historical Execution Tracker`
 
 Last updated: April 8, 2026
+
+> Status note: this tracker records the April 2026 data-platform execution program. Current operating truth for polling, warehouse/serving deployment, and publish flow now lives in the launch runbooks and current reference docs.
 
 Primary methodology and architecture sources:
 

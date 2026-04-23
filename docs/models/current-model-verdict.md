@@ -2,6 +2,8 @@
 
 Date: April 8, 2026
 
+> Status note: this is a dated April 8 model-stack verdict snapshot. It remains useful, but it should be read together with later model cards and current-reference docs.
+
 Purpose:
 
 - summarize the actual current state of the AiBS model stack

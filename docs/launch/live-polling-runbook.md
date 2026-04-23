@@ -1,6 +1,6 @@
 # Live Polling Runbook
 
-This runbook describes the current live polling setup for AiBS as it exists in the repository today.
+This runbook describes the current local operator polling setup for AiBS as it exists in the repository today.
 
 Quick command reference:
 
@@ -14,18 +14,21 @@ Use it for:
 - snapshot pruning policy
 - manual backfill and verification steps
 
-## 1. Current Polling Shape
+This file does not replace the hosted warehouse + serving deployment path. The scheduled GitHub Actions warehouse poll + publish workflow is documented separately in [vercel-neon-runbook.md](./vercel-neon-runbook.md).
 
-AiBS currently uses a local scheduled heartbeat with an ET-aware poll gate.
+## 1. Current Local Polling Shape
+
+AiBS currently includes a local scheduled heartbeat with an ET-aware poll gate.
 
 On macOS, that scheduler now runs through a user `launchd` LaunchAgent instead of `cron`.
 
 Current local scheduler shape:
 
 ```text
-LaunchAgent: /Users/colbyreichenbach/Library/LaunchAgents/com.colbyreichenbach.aibs-live-poll.plist
-Program: /Users/colbyreichenbach/Code/abs-observatory-polling/scripts/local-live-poll.sh
-Env file: /Users/colbyreichenbach/Code/abs-observatory-polling/.env.poll
+LaunchAgent label: com.colbyreichenbach.aibs-live-poll
+LaunchAgent plist: ~/Library/LaunchAgents/com.colbyreichenbach.aibs-live-poll.plist
+Program: <repo>/scripts/local-live-poll.sh
+Env file: <repo>/.env.poll or POLL_ENV_FILE override
 ```
 
 The LaunchAgent should run from a non-TCC-protected working directory such as `~/Code`.
@@ -33,7 +36,7 @@ macOS background agents cannot reliably execute from `Desktop` or `Downloads`.
 
 That heartbeat is intentionally simple. The scheduler always wakes on five-minute marks, and the poll gate decides whether real ingest work should run.
 
-Core scripts:
+Core local scripts:
 
 - `scripts/local-live-poll.sh`
 - `etl/poll_live_window.py`
@@ -132,9 +135,9 @@ If the machine is offline long enough that the automatic stale-gap catch-up is n
 Example:
 
 ```bash
-cd /Users/colbyreichenbach/Code/abs-observatory-polling
+cd "$AIBS_ROOT"
 set -a
-source .env.poll
+source "${POLL_ENV_FILE:-.env.poll}"
 set +a
 python3 etl/ingest_mlb_abs.py --start-date 2026-04-01 --end-date 2026-04-03 --game-type S,R
 ```
@@ -174,7 +177,6 @@ ORDER BY source_name;
 
 ## 8. Operational Notes
 
-- the local machine can let the display sleep, but the computer itself must stay awake for the scheduler to run on schedule
 - on macOS, the local scheduler is a `launchd` LaunchAgent rather than a crontab entry
 - the local machine can let the display sleep, but the computer itself must stay awake for the scheduler to run on time
 - when the machine wakes after an outage, the poller resumes automatically on the next 5-minute tick

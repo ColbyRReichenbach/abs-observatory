@@ -183,7 +183,7 @@ Current repo status:
 - ETL scripts default to `WAREHOUSE_DATABASE_URL`
 - audit scripts default to `WAREHOUSE_DATABASE_URL`
 - the web app should keep using `DATABASE_URL`, which should equal `SERVING_DATABASE_URL`
-- the old Mac launchd poller path should remain disabled; laptop polling is no longer the intended live authority
+- a separate local `launchd` operator poller still exists for local recovery and operator workflows; do not treat the GitHub Actions and local paths as the same operational boundary
 
 ### Before running the real warehouse backfill
 
@@ -204,7 +204,7 @@ If the web app needs to call the worker directly, also set a worker URL in the w
 
 - `vercel.json` now includes the daily editorial cron for `/api/cron/editorial-daily`.
 - The site is no longer scoped to only the public visualizer; core public analytics, articles, profile, and public profile surfaces are live.
-- Public visualization sharing remains intentionally deferred.
+- Public visualization sharing is live for public-share-enabled visualizer artifacts through `/v/[vizId]` and `/api/viz-og/[vizId]`.
 - Query Lab and the legacy public NL-to-SQL path remain gated or deprecated.
 
 ## First Healthy Deploy Checklist

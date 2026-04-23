@@ -32,7 +32,7 @@ These relations are small enough, page-facing, or operationally necessary for th
 - `ops.job_runs`
 - `ops.audit_log`
 - `ops.model_audit_alerts`
-- lightweight marts and views created from `db/views.sql`
+- lightweight serving views and compact lookup relations created from `db/views.sql`
 
 ## Keep Recent-Only In Serving DB
 

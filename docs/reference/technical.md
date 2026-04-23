@@ -111,7 +111,7 @@ Primary code areas:
   - ingest, polling, enrichment, and reporting scripts
 
 - `scripts/local-live-poll.sh`
-  - local scheduler wrapper for serving-mode and archive-mode polling
+  - local operator scheduler wrapper for ET-aware polling and optional snapshot pruning
 
 ## 4. Route Surface
 
@@ -178,7 +178,8 @@ Product and identity:
 Community:
 
 - comments, reactions, moderation state
-- follow graph and broader public sharing remain deferred
+- public profile surfaces and public visualization sharing are implemented
+- follow relationships and a broader social graph remain deferred
 
 Editorial:
 
@@ -246,6 +247,7 @@ Workers:
 - heavy processing is designed to run behind the internal job boundary, not directly from public routes
 
 Current live polling is also documented in [live-polling-runbook.md](../launch/live-polling-runbook.md).
+The scheduled warehouse poll + publish path is documented in [vercel-neon-runbook.md](../launch/vercel-neon-runbook.md).
 
 ## 8. Editorial System
 
@@ -268,6 +270,7 @@ The current backend reference is [gazette-backend-spec.md](../editorial/gazette-
 ## 9. Environment Truth
 
 Current required server environment variables are enforced in `src/lib/server/env.ts`.
+Clerk credential-shape validation for runtime enablement lives in `src/lib/auth-config.ts`.
 
 Always required:
 

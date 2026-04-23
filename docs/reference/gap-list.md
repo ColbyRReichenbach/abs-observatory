@@ -32,7 +32,8 @@ These are the current AI truth boundaries:
 - live runtime generation is `OpenAI`-backed
 - provider-aware abstractions exist in places, but `Anthropic` is not a current live runtime client
 - private owned AI artifact persistence is implemented
-- saved public AI visualization sharing is not a fully shipped product surface
+- saved public AI visualization sharing is implemented for public-share-enabled visualizer artifacts
+- broader social distribution loops around those shared artifacts are still limited to direct links rather than a full in-product social graph
 
 ## 3. Baseball Modeling
 
