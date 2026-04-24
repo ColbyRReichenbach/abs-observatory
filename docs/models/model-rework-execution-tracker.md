@@ -375,7 +375,7 @@ Tasks:
   - direction only
   - global
 - emit fallback tier with every scored probability
-- compare `center_only` vs `radius_adjusted` on held-out challenge outcomes and choose a leading candidate
+- compare `center_only` vs `radius_adjusted` on held-out challenge outcomes, while serving one canonical Savant/radius-compatible product margin
 - publish a geometry-comparison artifact alongside calibration outputs
 
 Implementation order:
@@ -465,14 +465,16 @@ Current progress:
 - server overturn lookups now read from `mart_modeled_abs_overturn_probability_fallbacks`
 - [run-decision-value-audit.mjs](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/model-audits/run-decision-value-audit.mjs) now scores the full held-out opportunity set instead of only historical challenges
 - empirical inventory-cost audit added in [run-inventory-cost-audit.mjs](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/scripts/model-audits/run-inventory-cost-audit.mjs)
-- current leading inventory-cost version is `inventory_future_opportunity_v1`
-  - selected from held-out comparison as the best current bucketed option-value model
+- current inventory-cost version is `inventory_future_opportunity_failure_weighted_v2`
+  - converted from upper-bound future opportunity value into a bounded failed-branch cost
   - grouped by remaining challenges, inning bucket, and close-game flag
 - after the RE and WE rebuilds, the policy audit was rerun on the updated value stack:
-  - recommendation share is now `0.8%`
-  - actual held-out historical challenge share is `2.5%`
-  - mean expected challenge value is `-20.03%`
-- the policy is now fully downstream of split-aware overturn, RE, and WE layers
+  - raw recommendation share is now `10.9%`
+  - actual held-out historical challenge share is `2.6%`
+  - mean expected challenge value is `-0.61%`
+  - a `1.0%` EV threshold gives a `3.2%` validation challenge share
+  - a two-per-team-game budget envelope gives a `2.6%` validation challenge share
+- the policy is now downstream of split-aware overturn, RE, WE, terminal count transitions, canonical geometry, and bounded failed-branch inventory
 - the policy is still not publication-ready because recommendation aggressiveness and inventory/value tradeoffs remain underfit even after the value-stack rebuild
 - current repo direction is to treat challenge-now as:
   - experimental fan-facing live support
@@ -732,12 +734,12 @@ Depends on:
 ### Overturn Probability
 
 Status:
-- in progress: held-out calibration path and model card are in place, but geometry and serving posture remain provisional
+- in progress: held-out calibration path and model card are in place; serving now uses canonical Savant/radius-compatible geometry while diagnostics continue comparing variants
 
 Tasks:
 
 - confidence intervals
-- choose current leading geometry variant from held-out evidence
+- keep canonical product geometry fixed while refreshing center-only vs radius diagnostic evidence
 - emit fallback tier and geometry version in scored outputs
 
 Depends on:

@@ -4,7 +4,7 @@
 
 - Layer type: deterministic geometry foundation
 - Current source table: `modeling.called_pitch_decisions`
-- Current status: active foundation, geometry choice still provisional
+- Current status: active foundation, canonical public geometry selected
 
 ## Purpose
 
@@ -39,36 +39,38 @@ This layer is the base for overturn probability and challenge-now.
 
 ## Geometry Policy
 
-Two candidate interpretations are retained:
+One canonical public field drives product behavior:
+
+- `canonical_abs_margin`: Savant `edge_distance_calc` when present, otherwise radius-adjusted ABS edge distance.
+
+Two candidate interpretations are retained for validation and diagnostics:
 
 1. `center_only`
 2. `radius_adjusted`
 
-The stack does not currently claim that either is final ABS truth.
+The stack does not claim that public coordinates prove every detail of MLB's internal ABS system. The product contract is narrower: user-facing zone and value surfaces should use the canonical Savant/radius-compatible margin, while diagnostic audits can still compare center-only and radius-adjusted variants.
 
 ## Current Evidence
 
 Evidence source:
 
-- [2026-04-08-overturn-calibration.md](../audits/2026-04-08-overturn-calibration.md)
+- [2026-04-24-overturn-calibration.md](../audits/2026-04-24-overturn-calibration.md)
 
 Current readout:
 
-- validation geometry winner: `center_only`
+- challenged rows available: `3,448`
+- train / validation / test rows: `2,197 / 122 / 1,129`
+- validation geometry winner: `center_only` by a very small Brier margin
 - held-out test Brier:
-  - `center_only`: `0.2519`
-  - `radius_adjusted`: `0.2504`
-- segmented challenge-outcome validation still favors `center_only` across:
-  - challenge direction
-  - competition phase
-  - most edge-bucket groupings
+  - `center_only`: `0.2567`
+  - `radius_adjusted`: `0.2556`
 
 Interpretation:
 
-- `center_only` currently wins the selection split
-- `radius_adjusted` slightly outperformed on one small held-out Brier readout
-- the broader segmented validation still points to `center_only` as the leading candidate
-- geometry choice remains provisional until a larger regular-season sample confirms the direction more cleanly
+- validation and test do not cleanly settle the empirical variant choice
+- user-facing logic defaults to canonical Savant/radius-compatible geometry because it is the better baseball/ABS contract for public display
+- `center_only` remains a diagnostic candidate, not a competing product truth
+- geometry evidence should continue to be monitored as the regular-season sample grows
 
 ## Known Limitations
 
@@ -80,7 +82,7 @@ Interpretation:
 
 Safe claim:
 
-- AiBS reconstructs two explicit ABS-style geometry variants and evaluates them against held-out challenged outcomes.
+- AiBS uses one canonical ABS margin for product logic, backed by Savant edge distance when available and radius-adjusted fallback math when not, while retaining diagnostic geometry variants for validation.
 
 Unsafe claim:
 

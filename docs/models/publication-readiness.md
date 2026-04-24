@@ -1,8 +1,8 @@
 # Publication Readiness
 
-Date: April 8, 2026
+Date: April 24, 2026
 
-> Status note: this is a dated April 8 publication-readiness snapshot for the model program, not a live claim that every recommendation still reflects the newest regular-season evidence.
+> Status note: this is a dated April 24 publication-readiness snapshot for the model program after the org-trust hardening pass.
 
 Current recommendation: do not publish external statistical claims yet.
 
@@ -34,29 +34,29 @@ Red:
 
 | Layer | Status | Evidence |
 | --- | --- | --- |
-| Called-pitch geometry | yellow | [overturn calibration](./audits/2026-04-08-overturn-calibration.md) |
+| Called-pitch geometry | yellow | [overturn calibration](./audits/2026-04-24-overturn-calibration.md) |
 | Count-state value | green | [count-state audit](./audits/2026-04-08-count-state-audit.md) |
-| Run expectancy | green | [RE benchmark](./audits/2026-04-08-re-benchmark.md) |
-| Win expectancy | green | [WE benchmark](./audits/2026-04-08-we-benchmark.md) |
-| Overturn probability | yellow | [overturn calibration](./audits/2026-04-08-overturn-calibration.md) |
-| Challenge-now policy | red | [decision-value audit](./audits/2026-04-08-decision-value-audit.md) |
+| Run expectancy | green | [RE benchmark](./audits/2026-04-24-re-benchmark.md) |
+| Win expectancy | green | [WE benchmark](./audits/2026-04-24-we-benchmark.md) |
+| Overturn probability | yellow | [overturn calibration](./audits/2026-04-24-overturn-calibration.md) |
+| Challenge-now policy | red/yellow | [decision-value audit](./audits/2026-04-24-decision-value-audit.md) |
 | Leverage | green as heuristic | [leverage audit](./audits/2026-04-08-leverage-audit.md) |
 | Rubrics | green as descriptive layer | [rubric audit](./audits/2026-04-08-rubric-audit.md) |
 | Controversy | green as editorial layer | [controversy audit](./audits/2026-04-08-controversy-audit.md) |
 
 ## Remaining Publication Blockers
 
-1. Settle the current leading overturn geometry version with more held-out evidence.
+1. Continue monitoring canonical ABS geometry calibration as the regular-season sample grows.
 2. Improve uncertainty framing for sparse states and fallback tiers.
 3. Keep challenge-now framed as decision support until stronger policy validation exists.
 4. Perform a final editorial pass on external claims so they do not outrun the evidence.
 
 Current nuance:
 
-- segmented geometry validation now points more strongly toward `center_only`
-- the rating remains `yellow` because one small held-out global Brier readout still leaned `radius_adjusted`, so the choice is not fully closed yet
+- product geometry is now canonicalized to Savant edge distance when available, with radius-adjusted fallback math
+- center-only remains useful as an internal diagnostic, but should not be presented as an alternate public product truth
 - challenge-now now includes threshold-envelope reporting, which improves transparency around recommendation-rate behavior without yet solving the deeper policy-evaluation problem
-- challenge-now now also includes a team-game budget-constrained envelope, and the current validation slice still shows no overlap between budget-selected and historically challenged rows
+- challenge-now also includes a team-game budget-constrained envelope; the two-per-team-game validation envelope lands near the historical challenge share, but it remains descriptive rather than causal proof
 - because of that evidence gap, current approved use for challenge-now is experimental fan-facing/live discussion plus postgame retrospective analysis, not org-grade live optimization
 
 ## Final Sprint
@@ -67,7 +67,7 @@ The concrete closeout plan for these blockers now lives in:
 
 High-level split:
 
-- geometry and overturn are mostly `yellow` because they need more evidence and sharper uncertainty framing
+- geometry and overturn are mostly `yellow` because they need more evidence and sharper uncertainty framing, not because product code is mixing geometry contracts
 - challenge-now is still `red` because it needs stronger policy-evaluation methodology, not because the raw dataset is missing
 
 ## Safe Current Claims

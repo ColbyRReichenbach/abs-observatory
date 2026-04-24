@@ -498,7 +498,7 @@ async function main() {
           COALESCE(p.balls_before, c.balls) AS balls_before,
           COALESCE(p.strikes_before, c.strikes) AS strikes_before,
           COALESCE(p.called_description, c.called_description) AS called_description
-        FROM abs_challenges c
+        FROM mart_abs_pitch_challenges c
         JOIN games g ON g.game_pk = c.game_pk
         LEFT JOIN pitches p
           ON p.game_pk = c.game_pk

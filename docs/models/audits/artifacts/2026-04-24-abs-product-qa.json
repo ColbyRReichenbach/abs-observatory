@@ -1,0 +1,66 @@
+{
+  "auditDate": "2026-04-24",
+  "ok": true,
+  "checks": [
+    {
+      "label": "Player profiles present",
+      "value": 4109,
+      "status": "pass",
+      "note": "Profiles power official ABS top/bottom zone resolution."
+    },
+    {
+      "label": "Official ABS profile coverage",
+      "value": "4105/4109",
+      "status": "warn",
+      "note": "Falling back to inferred top/bottom is acceptable temporarily, but should not dominate."
+    },
+    {
+      "label": "Challenge batters missing profile",
+      "value": 0,
+      "status": "pass",
+      "note": "Every challenged batter should map cleanly to a player profile."
+    },
+    {
+      "label": "Challenges with unresolved ABS zone",
+      "value": 0,
+      "status": "pass",
+      "note": "Resolved zone top/bottom must exist for every challenge visual and model path."
+    },
+    {
+      "label": "Challenges missing horizontal location",
+      "value": 4,
+      "status": "warn",
+      "note": "Missing px forces weaker geometry reasoning."
+    },
+    {
+      "label": "Challenges missing vertical location",
+      "value": 4,
+      "status": "warn",
+      "note": "Missing pz forces weaker geometry reasoning."
+    },
+    {
+      "label": "Serving fallback duplicate lookup keys",
+      "value": 0,
+      "status": "pass",
+      "note": "Challenge-value marts must join to unique serving fallback rows."
+    },
+    {
+      "label": "Excluded non-pitch reviews",
+      "value": 161,
+      "status": "pass",
+      "note": "Raw review rows may exist, but user-facing ABS views must exclude them."
+    },
+    {
+      "label": "Overturned direction mismatches",
+      "value": 0,
+      "status": "pass",
+      "note": "Canonical direction must agree with count movement when count movement is available."
+    },
+    {
+      "label": "Team summary mismatches",
+      "value": 0,
+      "status": "pass",
+      "note": "Team summaries must reconcile to canonical ABS pitch facts."
+    }
+  ]
+}

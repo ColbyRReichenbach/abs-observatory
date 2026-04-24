@@ -731,11 +731,7 @@ async function main() {
           WHEN p.balls_after IS NULL OR p.strikes_after IS NULL THEN NULL
           ELSE CONCAT(p.balls_after, '-', p.strikes_after)
         END AS corrected_count_key,
-        CASE
-          WHEN LOWER(COALESCE(p.called_description, c.called_description, '')) LIKE 'called strike%' THEN 'strike_to_ball'
-          WHEN LOWER(COALESCE(p.called_description, c.called_description, '')) LIKE 'ball%' THEN 'ball_to_strike'
-          ELSE NULL
-        END AS challenge_direction,
+        c.challenge_direction,
         CASE
           WHEN LOWER(c.half_inning) = 'top' THEN
             CASE
@@ -766,57 +762,12 @@ async function main() {
           ELSE NULL
         END AS score_diff_bucket,
         pt.impact_type,
-        COALESCE(c.px, c.inferred_px) AS px,
-        COALESCE(c.pz, c.inferred_pz) AS pz,
-        COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) AS strike_zone_top,
-        COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strike_zone_bottom,
-        CASE
-          WHEN COALESCE(c.px, c.inferred_px) IS NULL
-            OR COALESCE(c.pz, c.inferred_pz) IS NULL
-            OR COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) IS NULL
-            OR COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) IS NULL
-          THEN NULL
-          WHEN LOWER(COALESCE(p.called_description, c.called_description, '')) LIKE 'called strike%' THEN
-            CASE
-              WHEN SQRT(
-                POWER(GREATEST(ABS(COALESCE(c.px, c.inferred_px)) - 0.8291666667, 0), 2)
-                + POWER(
-                  GREATEST(
-                    COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) - COALESCE(c.pz, c.inferred_pz),
-                    COALESCE(c.pz, c.inferred_pz) - COALESCE(c.strike_zone_top, c.inferred_strike_zone_top),
-                    0
-                  ),
-                  2
-                )
-              ) <= 0.015 THEN 'edge'
-              WHEN SQRT(
-                POWER(GREATEST(ABS(COALESCE(c.px, c.inferred_px)) - 0.8291666667, 0), 2)
-                + POWER(
-                  GREATEST(
-                    COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) - COALESCE(c.pz, c.inferred_pz),
-                    COALESCE(c.pz, c.inferred_pz) - COALESCE(c.strike_zone_top, c.inferred_strike_zone_top),
-                    0
-                  ),
-                  2
-                )
-              ) <= 0.16 THEN 'near_edge'
-              ELSE 'clear_miss'
-            END
-          WHEN LOWER(COALESCE(p.called_description, c.called_description, '')) LIKE 'ball%' THEN
-            CASE
-              WHEN GREATEST(
-                LEAST(
-                  0.8291666667 - ABS(COALESCE(c.px, c.inferred_px)),
-                  COALESCE(c.pz, c.inferred_pz) - COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom),
-                  COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) - COALESCE(c.pz, c.inferred_pz)
-                ),
-                0
-              ) <= 0.003 THEN 'edge'
-              ELSE 'near_edge'
-            END
-          ELSE NULL
-        END AS edge_bucket
-      FROM abs_challenges c
+        c.resolved_px AS px,
+        c.resolved_pz AS pz,
+        c.resolved_strike_zone_top AS strike_zone_top,
+        c.resolved_strike_zone_bottom AS strike_zone_bottom,
+        c.edge_bucket
+      FROM mart_abs_pitch_challenges c
       JOIN games g ON g.game_pk = c.game_pk
       LEFT JOIN teams t ON t.team_id = c.challenge_team_id
       LEFT JOIN pitches p
@@ -878,7 +829,7 @@ async function main() {
             LOWER(MAX(c.challenge_team_side)) AS "teamSide",
             SUM(CASE WHEN c.is_overturned THEN 1 ELSE 0 END)::INT AS "usedSuccessful",
             SUM(CASE WHEN NOT c.is_overturned THEN 1 ELSE 0 END)::INT AS "usedFailed"
-          FROM abs_challenges c
+          FROM mart_abs_pitch_challenges c
           WHERE c.challenge_team_id IS NOT NULL
           GROUP BY c.game_pk, c.challenge_team_id
         ),
@@ -914,7 +865,7 @@ async function main() {
             c.challenge_team_id AS "teamId",
             AVG(CASE WHEN c.inning >= 7 OR ABS(COALESCE(c.home_score, 0) - COALESCE(c.away_score, 0)) <= 2 THEN 1.0 ELSE 0.0 END)::NUMERIC AS "lateLeverageShare",
             AVG(CASE WHEN c.inning <= 3 AND ABS(COALESCE(c.home_score, 0) - COALESCE(c.away_score, 0)) >= 3 THEN 1.0 ELSE 0.0 END)::NUMERIC AS "earlyLowLeverageShare"
-          FROM abs_challenges c
+          FROM mart_abs_pitch_challenges c
           WHERE c.challenge_team_id IS NOT NULL
           GROUP BY c.challenge_team_id
         )
@@ -939,7 +890,7 @@ async function main() {
               WHEN COUNT(*) > 0 THEN SUM(CASE WHEN c.is_overturned THEN 1 ELSE 0 END)::NUMERIC / COUNT(*)
               ELSE 0
             END AS "gameOverturnRate"
-          FROM abs_challenges c
+          FROM mart_abs_pitch_challenges c
           JOIN officials o
             ON o.game_pk = c.game_pk
            AND o.official_type = 'Home Plate'

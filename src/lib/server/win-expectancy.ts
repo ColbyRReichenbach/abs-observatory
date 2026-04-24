@@ -213,21 +213,26 @@ export function resolveWinExpectancyWithFallback(
     },
   ];
 
-  for (const lookup of lookups) {
-    const match = index.get(
-      buildWinExpectancyLookupKey({
-        tier: lookup.tier,
-        inning: lookup.inning,
-        inningBucket: lookup.inningBucket,
-        halfInning: canonical.halfInning,
-        scoreDiffBucket: canonical.scoreDiffBucket,
-        outs: canonical.outs,
-        basesState: canonical.basesState,
-        countKey: lookup.countKey,
-      }),
-    );
-    if (match) return match;
-  }
+  const matches = lookups
+    .map((lookup) =>
+      index.get(
+        buildWinExpectancyLookupKey({
+          tier: lookup.tier,
+          inning: lookup.inning,
+          inningBucket: lookup.inningBucket,
+          halfInning: canonical.halfInning,
+          scoreDiffBucket: canonical.scoreDiffBucket,
+          outs: canonical.outs,
+          basesState: canonical.basesState,
+          countKey: lookup.countKey,
+        }),
+      ),
+    )
+    .filter((row): row is WinExpectancyLookupRow => Boolean(row));
+
+  const trusted = matches.find((row) => row.confidenceBand !== "low");
+  if (trusted) return trusted;
+  if (matches[0]) return matches[0];
 
   return null;
 }

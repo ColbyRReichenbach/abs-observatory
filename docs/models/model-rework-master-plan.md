@@ -530,12 +530,11 @@ Concrete implementation spec:
   - any downstream play result after the challenged pitch
   - any inventory state observed after the decision point
 - inventory-cost design:
-  - the first production-facing implementation should use a versioned, empirical option-value table estimated from later positive-value opportunities in the same game
-  - current leading version is `inventory_future_opportunity_v1`
+  - the production-facing implementation uses a versioned empirical upper-bound table converted into a bounded failed-branch option cost
+  - current version is `inventory_future_opportunity_failure_weighted_v2`
     - grouped by remaining challenges, inning bucket, and close-game flag
-    - estimated on `train`
-    - selected on `validation`
-    - reported on held-out `test`
+    - inventory is applied only when the challenge fails
+    - upper-bound future opportunity value is scaled and capped so it cannot dominate normal challenge success value
   - if a heuristic fallback is ever used, it must be labeled heuristic everywhere
   - the penalty must vary by:
     - inning / game horizon
@@ -568,7 +567,7 @@ Concrete implementation spec:
     - experimental fan-facing live surfaces
     - retrospective postgame and team-review surfaces
     - not org-grade live operational recommendation
-  - current leading audit for `inventory_future_opportunity_v1` should be published alongside the decision-value audit so the policy can be traced back to its option-cost evidence
+  - current audit for `inventory_future_opportunity_failure_weighted_v2` should be published alongside the decision-value audit so the policy can be traced back to its option-cost evidence
 - live serving rule:
   - the live API must accept exact `basesState`, not `runnersOnBase`
   - any product surface that collapses state invalidates the policy claim

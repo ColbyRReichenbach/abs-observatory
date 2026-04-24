@@ -44,6 +44,9 @@ export type ChallengeEvent = {
   batterStand?: "R" | "L" | null;
   pitcherThrows?: "R" | "L" | null;
   calledDescription: string | null;
+  originalCall?: "called_strike" | "ball" | null;
+  correctedCall?: "called_strike" | "ball" | null;
+  challengeDirection?: "strike_to_ball" | "ball_to_strike" | null;
   pitchNumber: number | null;
   pitchType: string | null;
   startSpeed: number | null;
@@ -746,6 +749,7 @@ export type PregameIntel = {
     bucket: "up_glove" | "up_arm" | "down_glove" | "down_arm";
     challenges: number;
     overturnRate: number;
+    hasSample: boolean;
   }>;
   challengeTiming: {
     home: number[];
@@ -757,11 +761,13 @@ export type PregameIntel = {
       games: number;
       challenges: number;
       overturnRate: number;
+      hasSample: boolean;
     };
     away: {
       games: number;
       challenges: number;
       overturnRate: number;
+      hasSample: boolean;
     };
     leagueAverage: number;
   };

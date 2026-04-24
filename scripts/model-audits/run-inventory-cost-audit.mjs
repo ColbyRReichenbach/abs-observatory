@@ -23,7 +23,7 @@ const ARTIFACT_PATH = path.join(
   `docs/models/audits/artifacts/${AUDIT_DATE}-inventory-cost-audit.json`,
 );
 
-const CURRENT_GEOMETRY_VARIANT = "center_only";
+const CURRENT_GEOMETRY_VARIANT = "radius_adjusted";
 const HEURISTIC_SUCCESS_PER_LI = 0.012;
 const HEURISTIC_FAILURE_COST_PER_LI = 0.0025;
 
@@ -351,7 +351,7 @@ async function main() {
           away_score,
           score_diff_batting,
           observed_call,
-          min_edge_distance_center_only
+          min_edge_distance_radius_adjusted
         FROM modeling.called_pitch_decisions
         WHERE split_set IN ('train', 'validation', 'test')
           AND is_challenge_eligible = TRUE
@@ -362,7 +362,7 @@ async function main() {
       const calledPitch = calledPitchFromObservedCall(row.observed_call);
       const challengeDirection = challengeDirectionFromObservedCall(row.observed_call);
       const rawMargin =
-        row.min_edge_distance_center_only == null ? null : Number(row.min_edge_distance_center_only);
+        row.min_edge_distance_radius_adjusted == null ? null : Number(row.min_edge_distance_radius_adjusted);
       const alignedMargin = toChallengeAlignedMargin(challengeDirection, rawMargin);
       const edgeBucket = toEdgeBucket(alignedMargin);
       const base = {

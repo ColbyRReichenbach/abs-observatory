@@ -323,16 +323,8 @@ async function main() {
           WHEN p.balls_after IS NULL OR p.strikes_after IS NULL THEN NULL
           ELSE CONCAT(p.balls_after, '-', p.strikes_after)
         END AS corrected_count_key,
-        CASE
-          WHEN LOWER(COALESCE(p.called_description, c.called_description, '')) LIKE 'called strike%' THEN 'called_strike'
-          WHEN LOWER(COALESCE(p.called_description, c.called_description, '')) LIKE 'ball%' THEN 'ball'
-          ELSE NULL
-        END AS called_pitch,
-        CASE
-          WHEN LOWER(COALESCE(p.called_description, c.called_description, '')) LIKE 'called strike%' THEN 'strike_to_ball'
-          WHEN LOWER(COALESCE(p.called_description, c.called_description, '')) LIKE 'ball%' THEN 'ball_to_strike'
-          ELSE NULL
-        END AS challenge_direction,
+        c.original_call AS called_pitch,
+        c.challenge_direction,
         CASE
           WHEN LOWER(c.half_inning) = 'top' THEN
             CASE
@@ -362,53 +354,8 @@ async function main() {
             END
           ELSE NULL
         END AS score_diff_bucket,
-        CASE
-          WHEN COALESCE(c.px, c.inferred_px) IS NULL
-            OR COALESCE(c.pz, c.inferred_pz) IS NULL
-            OR resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top) IS NULL
-            OR resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) IS NULL
-          THEN NULL
-          WHEN LOWER(COALESCE(p.called_description, c.called_description, '')) LIKE 'called strike%' THEN
-            CASE
-              WHEN SQRT(
-                POWER(GREATEST(ABS(COALESCE(c.px, c.inferred_px)) - 0.8291666667, 0), 2)
-                + POWER(
-                  GREATEST(
-                    resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) - COALESCE(c.pz, c.inferred_pz),
-                    COALESCE(c.pz, c.inferred_pz) - resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top),
-                    0
-                  ),
-                  2
-                )
-              ) <= 0.015 THEN 'edge'
-              WHEN SQRT(
-                POWER(GREATEST(ABS(COALESCE(c.px, c.inferred_px)) - 0.8291666667, 0), 2)
-                + POWER(
-                  GREATEST(
-                    resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) - COALESCE(c.pz, c.inferred_pz),
-                    COALESCE(c.pz, c.inferred_pz) - resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top),
-                    0
-                  ),
-                  2
-                )
-              ) <= 0.16 THEN 'near_edge'
-              ELSE 'clear_miss'
-            END
-          WHEN LOWER(COALESCE(p.called_description, c.called_description, '')) LIKE 'ball%' THEN
-            CASE
-              WHEN GREATEST(
-                LEAST(
-                  0.8291666667 - ABS(COALESCE(c.px, c.inferred_px)),
-                  COALESCE(c.pz, c.inferred_pz) - resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom),
-                  resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top) - COALESCE(c.pz, c.inferred_pz)
-                ),
-                0
-              ) <= 0.003 THEN 'edge'
-              ELSE 'near_edge'
-            END
-          ELSE NULL
-        END AS edge_bucket
-      FROM abs_challenges c
+        c.edge_bucket
+      FROM mart_abs_pitch_challenges c
       LEFT JOIN pitches p
         ON p.game_pk = c.game_pk
        AND p.at_bat_index = c.at_bat_index
@@ -450,7 +397,7 @@ async function main() {
         (SELECT COUNT(*) FROM games) AS games,
         (SELECT MIN(game_date)::date FROM games) AS first_game_date,
         (SELECT MAX(game_date)::date FROM games) AS last_game_date,
-        (SELECT COUNT(*) FROM abs_challenges) AS challenges,
+        (SELECT COUNT(*) FROM mart_abs_pitch_challenges) AS challenges,
         (SELECT COUNT(*) FROM pitches) AS pitches,
         (SELECT COUNT(*) FROM historical_pitch_states) AS historical_pitch_states
     `)).rows[0];
@@ -785,7 +732,7 @@ async function main() {
           c.challenge_team_id AS "teamId",
           AVG(CASE WHEN c.inning >= 7 OR ABS(COALESCE(c.home_score, 0) - COALESCE(c.away_score, 0)) <= 2 THEN 1.0 ELSE 0.0 END)::NUMERIC AS "lateLeverageShare",
           AVG(CASE WHEN c.inning <= 3 AND ABS(COALESCE(c.home_score, 0) - COALESCE(c.away_score, 0)) >= 3 THEN 1.0 ELSE 0.0 END)::NUMERIC AS "earlyLowLeverageShare"
-        FROM abs_challenges c
+        FROM mart_abs_pitch_challenges c
         JOIN games g ON g.game_pk = c.game_pk
         WHERE c.challenge_team_id IS NOT NULL
         GROUP BY c.challenge_team_id

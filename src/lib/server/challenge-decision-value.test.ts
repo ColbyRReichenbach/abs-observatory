@@ -54,6 +54,32 @@ describe("challenge decision value", () => {
     ).toBe("global");
   });
 
+  it("prefers the canonical radius-adjusted geometry when both geometry variants are available", () => {
+    const base = {
+      fallbackTier: "exact" as const,
+      splitPolicyVersion: "called_pitch_decisions_phase_time_v1",
+      challengeDirection: "strike_to_ball" as const,
+      edgeBucket: "borderline" as const,
+      sampleSize: 200,
+      overturnsTotal: 100,
+      rawOverturnRate: 0.5,
+      overturnProbability: 0.5,
+      confidenceBand: "high" as const,
+    };
+    const rows: decision.OverturnProbabilityLookupRow[] = [
+      { ...base, geometryVariant: "center_only", overturnProbability: 0.4 },
+      { ...base, geometryVariant: "radius_adjusted", overturnProbability: 0.6 },
+    ];
+
+    const resolved = decision.resolveOverturnProbabilityWithFallback(
+      { calledPitch: "called_strike", edgeBucket: "borderline" },
+      rows,
+    );
+
+    expect(resolved?.geometryVariant).toBe("radius_adjusted");
+    expect(resolved?.overturnProbability).toBe(0.6);
+  });
+
   it("returns cannot_challenge when no challenges remain", async () => {
     const result = await decision.estimateChallengeDecisionValue({
       inning: 8,

@@ -4,8 +4,7 @@
 
 - Layer type: decomposed decision policy
 - Audit sources:
-  - [2026-04-08-decision-value-audit.md](../audits/2026-04-08-decision-value-audit.md)
-  - [2026-04-08-inventory-cost-audit.md](../audits/2026-04-08-inventory-cost-audit.md)
+  - [2026-04-24-decision-value-audit.md](../audits/2026-04-24-decision-value-audit.md)
 - Current status: active as experimental live/fan-facing decision support and postgame analysis, not publication-ready for org-grade live optimization
 
 ## Purpose
@@ -28,7 +27,9 @@ Current disallowed use:
 
 ## Policy Formula
 
-`expected_challenge_value = P(overturn) * success_value + (1 - P(overturn)) * failure_value - inventory_cost`
+`expected_challenge_value = P(overturn) * success_value + (1 - P(overturn)) * failed_challenge_value`
+
+Where `failed_challenge_value` includes the normal failure cost plus the bounded inventory cost. Inventory is paid only on the failed branch, because a successful challenge preserves the club's challenge inventory under the ABS rules.
 
 The exact decomposition is exposed in live outputs.
 
@@ -42,34 +43,39 @@ The exact decomposition is exposed in live outputs.
 - challenge direction
 - overturn probability
 - RE / WE value layers
+- terminal branch mode (`win_expectancy` for supported count-state swings, `heuristic` when the challenged swing ends the plate appearance)
 - inventory cost version
 
 ## Current Evidence
 
-- Held-out opportunities: `9,768`
-- Held-out challenged rows: `245`
-- Held-out non-challenged rows: `9,523`
-- Recommendation share: `0.8%`
-- Historical challenge share: `2.5%`
-- Positive-EV non-challenged opportunities: `78`
-- Negative-EV challenged opportunities: `242`
+- Held-out opportunities: `43,297`
+- Validation opportunities: `4,967`
+- Held-out challenged rows: `1,129`
+- Held-out non-challenged rows: `42,168`
+- Raw positive-EV recommendation share: `10.9%`
+- Historical challenge share: `2.6%`
+- Positive-EV non-challenged opportunities: `4,261`
+- Negative-EV challenged opportunities: `688`
+- Validation share at a `1.0%` EV threshold: `3.2%`
+- Validation share with a two-per-team-game budget: `2.6%`
 
 Current inventory layer:
 
-- `inventory_future_opportunity_v1`
+- `inventory_future_opportunity_failure_weighted_v2`
 
 Current evaluation nuance:
 
-- validation threshold-envelope reporting is now in place
-- validation team-game budget-envelope reporting is now in place
-- the policy remains conservative across reasonable positive-EV thresholds
-- the current budgeted selector still fails to overlap with historical challenged rows on the validation slice
-- that improves transparency, but it still does not convert the audit into causal proof
+- inventory is now bounded and branch-aware, so it cannot dominate normal challenge success value
+- terminal walk/strikeout branches are identified explicitly; they use heuristic decision value until a dedicated post-PA terminal WE resolver is available
+- validation threshold-envelope reporting is in place
+- validation team-game budget-envelope reporting is in place
+- the current raw positive-EV policy is more aggressive than historical challenge behavior, but stricter threshold or budget envelopes bring the recommendation rate close to observed usage
+- this improves transparency, but it still does not convert the audit into causal proof
 
 Current product stance:
 
 - live `challenge-now` should be framed as an experimental model lens, not operational truth
-- the stronger analytical use today is postgame challenge evaluation and missed-opportunity review
+- the stronger analytical use today is postgame challenge evaluation, missed-opportunity review, and model-informed discussion
 
 ## Serving Contract
 
@@ -85,9 +91,9 @@ Return:
 ## Known Limitations
 
 - opportunity-level evaluation is descriptive, not causal proof
-- inventory model is improved but still early
+- inventory model is now bounded and branch-aware, but still early
+- terminal plate-appearance-ending swings are not yet backed by a dedicated terminal WE resolver
 - policy is conservative and still underfit for deployment claims
-- current budget-constrained diagnostics still show a large gap between model-selected and historically challenged opportunities
 - current public-data evidence is not strong enough to support org-grade live optimization claims
 
 ## Publication Boundary
