@@ -407,7 +407,7 @@ describe("chart data audit", () => {
       getUmpireSummary(umpireId, "season"),
       getUmpireProfile(umpireId, "season"),
       getUmpireTrend(umpireId, "season"),
-      getUmpireChallenges(umpireId, "season"),
+      getUmpirePageChallengeEvents(umpireId, "season"),
       getUmpirePerformanceDNA(umpireId, "season"),
       getUmpireSeasonTrend(umpireId),
       getUmpireMatchupVulnerabilities(umpireId, "season"),

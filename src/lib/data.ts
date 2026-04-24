@@ -226,6 +226,10 @@ function situationalWhere(filters?: SituationalFilters, alias = "c"): { clause: 
   return { clause: clauses.join(" AND "), params };
 }
 
+function hasActiveSituationalFilters(filters?: SituationalFilters): boolean {
+  return Boolean(filters?.inningRange || filters?.leverage || filters?.side || filters?.result);
+}
+
 function getSituationalFilterCacheParts(filters?: SituationalFilters) {
   return [
     filters?.inningRange ?? "all",
@@ -1901,303 +1905,7 @@ async function getRecentGameChallenges(
 export async function getGameChallenges(gamePk: number): Promise<ChallengeEvent[]> {
   return withServerTiming(
     "data.getGameChallenges",
-    () => withGameVersionedCache("game-challenges", gamePk, 10_000, async () => {
-    const [rows, baselines, pitchTypeBaselines] = await Promise.all([
-      sql<{
-      challenge_id: string;
-      game_pk: number;
-      challenged_at: string | null;
-      inning: number | null;
-      half_inning: string | null;
-      balls: number | null;
-      strikes: number | null;
-      outs: number | null;
-      bases_state: string | null;
-      home_score: number | null;
-      away_score: number | null;
-      challenge_team_id: number | null;
-      challenge_team_name: string | null;
-      challenge_player_name: string | null;
-      batter_name: string | null;
-      pitcher_name: string | null;
-      called_description: string | null;
-      original_call: CalledPitch | null;
-      corrected_call: CalledPitch | null;
-      challenge_direction: "strike_to_ball" | "ball_to_strike" | null;
-      pitchnumber: number | null;
-      location_source: string | null;
-      inference_method: string | null;
-      inference_confidence: string | null;
-      pitchtype: string | null;
-      startspeed: number | null;
-      spinrate: number | null;
-      is_overturned: boolean;
-      px: number | null;
-      pz: number | null;
-      strike_zone_top: number | null;
-      strike_zone_bottom: number | null;
-      balls_before: number | null;
-      strikes_before: number | null;
-      balls_after: number | null;
-      strikes_after: number | null;
-      impact_type: string | null;
-      impact_summary: string | null;
-      batter_stand: "R" | "L" | null;
-      pitcher_throws: "R" | "L" | null;
-      pre_run_expectancy: number | string | null;
-      post_run_expectancy: number | string | null;
-      run_expectancy_delta: number | string | null;
-      run_expectancy_confidence: "high" | "medium" | "low" | null;
-      pre_win_expectancy: number | string | null;
-      post_win_expectancy: number | string | null;
-      win_expectancy_delta: number | string | null;
-      win_expectancy_confidence: "high" | "medium" | "low" | null;
-      estimated_overturn_probability: number | string | null;
-      overturn_probability_confidence: "high" | "medium" | "low" | null;
-      expected_challenge_value: number | string | null;
-      decision_value_mode: "win_expectancy" | "heuristic" | null;
-      estimated_challenges_remaining: number | string | null;
-    }>(
-        `
-    SELECT DISTINCT ON (c.challenge_id)
-      c.challenge_id,
-      c.game_pk,
-      c.challenged_at,
-      c.inning,
-      c.half_inning,
-      c.balls,
-      c.strikes,
-      c.outs,
-      c.bases_state,
-      c.home_score,
-      c.away_score,
-      c.challenge_team_id,
-      t.name AS challenge_team_name,
-      c.challenge_player_name,
-      c.batter_name,
-      c.pitcher_name,
-      COALESCE(p.called_description, c.called_description) AS called_description,
-      c.original_call,
-      c.corrected_call,
-      c.challenge_direction,
-      COALESCE(c.pitch_number, c.inferred_pitch_number) AS pitchNumber,
-      c.resolved_location_source AS location_source,
-      c.inference_method,
-      c.inference_confidence,
-      p.pitch_type_description AS pitchType,
-      p.start_speed AS startSpeed,
-      p.spin_rate AS spinRate,
-      c.is_overturned,
-      c.resolved_px AS px,
-      c.resolved_pz AS pz,
-      resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top) AS strike_zone_top,
-      resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strike_zone_bottom,
-      p.balls_before,
-      p.strikes_before,
-      p.balls_after,
-      p.strikes_after,
-      timeline.impact_type,
-      timeline.impact_summary,
-      cv.pre_run_expectancy,
-      cv.post_run_expectancy,
-      cv.run_expectancy_delta,
-      cv.run_expectancy_confidence,
-      cv.pre_win_expectancy,
-      cv.post_win_expectancy,
-      cv.win_expectancy_delta,
-      cv.win_expectancy_confidence,
-      cv.estimated_overturn_probability,
-      cv.overturn_probability_confidence,
-      cv.expected_challenge_value,
-      cv.decision_value_mode,
-      cv.estimated_challenges_remaining,
-      COALESCE(
-        hist.stand,
-        NULLIF(batter_player.source_payload->'batSide'->>'code', '')
-      )::text AS batter_stand,
-      COALESCE(
-        hist.p_throws,
-        NULLIF(pitcher_player.source_payload->'pitchHand'->>'code', '')
-      )::text AS pitcher_throws
-    FROM mart_abs_pitch_challenges c
-    LEFT JOIN teams t ON t.team_id = c.challenge_team_id
-    LEFT JOIN pitches p
-      ON p.game_pk = c.game_pk
-      AND p.at_bat_index = c.at_bat_index
-      AND p.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
-    LEFT JOIN players batter_player ON batter_player.player_id = c.batter_id
-    LEFT JOIN players pitcher_player ON pitcher_player.player_id = c.pitcher_id
-    LEFT JOIN LATERAL (
-      SELECT hist.stand, hist.p_throws
-      FROM mart_historical_abs_overturn_inputs hist
-      WHERE hist.game_pk = c.game_pk
-        AND hist.at_bat_number = c.at_bat_index + 1
-        AND (
-          COALESCE(c.pitch_number, c.inferred_pitch_number) IS NULL
-          OR hist.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
-          OR ABS(COALESCE(hist.pitch_number, COALESCE(c.pitch_number, c.inferred_pitch_number)) - COALESCE(c.pitch_number, c.inferred_pitch_number)) <= 1
-        )
-      ORDER BY
-        CASE WHEN hist.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number) THEN 0 ELSE 1 END,
-        CASE WHEN hist.batter_id = c.batter_id THEN 0 ELSE 1 END,
-        CASE WHEN hist.pitcher_id = c.pitcher_id THEN 0 ELSE 1 END,
-        ABS(COALESCE(hist.pitch_number, COALESCE(c.pitch_number, c.inferred_pitch_number)) - COALESCE(c.pitch_number, c.inferred_pitch_number)),
-        hist.imported_at DESC
-      LIMIT 1
-    ) hist ON TRUE
-    LEFT JOIN mart_game_pitch_timeline timeline
-      ON timeline.challenge_id = c.challenge_id
-    LEFT JOIN LATERAL (
-      SELECT
-        pre_run_expectancy,
-        post_run_expectancy,
-        run_expectancy_delta,
-        run_expectancy_confidence,
-        pre_win_expectancy,
-        post_win_expectancy,
-        win_expectancy_delta,
-        win_expectancy_confidence,
-        estimated_overturn_probability,
-        overturn_probability_confidence,
-        expected_challenge_value,
-        decision_value_mode,
-        estimated_challenges_remaining
-      FROM mart_game_abs_challenge_values cv
-      WHERE cv.challenge_id = c.challenge_id
-      LIMIT 1
-    ) cv ON TRUE
-    WHERE c.game_pk = $1
-    ORDER BY c.challenge_id, c.challenged_at ASC NULLS LAST
-    `,
-        [gamePk],
-      ),
-      getCountStateBaselines(),
-      getPitchTypeCountBaselines(),
-    ]);
-    const baselineMap = buildCountStateBaselineMap(baselines);
-    const pitchTypeBaselineMap = buildPitchTypeBaselineMap(pitchTypeBaselines);
-    const historicalCountKeys: string[] = Array.from(
-      new Set(
-        rows.flatMap((row) => [
-          resolveUmpireCountState(row.balls_before, row.strikes_before, row.balls_after, row.strikes_after, row.is_overturned),
-          row.balls_after === null || row.strikes_after === null ? null : `${row.balls_after}-${row.strikes_after}`,
-        ]).filter((value): value is string => Boolean(value)),
-      ),
-    );
-    const historicalPitchTypes: string[] = Array.from(
-      new Set(rows.map((row) => row.pitchtype).filter((value): value is string => Boolean(value))),
-    );
-    const historicalContextRows = await getHistoricalChallengeContextRows(historicalCountKeys, historicalPitchTypes);
-    const historicalHandednessMap = buildHistoricalHandednessBaselineMap(historicalContextRows);
-    const historicalPitchLaneMap = buildHistoricalPitchLaneBaselineMap(historicalContextRows);
-
-      return Promise.all(rows.map(async (r) => {
-      const umpireCount = resolveUmpireCountState(
-        r.balls_before,
-        r.strikes_before,
-        r.balls_after,
-        r.strikes_after,
-        r.is_overturned,
-      );
-      const challenge: ChallengeEvent = {
-        challengeId: r.challenge_id,
-        gamePk: r.game_pk,
-        challengedAt: r.challenged_at,
-        inning: r.inning,
-        halfInning: r.half_inning,
-        balls: r.balls,
-        strikes: r.strikes,
-        outs: r.outs,
-        basesState: r.bases_state,
-        homeScore: r.home_score,
-        awayScore: r.away_score,
-        challengeTeamId: r.challenge_team_id,
-        challengeTeamName: r.challenge_team_name,
-        challengePlayerName: r.challenge_player_name,
-        batterName: r.batter_name,
-        pitcherName: r.pitcher_name,
-        batterStand: r.batter_stand,
-        pitcherThrows: r.pitcher_throws,
-        calledDescription: r.called_description,
-        originalCall: r.original_call,
-        correctedCall: r.corrected_call,
-        challengeDirection: r.challenge_direction,
-        pitchNumber: r.pitchnumber,
-        pitchType: r.pitchtype,
-        startSpeed: r.startspeed === null ? null : Number(r.startspeed),
-        spinRate: r.spinrate === null ? null : Number(r.spinrate),
-        isOverturned: r.is_overturned,
-        px: r.px === null ? null : Number(r.px),
-        pz: r.pz === null ? null : Number(r.pz),
-        strikeZoneTop: r.strike_zone_top === null ? null : Number(r.strike_zone_top),
-        strikeZoneBottom: r.strike_zone_bottom === null ? null : Number(r.strike_zone_bottom),
-        countBefore:
-          r.balls_before === null || r.strikes_before === null ? null : `${r.balls_before}-${r.strikes_before}`,
-        countAfter:
-          r.balls_after === null || r.strikes_after === null ? null : `${r.balls_after}-${r.strikes_after}`,
-        umpireCount,
-        impactType: r.impact_type,
-        impactSummary: r.impact_summary,
-        locationSource: r.location_source,
-        inferenceMethod: r.inference_method,
-        inferenceConfidence: r.inference_confidence,
-      };
-      const snapshot = buildChallengeValueSnapshot(challenge, baselineMap);
-      const expectedChallengeValue = r.expected_challenge_value === null ? null : Number(r.expected_challenge_value);
-      const estimatedChallengesRemaining =
-        r.estimated_challenges_remaining === null ? null : Number(r.estimated_challenges_remaining);
-
-      return {
-        ...challenge,
-        estimatedLeverageIndex: snapshot.leverage.estimatedLeverageIndex,
-        estimatedChallengeSwing: snapshot.leverage.estimatedChallengeSwing,
-        leverageBucket: snapshot.leverage.leverageBucket,
-        positiveOutcomeDelta: roundMetric(snapshot.countStateDelta.positiveOutcomeDelta),
-        battingAverageDelta: roundMetric(snapshot.countStateDelta.battingAverageDelta),
-        walkRateDelta: roundMetric(snapshot.countStateDelta.walkRateDelta),
-        strikeoutRateDelta: roundMetric(snapshot.countStateDelta.strikeoutRateDelta),
-        preRunExpectancy: r.pre_run_expectancy === null ? null : Number(r.pre_run_expectancy),
-        postRunExpectancy: r.post_run_expectancy === null ? null : Number(r.post_run_expectancy),
-        runExpectancyDelta: r.run_expectancy_delta === null ? null : Number(r.run_expectancy_delta),
-        runExpectancyConfidence: r.run_expectancy_confidence,
-        preWinExpectancy: r.pre_win_expectancy === null ? null : Number(r.pre_win_expectancy),
-        postWinExpectancy: r.post_win_expectancy === null ? null : Number(r.post_win_expectancy),
-        winExpectancyDelta: r.win_expectancy_delta === null ? null : Number(r.win_expectancy_delta),
-        winExpectancyConfidence: r.win_expectancy_confidence,
-        estimatedOverturnProbability:
-          r.estimated_overturn_probability === null ? null : Number(r.estimated_overturn_probability),
-        overturnProbabilityConfidence: r.overturn_probability_confidence,
-        overturnProbabilityFallbackTier: null,
-        expectedChallengeValue,
-        decisionRecommendation: resolveDecisionRecommendation(expectedChallengeValue, estimatedChallengesRemaining),
-        decisionValueMode: r.decision_value_mode,
-        heldCountBaseline: buildCountBaselineDetail(challenge.umpireCount ?? challenge.countBefore, baselineMap),
-        correctedCountBaseline: buildCountBaselineDetail(challenge.countAfter, baselineMap),
-        pitchTypeCountBaseline:
-          challenge.pitchType && (challenge.umpireCount ?? challenge.countBefore)
-            ? pitchTypeBaselineMap.get(`${challenge.pitchType}::${challenge.umpireCount ?? challenge.countBefore}`) ?? null
-            : null,
-        handednessBaseline:
-          challenge.batterStand && challenge.pitcherThrows && (challenge.umpireCount ?? challenge.countBefore)
-            ? historicalHandednessMap.get(
-                `${challenge.umpireCount ?? challenge.countBefore}::${challenge.pitcherThrows}::${challenge.batterStand}`,
-              ) ?? null
-            : null,
-        pitchLaneBaseline: (() => {
-          const lane = classifyNormalizedZoneLane({
-            px: challenge.px,
-            pz: challenge.pz,
-            strikeZoneTop: challenge.strikeZoneTop,
-            strikeZoneBottom: challenge.strikeZoneBottom,
-          });
-          if (!lane || !challenge.pitchType || !(challenge.umpireCount ?? challenge.countBefore)) return null;
-          return historicalPitchLaneMap.get(
-            `${challenge.pitchType}::${challenge.umpireCount ?? challenge.countBefore}::${lane}`,
-          ) ?? null;
-        })(),
-      };
-      }));
-    }),
+    () => withGameVersionedCache("game-challenges", gamePk, 10_000, () => getGamePageChallengeEvents(gamePk)),
     { warnAtMs: 1_200, metadata: { gamePk } },
   );
 }
@@ -3763,18 +3471,32 @@ export async function getUmpirePageChallengeEvents(
             estimated_challenges_remaining: number | string | null;
           }>(
             `
-            WITH challenged AS (
+            WITH home_plate_games AS (
+              SELECT DISTINCT game_pk
+              FROM officials
+              WHERE official_id = $1
+                AND official_type = 'Home Plate'
+            ),
+            filtered AS (
+              SELECT c.*
+              FROM mart_abs_pitch_challenges c
+              JOIN home_plate_games hp ON hp.game_pk = c.game_pk
+              JOIN games g ON g.game_pk = c.game_pk
+              WHERE ${window.clause}
+                AND ${situational.clause}
+            ),
+            challenged AS (
               SELECT
-                c.*,
+                filtered.*,
                 GREATEST(
                   0,
-                  2 - COUNT(*) FILTER (WHERE c.is_overturned = FALSE) OVER (
-                    PARTITION BY c.game_pk, c.challenge_team_id
-                    ORDER BY c.challenged_at NULLS LAST, c.challenge_id
+                  2 - COUNT(*) FILTER (WHERE filtered.is_overturned = FALSE) OVER (
+                    PARTITION BY filtered.game_pk, filtered.challenge_team_id
+                    ORDER BY filtered.challenged_at NULLS LAST, filtered.challenge_id
                     ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
                   )
                 ) AS estimated_challenges_remaining
-              FROM mart_abs_pitch_challenges c
+              FROM filtered
             )
             SELECT
               c.challenge_id AS challengeId,
@@ -3832,7 +3554,6 @@ export async function getUmpirePageChallengeEvents(
               c.estimated_challenges_remaining
             FROM challenged c
             JOIN games g ON g.game_pk = c.game_pk
-            JOIN officials o ON o.game_pk = c.game_pk AND o.official_type = 'Home Plate'
             LEFT JOIN teams t ON t.team_id = c.challenge_team_id
             LEFT JOIN pitches p
               ON p.game_pk = c.game_pk
@@ -3840,9 +3561,6 @@ export async function getUmpirePageChallengeEvents(
              AND p.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
             LEFT JOIN players batter_player ON batter_player.player_id = c.batter_id
             LEFT JOIN players pitcher_player ON pitcher_player.player_id = c.pitcher_id
-            WHERE o.official_id = $1
-              AND ${window.clause}
-              AND ${situational.clause}
             ORDER BY c.challenged_at DESC NULLS LAST, c.challenge_id DESC
             LIMIT 250
             `,
@@ -4001,176 +3719,101 @@ export async function getUmpireProfile(
         async () => {
           const window = rangeWhere(range, "g.game_date");
           const situational = situationalWhere(filters, "c");
-          const [directionRows, zoneRows, hotspotRows, handednessRows] = await Promise.all([
-    sql<{
-      strike_to_ball: number;
-      ball_to_strike: number;
-      other_overturns: number;
-      confirmed: number;
-    }>(
-      `
-      SELECT
-        COUNT(*) FILTER (
-          WHERE c.is_overturned = TRUE
-            AND c.challenge_direction = 'strike_to_ball'
-        ) AS strike_to_ball,
-        COUNT(*) FILTER (
-          WHERE c.is_overturned = TRUE
-            AND c.challenge_direction = 'ball_to_strike'
-        ) AS ball_to_strike,
-        COUNT(*) FILTER (
-          WHERE c.is_overturned = TRUE
-            AND c.challenge_direction NOT IN ('strike_to_ball', 'ball_to_strike')
-        ) AS other_overturns,
-        COUNT(*) FILTER (WHERE c.is_overturned = FALSE) AS confirmed
-      FROM mart_abs_pitch_challenges c
-      JOIN games g ON g.game_pk = c.game_pk
-      LEFT JOIN pitches p ON p.game_pk = c.game_pk AND p.at_bat_index = c.at_bat_index AND p.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
-      JOIN officials o ON o.game_pk = c.game_pk
-      WHERE o.official_type = 'Home Plate'
-        AND o.official_id = $1
-        AND ${window.clause}
-        AND ${situational.clause}
-      `,
-      [umpireId, ...window.params, ...situational.params],
-    ),
-    sql<{
-      px: number | null;
-      pz: number | null;
-      strike_zone_top: number | null;
-      strike_zone_bottom: number | null;
-      is_overturned: boolean;
-    }>(
-      `
-      SELECT
-        c.resolved_px AS px,
-        c.resolved_pz AS pz,
-        resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top) AS strike_zone_top,
-        resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strike_zone_bottom,
-        c.is_overturned
-      FROM mart_abs_pitch_challenges c
-      JOIN games g ON g.game_pk = c.game_pk
-      JOIN officials o ON o.game_pk = c.game_pk
-      WHERE o.official_type = 'Home Plate'
-        AND o.official_id = $1
-        AND c.resolved_px IS NOT NULL
-        AND c.resolved_pz IS NOT NULL
-        AND resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top) IS NOT NULL
-        AND resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) IS NOT NULL
-        AND ${window.clause}
-        AND ${situational.clause}
-      `,
-      [umpireId, ...window.params, ...situational.params],
-    ),
-    sql<{
-      countkey: string;
-      challenges: number;
-      overturnrate: number;
-    }>(
-      `
-      SELECT
-        CONCAT(COALESCE(c.balls, 0), '-', COALESCE(c.strikes, 0)) AS countKey,
-        COUNT(*) AS challenges,
-        AVG(CASE WHEN c.is_overturned THEN 1.0 ELSE 0.0 END)::NUMERIC AS overturnRate
-      FROM mart_abs_pitch_challenges c
-      JOIN games g ON g.game_pk = c.game_pk
-      JOIN officials o ON o.game_pk = c.game_pk
-      WHERE o.official_type = 'Home Plate'
-        AND o.official_id = $1
-        AND ${window.clause}
-        AND ${situational.clause}
-      GROUP BY 1
-      ORDER BY challenges DESC
-      LIMIT 6
-      `,
-      [umpireId, ...window.params, ...situational.params],
-    ),
-    sql<{
-      pitcher_throws: "R" | "L";
-      batter_stand: "R" | "L";
-      challenged_count: number;
-      overturned_count: number;
-      overturn_rate: number;
-    }>(
-      `
-      SELECT
-        COALESCE(
-          hist.p_throws,
-          NULLIF(pitcher_player.source_payload->'pitchHand'->>'code', '')
-        )::text AS pitcher_throws,
-        COALESCE(
-          hist.stand,
-          NULLIF(batter_player.source_payload->'batSide'->>'code', '')
-        )::text AS batter_stand,
-        COUNT(*) AS challenged_count,
-        COUNT(*) FILTER (WHERE c.is_overturned = TRUE) AS overturned_count,
-        CASE WHEN COUNT(*) > 0
-          THEN COUNT(*) FILTER (WHERE c.is_overturned = TRUE)::NUMERIC / COUNT(*)
-          ELSE 0
-        END AS overturn_rate
-      FROM mart_abs_pitch_challenges c
-      JOIN games g ON g.game_pk = c.game_pk
-      JOIN officials o ON o.game_pk = c.game_pk
-      LEFT JOIN players batter_player ON batter_player.player_id = c.batter_id
-      LEFT JOIN players pitcher_player ON pitcher_player.player_id = c.pitcher_id
-      LEFT JOIN LATERAL (
-        SELECT hist.stand, hist.p_throws
-        FROM mart_historical_abs_overturn_inputs hist
-        WHERE hist.game_pk = c.game_pk
-          AND hist.at_bat_number = c.at_bat_index + 1
-          AND (
-            COALESCE(c.pitch_number, c.inferred_pitch_number) IS NULL
-            OR hist.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
-            OR ABS(COALESCE(hist.pitch_number, COALESCE(c.pitch_number, c.inferred_pitch_number)) - COALESCE(c.pitch_number, c.inferred_pitch_number)) <= 1
-          )
-        ORDER BY
-          CASE WHEN hist.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number) THEN 0 ELSE 1 END,
-          CASE WHEN hist.batter_id = c.batter_id THEN 0 ELSE 1 END,
-          CASE WHEN hist.pitcher_id = c.pitcher_id THEN 0 ELSE 1 END,
-          ABS(COALESCE(hist.pitch_number, COALESCE(c.pitch_number, c.inferred_pitch_number)) - COALESCE(c.pitch_number, c.inferred_pitch_number)),
-          hist.imported_at DESC
-        LIMIT 1
-      ) hist ON TRUE
-      WHERE o.official_type = 'Home Plate'
-        AND o.official_id = $1
-        AND COALESCE(hist.stand, NULLIF(batter_player.source_payload->'batSide'->>'code', '')) IN ('L', 'R')
-        AND COALESCE(hist.p_throws, NULLIF(pitcher_player.source_payload->'pitchHand'->>'code', '')) IN ('L', 'R')
-        AND ${window.clause}
-        AND ${situational.clause}
-      GROUP BY 1, 2
-      ORDER BY challenged_count DESC, pitcher_throws ASC, batter_stand ASC
-      `,
-      [umpireId, ...window.params, ...situational.params],
-    ),
-          ]);
+          const rows = await sql<{
+            is_overturned: boolean;
+            challenge_direction: "strike_to_ball" | "ball_to_strike" | string | null;
+            balls: number | null;
+            strikes: number | null;
+            px: number | string | null;
+            pz: number | string | null;
+            strike_zone_top: number | string | null;
+            strike_zone_bottom: number | string | null;
+            pitcher_throws: "R" | "L" | null;
+            batter_stand: "R" | "L" | null;
+          }>(
+            `
+            WITH home_plate_games AS (
+              SELECT DISTINCT game_pk
+              FROM officials
+              WHERE official_id = $1
+                AND official_type = 'Home Plate'
+            )
+            SELECT
+              c.is_overturned,
+              c.challenge_direction,
+              c.balls,
+              c.strikes,
+              c.resolved_px AS px,
+              c.resolved_pz AS pz,
+              resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top) AS strike_zone_top,
+              resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strike_zone_bottom,
+              NULLIF(pitcher_player.source_payload->'pitchHand'->>'code', '')::text AS pitcher_throws,
+              NULLIF(batter_player.source_payload->'batSide'->>'code', '')::text AS batter_stand
+            FROM mart_abs_pitch_challenges c
+            JOIN home_plate_games hp ON hp.game_pk = c.game_pk
+            JOIN games g ON g.game_pk = c.game_pk
+            LEFT JOIN players batter_player ON batter_player.player_id = c.batter_id
+            LEFT JOIN players pitcher_player ON pitcher_player.player_id = c.pitcher_id
+            WHERE ${window.clause}
+              AND ${situational.clause}
+            `,
+            [umpireId, ...window.params, ...situational.params],
+          );
 
-          const direction = directionRows[0] ?? { strike_to_ball: 0, ball_to_strike: 0, other_overturns: 0, confirmed: 0 };
+          const direction = {
+            strikeToBall: 0,
+            ballToStrike: 0,
+            otherOverturns: 0,
+            confirmed: 0,
+          };
           const zoneBucketTotals = new Map<ObservedZoneAxisBucket, { challenges: number; overturned: number }>();
-          for (const row of zoneRows) {
+          const hotspotTotals = new Map<string, { challenges: number; overturned: number }>();
+          const handednessMap = new Map<string, UmpireHandednessSplit>();
+
+          for (const row of rows) {
+            if (row.is_overturned) {
+              if (row.challenge_direction === "strike_to_ball") direction.strikeToBall += 1;
+              else if (row.challenge_direction === "ball_to_strike") direction.ballToStrike += 1;
+              else if (row.challenge_direction) direction.otherOverturns += 1;
+            } else {
+              direction.confirmed += 1;
+            }
+
             const bucket = classifyObservedZoneAxisBucket({
       px: row.px === null ? null : Number(row.px),
       pz: row.pz === null ? null : Number(row.pz),
       strikeZoneTop: row.strike_zone_top === null ? null : Number(row.strike_zone_top),
       strikeZoneBottom: row.strike_zone_bottom === null ? null : Number(row.strike_zone_bottom),
     });
-            if (!bucket) continue;
-            const current = zoneBucketTotals.get(bucket) ?? { challenges: 0, overturned: 0 };
-            current.challenges += 1;
-            if (row.is_overturned) current.overturned += 1;
-            zoneBucketTotals.set(bucket, current);
+            if (bucket) {
+              const current = zoneBucketTotals.get(bucket) ?? { challenges: 0, overturned: 0 };
+              current.challenges += 1;
+              if (row.is_overturned) current.overturned += 1;
+              zoneBucketTotals.set(bucket, current);
+            }
+
+            const countKey = `${row.balls ?? 0}-${row.strikes ?? 0}`;
+            const hotspot = hotspotTotals.get(countKey) ?? { challenges: 0, overturned: 0 };
+            hotspot.challenges += 1;
+            if (row.is_overturned) hotspot.overturned += 1;
+            hotspotTotals.set(countKey, hotspot);
+
+            if ((row.pitcher_throws === "R" || row.pitcher_throws === "L") && (row.batter_stand === "R" || row.batter_stand === "L")) {
+              const handednessKey = `${row.pitcher_throws}-${row.batter_stand}`;
+              const handedness = handednessMap.get(handednessKey) ?? {
+                pitcherThrows: row.pitcher_throws,
+                batterStand: row.batter_stand,
+                challengedCount: 0,
+                overturnedCount: 0,
+                overturnRate: 0,
+              };
+              handedness.challengedCount += 1;
+              if (row.is_overturned) handedness.overturnedCount += 1;
+              handedness.overturnRate =
+                handedness.challengedCount > 0 ? handedness.overturnedCount / handedness.challengedCount : 0;
+              handednessMap.set(handednessKey, handedness);
+            }
           }
-          const handednessMap = new Map(
-            handednessRows.map((row) => [
-      `${row.pitcher_throws}-${row.batter_stand}`,
-      {
-        pitcherThrows: row.pitcher_throws,
-        batterStand: row.batter_stand,
-        challengedCount: Number(row.challenged_count),
-        overturnedCount: Number(row.overturned_count),
-        overturnRate: Number(row.overturn_rate ?? 0),
-      } satisfies UmpireHandednessSplit,
-    ]),
-          );
           const handednessOrder: Array<Pick<UmpireHandednessSplit, "pitcherThrows" | "batterStand">> = [
     { pitcherThrows: "R", batterStand: "R" },
     { pitcherThrows: "R", batterStand: "L" },
@@ -4180,10 +3823,10 @@ export async function getUmpireProfile(
 
           return {
             directionalBias: {
-      strikeToBall: Number(direction.strike_to_ball ?? 0),
-      ballToStrike: Number(direction.ball_to_strike ?? 0),
-      otherOverturns: Number(direction.other_overturns ?? 0),
-      confirmed: Number(direction.confirmed ?? 0),
+      strikeToBall: direction.strikeToBall,
+      ballToStrike: direction.ballToStrike,
+      otherOverturns: direction.otherOverturns,
+      confirmed: direction.confirmed,
     },
     zoneBuckets: [...zoneBucketTotals.entries()]
       .map(([zone, totals]) => ({
@@ -4192,11 +3835,14 @@ export async function getUmpireProfile(
         overturnRate: totals.challenges > 0 ? totals.overturned / totals.challenges : 0,
       }))
       .sort((left, right) => right.challenges - left.challenges),
-    countHotspots: hotspotRows.map((row) => ({
-      countKey: row.countkey,
-      challenges: Number(row.challenges),
-      overturnRate: Number(row.overturnrate ?? 0),
-    })),
+    countHotspots: [...hotspotTotals.entries()]
+      .map(([countKey, totals]) => ({
+        countKey,
+        challenges: totals.challenges,
+        overturnRate: totals.challenges > 0 ? totals.overturned / totals.challenges : 0,
+      }))
+      .sort((left, right) => right.challenges - left.challenges)
+      .slice(0, 6),
             handednessSplits: handednessOrder.map(({ pitcherThrows, batterStand }) => {
       const key = `${pitcherThrows}-${batterStand}`;
       return (
@@ -4651,6 +4297,7 @@ export async function getTeamTrend(
         async () => {
           const window = rangeWhere(range, "g.game_date");
           const situational = situationalWhere(filters, "c");
+
   const rows = await sql<{
     gamepk: number;
     gamedate: string;
@@ -5515,51 +5162,97 @@ export async function getUmpireTrend(
         async () => {
           const window = rangeWhere(range, "g.game_date");
           const situational = situationalWhere(filters, "c");
-  const rows = await sql<{
-    gamepk: number;
-    gamedate: string;
-    gametype: string;
-    hometeamid: number;
-    awayteamid: number;
-    hometeamabbr: string;
-    awayteamabbr: string;
-    challenged_calls: number;
-    overturned_calls: number;
-    confirmed_calls: number;
-  }>(
-    `
-    SELECT
-      c.game_pk AS gamePk,
-      g.game_date AS gameDate,
-      g.game_type AS gameType,
-      g.home_team_id AS homeTeamId,
-      g.away_team_id AS awayTeamId,
-      home.abbreviation AS homeTeamAbbr,
-      away.abbreviation AS awayTeamAbbr,
-      COUNT(*) AS challenged_calls,
-      COUNT(*) FILTER (WHERE c.is_overturned = TRUE) AS overturned_calls,
-      COUNT(*) FILTER (WHERE c.is_overturned = FALSE) AS confirmed_calls
-    FROM mart_abs_pitch_challenges c
-    JOIN games g ON g.game_pk = c.game_pk
-    JOIN officials o ON o.game_pk = c.game_pk AND o.official_type = 'Home Plate'
-    LEFT JOIN teams home ON home.team_id = g.home_team_id
-    LEFT JOIN teams away ON away.team_id = g.away_team_id
-    WHERE o.official_id = $1
-      AND ${window.clause}
-      AND ${situational.clause}
-    GROUP BY
-      c.game_pk,
-      g.game_date,
-      g.game_type,
-      g.home_team_id,
-      g.away_team_id,
-      home.abbreviation,
-      away.abbreviation
-    ORDER BY g.game_date DESC
-    LIMIT 20
-    `,
-    [umpireId, ...window.params, ...situational.params],
-          );
+          const rows = !hasActiveSituationalFilters(filters)
+            ? await sql<{
+                gamepk: number;
+                gamedate: string;
+                gametype: string;
+                hometeamid: number;
+                awayteamid: number;
+                hometeamabbr: string;
+                awayteamabbr: string;
+                challenged_calls: number;
+                overturned_calls: number;
+                confirmed_calls: number;
+              }>(
+                `
+                SELECT
+                  s.game_pk AS gamePk,
+                  g.game_date AS gameDate,
+                  g.game_type AS gameType,
+                  g.home_team_id AS homeTeamId,
+                  g.away_team_id AS awayTeamId,
+                  home.abbreviation AS homeTeamAbbr,
+                  away.abbreviation AS awayTeamAbbr,
+                  s.challenged_calls,
+                  s.overturned_calls,
+                  s.confirmed_calls
+                FROM umpire_abs_game_summary s
+                JOIN games g ON g.game_pk = s.game_pk
+                LEFT JOIN teams home ON home.team_id = g.home_team_id
+                LEFT JOIN teams away ON away.team_id = g.away_team_id
+                WHERE s.umpire_id = $1
+                  AND ${window.clause}
+                ORDER BY g.game_date DESC
+                LIMIT 20
+                `,
+                [umpireId, ...window.params],
+              )
+            : await sql<{
+                gamepk: number;
+                gamedate: string;
+                gametype: string;
+                hometeamid: number;
+                awayteamid: number;
+                hometeamabbr: string;
+                awayteamabbr: string;
+                challenged_calls: number;
+                overturned_calls: number;
+                confirmed_calls: number;
+              }>(
+                `
+                WITH home_plate_games AS (
+                  SELECT DISTINCT game_pk
+                  FROM officials
+                  WHERE official_id = $1
+                    AND official_type = 'Home Plate'
+                ),
+                filtered AS (
+                  SELECT c.*
+                  FROM mart_abs_pitch_challenges c
+                  JOIN home_plate_games hp ON hp.game_pk = c.game_pk
+                  JOIN games g ON g.game_pk = c.game_pk
+                  WHERE ${window.clause}
+                    AND ${situational.clause}
+                )
+                SELECT
+                  c.game_pk AS gamePk,
+                  g.game_date AS gameDate,
+                  g.game_type AS gameType,
+                  g.home_team_id AS homeTeamId,
+                  g.away_team_id AS awayTeamId,
+                  home.abbreviation AS homeTeamAbbr,
+                  away.abbreviation AS awayTeamAbbr,
+                  COUNT(*) AS challenged_calls,
+                  COUNT(*) FILTER (WHERE c.is_overturned = TRUE) AS overturned_calls,
+                  COUNT(*) FILTER (WHERE c.is_overturned = FALSE) AS confirmed_calls
+                FROM filtered c
+                JOIN games g ON g.game_pk = c.game_pk
+                LEFT JOIN teams home ON home.team_id = g.home_team_id
+                LEFT JOIN teams away ON away.team_id = g.away_team_id
+                GROUP BY
+                  c.game_pk,
+                  g.game_date,
+                  g.game_type,
+                  g.home_team_id,
+                  g.away_team_id,
+                  home.abbreviation,
+                  away.abbreviation
+                ORDER BY g.game_date DESC
+                LIMIT 20
+                `,
+                [umpireId, ...window.params, ...situational.params],
+              );
 
           return rows.map((r) => {
     const total = Number(r.challenged_calls);
@@ -6184,10 +5877,16 @@ export async function getUmpirePerformanceDNA(umpireId: number, range: RangeKey 
                 THEN COUNT(*) FILTER (WHERE c.is_overturned = FALSE)::NUMERIC / COUNT(*)
                 ELSE 1.0
             END AS accuracy
-        FROM mart_abs_pitch_challenges c
+        FROM (
+          SELECT DISTINCT game_pk
+          FROM officials
+          WHERE official_id = $1
+            AND official_type = 'Home Plate'
+        ) hp
+        JOIN mart_abs_pitch_challenges c ON c.game_pk = hp.game_pk
         JOIN games g ON g.game_pk = c.game_pk
-        JOIN officials o ON o.game_pk = c.game_pk AND o.official_id = $1 AND o.official_type = 'Home Plate'
         WHERE ${window.clause}
+          AND c.inning IS NOT NULL
         GROUP BY c.inning
         ORDER BY c.inning ASC
         `,
@@ -6216,9 +5915,14 @@ export async function getUmpirePerformanceDNA(umpireId: number, range: RangeKey 
             resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strike_zone_bottom,
             c.is_overturned,
             p.called_description
-        FROM mart_abs_pitch_challenges c
+        FROM (
+          SELECT DISTINCT game_pk
+          FROM officials
+          WHERE official_id = $1
+            AND official_type = 'Home Plate'
+        ) hp
+        JOIN mart_abs_pitch_challenges c ON c.game_pk = hp.game_pk
         JOIN games g ON g.game_pk = c.game_pk
-        JOIN officials o ON o.game_pk = c.game_pk AND o.official_id = $1 AND o.official_type = 'Home Plate'
         LEFT JOIN pitches p ON p.game_pk = c.game_pk AND p.at_bat_index = c.at_bat_index AND p.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
         WHERE ${window.clause}
           AND c.resolved_px IS NOT NULL
@@ -6337,52 +6041,46 @@ export async function getUmpireMatchupVulnerabilities(
     overturned_count: number;
   }>(
     `
+    WITH home_plate_games AS (
+      SELECT DISTINCT game_pk
+      FROM officials
+      WHERE official_id = $1
+        AND official_type = 'Home Plate'
+    ),
+    filtered AS (
+      SELECT
+        NULLIF(pitcher_player.source_payload->'pitchHand'->>'code', '')::text AS pitcher_throws,
+        NULLIF(batter_player.source_payload->'batSide'->>'code', '')::text AS batter_stand,
+        COALESCE(p.pitch_type_code, 'UN') AS pitch_type_code,
+        COALESCE(p.pitch_type_description, 'Unknown') AS pitch_type_name,
+        c.resolved_px AS px,
+        c.resolved_pz AS pz,
+        resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top) AS strike_zone_top,
+        resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strike_zone_bottom,
+        c.is_overturned
+      FROM mart_abs_pitch_challenges c
+      JOIN home_plate_games hp ON hp.game_pk = c.game_pk
+      JOIN games g ON g.game_pk = c.game_pk
+      LEFT JOIN pitches p ON p.game_pk = c.game_pk AND p.at_bat_index = c.at_bat_index AND p.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
+      LEFT JOIN players batter_player ON batter_player.player_id = c.batter_id
+      LEFT JOIN players pitcher_player ON pitcher_player.player_id = c.pitcher_id
+      WHERE ${window.clause}
+        AND ${situational.clause}
+    )
     SELECT
-      COALESCE(
-        hist.p_throws,
-        NULLIF(pitcher_player.source_payload->'pitchHand'->>'code', '')
-      )::text AS pitcher_throws,
-      COALESCE(
-        hist.stand,
-        NULLIF(batter_player.source_payload->'batSide'->>'code', '')
-      )::text AS batter_stand,
-      COALESCE(p.pitch_type_code, hist.pitch_type, 'UN') AS pitch_type_code,
-      COALESCE(p.pitch_type_description, hist.pitch_name, 'Unknown') AS pitch_type_name,
-      c.resolved_px AS px,
-      c.resolved_pz AS pz,
-      resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top) AS strike_zone_top,
-      resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strike_zone_bottom,
+      pitcher_throws,
+      batter_stand,
+      pitch_type_code,
+      pitch_type_name,
+      px,
+      pz,
+      strike_zone_top,
+      strike_zone_bottom,
       COUNT(*) AS challenged_count,
-      COUNT(*) FILTER (WHERE c.is_overturned = TRUE) AS overturned_count
-    FROM mart_abs_pitch_challenges c
-    JOIN games g ON g.game_pk = c.game_pk
-    JOIN officials o ON o.game_pk = c.game_pk AND o.official_type = 'Home Plate'
-    LEFT JOIN pitches p ON p.game_pk = c.game_pk AND p.at_bat_index = c.at_bat_index AND p.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
-    LEFT JOIN players batter_player ON batter_player.player_id = c.batter_id
-    LEFT JOIN players pitcher_player ON pitcher_player.player_id = c.pitcher_id
-    LEFT JOIN LATERAL (
-      SELECT hist.stand, hist.p_throws, hist.pitch_type, hist.pitch_name
-      FROM mart_historical_abs_overturn_inputs hist
-      WHERE hist.game_pk = c.game_pk
-        AND hist.at_bat_number = c.at_bat_index + 1
-        AND (
-          COALESCE(c.pitch_number, c.inferred_pitch_number) IS NULL
-          OR hist.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
-          OR ABS(COALESCE(hist.pitch_number, COALESCE(c.pitch_number, c.inferred_pitch_number)) - COALESCE(c.pitch_number, c.inferred_pitch_number)) <= 1
-        )
-      ORDER BY
-        CASE WHEN hist.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number) THEN 0 ELSE 1 END,
-        CASE WHEN hist.batter_id = c.batter_id THEN 0 ELSE 1 END,
-        CASE WHEN hist.pitcher_id = c.pitcher_id THEN 0 ELSE 1 END,
-        ABS(COALESCE(hist.pitch_number, COALESCE(c.pitch_number, c.inferred_pitch_number)) - COALESCE(c.pitch_number, c.inferred_pitch_number)),
-        hist.imported_at DESC
-      LIMIT 1
-    ) hist ON TRUE
-    WHERE o.official_id = $1
-      AND COALESCE(hist.stand, NULLIF(batter_player.source_payload->'batSide'->>'code', '')) IN ('L', 'R')
-      AND COALESCE(hist.p_throws, NULLIF(pitcher_player.source_payload->'pitchHand'->>'code', '')) IN ('L', 'R')
-      AND ${window.clause}
-      AND ${situational.clause}
+      COUNT(*) FILTER (WHERE is_overturned = TRUE) AS overturned_count
+    FROM filtered
+    WHERE batter_stand IN ('L', 'R')
+      AND pitcher_throws IN ('L', 'R')
     GROUP BY 1, 2, 3, 4, 5, 6, 7, 8
     ORDER BY challenged_count DESC, overturned_count DESC
     `,
@@ -6482,17 +6180,16 @@ export async function getUmpireSeasonTrend(
     `
     SELECT
       g.season,
-      COUNT(*) AS challenged_calls,
-      COUNT(*) FILTER (WHERE c.is_overturned = TRUE) AS overturned_calls,
-      CASE WHEN COUNT(*) > 0
-        THEN COUNT(*) FILTER (WHERE c.is_overturned = TRUE)::NUMERIC / COUNT(*)
+      COALESCE(SUM(s.challenged_calls), 0) AS challenged_calls,
+      COALESCE(SUM(s.overturned_calls), 0) AS overturned_calls,
+      CASE WHEN COALESCE(SUM(s.challenged_calls), 0) > 0
+        THEN COALESCE(SUM(s.overturned_calls), 0)::NUMERIC / SUM(s.challenged_calls)
         ELSE 0
       END AS overturn_rate,
-      COUNT(DISTINCT c.game_pk) AS games_worked
-    FROM mart_abs_pitch_challenges c
-    JOIN games g ON g.game_pk = c.game_pk
-    JOIN officials o ON o.game_pk = c.game_pk AND o.official_type = 'Home Plate'
-    WHERE o.official_id = $1
+      COUNT(*) FILTER (WHERE s.challenged_calls > 0) AS games_worked
+    FROM umpire_abs_game_summary s
+    JOIN games g ON g.game_pk = s.game_pk
+    WHERE s.umpire_id = $1
     GROUP BY g.season
     ORDER BY g.season ASC
     `,

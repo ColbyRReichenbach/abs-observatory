@@ -245,9 +245,9 @@ async function UmpireAnalyticsSections({
     getUmpireProfile(umpireId, range, filters),
     getUmpireTrend(umpireId, range, filters),
     getUmpirePageChallengeEvents(umpireId, range, filters),
-    getUmpirePerformanceDNA(umpireId, range),
+    viewMode === "fan" ? getUmpirePerformanceDNA(umpireId, range) : Promise.resolve({ rhythm: [], extremes: [] }),
     getUmpireSeasonTrend(umpireId),
-    getUmpireMatchupVulnerabilities(umpireId, range, filters),
+    viewMode === "org" ? getUmpireMatchupVulnerabilities(umpireId, range, filters) : Promise.resolve([]),
   ]);
 
   const shouldShowSeasonTrend = seasonTrend.filter((point) => point.gamesWorked > 0).length >= 2;
