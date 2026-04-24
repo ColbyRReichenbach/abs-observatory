@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
 import type {
   TeamChallengeValueSummary,
+  TeamDecisionBreakdownEntry,
   TeamDecisionBreakdownSection,
   TeamDecisionValueReport,
   TeamDecisionWindowEntry,
@@ -266,7 +267,7 @@ function BreakdownDrilldown({
                 <div className="min-w-0 lg:w-56">
                   <p className="text-sm font-semibold text-[var(--ink-0)]">{entry.label}</p>
                   <p className="mt-1 text-[11px] text-[var(--ink-3)]">
-                    {entry.challenges} trusted reviews · {formatShare(entry.capturedValueShare)} higher-value · {formatShare(entry.wastedValueShare)} lower-value
+                    {formatBreakdownSample(entry)} · {formatShare(entry.capturedValueShare)} higher-value · {formatShare(entry.wastedValueShare)} lower-value
                   </p>
                 </div>
                 <div className="relative h-8 flex-1 rounded-full bg-white">
@@ -306,6 +307,12 @@ function WindowSurplusBar({ value }: { value: number }) {
       />
     </div>
   );
+}
+
+function formatBreakdownSample(entry: TeamDecisionBreakdownEntry) {
+  return hasTrustedModelConfidenceBand(entry.modelConfidence)
+    ? `${entry.challenges} trusted WE reviews`
+    : `${entry.challenges} WE-modeled reviews`;
 }
 
 function MetricCard({

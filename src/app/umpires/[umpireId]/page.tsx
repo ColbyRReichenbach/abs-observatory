@@ -75,7 +75,7 @@ export default async function UmpirePage({
 
   const [summary, allUmpires] = await Promise.all([
     getUmpireSummary(Number(umpireId), range, filters),
-    getUmpireLeaderboardModel(range),
+    getUmpireLeaderboardModel(range, { includeValueMetrics: viewMode === "org" }),
   ]);
 
   if (!summary) return notFound();

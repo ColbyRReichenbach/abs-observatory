@@ -21,6 +21,7 @@ import {
   buildTeamLeaderboardEntries,
   buildUmpireLeaderboardEntries,
   type TeamStyleMetric,
+  type UmpireRubricMetric,
 } from "@/lib/page-models";
 import { estimateChallengeDecisionValue, getOverturnProbabilityFallbackRows, type CalledPitch, type EdgeBucket } from "@/lib/server/challenge-decision-value";
 import { withServerTiming } from "@/lib/server/performance";
@@ -137,6 +138,14 @@ type TeamDecisionBreakdownAggregate = {
   capturedValueCount: number;
   wastedValueCount: number;
   winModeChallenges: number;
+};
+
+type UmpireValueMetricAggregate = {
+  umpireId: number;
+  totalRunExpectancyDelta: number;
+  runExpectancySamples: number;
+  totalWinExpectancyDelta: number;
+  winExpectancySamples: number;
 };
 
 type ModeledTeamDecisionRow = {
@@ -631,6 +640,8 @@ function buildDecisionWindowLabel(input: {
   outs: number | null;
   ballsBefore: number | null;
   strikesBefore: number | null;
+  balls?: number | null;
+  strikes?: number | null;
 }) {
   const baseLabel =
     input.basesState === "111"
@@ -642,16 +653,7 @@ function buildDecisionWindowLabel(input: {
           : input.basesState === "000"
             ? "Bases Empty"
             : "Runner On";
-  const ballsBefore = input.ballsBefore ?? 0;
-  const strikesBefore = input.strikesBefore ?? 0;
-  const countLabel =
-    ballsBefore === 3 && strikesBefore === 2
-      ? "Full Count"
-      : ballsBefore > strikesBefore
-        ? "Hitter Ahead"
-        : ballsBefore < strikesBefore
-          ? "Pitcher Ahead"
-          : "Even Count";
+  const countLabel = buildDecisionCountLabel(input);
 
   return `${baseLabel} • ${countLabel}`;
 }
@@ -663,9 +665,16 @@ function buildDecisionInningLabel(inning: number | null | undefined) {
   return "Early (1-3)";
 }
 
-function buildDecisionCountLabel(input: { ballsBefore: number | null; strikesBefore: number | null }) {
-  const ballsBefore = input.ballsBefore ?? 0;
-  const strikesBefore = input.strikesBefore ?? 0;
+function buildDecisionCountLabel(input: {
+  ballsBefore: number | null;
+  strikesBefore: number | null;
+  balls?: number | null;
+  strikes?: number | null;
+}) {
+  const ballsBefore = input.ballsBefore ?? input.balls ?? null;
+  const strikesBefore = input.strikesBefore ?? input.strikes ?? null;
+
+  if (ballsBefore === null || strikesBefore === null) return "Unknown Count";
 
   if (ballsBefore === 3 && strikesBefore === 2) return "Full Count";
   if (ballsBefore > strikesBefore) return "Hitter Ahead";
@@ -1081,6 +1090,7 @@ function buildTeamDecisionBreakdownSection(
   title: string,
   modeledRows: ModeledTeamDecisionRow[],
   labelBuilder: (modeled: ModeledTeamDecisionRow) => string,
+  options?: { preferTrustedEntries?: boolean },
 ): TeamDecisionBreakdownSection {
   const aggregates = new Map<string, TeamDecisionBreakdownAggregate>();
 
@@ -1147,7 +1157,8 @@ function buildTeamDecisionBreakdownSection(
     });
 
   const trustedEntries = entries.filter((entry) => hasTrustedModelConfidenceBand(entry.modelConfidence));
-  const rankedEntries = trustedEntries.length > 0 ? trustedEntries : entries;
+  const preferTrustedEntries = options?.preferTrustedEntries ?? true;
+  const rankedEntries = preferTrustedEntries && trustedEntries.length > 0 ? trustedEntries : entries;
 
   return {
     key,
@@ -1264,6 +1275,7 @@ export async function getTeamDecisionValueReport(
           ),
           buildTeamDecisionBreakdownSection("count_state", "Count State", modeledRows, (modeled) =>
             buildDecisionCountLabel(modeled.row),
+            { preferTrustedEntries: false },
           ),
           buildTeamDecisionBreakdownSection("base_out_state", "Base / Out State", modeledRows, (modeled) =>
             buildDecisionBaseOutLabel(modeled.row),
@@ -3188,6 +3200,8 @@ export async function getUmpireLeaderboard(range: RangeKey = "season"): Promise<
         o.official_name
       FROM officials o
       WHERE o.official_type = 'Home Plate'
+        AND NULLIF(BTRIM(o.official_name), '') IS NOT NULL
+        AND BTRIM(o.official_name) <> 'Home Plate'
       ORDER BY o.official_id, o.game_pk DESC
     )
     SELECT
@@ -3223,9 +3237,9 @@ export async function getUmpireLeaderboard(range: RangeKey = "season"): Promise<
   );
 }
 
-async function getUmpireRubricMetrics(range: RangeKey = "season") {
+async function getUmpireRubricMetricsLight(range: RangeKey = "season"): Promise<Map<number, UmpireRubricMetric>> {
   return withVersionedCache(
-    ["umpire-rubric-metrics", range],
+    ["umpire-rubric-metrics-light", range],
     getLatestSuccessfulEtlDataVersion(),
     30_000,
     async () => {
@@ -3285,14 +3299,173 @@ async function getUmpireRubricMetrics(range: RangeKey = "season") {
   );
 }
 
-export async function getUmpireLeaderboardModel(range: RangeKey = "season"): Promise<UmpireLeaderboardEntry[]> {
+async function getUmpireRubricMetrics(range: RangeKey = "season"): Promise<Map<number, UmpireRubricMetric>> {
+  return withVersionedCache(
+    ["umpire-rubric-metrics", range],
+    getLatestSuccessfulEtlDataVersion(),
+    30_000,
+    async () => {
+      const [metrics, valueMetrics] = await Promise.all([
+        getUmpireRubricMetricsLight(range),
+        getUmpireValueMetrics(range),
+      ]);
+
+      for (const [umpireId, metric] of metrics) {
+        const valueMetric = valueMetrics.get(umpireId);
+        metric.averageRunExpectancyDelta =
+          valueMetric && valueMetric.runExpectancySamples > 0
+            ? roundMetric(valueMetric.totalRunExpectancyDelta / valueMetric.runExpectancySamples)
+            : null;
+        metric.averageWinExpectancyDelta =
+          valueMetric && valueMetric.winExpectancySamples > 0
+            ? roundMetric(valueMetric.totalWinExpectancyDelta / valueMetric.winExpectancySamples, 4)
+            : null;
+      }
+
+      return metrics;
+    },
+  );
+}
+
+async function getUmpireValueMetrics(range: RangeKey = "season"): Promise<Map<number, UmpireValueMetricAggregate>> {
+  return withVersionedCache(
+    ["umpire-value-metrics", range],
+    getLatestSuccessfulEtlDataVersion(),
+    30_000,
+    async () => {
+      const window = rangeWhere(range, "g.game_date");
+      const [rows, runExpectancyRows, winExpectancyRows] = await Promise.all([
+        sql<{
+          umpire_id: number;
+          challenge_id: string;
+          inning: number | null;
+          half_inning: string | null;
+          balls: number | null;
+          strikes: number | null;
+          outs: number | null;
+          bases_state: string | null;
+          home_score: number | null;
+          away_score: number | null;
+          is_overturned: boolean;
+          balls_before: number | null;
+          strikes_before: number | null;
+          balls_after: number | null;
+          strikes_after: number | null;
+          challenge_side_role: string | null;
+        }>(
+          `
+          SELECT
+            o.official_id AS umpire_id,
+            c.challenge_id,
+            c.inning,
+            c.half_inning,
+            c.balls,
+            c.strikes,
+            c.outs,
+            c.bases_state,
+            c.home_score,
+            c.away_score,
+            c.is_overturned,
+            COALESCE(p.balls_before, c.balls) AS balls_before,
+            COALESCE(p.strikes_before, c.strikes) AS strikes_before,
+            CASE
+              WHEN p.balls_after IS NOT NULL THEN p.balls_after
+              WHEN c.corrected_call = 'ball' AND c.balls IS NOT NULL THEN LEAST(c.balls + 1, 4)
+              WHEN c.corrected_call = 'called_strike' THEN c.balls
+              ELSE NULL
+            END AS balls_after,
+            CASE
+              WHEN p.strikes_after IS NOT NULL THEN p.strikes_after
+              WHEN c.corrected_call = 'called_strike' AND c.strikes IS NOT NULL THEN LEAST(c.strikes + 1, 3)
+              WHEN c.corrected_call = 'ball' THEN c.strikes
+              ELSE NULL
+            END AS strikes_after,
+            c.challenge_side_role
+          FROM mart_abs_pitch_challenges c
+          JOIN games g ON g.game_pk = c.game_pk
+          JOIN officials o
+            ON o.game_pk = c.game_pk
+           AND o.official_type = 'Home Plate'
+          LEFT JOIN pitches p
+            ON p.game_pk = c.game_pk
+           AND p.at_bat_index = c.at_bat_index
+           AND p.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
+          WHERE ${window.clause}
+          `,
+          window.params,
+        ),
+        getRunExpectancyFallbackRows(),
+        getWinExpectancyFallbackRows(),
+      ]);
+
+      const aggregates = new Map<number, UmpireValueMetricAggregate>();
+
+      for (const row of rows) {
+        const umpireId = Number(row.umpire_id);
+        const ballsAfter = row.balls_after;
+        const strikesAfter = row.strikes_after;
+        const countAfter = ballsAfter === null || strikesAfter === null ? null : `${ballsAfter}-${strikesAfter}`;
+        const umpireCount = resolveUmpireCountState(
+          row.balls_before,
+          row.strikes_before,
+          ballsAfter,
+          strikesAfter,
+          row.is_overturned,
+        );
+        const challengeState = {
+          inning: row.inning === null ? null : Number(row.inning),
+          halfInning: row.half_inning,
+          outs: row.outs,
+          basesState: row.bases_state,
+          homeScore: row.home_score,
+          awayScore: row.away_score,
+          umpireCount,
+          countAfter,
+        };
+        const runValue = getChallengeRunExpectancyDelta(challengeState, runExpectancyRows);
+        const winValue = getChallengeWinExpectancyDelta(challengeState, winExpectancyRows);
+        const runExpectancyDelta = challengeTeamDelta(runValue.runExpectancyDelta, row.challenge_side_role);
+        const winExpectancyDelta = challengeTeamDelta(winValue.winExpectancyDelta, row.challenge_side_role);
+        const aggregate = aggregates.get(umpireId) ?? {
+          umpireId,
+          totalRunExpectancyDelta: 0,
+          runExpectancySamples: 0,
+          totalWinExpectancyDelta: 0,
+          winExpectancySamples: 0,
+        };
+
+        if (runExpectancyDelta !== null) {
+          aggregate.totalRunExpectancyDelta += runExpectancyDelta;
+          aggregate.runExpectancySamples += 1;
+        }
+        if (winExpectancyDelta !== null) {
+          aggregate.totalWinExpectancyDelta += winExpectancyDelta;
+          aggregate.winExpectancySamples += 1;
+        }
+
+        aggregates.set(umpireId, aggregate);
+      }
+
+      return aggregates;
+    },
+  );
+}
+
+export async function getUmpireLeaderboardModel(
+  range: RangeKey = "season",
+  options?: { includeValueMetrics?: boolean },
+): Promise<UmpireLeaderboardEntry[]> {
+  const includeValueMetrics = options?.includeValueMetrics ?? true;
   return withServerTiming(
     "data.getUmpireLeaderboardModel",
-    () => withCachedValue(getCacheKey(["umpire-leaderboard-model", range]), 30_000, async () => {
-      const [umpires, metrics] = await Promise.all([getUmpireLeaderboard(range), getUmpireRubricMetrics(range)]);
+    () => withCachedValue(getCacheKey(["umpire-leaderboard-model", range, includeValueMetrics ? "value" : "light"]), 30_000, async () => {
+      const [umpires, metrics] = await Promise.all([
+        getUmpireLeaderboard(range),
+        includeValueMetrics ? getUmpireRubricMetrics(range) : getUmpireRubricMetricsLight(range),
+      ]);
       return buildUmpireLeaderboardEntries(umpires, metrics);
     }),
-    { warnAtMs: 1_000, metadata: { range } },
+    { warnAtMs: 1_000, metadata: { range, includeValueMetrics } },
   );
 }
 

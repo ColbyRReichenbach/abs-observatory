@@ -25,6 +25,7 @@ export type ToolResult = {
 
 type ResolveToolResultsOptions = {
   preferredToolNames?: string[];
+  maxArrayItems?: number;
 };
 
 function getEntityRange(range?: CopilotContext["range"]) {
@@ -56,7 +57,7 @@ export async function resolveToolResults(
       { toolName: "get_game_challenges", payload: challenges.slice(-20) },
     ]
       .filter((tool) => shouldLoad(tool.toolName))
-      .map((tool) => ({ ...tool, payload: sanitizeToolPayload(tool.payload) }));
+      .map((tool) => ({ ...tool, payload: sanitizeToolPayload(tool.payload, { maxArrayItems: options?.maxArrayItems }) }));
   }
 
   if (context?.scope === "team" && context.entityId) {
@@ -89,7 +90,7 @@ export async function resolveToolResults(
       { toolName: "get_team_decision_value_report", payload: decisionValueReport },
     ]
       .filter((tool) => shouldLoad(tool.toolName))
-      .map((tool) => ({ ...tool, payload: sanitizeToolPayload(tool.payload) }));
+      .map((tool) => ({ ...tool, payload: sanitizeToolPayload(tool.payload, { maxArrayItems: options?.maxArrayItems }) }));
   }
 
   if (context?.scope === "umpire" && context.entityId) {
@@ -103,7 +104,7 @@ export async function resolveToolResults(
       { toolName: "get_umpire_profile", payload: profile },
     ]
       .filter((tool) => shouldLoad(tool.toolName))
-      .map((tool) => ({ ...tool, payload: sanitizeToolPayload(tool.payload) }));
+      .map((tool) => ({ ...tool, payload: sanitizeToolPayload(tool.payload, { maxArrayItems: options?.maxArrayItems }) }));
   }
 
   const [games, moments] = await Promise.all([
@@ -115,5 +116,5 @@ export async function resolveToolResults(
     { toolName: "get_home_challenge_moments", payload: moments },
   ]
     .filter((tool) => shouldLoad(tool.toolName))
-    .map((tool) => ({ ...tool, payload: sanitizeToolPayload(tool.payload) }));
+    .map((tool) => ({ ...tool, payload: sanitizeToolPayload(tool.payload, { maxArrayItems: options?.maxArrayItems }) }));
 }

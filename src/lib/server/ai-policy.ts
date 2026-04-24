@@ -9,6 +9,10 @@ export const AI_MAX_TOOL_PAYLOAD_BYTES = 12_000;
 export const AI_ALLOWED_RANGES = COPILOT_RANGES;
 export const AI_DELIVERY_MODES = ["auto", "sync", "async"] as const;
 
+type SanitizeToolPayloadOptions = {
+  maxArrayItems?: number;
+};
+
 const HEAVY_QUERY_PATTERNS = [
   /\bhistor/i,
   /\bsince\s+20\d{2}\b/i,
@@ -115,23 +119,24 @@ function truncateString(value: string, maxLength: number): string {
   return value.length <= maxLength ? value : `${value.slice(0, maxLength - 1)}…`;
 }
 
-function sanitizeValue(value: unknown): unknown {
+function sanitizeValue(value: unknown, options: Required<SanitizeToolPayloadOptions>): unknown {
   if (value === null || value === undefined) return value ?? null;
   if (typeof value === "string") return truncateString(value, 300);
   if (typeof value === "number" || typeof value === "boolean") return value;
-  if (Array.isArray(value)) return value.slice(0, 10).map(sanitizeValue);
+  if (Array.isArray(value)) return value.slice(0, options.maxArrayItems).map((entry) => sanitizeValue(entry, options));
   if (typeof value === "object") {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>)
         .slice(0, 30)
-        .map(([key, entry]) => [key, sanitizeValue(entry)]),
+        .map(([key, entry]) => [key, sanitizeValue(entry, options)]),
     );
   }
   return String(value);
 }
 
-export function sanitizeToolPayload(payload: unknown): unknown {
-  const sanitized = sanitizeValue(payload);
+export function sanitizeToolPayload(payload: unknown, options?: SanitizeToolPayloadOptions): unknown {
+  const resolvedOptions = { maxArrayItems: options?.maxArrayItems ?? 10 };
+  const sanitized = sanitizeValue(payload, resolvedOptions);
   const serialized = JSON.stringify(sanitized);
   if (!serialized || serialized.length <= AI_MAX_TOOL_PAYLOAD_BYTES) {
     return sanitized;

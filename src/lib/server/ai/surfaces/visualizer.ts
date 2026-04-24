@@ -165,7 +165,7 @@ function buildUnsupportedTeamAnswer() {
 }
 
 function normalizeInningLabel(inning: number) {
-  return inning >= 9 ? "9+" : String(inning);
+  return inning > 9 ? "10+" : String(inning);
 }
 
 function getTeamName(payloadMap: ToolPayloadMap) {
@@ -662,7 +662,7 @@ export const runVisualizerSurface: SurfaceRunner = async (params) => {
     }
 
     const citations = getTeamIntentTools(intent);
-    const toolResults = await resolveToolResults(params.context, { preferredToolNames: citations });
+    const toolResults = await resolveToolResults(params.context, { preferredToolNames: citations, maxArrayItems: 30 });
     const payloadMap = new Map(toolResults.map((tool) => [tool.toolName, tool.payload]));
     const deterministic = buildDeterministicTeamPlan(params.message, payloadMap);
 

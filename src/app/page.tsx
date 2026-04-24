@@ -70,7 +70,7 @@ async function HomePageBody({
       includeDecisionMetrics: viewMode === "org",
       includeValueMetrics: viewMode === "org",
     }),
-    getUmpireLeaderboardModel("season"),
+    getUmpireLeaderboardModel("season", { includeValueMetrics: viewMode === "org" }),
   ]);
 
   const todayGames = games.length;

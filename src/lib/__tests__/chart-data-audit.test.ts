@@ -66,7 +66,6 @@ let getUmpireLeaderboardModel: typeof import("@/lib/data").getUmpireLeaderboardM
 let getUmpireSummary: typeof import("@/lib/data").getUmpireSummary;
 let getUmpireProfile: typeof import("@/lib/data").getUmpireProfile;
 let getUmpireTrend: typeof import("@/lib/data").getUmpireTrend;
-let getUmpireChallenges: typeof import("@/lib/data").getUmpireChallenges;
 let getUmpirePageChallengeEvents: typeof import("@/lib/data").getUmpirePageChallengeEvents;
 let getUmpirePerformanceDNA: typeof import("@/lib/data").getUmpirePerformanceDNA;
 let getUmpireSeasonTrend: typeof import("@/lib/data").getUmpireSeasonTrend;
@@ -125,7 +124,6 @@ beforeAll(async () => {
     getUmpireSummary,
     getUmpireProfile,
     getUmpireTrend,
-    getUmpireChallenges,
     getUmpirePageChallengeEvents,
     getUmpirePerformanceDNA,
     getUmpireSeasonTrend,
@@ -245,6 +243,11 @@ describe("chart data audit", () => {
     expect(teamsOrg.some((team) => team.decisionSurplus !== null || team.avgRunExpectancyDelta !== null)).toBe(true);
     expect(umpires.length).toBeGreaterThan(0);
     expect(umpires.some((umpire) => umpire.challengedCalls > 0)).toBe(true);
+    expect(umpires.every((umpire) => umpire.umpireName !== "Home Plate")).toBe(true);
+    expect(
+      umpires.some((umpire) => umpire.averageWinExpectancyDelta !== null || umpire.averageRunExpectancyDelta !== null),
+      "home org umpire summaries should not drop all modeled WE/RE value fields",
+    ).toBe(true);
   }, 30_000);
 
   it("hydrates teams index fan/org route chart sources with populated trend and leaderboard data", async () => {
@@ -322,7 +325,12 @@ describe("chart data audit", () => {
 
     expect(umpires.length).toBeGreaterThan(0);
     expect(umpires.some((umpire) => umpire.challengedCalls > 0)).toBe(true);
+    expect(umpires.every((umpire) => umpire.umpireName !== "Home Plate")).toBe(true);
     expect(umpires.some((umpire) => umpire.overturnRateVariance >= 0)).toBe(true);
+    expect(
+      umpires.some((umpire) => umpire.averageWinExpectancyDelta !== null || umpire.averageRunExpectancyDelta !== null),
+      "umpire org leaderboard should carry aggregate modeled value fields",
+    ).toBe(true);
   }, 15_000);
 
   it("hydrates org-detail contracts with enriched pitch and value fields", async () => {
@@ -345,6 +353,13 @@ describe("chart data audit", () => {
     expect(
       teamSummary.averageWinExpectancyDelta !== null || teamSummary.averageRunExpectancyDelta !== null,
       "team org summaries should not drop all WE/RE value fields",
+    ).toBe(true);
+
+    const umpireLeaderboard = await getUmpireLeaderboardModel("season");
+    const selectedUmpire = umpireLeaderboard.find((umpire) => umpire.umpireId === sampleIds.umpireId);
+    expect(
+      selectedUmpire?.averageWinExpectancyDelta !== null || selectedUmpire?.averageRunExpectancyDelta !== null,
+      "umpire org summaries should not drop aggregate WE/RE value fields",
     ).toBe(true);
 
     expect(umpireChallenges.length).toBeGreaterThan(0);

@@ -17,7 +17,7 @@ export default async function UmpiresPage({ searchParams }: { searchParams: Prom
   const sp = await searchParams;
   const range = parseRange(sp.range);
   const viewMode = await resolveViewMode(sp);
-  const umpires = await getUmpireLeaderboardModel(range);
+  const umpires = await getUmpireLeaderboardModel(range, { includeValueMetrics: viewMode === "org" });
 
   const sorted = [...umpires].sort((left, right) =>
     viewMode === "org" ? compareOrgUmpires(left, right) : compareFanUmpires(left, right),
@@ -95,9 +95,9 @@ export default async function UmpiresPage({ searchParams }: { searchParams: Prom
           <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <SummaryCard
               eyebrow="Top WE Signal"
-              title={bestByMetric(umpires, (umpire) => umpire.averageWinExpectancyDelta ?? Number.NEGATIVE_INFINITY)?.umpireName ?? "No signal"}
+              title={bestByOptionalMetric(umpires, (umpire) => umpire.averageWinExpectancyDelta)?.umpireName ?? "No signal"}
               body={(() => {
-                const umpire = bestByMetric(umpires, (item) => item.averageWinExpectancyDelta ?? Number.NEGATIVE_INFINITY);
+                const umpire = bestByOptionalMetric(umpires, (item) => item.averageWinExpectancyDelta);
                 return umpire?.averageWinExpectancyDelta !== null && umpire?.averageWinExpectancyDelta !== undefined
                   ? `${umpire.averageWinExpectancyDelta >= 0 ? "+" : ""}${(umpire.averageWinExpectancyDelta * 100).toFixed(2)}% average WE change per review.`
                   : "Win-probability coverage has not stabilized enough yet.";
@@ -105,9 +105,13 @@ export default async function UmpiresPage({ searchParams }: { searchParams: Prom
             />
             <SummaryCard
               eyebrow="Lowest WE Signal"
-              title={bestByMetric(umpires, (umpire) => -(umpire.averageWinExpectancyDelta ?? Number.POSITIVE_INFINITY))?.umpireName ?? "No signal"}
+              title={bestByOptionalMetric(umpires, (umpire) =>
+                typeof umpire.averageWinExpectancyDelta === "number" ? -umpire.averageWinExpectancyDelta : null,
+              )?.umpireName ?? "No signal"}
               body={(() => {
-                const umpire = bestByMetric(umpires, (item) => -(item.averageWinExpectancyDelta ?? Number.POSITIVE_INFINITY));
+                const umpire = bestByOptionalMetric(umpires, (item) =>
+                  typeof item.averageWinExpectancyDelta === "number" ? -item.averageWinExpectancyDelta : null,
+                );
                 return umpire?.averageWinExpectancyDelta !== null && umpire?.averageWinExpectancyDelta !== undefined
                   ? `${umpire.averageWinExpectancyDelta >= 0 ? "+" : ""}${(umpire.averageWinExpectancyDelta * 100).toFixed(2)}% average WE change per review.`
                   : "Win-probability coverage has not stabilized enough yet.";
@@ -296,4 +300,12 @@ function SummaryCard({
 function bestByMetric<T>(items: T[], getValue: (item: T) => number) {
   if (items.length === 0) return null;
   return [...items].sort((left, right) => getValue(right) - getValue(left))[0] ?? null;
+}
+
+function bestByOptionalMetric<T>(items: T[], getValue: (item: T) => number | null | undefined) {
+  const scored = items
+    .map((item) => ({ item, value: getValue(item) }))
+    .filter((entry): entry is { item: T; value: number } => typeof entry.value === "number" && Number.isFinite(entry.value));
+  if (scored.length === 0) return null;
+  return scored.sort((left, right) => right.value - left.value)[0]?.item ?? null;
 }
