@@ -67,6 +67,7 @@ let getUmpireSummary: typeof import("@/lib/data").getUmpireSummary;
 let getUmpireProfile: typeof import("@/lib/data").getUmpireProfile;
 let getUmpireTrend: typeof import("@/lib/data").getUmpireTrend;
 let getUmpireChallenges: typeof import("@/lib/data").getUmpireChallenges;
+let getUmpirePageChallengeEvents: typeof import("@/lib/data").getUmpirePageChallengeEvents;
 let getUmpirePerformanceDNA: typeof import("@/lib/data").getUmpirePerformanceDNA;
 let getUmpireSeasonTrend: typeof import("@/lib/data").getUmpireSeasonTrend;
 let getUmpireMatchupVulnerabilities: typeof import("@/lib/data").getUmpireMatchupVulnerabilities;
@@ -75,6 +76,7 @@ let getGameScoreboardData: typeof import("@/lib/data").getGameScoreboardData;
 let getGameAbsCounters: typeof import("@/lib/data").getGameAbsCounters;
 let getGameLiveStatus: typeof import("@/lib/data").getGameLiveStatus;
 let getGameChallenges: typeof import("@/lib/data").getGameChallenges;
+let getGamePageChallengeEvents: typeof import("@/lib/data").getGamePageChallengeEvents;
 let getGameChallengeValueTimeline: typeof import("@/lib/data").getGameChallengeValueTimeline;
 let getGameTeamChallengeComparison: typeof import("@/lib/data").getGameTeamChallengeComparison;
 let getGameUmpireInGameSummary: typeof import("@/lib/data").getGameUmpireInGameSummary;
@@ -124,6 +126,7 @@ beforeAll(async () => {
     getUmpireProfile,
     getUmpireTrend,
     getUmpireChallenges,
+    getUmpirePageChallengeEvents,
     getUmpirePerformanceDNA,
     getUmpireSeasonTrend,
     getUmpireMatchupVulnerabilities,
@@ -132,6 +135,7 @@ beforeAll(async () => {
     getGameAbsCounters,
     getGameLiveStatus,
     getGameChallenges,
+    getGamePageChallengeEvents,
     getGameChallengeValueTimeline,
     getGameTeamChallengeComparison,
     getGameUmpireInGameSummary,
@@ -320,6 +324,75 @@ describe("chart data audit", () => {
     expect(umpires.some((umpire) => umpire.challengedCalls > 0)).toBe(true);
     expect(umpires.some((umpire) => umpire.overturnRateVariance >= 0)).toBe(true);
   }, 15_000);
+
+  it("hydrates org-detail contracts with enriched pitch and value fields", async () => {
+    if (skipIfSchemaMissing()) return;
+    if (sampleIds.teamId === null || sampleIds.umpireId === null || sampleIds.finalGamePk === null) {
+      console.warn("Skipping enriched org contract audit because representative ids are not available.");
+      return;
+    }
+
+    const [teamSummary, umpireChallenges, gameChallenges, timeline, teamComparison, umpireSummary] = await Promise.all([
+      getTeamChallengeValueSummary(sampleIds.teamId, "season", undefined, { includeValueMetrics: true }),
+      getUmpirePageChallengeEvents(sampleIds.umpireId, "season"),
+      getGamePageChallengeEvents(sampleIds.finalGamePk),
+      getGameChallengeValueTimeline(sampleIds.finalGamePk),
+      getGameTeamChallengeComparison(sampleIds.finalGamePk),
+      getGameUmpireInGameSummary(sampleIds.finalGamePk),
+    ]);
+
+    expect(teamSummary.totalChallenges).toBeGreaterThan(0);
+    expect(
+      teamSummary.averageWinExpectancyDelta !== null || teamSummary.averageRunExpectancyDelta !== null,
+      "team org summaries should not drop all WE/RE value fields",
+    ).toBe(true);
+
+    expect(umpireChallenges.length).toBeGreaterThan(0);
+    expect(
+      umpireChallenges.some((challenge) => challenge.pitchType || challenge.startSpeed !== null || challenge.spinRate !== null),
+      "umpire org challenge contracts should include pitch-family or trait data when available",
+    ).toBe(true);
+    expect(
+      umpireChallenges.some(
+        (challenge) =>
+          challenge.winExpectancyDelta !== null ||
+          challenge.runExpectancyDelta !== null ||
+          challenge.expectedChallengeValue !== null,
+      ),
+      "umpire org challenge contracts should include modeled value fields when available",
+    ).toBe(true);
+
+    expect(gameChallenges.length).toBeGreaterThan(0);
+    expect(
+      gameChallenges.some(
+        (challenge) =>
+          challenge.winExpectancyDelta !== null ||
+          challenge.runExpectancyDelta !== null ||
+          challenge.expectedChallengeValue !== null,
+      ),
+      "game challenge contracts should include modeled value fields for postgame/live org reads",
+    ).toBe(true);
+    expect(
+      timeline.some(
+        (entry) =>
+          entry.winExpectancyDelta !== null ||
+          entry.runExpectancyDelta !== null ||
+          entry.expectedChallengeValue !== null,
+      ),
+    ).toBe(true);
+    expect(teamComparison).not.toBeNull();
+    expect(
+      (teamComparison?.home.totalWinValue ?? null) !== null ||
+        (teamComparison?.away.totalWinValue ?? null) !== null ||
+        (teamComparison?.home.totalRunValue ?? null) !== null ||
+        (teamComparison?.away.totalRunValue ?? null) !== null ||
+        (teamComparison?.home.expectedValueSum ?? null) !== null ||
+        (teamComparison?.away.expectedValueSum ?? null) !== null,
+      "team comparison should retain WE/RE totals when the underlying game has value coverage",
+    ).toBe(true);
+    expect(umpireSummary).not.toBeNull();
+    expect(umpireSummary?.topPitchType).not.toBeNull();
+  }, 30_000);
 
   it("hydrates umpire detail fan/org route chart sources with real data for a representative umpire", async () => {
     if (skipIfSchemaMissing()) return;

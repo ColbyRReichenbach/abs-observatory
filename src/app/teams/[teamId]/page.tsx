@@ -91,7 +91,7 @@ export default async function TeamPage({
     getTeamIdentity(Number(teamId)),
     getTeamLeaderboardModel(range, {
       includeDecisionMetrics: viewMode === "org",
-      includeValueMetrics: false,
+      includeValueMetrics: viewMode === "org",
     }),
   ]);
   if (!summary) return notFound();
@@ -407,7 +407,7 @@ async function TeamOrgCommandCenterSection({
 }) {
   const [decisionValueReport, challengeValueSummary, bailouts] = await Promise.all([
     getTeamDecisionValueReport(teamId, range, filters),
-    getTeamChallengeValueSummary(teamId, range, filters, { includeValueMetrics: false }),
+    getTeamChallengeValueSummary(teamId, range, filters),
     getTeamPitchingBailouts(teamId, range, filters),
   ]);
 
@@ -481,7 +481,7 @@ async function TeamLowerSections({
 }) {
   const [umpires, challengeValueSummary] = await Promise.all([
     getTeamUmpireMatchups(teamId, range, filters),
-    getTeamChallengeValueSummary(teamId, range, filters, { includeValueMetrics: false }),
+    getTeamChallengeValueSummary(teamId, range, filters, { includeValueMetrics: viewMode === "org" }),
   ]);
 
   const usesTrustedWinValue =
