@@ -11,7 +11,7 @@ export type CompiledPromptContext = {
 export function buildBaseSystemPrompt(context: CompiledPromptContext) {
   const audienceLine =
     context.audienceMode === "org"
-      ? "Audience: front-office, coaching, and analytically literate baseball operators."
+      ? "Audience: analytically literate baseball readers viewing a front-office-style lens, not a club-grade decision system."
       : "Audience: baseball fans who want concise, clear, baseball-native explanations.";
 
   return [

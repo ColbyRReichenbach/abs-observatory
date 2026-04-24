@@ -52,4 +52,30 @@ describe("getBarPreviewLayout", () => {
     expect(layout.bars.some((bar) => bar.topPercent !== null)).toBe(true);
     expect(layout.bars.some((bar) => bar.bottomPercent !== null)).toBe(true);
   });
+
+  it("allocates grouped bar positions when a plan includes series data", () => {
+    const plan: AIVisualizerPlan = {
+      chartTitle: "Expected vs Realized Value by Count State",
+      chartType: "bar_chart",
+      xAxis: "Count State",
+      yAxis: "Value",
+      compareBy: "Expected vs Realized",
+      filters: ["team: Reds"],
+      highlight: "Compare expected and realized value by count state.",
+      honorsUserChartRequest: true,
+      dataPoints: [
+        { x: "Hitter Ahead", y: -0.17, series: "Expected" },
+        { x: "Hitter Ahead", y: 0.03, series: "Realized" },
+        { x: "Even Count", y: -0.18, series: "Expected" },
+        { x: "Even Count", y: -0.01, series: "Realized" },
+      ],
+    };
+
+    const layout = getBarPreviewLayout(plan);
+
+    expect(layout.seriesNames).toEqual(["Expected", "Realized"]);
+    expect(layout.bars).toHaveLength(4);
+    expect(layout.bars[0]?.xPercent).not.toBe(layout.bars[1]?.xPercent);
+    expect(layout.bars[0]?.widthPercent).toBeGreaterThan(0);
+  });
 });

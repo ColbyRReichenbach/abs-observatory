@@ -223,7 +223,7 @@ export function getWelcomeTourSteps(
       label: "Core 2",
       title: "Read The Club Card",
       baseballLine: "Shift from the scoreboard to the dugout and see how a team really uses its challenges.",
-      description: "Use a team hub to compare fan story mode and org strategy mode around the same club.",
+      description: "Use a team hub to compare fan story mode and the org-style model lens around the same club.",
       ctaLabel: input.favoriteTeamHref ? "Open Favorite Team" : "Open Guided Team Hub",
       href: teamTourHref,
     },

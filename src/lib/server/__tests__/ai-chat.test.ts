@@ -229,7 +229,16 @@ describe("ai-chat", () => {
       aiSuspendedUntil: null,
     });
     isBaseballRelatedMock.mockReturnValueOnce(true);
-    resolveToolResultsMock.mockResolvedValueOnce([{ toolName: "get_team_summary", payload: [{ teamId: 147 }] }]);
+    resolveToolResultsMock.mockResolvedValueOnce([
+      { toolName: "get_team_summary", payload: { teamName: "New York Yankees" } },
+      {
+        toolName: "get_team_side_splits",
+        payload: [
+          { side: "home", games: 20, challengesTotal: 28, overturnRate: 0.57 },
+          { side: "away", games: 19, challengesTotal: 22, overturnRate: 0.5 },
+        ],
+      },
+    ]);
     sqlOneMock
       .mockResolvedValueOnce({ conversationid: "conversation-1" })
       .mockResolvedValueOnce({ messageid: "message-1" });
@@ -247,16 +256,18 @@ describe("ai-chat", () => {
         method: "POST",
         headers: { "content-type": "application/json", "x-dev-user-id": "user-1" },
         body: JSON.stringify({
-          message: "What chart best compares the Yankees and Twins challenge timing?",
+          message: "Compare home vs away overturn rate in a bar chart.",
           surface: "visualizer",
+          delivery: "sync",
+          context: { scope: "team", entityId: "147", range: "season" },
         }),
       }),
     );
 
     expect(result.safetyDisposition).toBe("allowed");
-    expect(result.structuredPlan?.chartType).toBeTruthy();
+    expect(result.structuredPlan?.chartType).toBe("bar_chart");
     expect(result.answer).toContain("Chart Type:");
-    expect(result.citations).toEqual(["get_team_summary"]);
+    expect(result.citations).toEqual(["get_team_summary", "get_team_side_splits"]);
   });
 
   it("allows shorthand visualizer prompts when page context supplies baseball scope", async () => {
@@ -268,7 +279,18 @@ describe("ai-chat", () => {
       aiSuspendedUntil: null,
     });
     isBaseballRelatedMock.mockReturnValueOnce(true);
-    resolveToolResultsMock.mockResolvedValueOnce([{ toolName: "get_team_summary", payload: [{ teamId: 138 }] }]);
+    resolveToolResultsMock.mockResolvedValueOnce([
+      { toolName: "get_team_summary", payload: { teamName: "St. Louis Cardinals" } },
+      {
+        toolName: "get_team_challenge_scenario_matrix",
+        payload: [
+          { colLabel: "Pitcher Ahead", challenges: 10, overturned: 6, overturnRate: 0.6 },
+          { colLabel: "Even Count", challenges: 12, overturned: 9, overturnRate: 0.75 },
+          { colLabel: "Hitter Ahead", challenges: 8, overturned: 5, overturnRate: 0.625 },
+          { colLabel: "Full Count", challenges: 4, overturned: 2, overturnRate: 0.5 },
+        ],
+      },
+    ]);
     sqlOneMock
       .mockResolvedValueOnce({ conversationid: "conversation-1" })
       .mockResolvedValueOnce({ messageid: "message-1" });
@@ -296,7 +318,7 @@ describe("ai-chat", () => {
 
     expect(isBaseballRelatedMock).toHaveBeenCalledWith("[Context: Team 138 scope (season)] Compare overturn rate by count state.");
     expect(result.safetyDisposition).toBe("allowed");
-    expect(result.structuredPlan?.chartType).toBeTruthy();
+    expect(result.structuredPlan?.chartType).toBe("bar_chart");
   });
 
   it("allows generic chart-insight prompts when chart context supplies baseball scope", async () => {
