@@ -1,6 +1,17 @@
 "use client";
 
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from "recharts";
+import {
+  ResponsiveContainer,
+  BarChart,
+  ComposedChart,
+  Bar,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Cell,
+} from "recharts";
 
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
 import type { GameChallengeOpportunityBoard, PregameIntel } from "@/lib/types";
@@ -25,48 +36,27 @@ export function PregameTeamComparisonChart({
 }) {
   const modeledHome = summarizeModeledBoard(opportunityBoard, "home");
   const modeledAway = summarizeModeledBoard(opportunityBoard, "away");
-  const data =
-    viewMode === "org"
-      ? [
-          {
-            metric: "Avg ELI",
-            home: modeledHome.averageLeverage,
-            away: modeledAway.averageLeverage,
-            formatter: "number" as const,
-          },
-          {
-            metric: "High-Pressure %",
-            home: Math.round(modeledHome.highPressureShare * 100),
-            away: Math.round(modeledAway.highPressureShare * 100),
-            formatter: "percent" as const,
-          },
-          {
-            metric: "Overturn %",
-            home: Math.round(intel.homeTeam.successRate * 100),
-            away: Math.round(intel.awayTeam.successRate * 100),
-            formatter: "percent" as const,
-          },
-        ]
-      : [
-          {
-            metric: "Offense / Game",
-            home: intel.homeTeam.offensiveChallenges,
-            away: intel.awayTeam.offensiveChallenges,
-            formatter: "number" as const,
-          },
-          {
-            metric: "Defense / Game",
-            home: intel.homeTeam.defensiveChallenges,
-            away: intel.awayTeam.defensiveChallenges,
-            formatter: "number" as const,
-          },
-          {
-            metric: "Overturn %",
-            home: Math.round(intel.homeTeam.successRate * 100),
-            away: Math.round(intel.awayTeam.successRate * 100),
-            formatter: "percent" as const,
-          },
-        ];
+  const orgData = [
+    {
+      metric: "Avg ELI",
+      home: modeledHome.averageLeverage,
+      away: modeledAway.averageLeverage,
+      formatter: "number" as const,
+    },
+    {
+      metric: "High-Pressure %",
+      home: Math.round(modeledHome.highPressureShare * 100),
+      away: Math.round(modeledAway.highPressureShare * 100),
+      formatter: "percent" as const,
+    },
+    {
+      metric: "Overturn %",
+      home: Math.round(intel.homeTeam.successRate * 100),
+      away: Math.round(intel.awayTeam.successRate * 100),
+      formatter: "percent" as const,
+    },
+  ];
+  const fanData = buildPregameFanComparisonData(intel);
 
   return (
     <section className="panel border border-gray-50 bg-white p-6 shadow-2xl shadow-black/[0.02]">
@@ -91,58 +81,169 @@ export function PregameTeamComparisonChart({
 
       <div className="h-[20rem] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} barGap={10} barCategoryGap="20%">
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-            <XAxis
-              dataKey="metric"
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: "#6b7280", fontSize: 11, fontWeight: 700 }}
-            />
-            <YAxis
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: "#9ca3af", fontSize: 10, fontWeight: 700 }}
-            />
-            <Tooltip
-              cursor={{ fill: "rgba(37, 99, 235, 0.05)" }}
-              content={({ active, payload, label }) => {
-                if (!active || !payload?.length) return null;
-                const row = data.find((entry) => entry.metric === label);
-                return (
-                  <ChartTooltip
-                    title={String(label)}
-                    extra={[
-                      {
-                        label: homeLabel,
-                        value: formatValue(payload[0]?.value, row?.formatter),
-                        color: homeColor,
-                      },
-                      {
-                        label: awayLabel,
-                        value: formatValue(payload[1]?.value, row?.formatter),
-                        color: awayColor,
-                      },
-                    ]}
-                  />
-                );
-              }}
-            />
-            <Bar dataKey="home" radius={[10, 10, 0, 0]} maxBarSize={42} minPointSize={6}>
-              {data.map((_, index) => (
-                <Cell key={`home-${index}`} fill={homeColor} />
-              ))}
-            </Bar>
-            <Bar dataKey="away" radius={[10, 10, 0, 0]} maxBarSize={42} minPointSize={6}>
-              {data.map((_, index) => (
-                <Cell key={`away-${index}`} fill={awayColor} />
-              ))}
-            </Bar>
-          </BarChart>
+          {viewMode === "org" ? (
+            <BarChart data={orgData} barGap={10} barCategoryGap="20%">
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+              <XAxis
+                dataKey="metric"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: "#6b7280", fontSize: 11, fontWeight: 700 }}
+              />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: "#9ca3af", fontSize: 10, fontWeight: 700 }}
+              />
+              <Tooltip
+                cursor={{ fill: "rgba(37, 99, 235, 0.05)" }}
+                content={({ active, payload, label }) => {
+                  if (!active || !payload?.length) return null;
+                  const row = orgData.find((entry) => entry.metric === label);
+                  return (
+                    <ChartTooltip
+                      title={String(label)}
+                      extra={[
+                        {
+                          label: homeLabel,
+                          value: formatValue(payload[0]?.value, row?.formatter),
+                          color: homeColor,
+                        },
+                        {
+                          label: awayLabel,
+                          value: formatValue(payload[1]?.value, row?.formatter),
+                          color: awayColor,
+                        },
+                      ]}
+                    />
+                  );
+                }}
+              />
+              <Bar dataKey="home" radius={[10, 10, 0, 0]} maxBarSize={42} minPointSize={6}>
+                {orgData.map((_, index) => (
+                  <Cell key={`home-${index}`} fill={homeColor} />
+                ))}
+              </Bar>
+              <Bar dataKey="away" radius={[10, 10, 0, 0]} maxBarSize={42} minPointSize={6}>
+                {orgData.map((_, index) => (
+                  <Cell key={`away-${index}`} fill={awayColor} />
+                ))}
+              </Bar>
+            </BarChart>
+          ) : (
+            <ComposedChart data={fanData} barGap={10} barCategoryGap="20%">
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+              <XAxis
+                dataKey="metric"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: "#6b7280", fontSize: 11, fontWeight: 700 }}
+              />
+              <YAxis
+                yAxisId="count"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: "#9ca3af", fontSize: 10, fontWeight: 700 }}
+              />
+              <YAxis
+                yAxisId="percent"
+                orientation="right"
+                axisLine={false}
+                tickLine={false}
+                domain={[0, 100]}
+                tickFormatter={(value: number) => `${value}%`}
+                tick={{ fill: "#9ca3af", fontSize: 10, fontWeight: 700 }}
+              />
+              <Tooltip
+                cursor={{ fill: "rgba(37, 99, 235, 0.05)" }}
+                content={({ active, label }) => {
+                  if (!active) return null;
+                  const row = fanData.find((entry) => entry.metric === label);
+                  if (!row) return null;
+                  return (
+                    <ChartTooltip
+                      title={String(label)}
+                      extra={[
+                        {
+                          label: homeLabel,
+                          value: formatValue(row.homeBar ?? row.homeRate, row.formatter),
+                          color: homeColor,
+                        },
+                        {
+                          label: awayLabel,
+                          value: formatValue(row.awayBar ?? row.awayRate, row.formatter),
+                          color: awayColor,
+                        },
+                      ]}
+                    />
+                  );
+                }}
+              />
+              <Bar yAxisId="count" dataKey="homeBar" radius={[10, 10, 0, 0]} maxBarSize={42} minPointSize={6}>
+                {fanData.map((_, index) => (
+                  <Cell key={`home-bar-${index}`} fill={homeColor} />
+                ))}
+              </Bar>
+              <Bar yAxisId="count" dataKey="awayBar" radius={[10, 10, 0, 0]} maxBarSize={42} minPointSize={6}>
+                {fanData.map((_, index) => (
+                  <Cell key={`away-bar-${index}`} fill={awayColor} />
+                ))}
+              </Bar>
+              <Line
+                yAxisId="percent"
+                type="linear"
+                dataKey="homeRate"
+                stroke={homeColor}
+                strokeWidth={2}
+                connectNulls={false}
+                dot={{ r: 5, fill: homeColor, stroke: "#fff", strokeWidth: 2 }}
+                activeDot={{ r: 6 }}
+              />
+              <Line
+                yAxisId="percent"
+                type="linear"
+                dataKey="awayRate"
+                stroke={awayColor}
+                strokeWidth={2}
+                connectNulls={false}
+                dot={{ r: 5, fill: awayColor, stroke: "#fff", strokeWidth: 2 }}
+                activeDot={{ r: 6 }}
+              />
+            </ComposedChart>
+          )}
         </ResponsiveContainer>
       </div>
     </section>
   );
+}
+
+export function buildPregameFanComparisonData(intel: PregameIntel) {
+  return [
+    {
+      metric: "Offense / Game",
+      homeBar: intel.homeTeam.offensiveChallenges,
+      awayBar: intel.awayTeam.offensiveChallenges,
+      homeRate: null,
+      awayRate: null,
+      formatter: "number" as const,
+    },
+    {
+      metric: "Defense / Game",
+      homeBar: intel.homeTeam.defensiveChallenges,
+      awayBar: intel.awayTeam.defensiveChallenges,
+      homeRate: null,
+      awayRate: null,
+      formatter: "number" as const,
+    },
+    {
+      metric: "Overturn %",
+      homeBar: null,
+      awayBar: null,
+      homeRate: Math.round(intel.homeTeam.successRate * 100),
+      awayRate: Math.round(intel.awayTeam.successRate * 100),
+      formatter: "percent" as const,
+    },
+  ];
 }
 
 function formatValue(value: unknown, mode: "count" | "percent" | "number" | undefined) {

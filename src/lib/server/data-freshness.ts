@@ -67,7 +67,7 @@ export async function getDataFreshnessSnapshot(): Promise<DataFreshnessSnapshot>
           UNION ALL
 
           SELECT MAX(c.challenged_at) AS activity_at
-          FROM abs_challenges c
+          FROM mart_abs_pitch_challenges c
           WHERE c.game_pk IN (SELECT game_pk FROM candidate_games)
 
           UNION ALL

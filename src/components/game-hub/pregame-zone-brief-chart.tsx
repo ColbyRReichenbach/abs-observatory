@@ -17,6 +17,8 @@ export function PregameZoneBriefChart({
   intel: PregameIntel;
   viewMode: ViewMode;
 }) {
+  const hasAssignedUmpire = Boolean(intel.umpireId);
+  const hasZoneSample = intel.zoneBriefing.some((zone) => zone.hasSample);
   const sorted = [...intel.zoneBriefing].sort((left, right) => {
     if (right.overturnRate !== left.overturnRate) return right.overturnRate - left.overturnRate;
     return right.challenges - left.challenges;
@@ -34,13 +36,22 @@ export function PregameZoneBriefChart({
         </p>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
+      {!hasAssignedUmpire ? (
+        <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50/50 px-5 py-8 text-sm font-medium leading-relaxed text-gray-500">
+          Scheduled plate umpire has not been published yet. Zone-specific overturn reads will appear once MLB posts the assignment.
+        </div>
+      ) : !hasZoneSample ? (
+        <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50/50 px-5 py-8 text-sm font-medium leading-relaxed text-gray-500">
+          No tracked challenge sample exists for this umpire yet, so zone-level overturn risk is not shown.
+        </div>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2">
         {sorted.map((zone) => (
           <div key={zone.bucket} className="rounded-2xl border border-gray-100 bg-gray-50/60 px-4 py-4">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">{BUCKET_LABELS[zone.bucket]}</p>
-                <p className="mt-2 text-xl font-display text-gray-900">{Math.round(zone.overturnRate * 100)}%</p>
+                <p className="mt-2 text-xl font-display text-gray-900">{zone.hasSample ? `${Math.round(zone.overturnRate * 100)}%` : "No sample"}</p>
                 <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-gray-400">
                   {zone.challenges} tracked challenges
                 </p>
@@ -52,12 +63,13 @@ export function PregameZoneBriefChart({
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-white">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-blue-500 to-red-500"
-                style={{ width: `${Math.max(10, (zone.challenges / maxChallenges) * 100)}%` }}
+                style={{ width: `${zone.challenges > 0 ? Math.max(10, (zone.challenges / maxChallenges) * 100) : 0}%` }}
               />
             </div>
           </div>
         ))}
-      </div>
+        </div>
+      )}
     </section>
   );
 }

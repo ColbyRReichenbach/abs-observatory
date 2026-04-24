@@ -73,7 +73,7 @@ export async function getGamePregameIntel(gamePk: number): Promise<PregameIntel 
           END
         ) AS defensive_challenges,
         AVG(CASE WHEN c.is_overturned THEN 1.0 ELSE 0.0 END)::NUMERIC AS success_rate
-      FROM abs_challenges c
+      FROM mart_abs_pitch_challenges c
       JOIN games g ON g.game_pk = c.game_pk
       WHERE c.challenge_team_id IN (SELECT home_team_id FROM game_context UNION SELECT away_team_id FROM game_context)
       GROUP BY c.challenge_team_id
@@ -105,19 +105,19 @@ export async function getGamePregameIntel(gamePk: number): Promise<PregameIntel 
           `
           SELECT
             CASE
-              WHEN COALESCE(c.pz, c.inferred_pz) >= ((COALESCE(c.strike_zone_top, c.inferred_strike_zone_top, 3.5) + COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom, 1.5)) / 2.0)
-                THEN CASE WHEN COALESCE(c.px, c.inferred_px) < 0 THEN 'up_glove' ELSE 'up_arm' END
-              ELSE CASE WHEN COALESCE(c.px, c.inferred_px) < 0 THEN 'down_glove' ELSE 'down_arm' END
+              WHEN c.resolved_pz >= ((c.resolved_strike_zone_top + c.resolved_strike_zone_bottom) / 2.0)
+                THEN CASE WHEN c.resolved_px < 0 THEN 'up_glove' ELSE 'up_arm' END
+              ELSE CASE WHEN c.resolved_px < 0 THEN 'down_glove' ELSE 'down_arm' END
             END AS bucket,
             COUNT(*) AS challenges,
             AVG(CASE WHEN c.is_overturned THEN 1.0 ELSE 0.0 END)::NUMERIC AS overturn_rate
-          FROM abs_challenges c
+          FROM mart_abs_pitch_challenges c
           JOIN officials o ON o.game_pk = c.game_pk AND o.official_type = 'Home Plate'
           WHERE o.official_id = $1
-            AND COALESCE(c.px, c.inferred_px) IS NOT NULL
-            AND COALESCE(c.pz, c.inferred_pz) IS NOT NULL
-            AND COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) IS NOT NULL
-            AND COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) IS NOT NULL
+            AND c.resolved_px IS NOT NULL
+            AND c.resolved_pz IS NOT NULL
+            AND c.resolved_strike_zone_top IS NOT NULL
+            AND c.resolved_strike_zone_bottom IS NOT NULL
           GROUP BY 1
           `,
           [context.umpire_id],
@@ -129,7 +129,7 @@ export async function getGamePregameIntel(gamePk: number): Promise<PregameIntel 
         c.challenge_team_id,
         c.inning,
         COUNT(*) AS challenges
-      FROM abs_challenges c
+      FROM mart_abs_pitch_challenges c
       WHERE c.challenge_team_id IN ($1, $2)
         AND c.inning BETWEEN 1 AND 9
       GROUP BY c.challenge_team_id, c.inning
@@ -144,7 +144,7 @@ export async function getGamePregameIntel(gamePk: number): Promise<PregameIntel 
             COUNT(DISTINCT c.game_pk) AS games,
             COUNT(*) AS challenges,
             AVG(CASE WHEN c.is_overturned THEN 1.0 ELSE 0.0 END)::NUMERIC AS overturn_rate
-          FROM abs_challenges c
+          FROM mart_abs_pitch_challenges c
           JOIN officials o ON o.game_pk = c.game_pk AND o.official_type = 'Home Plate'
           WHERE o.official_id = $1
             AND c.challenge_team_id IN ($2, $3)
@@ -156,7 +156,7 @@ export async function getGamePregameIntel(gamePk: number): Promise<PregameIntel 
     sql<{ league_average: number }>(
       `
       SELECT COALESCE(AVG(CASE WHEN is_overturned THEN 1.0 ELSE 0.0 END), 0)::NUMERIC AS league_average
-      FROM abs_challenges
+      FROM mart_abs_pitch_challenges
       `,
     ),
     sql<{ inning: number; avg_challenges: number }>(
@@ -166,7 +166,7 @@ export async function getGamePregameIntel(gamePk: number): Promise<PregameIntel 
           challenge_team_id,
           inning,
           COUNT(*) AS challenge_count
-        FROM abs_challenges
+        FROM mart_abs_pitch_challenges
         WHERE inning BETWEEN 1 AND 9
         GROUP BY challenge_team_id, inning
       ),
@@ -227,6 +227,7 @@ export async function getGamePregameIntel(gamePk: number): Promise<PregameIntel 
       bucket,
       challenges: Number(zoneMap.get(bucket)?.challenges ?? 0),
       overturnRate: Number(zoneMap.get(bucket)?.overturn_rate ?? leagueAverage),
+      hasSample: zoneMap.has(bucket),
     })),
     challengeTiming: {
       home: toInningSeries(timingRows, Number(context.home_team_id)),
@@ -241,11 +242,13 @@ export async function getGamePregameIntel(gamePk: number): Promise<PregameIntel 
         games: Number(homeHistory?.games ?? 0),
         challenges: Number(homeHistory?.challenges ?? 0),
         overturnRate: Number(homeHistory?.overturn_rate ?? leagueAverage),
+        hasSample: Boolean(homeHistory && Number(homeHistory.games) > 0),
       },
       away: {
         games: Number(awayHistory?.games ?? 0),
         challenges: Number(awayHistory?.challenges ?? 0),
         overturnRate: Number(awayHistory?.overturn_rate ?? leagueAverage),
+        hasSample: Boolean(awayHistory && Number(awayHistory.games) > 0),
       },
       leagueAverage,
     },

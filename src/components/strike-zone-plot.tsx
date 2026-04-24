@@ -2,18 +2,26 @@
 
 import { memo, useMemo } from "react";
 
-import { mapZoneX, mapZoneY, type ZoneMode } from "@/lib/zone-mapping";
+import { parseCountKey } from "@/lib/challenge-context";
+import { mapZoneX, mapZoneY, STRIKE_ZONE_PLOT, type ZoneMode } from "@/lib/zone-mapping";
 import type { ChallengeEvent } from "@/lib/types";
-
-const WIDTH = 420;
-const HEIGHT = 480;
-const ZONE_X = 110;
-const ZONE_Y = 110;
-const ZONE_W = 200;
-const ZONE_H = 230;
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
+}
+
+function classifyFromCounts(event: ChallengeEvent) {
+  const umpireCount = parseCountKey(event.umpireCount ?? event.countBefore ?? null);
+  const correctedCount = parseCountKey(event.countAfter ?? null);
+  if (!umpireCount || !correctedCount) return null;
+
+  if (correctedCount.strikes > umpireCount.strikes || correctedCount.balls < umpireCount.balls) {
+    return "ball_to_strike";
+  }
+  if (correctedCount.balls > umpireCount.balls || correctedCount.strikes < umpireCount.strikes) {
+    return "strike_to_ball";
+  }
+  return null;
 }
 
 function classifyTransition(event: ChallengeEvent):
@@ -22,9 +30,15 @@ function classifyTransition(event: ChallengeEvent):
   | "overturned_other"
   | "confirmed" {
   if (!event.isOverturned) return "confirmed";
+  if (event.challengeDirection) return event.challengeDirection;
+  const countTransition = classifyFromCounts(event);
+  if (countTransition) return countTransition;
+
+  // MLB's live feed stores the corrected post-review call, so an overturned
+  // Called Strike means the original ball became a strike.
   const call = (event.calledDescription ?? "").toLowerCase();
-  if (call.includes("called strike") || call === "strike") return "strike_to_ball";
-  if (call.includes("ball")) return "ball_to_strike";
+  if (call.includes("called strike") || call === "strike") return "ball_to_strike";
+  if (call.includes("ball")) return "strike_to_ball";
   return "overturned_other";
 }
 
@@ -54,7 +68,7 @@ function StrikeZonePlotComponent({
   challenges,
   selectedChallengeId,
   highlightedChallengeId,
-  zoneMode = "actual",
+  zoneMode = "adjusted",
   showCountOverlay = false,
   showPitchOverlay = false,
   onSelectChallenge,
@@ -78,7 +92,12 @@ function StrikeZonePlotComponent({
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 p-6 lg:p-12 relative flex items-center justify-center min-h-[400px]">
-        <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full max-w-[420px]" role="img" aria-label="Strike zone plot">
+        <svg
+          viewBox={`0 0 ${STRIKE_ZONE_PLOT.width} ${STRIKE_ZONE_PLOT.height}`}
+          className="w-full max-w-[420px]"
+          role="img"
+          aria-label="Strike zone plot"
+        >
           <defs>
             <radialGradient id="zoneGlow" cx="50%" cy="50%" r="50%">
               <stop offset="0%" stopColor="rgba(59,130,246,0.05)" />
@@ -90,14 +109,14 @@ function StrikeZonePlotComponent({
           </defs>
 
           {/* Background glow */}
-          <rect x="0" y="0" width={WIDTH} height={HEIGHT} fill="url(#zoneGlow)" />
+          <rect x="0" y="0" width={STRIKE_ZONE_PLOT.width} height={STRIKE_ZONE_PLOT.height} fill="url(#zoneGlow)" />
 
           {/* Strike zone box */}
           <rect
-            x={ZONE_X}
-            y={ZONE_Y}
-            width={ZONE_W}
-            height={ZONE_H}
+            x={STRIKE_ZONE_PLOT.zoneX}
+            y={STRIKE_ZONE_PLOT.zoneY}
+            width={STRIKE_ZONE_PLOT.zoneW}
+            height={STRIKE_ZONE_PLOT.zoneH}
             fill="white"
             stroke="rgba(0,0,0,0.15)"
             strokeWidth="3"
@@ -109,18 +128,18 @@ function StrikeZonePlotComponent({
           {[1, 2].map((i) => (
             <g key={`grid-${i}`}>
               <line
-                x1={ZONE_X + (ZONE_W / 3) * i}
-                y1={ZONE_Y}
-                x2={ZONE_X + (ZONE_W / 3) * i}
-                y2={ZONE_Y + ZONE_H}
+                x1={STRIKE_ZONE_PLOT.zoneX + (STRIKE_ZONE_PLOT.zoneW / 3) * i}
+                y1={STRIKE_ZONE_PLOT.zoneY}
+                x2={STRIKE_ZONE_PLOT.zoneX + (STRIKE_ZONE_PLOT.zoneW / 3) * i}
+                y2={STRIKE_ZONE_PLOT.zoneY + STRIKE_ZONE_PLOT.zoneH}
                 stroke="rgba(0,0,0,0.05)"
                 strokeWidth="1"
               />
               <line
-                x1={ZONE_X}
-                y1={ZONE_Y + (ZONE_H / 3) * i}
-                x2={ZONE_X + ZONE_W}
-                y2={ZONE_Y + (ZONE_H / 3) * i}
+                x1={STRIKE_ZONE_PLOT.zoneX}
+                y1={STRIKE_ZONE_PLOT.zoneY + (STRIKE_ZONE_PLOT.zoneH / 3) * i}
+                x2={STRIKE_ZONE_PLOT.zoneX + STRIKE_ZONE_PLOT.zoneW}
+                y2={STRIKE_ZONE_PLOT.zoneY + (STRIKE_ZONE_PLOT.zoneH / 3) * i}
                 stroke="rgba(0,0,0,0.05)"
                 strokeWidth="1"
               />
@@ -129,7 +148,7 @@ function StrikeZonePlotComponent({
 
           {/* Home plate */}
           <polygon
-            points={`${WIDTH / 2 - 30},${HEIGHT - 20} ${WIDTH / 2},${HEIGHT} ${WIDTH / 2 + 30},${HEIGHT - 20} ${WIDTH / 2 + 30},${HEIGHT - 35} ${WIDTH / 2 - 30},${HEIGHT - 35}`}
+            points={`${STRIKE_ZONE_PLOT.width / 2 - 30},${STRIKE_ZONE_PLOT.height - 20} ${STRIKE_ZONE_PLOT.width / 2},${STRIKE_ZONE_PLOT.height} ${STRIKE_ZONE_PLOT.width / 2 + 30},${STRIKE_ZONE_PLOT.height - 20} ${STRIKE_ZONE_PLOT.width / 2 + 30},${STRIKE_ZONE_PLOT.height - 35} ${STRIKE_ZONE_PLOT.width / 2 - 30},${STRIKE_ZONE_PLOT.height - 35}`}
             fill="white"
             stroke="rgba(0,0,0,0.1)"
             strokeWidth="2"
@@ -141,7 +160,6 @@ function StrikeZonePlotComponent({
             const style = styleForTransition(transition);
             const isSelected = selectedChallengeId === event.challengeId;
             const isHighlighted = highlightedChallengeId === event.challengeId;
-            const baseR = 10;
             const radius = isSelected ? 12 : isHighlighted ? 14 : 9;
             const isFaded = (selectedChallengeId || highlightedChallengeId) && !isSelected && !isHighlighted;
 
@@ -242,5 +260,3 @@ function LegendDot({ color, label, description }: { color: string; label: string
     </div>
   );
 }
-
-

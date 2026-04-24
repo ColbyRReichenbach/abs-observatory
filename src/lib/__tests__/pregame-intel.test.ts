@@ -59,4 +59,42 @@ describe("pregame intel team comparison data", () => {
       },
     });
   });
+
+  it("marks umpire zone and history reads as fallback when the preview game has no assigned plate umpire", async () => {
+    sqlMock
+      .mockResolvedValueOnce([
+        {
+          umpire_id: null,
+          umpire_name: null,
+          home_team_id: 121,
+          away_team_id: 142,
+          away_offense: "1.4",
+          away_defense: "1.1",
+          away_success: "0.5",
+          home_offense: "1.2",
+          home_defense: "0.8",
+          home_success: "0.52",
+        },
+      ])
+      .mockResolvedValueOnce([
+        { challenge_team_id: 121, inning: 5, challenges: 2 },
+        { challenge_team_id: 142, inning: 8, challenges: 3 },
+      ])
+      .mockResolvedValueOnce([{ league_average: "0.532" }])
+      .mockResolvedValueOnce([
+        { inning: 5, avg_challenges: "0.14" },
+        { inning: 8, avg_challenges: "0.16" },
+      ]);
+
+    const intel = await getGamePregameIntel(823639);
+    const fallbackRates = intel?.zoneBriefing.map((zone) => zone.overturnRate) ?? [];
+
+    expect(intel?.umpireId).toBeNull();
+    expect(intel?.umpireName).toBe("Unknown Umpire");
+    expect(intel?.zoneBriefing.every((zone) => zone.hasSample === false)).toBe(true);
+    expect(new Set(fallbackRates).size).toBe(1);
+    expect(fallbackRates[0]).toBeGreaterThan(0);
+    expect(intel?.teamHistoryVsUmpire.home.hasSample).toBe(false);
+    expect(intel?.teamHistoryVsUmpire.away.hasSample).toBe(false);
+  });
 });

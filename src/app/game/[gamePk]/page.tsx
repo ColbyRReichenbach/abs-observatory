@@ -6,7 +6,7 @@ import {
   getGame,
   getGameAbsCounters,
   getGameChallengeValueTimeline,
-  getGameChallenges,
+  getGamePageChallengeEvents,
   getGameLiveStatus,
   getGameScoreboardData,
   getGameTeamChallengeComparison,
@@ -88,7 +88,7 @@ async function GameHubContent({
     return <PregameScoutingReport game={game} viewMode={viewMode} />;
   }
 
-  const challenges = await getGameChallenges(gameId);
+  const challenges = await getGamePageChallengeEvents(gameId);
 
   if (isFinal) {
     return <PostgameAAR game={game} challenges={challenges} initialChallengeId={initialChallengeId} viewMode={viewMode} />;

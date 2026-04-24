@@ -89,7 +89,10 @@ export default async function TeamPage({
   const [summary, identity, leaderboard] = await Promise.all([
     getTeamSummary(Number(teamId), range, filters),
     getTeamIdentity(Number(teamId)),
-    getTeamLeaderboardModel(range, { includeDecisionMetrics: viewMode === "org" }),
+    getTeamLeaderboardModel(range, {
+      includeDecisionMetrics: viewMode === "org",
+      includeValueMetrics: false,
+    }),
   ]);
   if (!summary) return notFound();
   const currentTeam = leaderboard.find((entry) => entry.teamId === summary.teamId) ?? null;
@@ -404,7 +407,7 @@ async function TeamOrgCommandCenterSection({
 }) {
   const [decisionValueReport, challengeValueSummary, bailouts] = await Promise.all([
     getTeamDecisionValueReport(teamId, range, filters),
-    getTeamChallengeValueSummary(teamId, range, filters),
+    getTeamChallengeValueSummary(teamId, range, filters, { includeValueMetrics: false }),
     getTeamPitchingBailouts(teamId, range, filters),
   ]);
 
@@ -478,7 +481,7 @@ async function TeamLowerSections({
 }) {
   const [umpires, challengeValueSummary] = await Promise.all([
     getTeamUmpireMatchups(teamId, range, filters),
-    getTeamChallengeValueSummary(teamId, range, filters),
+    getTeamChallengeValueSummary(teamId, range, filters, { includeValueMetrics: false }),
   ]);
 
   const usesTrustedWinValue =

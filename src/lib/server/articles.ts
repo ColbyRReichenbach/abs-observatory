@@ -1387,19 +1387,10 @@ async function listDailyControversyMoments(sourceDate: string, limit = 5) {
       c.is_overturned AS isOverturned,
       c.impact_type AS impactType,
       CASE
-        WHEN COALESCE(c.px, c.inferred_px) IS NOT NULL
-          AND COALESCE(c.pz, c.inferred_pz) IS NOT NULL
-          AND COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) IS NOT NULL
-          AND COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) IS NOT NULL
-        THEN GREATEST(
-          ABS(COALESCE(c.px, c.inferred_px)) - 0.83,
-          COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) - COALESCE(c.pz, c.inferred_pz),
-          COALESCE(c.pz, c.inferred_pz) - COALESCE(c.strike_zone_top, c.inferred_strike_zone_top),
-          0
-        )
-        ELSE NULL
+        WHEN c.min_edge_distance_center_only IS NULL THEN NULL
+        ELSE GREATEST(-c.min_edge_distance_center_only, 0)
       END AS missDistance
-    FROM abs_challenges c
+    FROM mart_abs_pitch_challenges c
     JOIN games g ON g.game_pk = c.game_pk
     WHERE g.game_date = $1::date
     ORDER BY c.challenged_at ASC NULLS LAST, c.challenge_id ASC

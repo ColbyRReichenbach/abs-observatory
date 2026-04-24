@@ -9,7 +9,7 @@ import { RegenerateDebriefButton } from "@/components/game-hub/regenerate-debrie
 import { LocalTime } from "@/components/local-time";
 import { getGameReport } from "@/lib/game-reports";
 import { normalizeNarrativeMarkdown, REPORT_SECTION_LABELS } from "@/lib/game-report-markdown";
-import { assertCanManageGameReports, canManageGameReports, regenerateGameReport } from "@/lib/server/game-reports";
+import { assertCanManageGameReports, regenerateGameReport } from "@/lib/server/game-reports";
 import { getGameChallengeValueTimeline, getGamePostgameAudit, getGameTeamChallengeComparison, getGameUmpireInGameSummary } from "@/lib/data";
 import ReactMarkdown from "react-markdown";
 import type { ChallengeEvent, GameHubGame } from "@/lib/types";
@@ -26,7 +26,7 @@ export async function PostgameAAR({ game, challenges, initialChallengeId = null,
         getGameTeamChallengeComparison(game.gamepk),
         getGameUmpireInGameSummary(game.gamepk),
     ]);
-    const canRegenerateDebrief = await canManageGameReports();
+    const canRegenerateDebrief = false;
     const copy = getGameViewCopy(viewMode, "final");
 
     async function regenerateDebriefAction() {

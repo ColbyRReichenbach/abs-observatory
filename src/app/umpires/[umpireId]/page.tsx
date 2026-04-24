@@ -9,7 +9,7 @@ import { UmpireHeadshot } from "@/components/umpire-headshot";
 import { FilterStrip } from "@/components/analytics/filter-strip";
 import { AIInsightBubble } from "@/components/analytics/ai-insight-bubble";
 import { HeatmapDeepDive } from "@/components/analytics/heatmap-deep-dive";
-import { getUmpireChallenges, getUmpireLeaderboardModel, getUmpireMatchupVulnerabilities, getUmpirePerformanceDNA, getUmpireProfile, getUmpireSeasonTrend, getUmpireSummary, getUmpireTrend } from "@/lib/data";
+import { getUmpireLeaderboardModel, getUmpireMatchupVulnerabilities, getUmpirePageChallengeEvents, getUmpirePerformanceDNA, getUmpireProfile, getUmpireSeasonTrend, getUmpireSummary, getUmpireTrend } from "@/lib/data";
 import { ExtremeMissesSection } from "@/components/analytics/extreme-misses-section";
 import { SeasonOverSeasonChart } from "@/components/analytics/season-over-season-chart";
 import { parseRange } from "@/lib/range";
@@ -210,7 +210,7 @@ async function UmpireExposureStatCard({
   range: ReturnType<typeof parseRange>;
   filters: SituationalFilters;
 }) {
-  const challenges = await getUmpireChallenges(umpireId, range, filters);
+  const challenges = await getUmpirePageChallengeEvents(umpireId, range, filters);
   const highPressureExposure =
     challenges.length > 0
       ? challenges.filter((challenge) => computeEstimatedLeverageIndex(challenge) >= 65).length / challenges.length
@@ -244,7 +244,7 @@ async function UmpireAnalyticsSections({
   const [profile, trend, challenges, dna, seasonTrend, matchupVulnerabilities] = await Promise.all([
     getUmpireProfile(umpireId, range, filters),
     getUmpireTrend(umpireId, range, filters),
-    getUmpireChallenges(umpireId, range, filters),
+    getUmpirePageChallengeEvents(umpireId, range, filters),
     getUmpirePerformanceDNA(umpireId, range),
     getUmpireSeasonTrend(umpireId),
     getUmpireMatchupVulnerabilities(umpireId, range, filters),

@@ -93,7 +93,7 @@ async function queryChartData(client) {
           c.challenge_team_id AS team_id,
           c.inning,
           c.is_overturned
-        FROM abs_challenges c
+        FROM mart_abs_pitch_challenges c
         JOIN spring_games g ON g.game_pk = c.game_pk
         WHERE c.challenge_team_id IS NOT NULL
       )
@@ -121,7 +121,7 @@ async function queryChartData(client) {
           c.inning,
           ABS(c.home_score - c.away_score) AS score_diff,
           c.is_overturned
-        FROM abs_challenges c
+        FROM mart_abs_pitch_challenges c
         JOIN spring_games g ON g.game_pk = c.game_pk
       )
       SELECT
@@ -189,14 +189,14 @@ async function queryChartData(client) {
           c.inning,
           ABS(c.home_score - c.away_score) AS score_diff,
           c.is_overturned
-        FROM abs_challenges c
+        FROM mart_abs_pitch_challenges c
         JOIN spring_games g ON g.game_pk = c.game_pk
       )
       SELECT
         (SELECT COUNT(*)::int FROM games WHERE season = 2026 AND game_type = 'S' AND status_abstract IN ('Final', 'Game Over')) AS final_games,
         (SELECT COUNT(DISTINCT g.game_pk)::int
          FROM spring_games g
-         JOIN abs_challenges c ON c.game_pk = g.game_pk) AS games_with_challenge,
+         JOIN mart_abs_pitch_challenges c ON c.game_pk = g.game_pk) AS games_with_challenge,
         COUNT(*)::int AS total_challenges,
         SUM(CASE WHEN is_overturned THEN 1 ELSE 0 END)::int AS total_overturns,
         ROUND(AVG(CASE WHEN is_overturned THEN 1 ELSE 0 END)::numeric, 4)::float8 AS overturn_rate

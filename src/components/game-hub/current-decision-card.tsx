@@ -89,7 +89,7 @@ export function CurrentDecisionCard({
             {viewMode === "org" ? (
               <>Modeled <span className="text-gray-400">Review Window</span></>
             ) : (
-              <>Would AiBS <span className="text-gray-400">Challenge?</span></>
+              <>AiBS <span className="text-gray-400">Challenge Lens</span></>
             )}
           </p>
           <p className="mt-2 text-[11px] font-medium leading-relaxed text-[var(--ink-2)]">
@@ -162,14 +162,14 @@ export function CurrentDecisionCard({
             {bestPath.recommendation === "challenge"
               ? viewMode === "org"
                 ? "AiBS reads this as a positive-EV review window, but the live decision lens remains experimental and discussion-oriented."
-                : "AiBS would challenge this spot."
+                : "AiBS flags this as a positive review window."
               : bestPath.recommendation === "hold"
                 ? viewMode === "org"
                   ? "This path carries the biggest modeled swing on the board, but AiBS still reads the current state as a hold window."
-                  : "This path has the biggest swing on the board, but AiBS would still hold the challenge here."
+                  : "This path has the biggest swing on the board, but AiBS still reads it as a hold window."
                 : viewMode === "org"
                   ? "The current path does not produce a strong enough live review signal."
-                  : "Review is not advised from the current path."}{" "}
+                  : "No strong review signal from the current path."}{" "}
             {bestPath.expectedValue === null
               ? viewMode === "org"
                 ? "Modeled review value is still stabilizing."
