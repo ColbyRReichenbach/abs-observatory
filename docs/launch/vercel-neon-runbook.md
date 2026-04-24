@@ -178,12 +178,12 @@ Required values:
 
 Current repo status:
 
-- the scheduled GitHub Actions poller now expects `WAREHOUSE_DATABASE_URL`
-- the scheduled GitHub Actions workflow now publishes the curated serving subset after successful warehouse polling
+- the active operator poller is the macOS `launchd` path in `scripts/local-live-poll.sh`
+- launchd ingests into Warehouse, refreshes Savant ABS rows, runs QA, publishes the serving subset, and reconciles Warehouse versus Serving
 - ETL scripts default to `WAREHOUSE_DATABASE_URL`
 - audit scripts default to `WAREHOUSE_DATABASE_URL`
 - the web app should keep using `DATABASE_URL`, which should equal `SERVING_DATABASE_URL`
-- a separate local `launchd` operator poller still exists for local recovery and operator workflows; do not treat the GitHub Actions and local paths as the same operational boundary
+- GitHub Actions workflow files may exist in the repo, but they are not the assumed active polling path unless explicitly enabled
 
 ### Before running the real warehouse backfill
 

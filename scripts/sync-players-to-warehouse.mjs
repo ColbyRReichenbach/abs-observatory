@@ -1,34 +1,9 @@
-import fs from "node:fs";
-import path from "node:path";
 import { Client } from "pg";
+import { loadDefaultEnv } from "./lib/env.mjs";
 
 const ROOT = process.cwd();
 
-function loadEnvFile(filename) {
-  const filePath = path.join(ROOT, filename);
-  if (!fs.existsSync(filePath)) return;
-  const raw = fs.readFileSync(filePath, "utf8");
-  for (const line of raw.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eq = trimmed.indexOf("=");
-    if (eq === -1) continue;
-    const key = trimmed.slice(0, eq).trim();
-    if (process.env[key]) continue;
-    let value = trimmed.slice(eq + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    process.env[key] = value;
-  }
-}
-
-for (const filename of [".env", ".env.local"]) {
-  loadEnvFile(filename);
-}
+loadDefaultEnv(ROOT);
 
 const warehouseUrl = process.env.WAREHOUSE_DATABASE_URL;
 const servingUrl = process.env.SERVING_DATABASE_URL || process.env.DATABASE_URL;

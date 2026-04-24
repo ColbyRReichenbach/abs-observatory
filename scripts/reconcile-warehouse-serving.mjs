@@ -1,31 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Client } from "pg";
+import { loadDefaultEnv } from "./lib/env.mjs";
 
 const ROOT = process.cwd();
 const RUNTIME_DIR = path.join(ROOT, ".runtime", "reconciliation");
-
-function loadEnvFile(filename) {
-  const filePath = path.join(ROOT, filename);
-  if (!fs.existsSync(filePath)) return;
-  const raw = fs.readFileSync(filePath, "utf8");
-  for (const line of raw.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eq = trimmed.indexOf("=");
-    if (eq === -1) continue;
-    const key = trimmed.slice(0, eq).trim();
-    if (process.env[key]) continue;
-    let value = trimmed.slice(eq + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    process.env[key] = value;
-  }
-}
 
 function parseArgs(argv) {
   const args = {};
@@ -52,6 +31,11 @@ function describeConnection(connectionString) {
   };
 }
 
+function isLocalConnection(connectionString) {
+  const parsed = new URL(connectionString);
+  return ["", "localhost", "127.0.0.1", "::1"].includes(parsed.hostname);
+}
+
 async function fetchOne(client, query) {
   const { rows } = await client.query(query);
   return rows[0];
@@ -63,8 +47,7 @@ async function fetchColumnSet(client, query, column) {
 }
 
 async function main() {
-  loadEnvFile(".env");
-  loadEnvFile(".env.local");
+  loadDefaultEnv(ROOT);
 
   const args = parseArgs(process.argv.slice(2));
   if (args.help === "true") {
@@ -74,6 +57,10 @@ Options:
   --warehouse-url <url>   Override warehouse connection string
   --serving-url <url>     Override serving connection string
   --fail-on-drift false   Do not exit nonzero when warehouse/serving differ
+  --fail-on-fallback-drift true
+                         Also exit nonzero when serving fallback lookup tables differ from warehouse source marts
+  --fail-on-savant-drift true
+                         Also exit nonzero when serving Savant ABS rows differ from warehouse
   --write-artifact false  Print only, do not write .runtime artifact
   --help                  Show this help text`);
     return;
@@ -82,12 +69,23 @@ Options:
   const servingUrl = args["serving-url"] || process.env.SERVING_DATABASE_URL || process.env.TARGET_DATABASE_URL || process.env.DATABASE_URL;
   const writeArtifact = args["write-artifact"] !== "false";
   const failOnDrift = args["fail-on-drift"] !== "false";
+  const failOnFallbackDrift = args["fail-on-fallback-drift"] === "true";
+  const failOnSavantDrift = args["fail-on-savant-drift"] === "true";
 
   if (!warehouseUrl) {
     throw new Error("WAREHOUSE_DATABASE_URL or --warehouse-url is required.");
   }
   if (!servingUrl) {
     throw new Error("SERVING_DATABASE_URL, TARGET_DATABASE_URL, DATABASE_URL, or --serving-url is required.");
+  }
+  if (
+    isLocalConnection(warehouseUrl) &&
+    args["allow-local-warehouse"] !== "true" &&
+    process.env.ALLOW_LOCAL_WAREHOUSE_RECONCILE !== "1"
+  ) {
+    throw new Error(
+      "WAREHOUSE_DATABASE_URL resolves to a local database. Pass --warehouse-url for the hosted warehouse, or set ALLOW_LOCAL_WAREHOUSE_RECONCILE=1 if this local comparison is intentional.",
+    );
   }
 
   const warehouse = new Client({ connectionString: warehouseUrl });
@@ -100,21 +98,41 @@ Options:
     const servingGames = await fetchOne(serving, "select count(*)::int as row_count from public.games");
     const warehouseChallenges = await fetchOne(warehouse, "select count(*)::int as row_count from public.abs_challenges");
     const servingChallenges = await fetchOne(serving, "select count(*)::int as row_count from public.abs_challenges");
+    const warehouseCanonicalChallenges = await fetchOne(warehouse, "select count(*)::int as row_count from public.mart_abs_pitch_challenges");
+    const servingCanonicalChallenges = await fetchOne(serving, "select count(*)::int as row_count from public.mart_abs_pitch_challenges");
     const warehousePitches = await fetchOne(warehouse, "select count(*)::int as row_count from public.pitches");
     const servingPitches = await fetchOne(serving, "select count(*)::int as row_count from public.pitches");
-    const warehouseCounts = await fetchOne(
+    const warehouseFallbackCounts = await fetchOne(
       warehouse,
       `select
-         (select count(*)::int from public.serving_run_expectancy_fallbacks) as run_expectancy_fallbacks,
-         (select count(*)::int from public.serving_win_expectancy_fallbacks) as win_expectancy_fallbacks,
-         (select count(*)::int from public.serving_count_state_outcome_baselines) as count_state_baselines`,
+         (select count(*)::int from public.mart_run_expectancy_fallbacks) as run_expectancy_fallbacks,
+         (select count(*)::int from public.mart_win_expectancy_fallbacks) as win_expectancy_fallbacks,
+         (select count(*)::int from public.mart_count_state_outcome_baselines_train_validation) as count_state_baselines,
+         (select count(*)::int from public.mart_modeled_abs_overturn_probability_fallbacks) as overturn_probability_fallbacks`,
     );
-    const servingCounts = await fetchOne(
+    const servingFallbackCounts = await fetchOne(
       serving,
       `select
          (select count(*)::int from public.serving_run_expectancy_fallbacks) as run_expectancy_fallbacks,
          (select count(*)::int from public.serving_win_expectancy_fallbacks) as win_expectancy_fallbacks,
-         (select count(*)::int from public.serving_count_state_outcome_baselines) as count_state_baselines`,
+         (select count(*)::int from public.serving_count_state_outcome_baselines) as count_state_baselines,
+         (select count(*)::int from public.serving_abs_overturn_probability_fallbacks) as overturn_probability_fallbacks`,
+    );
+    const warehouseSavant = await fetchOne(
+      warehouse,
+      `select
+         count(*)::int as row_count,
+         max(game_date)::text as max_game_date,
+         max(imported_at)::text as max_imported_at
+       from raw.savant_abs_events`,
+    );
+    const servingSavant = await fetchOne(
+      serving,
+      `select
+         count(*)::int as row_count,
+         max(game_date)::text as max_game_date,
+         max(imported_at)::text as max_imported_at
+       from raw.savant_abs_events`,
     );
     const warehouseDates = await fetchOne(
       warehouse,
@@ -171,13 +189,21 @@ Options:
           onlyInServingByDedupeKey: challengesOnlyInServing,
           onlyInWarehouseByDedupeKey: challengesOnlyInWarehouse,
         },
+        canonicalAbsPitchChallenges: {
+          warehouse: warehouseCanonicalChallenges.row_count,
+          serving: servingCanonicalChallenges.row_count,
+        },
         pitches: {
           warehouse: warehousePitches.row_count,
           serving: servingPitches.row_count,
         },
-        servingFallbacks: {
-          warehouse: warehouseCounts,
-          serving: servingCounts,
+        fallbackLookups: {
+          warehouseSourceMarts: warehouseFallbackCounts,
+          servingTables: servingFallbackCounts,
+        },
+        rawSavantAbsEvents: {
+          warehouse: warehouseSavant,
+          serving: servingSavant,
         },
       },
       cutoffs: {
@@ -187,10 +213,14 @@ Options:
       driftFlags: {
         gamesOutOfSync: gamesOnlyInServing > 0 || gamesOnlyInWarehouse > 0,
         challengesOutOfSync: challengesOnlyInServing > 0 || challengesOnlyInWarehouse > 0,
-        servingFallbacksOutOfSync:
-          warehouseCounts.run_expectancy_fallbacks !== servingCounts.run_expectancy_fallbacks ||
-          warehouseCounts.win_expectancy_fallbacks !== servingCounts.win_expectancy_fallbacks ||
-          warehouseCounts.count_state_baselines !== servingCounts.count_state_baselines,
+        fallbackLookupsOutOfSync:
+          warehouseFallbackCounts.run_expectancy_fallbacks !== servingFallbackCounts.run_expectancy_fallbacks ||
+          warehouseFallbackCounts.win_expectancy_fallbacks !== servingFallbackCounts.win_expectancy_fallbacks ||
+          warehouseFallbackCounts.count_state_baselines !== servingFallbackCounts.count_state_baselines ||
+          warehouseFallbackCounts.overturn_probability_fallbacks !== servingFallbackCounts.overturn_probability_fallbacks,
+        rawSavantAbsEventsOutOfSync:
+          warehouseSavant.row_count !== servingSavant.row_count ||
+          warehouseSavant.max_game_date !== servingSavant.max_game_date,
       },
     };
 
@@ -201,7 +231,13 @@ Options:
     }
 
     console.log(JSON.stringify(artifact, null, 2));
-    if (failOnDrift && (artifact.driftFlags.gamesOutOfSync || artifact.driftFlags.challengesOutOfSync)) {
+    if (
+      failOnDrift &&
+      (artifact.driftFlags.gamesOutOfSync ||
+        artifact.driftFlags.challengesOutOfSync ||
+        (failOnFallbackDrift && artifact.driftFlags.fallbackLookupsOutOfSync) ||
+        (failOnSavantDrift && artifact.driftFlags.rawSavantAbsEventsOutOfSync))
+    ) {
       process.exitCode = 2;
     }
   } finally {

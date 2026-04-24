@@ -77,6 +77,8 @@ cd "$AIBS_ROOT"
 ./scripts/local-live-poll.sh
 ```
 
+The manual run uses the same product path as launchd: Warehouse ingest, Savant refresh, warehouse QA, serving publish, serving QA, and warehouse/serving reconciliation whenever real ingest runs.
+
 ## Run a manual backfill window
 
 ```bash
@@ -89,14 +91,14 @@ python3 etl/ingest_mlb_abs.py --start-date 2026-04-01 --end-date 2026-04-03 --ga
 
 Use `--skip-final-existing` only when you explicitly want to avoid reprocessing already-final games.
 
-## Check the latest ETL rows in the database
+## Check the latest warehouse ETL rows
 
 ```bash
 cd "$AIBS_ROOT"
 set -a
 source "${POLL_ENV_FILE:-.env.poll}"
 set +a
-psql "$DATABASE_URL" -Atc "
+psql "$WAREHOUSE_DATABASE_URL" -Atc "
 select run_type, status,
        to_char(started_at at time zone 'America/New_York','YYYY-MM-DD HH24:MI:SS'),
        to_char(finished_at at time zone 'America/New_York','YYYY-MM-DD HH24:MI:SS'),
@@ -118,6 +120,19 @@ psql "$DATABASE_URL" -Atc "
 select count(*) as linescore_rows,
        max(updated_at at time zone 'America/New_York')
 from ops.game_linescores;
+"
+```
+
+## Check Savant ABS coverage
+
+```bash
+cd "$AIBS_ROOT"
+set -a
+source "${POLL_ENV_FILE:-.env.poll}"
+set +a
+psql "$WAREHOUSE_DATABASE_URL" -Atc "
+select count(*) as savant_abs_rows, max(game_date) as latest_savant_game_date
+from raw.savant_abs_events;
 "
 ```
 

@@ -25,6 +25,56 @@ CREATE TABLE IF NOT EXISTS players (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE OR REPLACE FUNCTION resolve_abs_strike_zone_top(
+  player_id BIGINT,
+  fallback_top NUMERIC,
+  inferred_top NUMERIC
+) RETURNS NUMERIC
+LANGUAGE SQL
+STABLE
+AS $$
+  SELECT COALESCE(
+    (
+      SELECT COALESCE(
+        p.abs_strike_zone_top,
+        CASE
+          WHEN p.height_inches IS NOT NULL THEN ROUND((p.height_inches / 12.0) * 0.535, 3)
+          ELSE NULL
+        END
+      )
+      FROM players p
+      WHERE p.player_id = $1
+    ),
+    $2,
+    $3
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION resolve_abs_strike_zone_bottom(
+  player_id BIGINT,
+  fallback_bottom NUMERIC,
+  inferred_bottom NUMERIC
+) RETURNS NUMERIC
+LANGUAGE SQL
+STABLE
+AS $$
+  SELECT COALESCE(
+    (
+      SELECT COALESCE(
+        p.abs_strike_zone_bottom,
+        CASE
+          WHEN p.height_inches IS NOT NULL THEN ROUND((p.height_inches / 12.0) * 0.27, 3)
+          ELSE NULL
+        END
+      )
+      FROM players p
+      WHERE p.player_id = $1
+    ),
+    $2,
+    $3
+  );
+$$;
+
 CREATE TABLE IF NOT EXISTS games (
   game_pk BIGINT PRIMARY KEY,
   game_date TIMESTAMPTZ NOT NULL,
@@ -36,10 +86,14 @@ CREATE TABLE IF NOT EXISTS games (
   away_team_id INTEGER NOT NULL,
   home_score INTEGER,
   away_score INTEGER,
+  has_abs BOOLEAN,
   venue_name TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE games
+  ADD COLUMN IF NOT EXISTS has_abs BOOLEAN;
 
 CREATE TABLE IF NOT EXISTS officials (
   game_pk BIGINT NOT NULL REFERENCES games(game_pk) ON DELETE CASCADE,
@@ -1360,6 +1414,9 @@ CREATE TABLE IF NOT EXISTS serving_run_expectancy_fallbacks (
 
 CREATE INDEX IF NOT EXISTS idx_serving_run_expectancy_fallbacks_lookup
   ON serving_run_expectancy_fallbacks (fallback_tier, inning_bucket, outs, bases_state, count_key);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_serving_run_expectancy_fallbacks_unique_lookup
+  ON serving_run_expectancy_fallbacks (fallback_tier, inning_bucket, outs, bases_state, count_key)
+  NULLS NOT DISTINCT;
 
 CREATE TABLE IF NOT EXISTS serving_win_expectancy_fallbacks (
   fallback_tier TEXT NOT NULL,
@@ -1386,6 +1443,46 @@ CREATE INDEX IF NOT EXISTS idx_serving_win_expectancy_fallbacks_lookup
     bases_state,
     count_key
   );
+CREATE INDEX IF NOT EXISTS idx_serving_win_expectancy_fallbacks_bucket_lookup
+  ON serving_win_expectancy_fallbacks (
+    fallback_tier,
+    inning_bucket,
+    half_inning,
+    score_diff_bucket,
+    outs,
+    bases_state,
+    count_key
+  );
+CREATE INDEX IF NOT EXISTS idx_serving_win_expectancy_fallbacks_drop_count_exact_lookup
+  ON serving_win_expectancy_fallbacks (
+    fallback_tier,
+    inning,
+    half_inning,
+    score_diff_bucket,
+    outs,
+    bases_state
+  );
+CREATE INDEX IF NOT EXISTS idx_serving_win_expectancy_fallbacks_drop_count_bucket_lookup
+  ON serving_win_expectancy_fallbacks (
+    fallback_tier,
+    inning_bucket,
+    half_inning,
+    score_diff_bucket,
+    outs,
+    bases_state
+  );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_serving_win_expectancy_fallbacks_unique_lookup
+  ON serving_win_expectancy_fallbacks (
+    fallback_tier,
+    inning,
+    inning_bucket,
+    half_inning,
+    score_diff_bucket,
+    outs,
+    bases_state,
+    count_key
+  )
+  NULLS NOT DISTINCT;
 
 CREATE TABLE IF NOT EXISTS serving_count_state_outcome_baselines (
   count_key TEXT PRIMARY KEY,
@@ -1419,6 +1516,14 @@ CREATE INDEX IF NOT EXISTS idx_serving_abs_overturn_probability_fallbacks_lookup
     challenge_direction,
     edge_bucket
   );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_serving_abs_overturn_probability_fallbacks_unique_lookup
+  ON serving_abs_overturn_probability_fallbacks (
+    fallback_tier,
+    geometry_variant,
+    challenge_direction,
+    edge_bucket
+  )
+  NULLS NOT DISTINCT;
 
 DROP TRIGGER IF EXISTS trg_product_users_touch ON product.users;
 CREATE TRIGGER trg_product_users_touch BEFORE UPDATE ON product.users FOR EACH ROW EXECUTE FUNCTION touch_updated_at();

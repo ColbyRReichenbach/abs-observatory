@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import json
 import os
 import time
 from datetime import datetime, timedelta
@@ -16,6 +17,28 @@ MAX_BACKFILL_DAYS = int(os.getenv("POLL_MAX_BACKFILL_DAYS", "7"))
 SCHEDULE_FETCH_TIMEOUT_SECONDS = int(os.getenv("SCHEDULE_FETCH_TIMEOUT_SECONDS", "30"))
 SCHEDULE_FETCH_RETRIES = max(1, int(os.getenv("SCHEDULE_FETCH_RETRIES", "3")))
 SCHEDULE_FETCH_BACKOFF_SECONDS = float(os.getenv("SCHEDULE_FETCH_BACKOFF_SECONDS", "2"))
+
+
+def write_poll_result(payload: Dict[str, Any]) -> None:
+    result_file = os.getenv("POLL_RESULT_FILE")
+    if not result_file:
+        return
+
+    parent = os.path.dirname(result_file)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+
+    with open(result_file, "w", encoding="utf-8") as handle:
+        json.dump(
+            {
+                "generated_at": datetime.now(EASTERN).isoformat(),
+                **payload,
+            },
+            handle,
+            indent=2,
+            sort_keys=True,
+        )
+        handle.write("\n")
 
 
 def fetch_schedule_games(date_text: str, game_type: str) -> List[Dict[str, Any]]:
@@ -179,15 +202,24 @@ def stale_backfill_dates(database_url: str, game_type: str) -> Set[str]:
 
 
 def main() -> None:
-    database_url = os.getenv("DATABASE_URL")
+    database_url = os.getenv("WAREHOUSE_DATABASE_URL") or os.getenv("DATABASE_URL")
     if not database_url:
-        raise SystemExit("DATABASE_URL is required")
+        raise SystemExit("WAREHOUSE_DATABASE_URL or DATABASE_URL is required")
 
     game_type = os.getenv("MLB_GAME_TYPES", "S,R")
     stale_dates = sorted(stale_backfill_dates(database_url, game_type))
     if stale_dates:
         start_date = stale_dates[0]
         end_date = stale_dates[-1]
+        write_poll_result(
+            {
+                "ran_ingest": True,
+                "mode": "stale_backfill",
+                "start_date": start_date,
+                "end_date": end_date,
+                "game_type": game_type,
+            }
+        )
         run(
             database_url,
             start_date,
@@ -199,11 +231,29 @@ def main() -> None:
 
     live_dates = sorted(active_poll_dates(game_type))
     if not live_dates:
+        write_poll_result(
+            {
+                "ran_ingest": False,
+                "mode": "no_active_window",
+                "start_date": None,
+                "end_date": None,
+                "game_type": game_type,
+            }
+        )
         return
 
     start_date = live_dates[0]
     end_date = live_dates[-1]
     print(f"[poll] Active game window detected for ET date window {start_date}..{end_date}; starting ingest.")
+    write_poll_result(
+        {
+            "ran_ingest": True,
+            "mode": "active_window",
+            "start_date": start_date,
+            "end_date": end_date,
+            "game_type": game_type,
+        }
+    )
     run(
         database_url,
         start_date,

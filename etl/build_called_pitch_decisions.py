@@ -67,12 +67,45 @@ WITH statcast_taken AS (
     p.description AS called_code,
     p.description AS called_description,
     CASE
+      WHEN sae.game_pk IS NOT NULL
+        AND (
+          sae.is_batter_challenge = TRUE
+          OR sae.challenge_team_id = p.batting_team_id
+        ) THEN 'strike'
+      WHEN sae.game_pk IS NOT NULL
+        AND sae.challenge_team_id = p.fielding_team_id THEN 'ball'
       WHEN p.description IN ('called_strike', 'automatic_strike') THEN 'strike'
       WHEN p.description IN ('ball', 'blocked_ball', 'automatic_ball') THEN 'ball'
       ELSE NULL
     END AS observed_call,
-    (p.description IN ('ball', 'blocked_ball', 'automatic_ball')) AS is_called_ball,
-    (p.description IN ('called_strike', 'automatic_strike')) AS is_called_strike,
+    (
+      CASE
+        WHEN sae.game_pk IS NOT NULL
+          AND (
+            sae.is_batter_challenge = TRUE
+            OR sae.challenge_team_id = p.batting_team_id
+          ) THEN 'strike'
+        WHEN sae.game_pk IS NOT NULL
+          AND sae.challenge_team_id = p.fielding_team_id THEN 'ball'
+        WHEN p.description IN ('called_strike', 'automatic_strike') THEN 'strike'
+        WHEN p.description IN ('ball', 'blocked_ball', 'automatic_ball') THEN 'ball'
+        ELSE NULL
+      END
+    ) = 'ball' AS is_called_ball,
+    (
+      CASE
+        WHEN sae.game_pk IS NOT NULL
+          AND (
+            sae.is_batter_challenge = TRUE
+            OR sae.challenge_team_id = p.batting_team_id
+          ) THEN 'strike'
+        WHEN sae.game_pk IS NOT NULL
+          AND sae.challenge_team_id = p.fielding_team_id THEN 'ball'
+        WHEN p.description IN ('called_strike', 'automatic_strike') THEN 'strike'
+        WHEN p.description IN ('ball', 'blocked_ball', 'automatic_ball') THEN 'ball'
+        ELSE NULL
+      END
+    ) = 'strike' AS is_called_strike,
     CASE WHEN sae.game_pk IS NOT NULL THEN TRUE ELSE FALSE END AS was_challenged,
     CASE WHEN sae.game_pk IS NOT NULL THEN 'raw.savant_abs_events' ELSE NULL END AS challenge_source,
     CASE
@@ -173,12 +206,39 @@ savant_challenge_only AS (
     COALESCE(lp.called_code, lac.called_code, sae.pitch_call, sae.call_name, sae.description) AS called_code,
     COALESCE(lp.called_description, lac.called_description, sae.description) AS called_description,
     CASE
+      WHEN COALESCE(lac.challenge_team_id, sae.challenge_team_id) IS NOT NULL
+        AND COALESCE(lac.challenge_team_id, sae.challenge_team_id) = sae.team_batting_id THEN 'strike'
+      WHEN COALESCE(lac.challenge_team_id, sae.challenge_team_id) IS NOT NULL
+        AND COALESCE(lac.challenge_team_id, sae.challenge_team_id) = sae.team_fielding_id THEN 'ball'
+      WHEN sae.is_batter_challenge = TRUE THEN 'strike'
       WHEN LOWER(COALESCE(lp.called_description, lac.called_description, sae.call_name, sae.pitch_call, sae.description, '')) LIKE '%%strike%%' THEN 'strike'
       WHEN LOWER(COALESCE(lp.called_description, lac.called_description, sae.call_name, sae.pitch_call, sae.description, '')) LIKE '%%ball%%' THEN 'ball'
       ELSE NULL
     END AS observed_call,
-    COALESCE(lp.is_ball, lac.called_code = 'B', (LOWER(COALESCE(lp.called_description, lac.called_description, sae.call_name, sae.pitch_call, sae.description, '')) LIKE '%%ball%%')) AS is_called_ball,
-    COALESCE(lp.is_strike, lac.called_code = 'S', (LOWER(COALESCE(lp.called_description, lac.called_description, sae.call_name, sae.pitch_call, sae.description, '')) LIKE '%%strike%%')) AS is_called_strike,
+    (
+      CASE
+        WHEN COALESCE(lac.challenge_team_id, sae.challenge_team_id) IS NOT NULL
+          AND COALESCE(lac.challenge_team_id, sae.challenge_team_id) = sae.team_batting_id THEN 'strike'
+        WHEN COALESCE(lac.challenge_team_id, sae.challenge_team_id) IS NOT NULL
+          AND COALESCE(lac.challenge_team_id, sae.challenge_team_id) = sae.team_fielding_id THEN 'ball'
+        WHEN sae.is_batter_challenge = TRUE THEN 'strike'
+        WHEN LOWER(COALESCE(lp.called_description, lac.called_description, sae.call_name, sae.pitch_call, sae.description, '')) LIKE '%%strike%%' THEN 'strike'
+        WHEN LOWER(COALESCE(lp.called_description, lac.called_description, sae.call_name, sae.pitch_call, sae.description, '')) LIKE '%%ball%%' THEN 'ball'
+        ELSE NULL
+      END
+    ) = 'ball' AS is_called_ball,
+    (
+      CASE
+        WHEN COALESCE(lac.challenge_team_id, sae.challenge_team_id) IS NOT NULL
+          AND COALESCE(lac.challenge_team_id, sae.challenge_team_id) = sae.team_batting_id THEN 'strike'
+        WHEN COALESCE(lac.challenge_team_id, sae.challenge_team_id) IS NOT NULL
+          AND COALESCE(lac.challenge_team_id, sae.challenge_team_id) = sae.team_fielding_id THEN 'ball'
+        WHEN sae.is_batter_challenge = TRUE THEN 'strike'
+        WHEN LOWER(COALESCE(lp.called_description, lac.called_description, sae.call_name, sae.pitch_call, sae.description, '')) LIKE '%%strike%%' THEN 'strike'
+        WHEN LOWER(COALESCE(lp.called_description, lac.called_description, sae.call_name, sae.pitch_call, sae.description, '')) LIKE '%%ball%%' THEN 'ball'
+        ELSE NULL
+      END
+    ) = 'strike' AS is_called_strike,
     TRUE AS was_challenged,
     COALESCE(CASE WHEN lac.dedupe_key IS NOT NULL THEN 'abs_challenges' END, 'raw.savant_abs_events') AS challenge_source,
     COALESCE(lac.dedupe_key, CONCAT('savant:', sae.game_pk, ':', sae.play_id, ':', COALESCE(sae.pitch_number::TEXT, 'na'))) AS challenge_dedupe_key,

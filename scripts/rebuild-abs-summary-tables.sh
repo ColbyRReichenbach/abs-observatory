@@ -5,21 +5,25 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 if [[ -f "$ROOT_DIR/.env" ]]; then
+  set +u
   set -a
   # shellcheck disable=SC1091
   . "$ROOT_DIR/.env"
   set +a
+  set -u
 fi
 
 if [[ -f "$ROOT_DIR/.env.local" ]]; then
+  set +u
   set -a
   # shellcheck disable=SC1091
   . "$ROOT_DIR/.env.local"
   set +a
+  set -u
 fi
 
-: "${TARGET_DATABASE_URL:=${WAREHOUSE_DATABASE_URL:-${DATABASE_URL:-}}}"
-: "${TARGET_DATABASE_URL:?TARGET_DATABASE_URL, WAREHOUSE_DATABASE_URL, or DATABASE_URL is required.}"
+: "${TARGET_DATABASE_URL:=${SERVING_DATABASE_URL:-${DATABASE_URL:-${WAREHOUSE_DATABASE_URL:-}}}}"
+: "${TARGET_DATABASE_URL:?TARGET_DATABASE_URL, SERVING_DATABASE_URL, DATABASE_URL, or WAREHOUSE_DATABASE_URL is required.}"
 
 echo "Rebuilding ABS summary tables"
 
@@ -42,7 +46,7 @@ team_challenges AS (
     c.challenge_team_id AS team_id,
     COUNT(*) FILTER (WHERE c.is_overturned = TRUE) AS used_successful,
     COUNT(*) FILTER (WHERE c.is_overturned = FALSE) AS used_failed
-  FROM abs_challenges c
+  FROM mart_abs_pitch_challenges c
   WHERE c.challenge_team_id IS NOT NULL
   GROUP BY c.game_pk, c.challenge_team_id
 ),
@@ -111,7 +115,7 @@ umpire_challenges AS (
     COUNT(*) AS challenged_calls,
     COUNT(*) FILTER (WHERE c.is_overturned = TRUE) AS overturned_calls,
     COUNT(*) FILTER (WHERE c.is_overturned = FALSE) AS confirmed_calls
-  FROM abs_challenges c
+  FROM mart_abs_pitch_challenges c
   GROUP BY c.game_pk
 )
 INSERT INTO umpire_abs_game_summary (

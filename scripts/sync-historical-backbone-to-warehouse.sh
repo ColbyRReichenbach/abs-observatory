@@ -5,17 +5,21 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 if [[ -f "$ROOT_DIR/.env" ]]; then
+  set +u
   set -a
   # shellcheck disable=SC1091
   . "$ROOT_DIR/.env"
   set +a
+  set -u
 fi
 
 if [[ -f "$ROOT_DIR/.env.local" ]]; then
+  set +u
   set -a
   # shellcheck disable=SC1091
   . "$ROOT_DIR/.env.local"
   set +a
+  set -u
 fi
 
 START_DATE="${1:-2019-03-20}"

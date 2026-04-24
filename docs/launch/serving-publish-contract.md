@@ -111,7 +111,8 @@ Use for:
 
 | Serving Relation | Warehouse Source | Natural Key | Publish Method | Cadence | Retention | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `raw.savant_abs_events` | `raw.savant_abs_events` | `game_pk, play_id, pitch_number` | `incremental_upsert` | after Savant ingest batch | current contract allows serving presence; revisit later | tolerated in serving because it powers current challenge surfaces, but still logically raw |
+| `raw.savant_gamefeed_games` | `raw.savant_gamefeed_games` | `game_pk` | `window_replace` | after Savant ingest batch | game sync window, accumulates published history | required parent rows for `raw.savant_abs_events` FK |
+| `raw.savant_abs_events` | `raw.savant_abs_events` | `game_pk, play_id, pitch_number` | `window_replace` | after Savant ingest batch | game sync window, accumulates published history | tolerated in serving because canonical challenge views use official Savant geometry |
 
 ## Warehouse-Only Relations
 
@@ -121,7 +122,6 @@ These must remain out of Serving unless this contract is explicitly amended.
 | --- | --- | --- |
 | `raw.statcast_games` | large raw historical ingest table | `never_publish` |
 | `raw.statcast_pitches` | large raw historical pitch table | `never_publish` |
-| `raw.savant_gamefeed_games` | raw source table not needed by app routes | `never_publish` |
 | `ops.source_snapshots` | source payload archive and traceability layer | `never_publish` |
 | `public.historical_pitch_states` | model-training canonical state table | `never_publish` |
 | `modeling.called_pitch_decisions` | full modeling table for challenge-now and geometry work | `never_publish` |
