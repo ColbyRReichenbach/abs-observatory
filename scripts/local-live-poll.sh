@@ -127,6 +127,49 @@ mark_interval_task() {
   date +%s >"$LOG_DIR/${task_name}.stamp"
 }
 
+pid_is_running() {
+  local pid="$1"
+  [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null
+}
+
+acquire_lock() {
+  if mkdir "$LOCK_DIR" 2>/dev/null; then
+    echo "$$" >"$LOCK_DIR/pid"
+    return 0
+  fi
+
+  local lock_pid=""
+  if [[ -f "$LOCK_DIR/pid" ]]; then
+    lock_pid="$(cat "$LOCK_DIR/pid" 2>/dev/null || true)"
+  fi
+
+  if [[ -n "$lock_pid" ]] && pid_is_running "$lock_pid"; then
+    echo "[$(timestamp)] live poll already running pid=$lock_pid; exiting" >>"$LOG_DIR/poll.log"
+    exit 0
+  fi
+
+  local now
+  local mtime
+  local age_seconds
+  local stale_seconds
+  now="$(date +%s)"
+  mtime="$(stat -f %m "$LOCK_DIR" 2>/dev/null || echo 0)"
+  age_seconds=$((now - mtime))
+  stale_seconds=$((${LOCK_STALE_MINUTES:-180} * 60))
+
+  if [[ -z "$lock_pid" || "$age_seconds" -ge "$stale_seconds" ]]; then
+    echo "[$(timestamp)] removing stale live poll lock pid=${lock_pid:-unknown} age_seconds=$age_seconds" >>"$LOG_DIR/poll.log"
+    rm -rf "$LOCK_DIR"
+    if mkdir "$LOCK_DIR" 2>/dev/null; then
+      echo "$$" >"$LOCK_DIR/pid"
+      return 0
+    fi
+  fi
+
+  echo "[$(timestamp)] live poll lock exists but could not be recovered; exiting" >>"$LOG_DIR/poll.log"
+  exit 0
+}
+
 if [[ -z "${WAREHOUSE_DATABASE_URL:-}" ]]; then
   if [[ -n "${DATABASE_URL:-}" ]] && is_true "${ALLOW_DATABASE_URL_POLL_TARGET:-false}"; then
     export WAREHOUSE_DATABASE_URL="$DATABASE_URL"
@@ -148,13 +191,13 @@ if is_true "${RUN_SERVING_PUBLISH:-true}" && [[ -z "${SERVING_DATABASE_URL:-}" ]
   exit 1
 fi
 
-if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-  echo "[$(timestamp)] live poll already running; exiting" >>"$LOG_DIR/poll.log"
-  exit 0
-fi
+acquire_lock
 
 cleanup() {
-  rmdir "$LOCK_DIR" 2>/dev/null || true
+  if [[ -f "$LOCK_DIR/pid" ]] && [[ "$(cat "$LOCK_DIR/pid" 2>/dev/null || true)" == "$$" ]]; then
+    rm -f "$LOCK_DIR/pid"
+    rmdir "$LOCK_DIR" 2>/dev/null || true
+  fi
 }
 trap cleanup EXIT
 

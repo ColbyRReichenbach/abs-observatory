@@ -95,6 +95,7 @@ type TeamDecisionMetricRow = {
   challengeId: string;
   teamId: number;
   teamName: string | null;
+  challengeSideRole: string | null;
   isOverturned: boolean;
   inning: number | null;
   halfInning: string | null;
@@ -106,6 +107,8 @@ type TeamDecisionMetricRow = {
   strikesBefore: number | null;
   balls: number | null;
   strikes: number | null;
+  ballsAfter: number | null;
+  strikesAfter: number | null;
   calledDescription: string | null;
   edgeBucket: EdgeBucket | null;
   estimatedChallengesRemaining: number | null;
@@ -712,6 +715,7 @@ async function getTeamDecisionMetricRows(range: RangeKey = "season", filters?: S
     challenge_id: string;
     team_id: number;
     team_name: string | null;
+    challenge_side_role: string | null;
     is_overturned: boolean;
     inning: number | null;
     half_inning: string | null;
@@ -723,6 +727,8 @@ async function getTeamDecisionMetricRows(range: RangeKey = "season", filters?: S
     strikes_before: number | null;
     balls: number | null;
     strikes: number | null;
+    balls_after: number | null;
+    strikes_after: number | null;
     called_description: string | null;
     edge_bucket: EdgeBucket | null;
     estimated_challenges_remaining: number | string | null;
@@ -746,6 +752,7 @@ async function getTeamDecisionMetricRows(range: RangeKey = "season", filters?: S
       c.challenge_id,
       c.challenge_team_id AS team_id,
       t.name AS team_name,
+      c.challenge_side_role,
       c.is_overturned,
       c.inning,
       c.half_inning,
@@ -757,6 +764,8 @@ async function getTeamDecisionMetricRows(range: RangeKey = "season", filters?: S
       p.strikes_before,
       c.balls,
       c.strikes,
+      p.balls_after,
+      p.strikes_after,
       c.original_call AS called_description,
       c.edge_bucket,
       c.estimated_challenges_remaining
@@ -779,6 +788,7 @@ async function getTeamDecisionMetricRows(range: RangeKey = "season", filters?: S
           challengeId: row.challenge_id,
           teamId: Number(row.team_id),
           teamName: row.team_name,
+          challengeSideRole: row.challenge_side_role,
           isOverturned: row.is_overturned,
           inning: row.inning === null ? null : Number(row.inning),
           halfInning: row.half_inning,
@@ -790,6 +800,8 @@ async function getTeamDecisionMetricRows(range: RangeKey = "season", filters?: S
           strikesBefore: row.strikes_before === null ? null : Number(row.strikes_before),
           balls: row.balls === null ? null : Number(row.balls),
           strikes: row.strikes === null ? null : Number(row.strikes),
+          ballsAfter: row.balls_after === null ? null : Number(row.balls_after),
+          strikesAfter: row.strikes_after === null ? null : Number(row.strikes_after),
           calledDescription: row.called_description,
           edgeBucket: row.edge_bucket,
           estimatedChallengesRemaining:
@@ -1420,7 +1432,21 @@ export async function getHomeChallengeMoments(limit = 8): Promise<HomeChallengeM
     outs: number | null;
     basesstate: string | null;
     playername: string | null;
+    battername: string | null;
+    pitchername: string | null;
     pitchnumber: number | null;
+    pitchtype: string | null;
+    pitchvelocity: number | string | null;
+    atbatresult: string | null;
+    absmargin: number | string | null;
+    edgedistance: number | string | null;
+    px: number | string | null;
+    pz: number | string | null;
+    strikezonetop: number | string | null;
+    strikezonebottom: number | string | null;
+    original_call: CalledPitch | null;
+    corrected_call: CalledPitch | null;
+    challenge_direction: "strike_to_ball" | "ball_to_strike" | null;
     balls_before: number | null;
     strikes_before: number | null;
     balls_after: number | null;
@@ -1463,7 +1489,21 @@ export async function getHomeChallengeMoments(limit = 8): Promise<HomeChallengeM
       c.outs,
       c.bases_state AS basesState,
       c.challenge_player_name AS playerName,
+      COALESCE(c.batter_name, p.batter_name, ab.batter_name) AS batterName,
+      COALESCE(c.pitcher_name, p.pitcher_name, ab.pitcher_name) AS pitcherName,
       COALESCE(c.pitch_number, c.inferred_pitch_number) AS pitchNumber,
+      COALESCE(p.pitch_type_description, p.pitch_type_code) AS pitchType,
+      p.start_speed AS pitchVelocity,
+      ab.event_description AS atBatResult,
+      c.canonical_abs_margin AS absMargin,
+      COALESCE(c.savant_edge_distance_calc, c.savant_edge_distance) AS edgeDistance,
+      c.resolved_px AS px,
+      c.resolved_pz AS pz,
+      c.resolved_strike_zone_top AS strikeZoneTop,
+      c.resolved_strike_zone_bottom AS strikeZoneBottom,
+      c.original_call,
+      c.corrected_call,
+      c.challenge_direction,
       p.balls_before,
       p.strikes_before,
       p.balls_after,
@@ -1489,6 +1529,7 @@ export async function getHomeChallengeMoments(limit = 8): Promise<HomeChallengeM
       LIMIT 1
     ) cv ON TRUE
     LEFT JOIN pitches p ON p.game_pk = c.game_pk AND p.at_bat_index = c.at_bat_index AND p.pitch_number = COALESCE(c.pitch_number, c.inferred_pitch_number)
+    LEFT JOIN at_bats ab ON ab.game_pk = c.game_pk AND ab.at_bat_index = c.at_bat_index
     LEFT JOIN teams home ON home.team_id = g.home_team_id
     LEFT JOIN teams away ON away.team_id = g.away_team_id
     LEFT JOIN teams challenge_team ON challenge_team.team_id = c.challenge_team_id
@@ -1535,7 +1576,21 @@ export async function getHomeChallengeMoments(limit = 8): Promise<HomeChallengeM
           return r.balls_after === null || r.strikes_after === null ? null : `${r.balls_after}-${r.strikes_after}`;
         })(),
         playerName: r.playername,
+        batterName: r.battername,
+        pitcherName: r.pitchername,
         pitchNumber: r.pitchnumber,
+        pitchType: r.pitchtype,
+        pitchVelocity: r.pitchvelocity === null ? null : Number(r.pitchvelocity),
+        atBatResult: r.atbatresult,
+        absMargin: r.absmargin === null ? null : Number(r.absmargin),
+        edgeDistance: r.edgedistance === null ? null : Number(r.edgedistance),
+        px: r.px === null ? null : Number(r.px),
+        pz: r.pz === null ? null : Number(r.pz),
+        strikeZoneTop: r.strikezonetop === null ? null : Number(r.strikezonetop),
+        strikeZoneBottom: r.strikezonebottom === null ? null : Number(r.strikezonebottom),
+        originalCall: r.original_call,
+        correctedCall: r.corrected_call,
+        challengeDirection: r.challenge_direction,
       };
       });
 
@@ -4096,104 +4151,147 @@ async function getTeamStyleMetrics(
   range: RangeKey = "season",
   options?: { includeValueMetrics?: boolean },
 ) {
-  void options;
-  const includeValueMetrics = false;
-  const window = rangeWhere(range, "g.game_date");
-  const rows = await sql<{
-    teamid: number;
-    lateleverageshare: number | null;
-    earlylowleverageshare: number | null;
-    avgrunexpectancydelta: number | null;
-    highrunvalueshare: number | null;
-    runvalueconfidencerank: number | null;
-    avgwinexpectancydelta: number | null;
-    highwinvalueshare: number | null;
-    winvalueconfidencerank: number | null;
-  }>(
-    `
-    WITH filtered_challenges AS (
-      SELECT c.*
-      FROM mart_abs_pitch_challenges c
-      JOIN games g ON g.game_pk = c.game_pk
-      WHERE c.challenge_team_id IS NOT NULL
-        AND ${window.clause}
-    ),
-    challenge_style AS (
-      SELECT
-        c.challenge_team_id AS teamId,
-        AVG(
-          CASE
-            WHEN c.inning >= 7 OR ABS(COALESCE(c.home_score, 0) - COALESCE(c.away_score, 0)) <= 2 THEN 1.0
-            ELSE 0.0
-          END
-        )::NUMERIC AS lateLeverageShare,
-        AVG(
-          CASE
-            WHEN c.inning <= 3 AND ABS(COALESCE(c.home_score, 0) - COALESCE(c.away_score, 0)) >= 3 THEN 1.0
-            ELSE 0.0
-          END
-        )::NUMERIC AS earlyLowLeverageShare
-      FROM filtered_challenges c
-      GROUP BY c.challenge_team_id
-    )
-    SELECT
-      cs.teamId,
-      cs.lateLeverageShare,
-      cs.earlyLowLeverageShare,
-      ${
-        includeValueMetrics
-          ? `rv.avg_re_delta::NUMERIC AS avgRunExpectancyDelta,
-      rv.high_re_share::NUMERIC AS highRunValueShare,
-      CASE rv.confidence_band WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 ELSE 0 END AS runValueConfidenceRank,
-      wv.avg_we_delta::NUMERIC AS avgWinExpectancyDelta,
-      wv.high_we_share::NUMERIC AS highWinValueShare,
-      CASE wv.confidence_band WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 ELSE 0 END AS winValueConfidenceRank`
-          : `NULL::NUMERIC AS avgRunExpectancyDelta,
-      NULL::NUMERIC AS highRunValueShare,
-      NULL::INT AS runValueConfidenceRank,
-      NULL::NUMERIC AS avgWinExpectancyDelta,
-      NULL::NUMERIC AS highWinValueShare,
-      NULL::INT AS winValueConfidenceRank`
-      }
-    FROM challenge_style cs
-    ${
-      includeValueMetrics
-        ? `LEFT JOIN mart_team_challenge_run_value rv ON rv.team_id = cs.teamId
-    LEFT JOIN mart_team_challenge_win_value wv ON wv.team_id = cs.teamId`
-        : ""
+  const includeValueMetrics = options?.includeValueMetrics ?? false;
+  const rows = await getTeamDecisionMetricRows(range);
+  const [runExpectancyRows, winExpectancyRows] = includeValueMetrics
+    ? await Promise.all([getRunExpectancyFallbackRows(), getWinExpectancyFallbackRows()])
+    : [[], []];
+
+  const aggregates = new Map<
+    number,
+    {
+      teamId: number;
+      totalChallenges: number;
+      lateLeverageCount: number;
+      earlyLowLeverageCount: number;
+      totalRunExpectancyDelta: number;
+      runExpectancySamples: number;
+      highRunValueCount: number;
+      totalWinExpectancyDelta: number;
+      winExpectancySamples: number;
+      highWinValueCount: number;
     }
-    `,
-    window.params,
-  );
+  >();
+
+  for (const row of rows) {
+    const aggregate = aggregates.get(row.teamId) ?? {
+      teamId: row.teamId,
+      totalChallenges: 0,
+      lateLeverageCount: 0,
+      earlyLowLeverageCount: 0,
+      totalRunExpectancyDelta: 0,
+      runExpectancySamples: 0,
+      highRunValueCount: 0,
+      totalWinExpectancyDelta: 0,
+      winExpectancySamples: 0,
+      highWinValueCount: 0,
+    };
+
+    aggregate.totalChallenges += 1;
+    if ((row.inning ?? 0) >= 7 || Math.abs((row.homeScore ?? 0) - (row.awayScore ?? 0)) <= 2) {
+      aggregate.lateLeverageCount += 1;
+    }
+    if ((row.inning ?? 0) <= 3 && Math.abs((row.homeScore ?? 0) - (row.awayScore ?? 0)) >= 3) {
+      aggregate.earlyLowLeverageCount += 1;
+    }
+
+    if (includeValueMetrics) {
+      const countAfter =
+        row.ballsAfter === null || row.strikesAfter === null ? null : `${row.ballsAfter}-${row.strikesAfter}`;
+      const umpireCount = resolveUmpireCountState(
+        row.ballsBefore,
+        row.strikesBefore,
+        row.ballsAfter,
+        row.strikesAfter,
+        row.isOverturned,
+      );
+      const challengeState = {
+        inning: row.inning,
+        halfInning: row.halfInning,
+        outs: row.outs,
+        basesState: row.basesState,
+        homeScore: row.homeScore,
+        awayScore: row.awayScore,
+        umpireCount,
+        countAfter,
+      };
+      const runValue = getChallengeRunExpectancyDelta(challengeState, runExpectancyRows);
+      const winValue = getChallengeWinExpectancyDelta(challengeState, winExpectancyRows);
+      const runDelta = challengeTeamDelta(runValue.runExpectancyDelta, row.challengeSideRole);
+      const winDelta = challengeTeamDelta(winValue.winExpectancyDelta, row.challengeSideRole);
+
+      if (runDelta !== null) {
+        aggregate.totalRunExpectancyDelta += runDelta;
+        aggregate.runExpectancySamples += 1;
+        if (runDelta > 0) aggregate.highRunValueCount += 1;
+      }
+      if (winDelta !== null) {
+        aggregate.totalWinExpectancyDelta += winDelta;
+        aggregate.winExpectancySamples += 1;
+        if (winDelta > 0) aggregate.highWinValueCount += 1;
+      }
+    }
+
+    aggregates.set(row.teamId, aggregate);
+  }
 
   return new Map<number, TeamStyleMetric>(
-    rows.map((row) => [
-      Number(row.teamid),
-      {
-        teamId: Number(row.teamid),
-        lateLeverageShare: Number(row.lateleverageshare ?? 0),
-        earlyLowLeverageShare: Number(row.earlylowleverageshare ?? 0),
-        avgRunExpectancyDelta: row.avgrunexpectancydelta === null ? null : Number(row.avgrunexpectancydelta),
-        highRunValueShare: Number(row.highrunvalueshare ?? 0),
-        runValueConfidence: confidenceBandFromRank(row.runvalueconfidencerank === null ? null : Number(row.runvalueconfidencerank)),
-        avgWinExpectancyDelta: row.avgwinexpectancydelta === null ? null : Number(row.avgwinexpectancydelta),
-        highWinValueShare: Number(row.highwinvalueshare ?? 0),
-        winValueConfidence: confidenceBandFromRank(row.winvalueconfidencerank === null ? null : Number(row.winvalueconfidencerank)),
-        averageExpectedChallengeValue: null,
-        averageRealizedChallengeValue: null,
-        decisionSurplus: null,
-        challengeRecommendationRate: 0,
-        holdRecommendationRate: 0,
-        capturedValueShare: 0,
-        wastedValueShare: 0,
-        highPressureExpectedValueShare: 0,
-        lateCloseChallengeShare: 0,
-        lateCloseExpectedValueShare: 0,
-        bestDecisionWindowLabel: null,
-        bestDecisionWindowExpectedValue: null,
-        decisionValueConfidence: null,
-      } satisfies TeamStyleMetric,
-    ]),
+    [...aggregates.values()].map((aggregate) => {
+      const runValueConfidenceRank =
+        aggregate.runExpectancySamples >= 80 ? 3 : aggregate.runExpectancySamples >= 25 ? 2 : aggregate.runExpectancySamples > 0 ? 1 : 0;
+      const winCoverageRate =
+        aggregate.totalChallenges > 0 ? aggregate.winExpectancySamples / aggregate.totalChallenges : 0;
+      const winValueConfidenceRank =
+        aggregate.totalChallenges >= 80 && winCoverageRate >= 0.6
+          ? 3
+          : aggregate.totalChallenges >= 30 && winCoverageRate >= 0.35
+            ? 2
+            : aggregate.winExpectancySamples > 0
+              ? 1
+              : 0;
+
+      return [
+        aggregate.teamId,
+        {
+          teamId: aggregate.teamId,
+          lateLeverageShare:
+            aggregate.totalChallenges > 0 ? aggregate.lateLeverageCount / aggregate.totalChallenges : 0,
+          earlyLowLeverageShare:
+            aggregate.totalChallenges > 0 ? aggregate.earlyLowLeverageCount / aggregate.totalChallenges : 0,
+          avgRunExpectancyDelta:
+            aggregate.runExpectancySamples > 0
+              ? roundMetric(aggregate.totalRunExpectancyDelta / aggregate.runExpectancySamples, 4)
+              : null,
+          highRunValueShare:
+            aggregate.runExpectancySamples > 0
+              ? aggregate.highRunValueCount / aggregate.runExpectancySamples
+              : 0,
+          runValueConfidence: confidenceBandFromRank(runValueConfidenceRank),
+          avgWinExpectancyDelta:
+            aggregate.winExpectancySamples > 0
+              ? roundMetric(aggregate.totalWinExpectancyDelta / aggregate.winExpectancySamples, 4)
+              : null,
+          highWinValueShare:
+            aggregate.winExpectancySamples > 0
+              ? aggregate.highWinValueCount / aggregate.winExpectancySamples
+              : 0,
+          winValueConfidence: confidenceBandFromRank(winValueConfidenceRank),
+          averageExpectedChallengeValue: null,
+          averageRealizedChallengeValue: null,
+          decisionSurplus: null,
+          challengeRecommendationRate: 0,
+          holdRecommendationRate: 0,
+          capturedValueShare: 0,
+          wastedValueShare: 0,
+          highPressureExpectedValueShare: 0,
+          lateCloseChallengeShare: 0,
+          lateCloseExpectedValueShare: 0,
+          bestDecisionWindowLabel: null,
+          bestDecisionWindowExpectedValue: null,
+          decisionValueConfidence: null,
+        } satisfies TeamStyleMetric,
+      ];
+    }),
   );
 }
 
@@ -4564,17 +4662,32 @@ export async function getTeamTrendSparklines(range: RangeKey = "season"): Promis
       JOIN games g ON g.game_pk = s.game_pk
       WHERE ${window.clause}
       GROUP BY s.team_id, g.game_date::date
+      HAVING SUM(s.challenges_total) > 0
+    ),
+    cumulative AS (
+      SELECT
+        team_id,
+        game_day,
+        SUM(used_successful) OVER (
+          PARTITION BY team_id
+          ORDER BY game_day ASC
+          ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        ) AS cumulative_used_successful,
+        SUM(challenges_total) OVER (
+          PARTITION BY team_id
+          ORDER BY game_day ASC
+          ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        ) AS cumulative_challenges
+      FROM daily
     ),
     ranked AS (
       SELECT
         team_id,
         game_day,
-        CASE
-          WHEN challenges_total > 0 THEN used_successful::NUMERIC / challenges_total
-          ELSE 0
-        END AS overturn_rate,
+        cumulative_used_successful::NUMERIC / NULLIF(cumulative_challenges, 0) AS overturn_rate,
         ROW_NUMBER() OVER (PARTITION BY team_id ORDER BY game_day DESC) AS row_number
-      FROM daily
+      FROM cumulative
+      WHERE cumulative_challenges > 0
     )
     SELECT
       team_id AS teamId,

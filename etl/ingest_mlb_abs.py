@@ -28,7 +28,6 @@ except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test impo
     def execute_batch(*_args: Any, **_kwargs: Any) -> None:
         raise RuntimeError("psycopg2 is required for ETL database writes")
 
-from generate_game_report import generate_and_store_report
 from db_target import log_database_target, resolve_database_target
 
 load_dotenv()
@@ -1154,12 +1153,22 @@ def ingest_game(cur, game_pk: int) -> Tuple[int, bool]:
     return inserted, is_final
 
 
+def maybe_generate_game_report(cur, game_pk: int, skip_reports: bool) -> bool:
+    if skip_reports:
+        return False
+
+    from generate_game_report import generate_and_store_report
+
+    return generate_and_store_report(cur, game_pk, force=False)
+
+
 def run(
     database_url: str,
     start_date: str,
     end_date: str,
     game_type: str,
     skip_final_existing: bool = False,
+    skip_reports: bool = True,
 ) -> None:
     conn = psycopg2.connect(database_url)
     conn.autocommit = False
@@ -1190,7 +1199,7 @@ def run(
             try:
                 inserted, is_final = ingest_game(cur, game_pk)
                 rows_written += inserted
-                if is_final and generate_and_store_report(cur, game_pk, force=False):
+                if is_final and maybe_generate_game_report(cur, game_pk, skip_reports):
                     reports_generated += 1
                 conn.commit()
             except Exception as exc:  # pylint: disable=broad-except
@@ -1233,6 +1242,16 @@ def main() -> None:
         action="store_true",
         help="Skip games already marked final in the local games table",
     )
+    parser.add_argument(
+        "--skip-reports",
+        action="store_true",
+        help="Skip per-game narrative report generation during ingest. This is the default.",
+    )
+    parser.add_argument(
+        "--generate-reports",
+        action="store_true",
+        help="Generate per-game narrative reports after final games. Disabled by default.",
+    )
     args = parser.parse_args()
 
     target = resolve_database_target(cli_database_url=args.database_url, role="warehouse")
@@ -1244,6 +1263,7 @@ def main() -> None:
         args.end_date,
         args.game_type,
         skip_final_existing=args.skip_final_existing,
+        skip_reports=(not args.generate_reports) or args.skip_reports,
     )
 
 

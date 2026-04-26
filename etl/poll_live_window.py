@@ -207,6 +207,7 @@ def main() -> None:
         raise SystemExit("WAREHOUSE_DATABASE_URL or DATABASE_URL is required")
 
     game_type = os.getenv("MLB_GAME_TYPES", "S,R")
+    skip_reports = True
     stale_dates = sorted(stale_backfill_dates(database_url, game_type))
     if stale_dates:
         start_date = stale_dates[0]
@@ -226,6 +227,7 @@ def main() -> None:
             end_date,
             game_type,
             skip_final_existing=True,
+            skip_reports=skip_reports,
         )
         return
 
@@ -260,6 +262,7 @@ def main() -> None:
         end_date,
         game_type,
         skip_final_existing=True,
+        skip_reports=skip_reports,
     )
 
 

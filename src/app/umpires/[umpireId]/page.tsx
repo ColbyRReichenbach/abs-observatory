@@ -634,9 +634,9 @@ function FanUmpireSummaryCard({
         What kind of <span className="text-gray-400">ABS umpire</span> is this?
       </p>
       <p className="mt-4 max-w-3xl text-sm leading-7 text-[var(--ink-2)]">
-        {umpireName} is currently running a {(overturnRate * 100).toFixed(1)}% overturn rate
-        {currentUmpire ? ` with a ${currentUmpire.fanDescriptor.toLowerCase()} read` : ""}. The public read here is simple:
-        does this umpire stay steady game to game, and where do reviews actually find daylight once clubs challenge the call?
+        Teams have won {(overturnRate * 100).toFixed(1)}% of their ABS challenges with {umpireName} behind the plate
+        {currentUmpire ? `, which puts this profile in the ${currentUmpire.fanDescriptor.toLowerCase()} bucket` : ""}.
+        For fans, the useful question is where those misses show up: certain zones, certain counts, or just a few close pitches that happened to matter.
       </p>
     </div>
   );
