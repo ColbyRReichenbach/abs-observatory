@@ -39,6 +39,20 @@ function getActiveScatterPoint(state: unknown): TeamScatterChartPoint | null {
     return point as TeamScatterChartPoint;
 }
 
+function getTooltipPortalPosition(
+    container: HTMLDivElement | null,
+    coordinate: unknown,
+): { x: number; y: number } | null {
+    if (!container || !coordinate || typeof coordinate !== "object") return null;
+    const maybeCoordinate = coordinate as { x?: unknown; y?: unknown };
+    if (typeof maybeCoordinate.x !== "number" || typeof maybeCoordinate.y !== "number") return null;
+    const rect = container.getBoundingClientRect();
+    return {
+        x: rect.left + maybeCoordinate.x,
+        y: rect.top + maybeCoordinate.y,
+    };
+}
+
 type Props = {
     data: TeamScatterPoint[];
     mode?: "fan" | "org";
@@ -320,9 +334,10 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                                 wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
                                 isAnimationActive={false}
                                 animationDuration={0}
-                                content={({ active, payload }) => {
+                                content={({ active, payload, coordinate }) => {
                                     const point = payload?.[0]?.payload as TeamScatterChartPoint | undefined;
-                                    if (!active || !point || !mousePos) return null;
+                                    const tooltipPosition = mousePos ?? getTooltipPortalPosition(containerRef.current, coordinate);
+                                    if (!active || !point || !tooltipPosition) return null;
                                     return (
                                         <ChartTooltip
                                             title={point.teamName}
@@ -330,7 +345,7 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                                             subValueLabel="Overturn Rate"
                                             extra={[{ label: "Rate / Game", value: point.challengeRatePerGame.toFixed(2) }]}
                                             usePortal
-                                            portalProps={mousePos}
+                                            portalProps={tooltipPosition}
                                         />
                                     );
                                 }}

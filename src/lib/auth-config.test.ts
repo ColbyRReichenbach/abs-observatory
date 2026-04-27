@@ -40,6 +40,17 @@ describe("hasValidClerkCredentials", () => {
     ).toBe(true);
   });
 
+  it("accepts test keys in Vercel development environments", () => {
+    expect(
+      hasValidClerkCredentials({
+        VERCEL: "1",
+        VERCEL_ENV: "development",
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_abc123",
+        CLERK_SECRET_KEY: "sk_test_def456",
+      } as NodeJS.ProcessEnv),
+    ).toBe(true);
+  });
+
   it("rejects mixed clerk key modes", () => {
     expect(
       hasValidClerkCredentials({

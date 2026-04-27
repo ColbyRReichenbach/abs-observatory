@@ -13,7 +13,8 @@ function parseClerkKeyMode(value: string | undefined, prefix: "pk" | "sk"): Cler
 
 function allowsTestKeys(env: NodeJS.ProcessEnv): boolean {
   if (env.ALLOW_CLERK_TEST_KEYS === "true") return true;
-  return env.VERCEL !== "1";
+  const vercelEnv = env.VERCEL_ENV?.toLowerCase();
+  return !(vercelEnv === "preview" || vercelEnv === "production");
 }
 
 export function hasValidClerkCredentials(env: NodeJS.ProcessEnv = process.env): boolean {
