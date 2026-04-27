@@ -54,6 +54,12 @@ def _env_bool(name: str, default: bool = True) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _optional_int(value: Any) -> Optional[int]:
+    if value is None or value == "":
+        return None
+    return int(value)
+
+
 def should_write_raw_source_snapshot(source_name: str) -> bool:
     if not _env_bool("WRITE_RAW_SNAPSHOTS", True):
         return False
@@ -437,15 +443,21 @@ def upsert_officials(cur, game_pk: int, feed: Dict[str, Any]) -> None:
 def upsert_abs_counters(cur, game_pk: int, feed: Dict[str, Any]) -> None:
     gd = feed.get("gameData", {})
     teams = gd.get("teams", {})
-    abs_data = gd.get("absChallenges", {})
+    abs_data = gd.get("absChallenges") or {}
 
-    home = abs_data.get("home", {})
-    away = abs_data.get("away", {})
+    home = abs_data.get("home") or {}
+    away = abs_data.get("away") or {}
+    home_used_successful = int(home.get("usedSuccessful", 0))
+    home_used_failed = int(home.get("usedFailed", 0))
+    home_remaining = _optional_int(home.get("remaining"))
+    away_used_successful = int(away.get("usedSuccessful", 0))
+    away_used_failed = int(away.get("usedFailed", 0))
+    away_remaining = _optional_int(away.get("remaining"))
 
     cur.execute(
         """
         INSERT INTO team_abs_game_summary (game_pk, team_id, team_side, used_successful, used_failed, remaining)
-        VALUES (%s,%s,'home',%s,%s,%s)
+        VALUES (%s,%s,'home',%s,%s,COALESCE(%s, GREATEST(0, 2 - %s)))
         ON CONFLICT (game_pk, team_id) DO UPDATE SET
           used_successful = EXCLUDED.used_successful,
           used_failed = EXCLUDED.used_failed,
@@ -455,16 +467,17 @@ def upsert_abs_counters(cur, game_pk: int, feed: Dict[str, Any]) -> None:
         (
             game_pk,
             teams.get("home", {}).get("id"),
-            int(home.get("usedSuccessful", 0)),
-            int(home.get("usedFailed", 0)),
-            int(home.get("remaining", 0)),
+            home_used_successful,
+            home_used_failed,
+            home_remaining,
+            home_used_failed,
         ),
     )
 
     cur.execute(
         """
         INSERT INTO team_abs_game_summary (game_pk, team_id, team_side, used_successful, used_failed, remaining)
-        VALUES (%s,%s,'away',%s,%s,%s)
+        VALUES (%s,%s,'away',%s,%s,COALESCE(%s, GREATEST(0, 2 - %s)))
         ON CONFLICT (game_pk, team_id) DO UPDATE SET
           used_successful = EXCLUDED.used_successful,
           used_failed = EXCLUDED.used_failed,
@@ -474,9 +487,10 @@ def upsert_abs_counters(cur, game_pk: int, feed: Dict[str, Any]) -> None:
         (
             game_pk,
             teams.get("away", {}).get("id"),
-            int(away.get("usedSuccessful", 0)),
-            int(away.get("usedFailed", 0)),
-            int(away.get("remaining", 0)),
+            away_used_successful,
+            away_used_failed,
+            away_remaining,
+            away_used_failed,
         ),
     )
 
@@ -1045,9 +1059,9 @@ def refresh_umpire_summary(cur, game_pk: int) -> None:
 def refresh_team_summary(cur, game_pk: int, feed: Dict[str, Any]) -> None:
     gd = feed.get("gameData", {})
     teams = gd.get("teams", {})
-    abs_data = gd.get("absChallenges", {})
-    home_remaining = int((abs_data.get("home") or {}).get("remaining") or 0)
-    away_remaining = int((abs_data.get("away") or {}).get("remaining") or 0)
+    abs_data = gd.get("absChallenges") or {}
+    home_remaining = _optional_int((abs_data.get("home") or {}).get("remaining"))
+    away_remaining = _optional_int((abs_data.get("away") or {}).get("remaining"))
 
     cur.execute(
         """
@@ -1107,7 +1121,9 @@ def refresh_team_summary(cur, game_pk: int, feed: Dict[str, Any]) -> None:
 
 def write_snapshot(cur, game_pk: int, feed: Dict[str, Any]) -> None:
     linescore = feed.get("liveData", {}).get("linescore", {})
-    abs_data = feed.get("gameData", {}).get("absChallenges", {})
+    abs_data = feed.get("gameData", {}).get("absChallenges") or {}
+    away_abs = abs_data.get("away") or {}
+    home_abs = abs_data.get("home") or {}
     cur.execute(
         """
         INSERT INTO game_state_snapshots (
@@ -1126,12 +1142,12 @@ def write_snapshot(cur, game_pk: int, feed: Dict[str, Any]) -> None:
             linescore.get("outs"),
             linescore.get("teams", {}).get("home", {}).get("runs"),
             linescore.get("teams", {}).get("away", {}).get("runs"),
-            abs_data.get("away", {}).get("usedSuccessful", 0),
-            abs_data.get("away", {}).get("usedFailed", 0),
-            abs_data.get("away", {}).get("remaining", 0),
-            abs_data.get("home", {}).get("usedSuccessful", 0),
-            abs_data.get("home", {}).get("usedFailed", 0),
-            abs_data.get("home", {}).get("remaining", 0),
+            away_abs.get("usedSuccessful", 0),
+            away_abs.get("usedFailed", 0),
+            _optional_int(away_abs.get("remaining")),
+            home_abs.get("usedSuccessful", 0),
+            home_abs.get("usedFailed", 0),
+            _optional_int(home_abs.get("remaining")),
         ),
     )
 

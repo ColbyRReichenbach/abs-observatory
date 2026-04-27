@@ -16,9 +16,12 @@ from ingest_mlb_abs import (  # noqa: E402
     _extract_linescore_innings,
     _parse_iso,
     _parse_mlb_timestamp,
+    refresh_team_summary,
     should_write_raw_source_snapshot,
     store_source_snapshot,
+    upsert_abs_counters,
     upsert_officials,
+    write_snapshot,
 )
 
 
@@ -136,6 +139,97 @@ class IngestSmokeTests(unittest.TestCase):
             batches[0][1],
             [(831640, 838911, "Home Plate", "Home Plate")],
         )
+
+    def test_refresh_team_summary_preserves_missing_remaining_for_sql_fallback(self) -> None:
+        executed = []
+
+        class Cursor:
+            def execute(self, statement, values):
+                executed.append((statement, values))
+
+        refresh_team_summary(
+            Cursor(),
+            831640,
+            {
+                "gameData": {
+                    "teams": {"home": {"id": 147}, "away": {"id": 111}},
+                    "absChallenges": {
+                        "home": {"usedFailed": 1},
+                        "away": {"usedFailed": 0, "remaining": 0},
+                    },
+                }
+            },
+        )
+
+        self.assertEqual(len(executed), 1)
+        values = executed[0][1]
+        self.assertIsNone(values["home_remaining"])
+        self.assertEqual(values["away_remaining"], 0)
+        self.assertIn(
+            "COALESCE(gt.feed_remaining, GREATEST(0, 2 - COALESCE(tc.used_failed, 0)))",
+            executed[0][0],
+        )
+
+    def test_upsert_abs_counters_falls_back_when_feed_omits_remaining(self) -> None:
+        executed = []
+
+        class Cursor:
+            def execute(self, statement, values):
+                executed.append((statement, values))
+
+        upsert_abs_counters(
+            Cursor(),
+            831640,
+            {
+                "gameData": {
+                    "teams": {"home": {"id": 147}, "away": {"id": 111}},
+                    "absChallenges": {
+                        "home": {"usedSuccessful": 1, "usedFailed": 1},
+                        "away": {"usedSuccessful": 0, "usedFailed": 0, "remaining": 2},
+                    },
+                }
+            },
+        )
+
+        self.assertEqual(len(executed), 2)
+        self.assertIn("COALESCE(%s, GREATEST(0, 2 - %s))", executed[0][0])
+        self.assertEqual(executed[0][1], (831640, 147, 1, 1, None, 1))
+        self.assertEqual(executed[1][1], (831640, 111, 0, 0, 2, 0))
+
+    def test_write_snapshot_keeps_missing_remaining_null(self) -> None:
+        executed = []
+
+        class Cursor:
+            def execute(self, statement, values):
+                executed.append((statement, values))
+
+        write_snapshot(
+            Cursor(),
+            831640,
+            {
+                "gameData": {
+                    "absChallenges": {
+                        "away": {"usedSuccessful": 1, "usedFailed": 0},
+                        "home": {"usedSuccessful": 0, "usedFailed": 1, "remaining": 1},
+                    }
+                },
+                "liveData": {
+                    "linescore": {
+                        "currentInning": 5,
+                        "inningHalf": "Top",
+                        "balls": 1,
+                        "strikes": 2,
+                        "outs": 1,
+                        "teams": {"home": {"runs": 2}, "away": {"runs": 1}},
+                    }
+                },
+            },
+        )
+
+        self.assertEqual(len(executed), 1)
+        values = executed[0][1]
+        self.assertIsNone(values[10])
+        self.assertEqual(values[13], 1)
 
     def test_challenge_from_review_uses_pitch_review_context(self) -> None:
         play = {

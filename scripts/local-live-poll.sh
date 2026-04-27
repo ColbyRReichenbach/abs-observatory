@@ -103,6 +103,16 @@ print((end_date - timedelta(days=days - 1)).isoformat())
 PY
 }
 
+date_year() {
+  local target_date="$1"
+  python3 - "$target_date" <<'PY'
+from datetime import date
+import sys
+
+print(date.fromisoformat(sys.argv[1]).year)
+PY
+}
+
 should_run_interval_task() {
   local task_name="$1"
   local interval_minutes="$2"
@@ -269,7 +279,7 @@ PY
       if should_run_interval_task "model-refresh" "${MODEL_REFRESH_INTERVAL_MINUTES:-60}"; then
         model_end_date="${MODEL_REFRESH_END_DATE:-$savant_end_date}"
         model_start_date="${MODEL_REFRESH_START_DATE:-$(date_window_start "$model_end_date" "${MODEL_REFRESH_DAYS:-21}")}"
-        model_season="${MODEL_REFRESH_SEASON:-$(date -j -f '%Y-%m-%d' "$model_end_date" '+%Y' 2>/dev/null || date '+%Y')}"
+        model_season="${MODEL_REFRESH_SEASON:-$(date_year "$model_end_date")}"
         echo "[$(timestamp)] refreshing warehouse model tables window=$model_start_date..$model_end_date season=$model_season"
         "$PYTHON_BIN" "$ROOT_DIR/etl/build_historical_pitch_states.py" \
           --season "$model_season" \
