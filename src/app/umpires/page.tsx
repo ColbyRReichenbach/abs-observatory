@@ -8,6 +8,7 @@ import { withViewModeHref } from "@/lib/view-mode-href";
 import { UmpireDistributionHistogram } from "@/components/analytics/umpire-distribution-histogram";
 import { UmpireRiskScatter } from "@/components/analytics/umpire-risk-scatter";
 import { UmpireLeaderboardTable } from "@/components/umpires/umpire-leaderboard-table";
+import { getUmpireOrgWatchPriority } from "@/lib/umpire-ranking";
 import { getUmpiresPageViewCopy } from "@/lib/view-mode-contract";
 
 
@@ -18,27 +19,9 @@ export default async function UmpiresPage({ searchParams }: { searchParams: Prom
   const range = parseRange(sp.range);
   const viewMode = await resolveViewMode(sp);
   const umpires = await getUmpireLeaderboardModel(range, { includeValueMetrics: viewMode === "org" });
-
-  const sorted = [...umpires].sort((left, right) =>
-    viewMode === "org" ? compareOrgUmpires(left, right) : compareFanUmpires(left, right),
-  );
-
-  // Compute league averages
-  const totalChallenged = umpires.reduce((s, u) => s + u.challengedCalls, 0);
-  const totalOverturned = umpires.reduce((s, u) => s + u.overturnedCalls, 0);
-  const totalGames = umpires.reduce((s, u) => s + u.gamesWorked, 0);
+  const totalChallenged = umpires.reduce((sum, umpire) => sum + umpire.challengedCalls, 0);
+  const totalOverturned = umpires.reduce((sum, umpire) => sum + umpire.overturnedCalls, 0);
   const leagueAvgRate = totalChallenged > 0 ? totalOverturned / totalChallenged : 0;
-  const avgOrgValue =
-    umpires.length > 0
-      ? umpires.reduce((sum, umpire) => sum + getOrgRankingValue(umpire), 0) / umpires.length
-      : 0;
-  const avgFanValue = umpires.length > 0 ? umpires.reduce((sum, umpire) => sum + umpire.overturnRate, 0) / umpires.length : 0;
-
-  // S4-2: Find insert position for floating avg row
-  const avgInsertIdx = sorted.findIndex((umpire) =>
-    viewMode === "org" ? getOrgRankingValue(umpire) < avgOrgValue : umpire.overturnRate > avgFanValue,
-  );
-  const insertAt = avgInsertIdx === -1 ? sorted.length : avgInsertIdx;
 
   const histogramData = umpires.map((u) => ({
     umpireName: u.umpireName,
@@ -51,18 +34,13 @@ export default async function UmpiresPage({ searchParams }: { searchParams: Prom
     overturnRateVariance: u.overturnRateVariance,
     riskTier: u.riskTier,
   }));
-  const watchList = [...umpires].sort((left, right) => getOrgWatchPriority(right) - getOrgWatchPriority(left)).slice(0, 3);
+  const watchList = [...umpires].sort((left, right) => getUmpireOrgWatchPriority(right) - getUmpireOrgWatchPriority(left)).slice(0, 3);
   const copy = getUmpiresPageViewCopy(viewMode);
   const leaderboardSection = (
     <UmpireLeaderboardTable
       range={range}
       viewMode={viewMode}
-      umpires={sorted}
-      insertAt={insertAt}
-      totalChallenged={totalChallenged}
-      totalOverturned={totalOverturned}
-      totalGames={totalGames}
-      leagueAvgRate={leagueAvgRate}
+      umpires={umpires}
     />
   );
   const volatilityWatch = [...umpires]
@@ -207,44 +185,6 @@ export default async function UmpiresPage({ searchParams }: { searchParams: Prom
         </>
       )}
     </main>
-  );
-}
-
-function getOrgRankingValue(umpire: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number]) {
-  if (typeof umpire.averageWinExpectancyDelta === "number") return umpire.averageWinExpectancyDelta;
-  if (typeof umpire.averageRunExpectancyDelta === "number") return umpire.averageRunExpectancyDelta;
-  return umpire.overturnRate;
-}
-
-function compareFanUmpires(
-  left: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
-  right: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
-) {
-  if (left.overturnRate !== right.overturnRate) return left.overturnRate - right.overturnRate;
-  if (right.challengedCalls !== left.challengedCalls) return right.challengedCalls - left.challengedCalls;
-  return right.gamesWorked - left.gamesWorked;
-}
-
-function compareOrgUmpires(
-  left: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
-  right: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
-) {
-  const valueGap = getOrgRankingValue(right) - getOrgRankingValue(left);
-  if (valueGap !== 0) return valueGap;
-  if (right.overturnRateVariance !== left.overturnRateVariance) {
-    return right.overturnRateVariance - left.overturnRateVariance;
-  }
-  return right.challengedCalls - left.challengedCalls;
-}
-
-function getOrgWatchPriority(umpire: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number]) {
-  const drift =
-    typeof umpire.recentOverturnRate === "number" ? Math.abs(umpire.recentOverturnRate - umpire.overturnRate) : 0;
-  return (
-    Math.abs(umpire.averageWinExpectancyDelta ?? 0) * 100 +
-    Math.abs(umpire.averageRunExpectancyDelta ?? 0) * 10 +
-    umpire.overturnRateVariance * 100 +
-    drift * 100
   );
 }
 

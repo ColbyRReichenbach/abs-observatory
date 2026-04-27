@@ -24,6 +24,7 @@ import { UmpireConsequenceMatrix } from "@/components/analytics/umpire-consequen
 import { UmpireHandednessBoard } from "@/components/analytics/umpire-handedness-board";
 import { UmpirePitchTraitScatter } from "@/components/analytics/umpire-pitch-trait-scatter";
 import { buildUmpireZoneMapChartPayload } from "@/lib/chart-insight-payload";
+import { compareUmpiresForDefaultSort } from "@/lib/umpire-ranking";
 
 function toInningRange(value?: string): SituationalFilters["inningRange"] {
   if (value === "early" || value === "middle" || value === "late" || value === "extras") return value;
@@ -81,7 +82,7 @@ export default async function UmpirePage({
   if (!summary) return notFound();
   const currentUmpire = allUmpires.find((umpire) => umpire.umpireId === summary.umpireId) ?? null;
   const rankedUmpires = [...allUmpires].sort((left, right) =>
-    viewMode === "org" ? compareOrgUmpires(left, right) : compareFanUmpires(left, right),
+    compareUmpiresForDefaultSort(left, right, range, viewMode),
   );
   const rankIndex = rankedUmpires.findIndex((umpire) => umpire.umpireId === summary.umpireId);
   const displayRank = rankIndex >= 0 ? rankIndex + 1 : null;
@@ -746,31 +747,4 @@ function getNineZoneColor(overturnRate: number, sampleSize: number) {
   if (overturnRate >= 0.4) return "rgba(245, 158, 11, 0.22)";
   if (overturnRate >= 0.2) return "rgba(59, 130, 246, 0.18)";
   return "rgba(16, 185, 129, 0.14)";
-}
-
-function getOrgRankingValue(umpire: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number]) {
-  if (typeof umpire.averageWinExpectancyDelta === "number") return umpire.averageWinExpectancyDelta;
-  if (typeof umpire.averageRunExpectancyDelta === "number") return umpire.averageRunExpectancyDelta;
-  return umpire.overturnRate;
-}
-
-function compareFanUmpires(
-  left: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
-  right: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
-) {
-  if (left.overturnRate !== right.overturnRate) return left.overturnRate - right.overturnRate;
-  if (right.challengedCalls !== left.challengedCalls) return right.challengedCalls - left.challengedCalls;
-  return right.gamesWorked - left.gamesWorked;
-}
-
-function compareOrgUmpires(
-  left: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
-  right: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
-) {
-  const valueGap = getOrgRankingValue(right) - getOrgRankingValue(left);
-  if (valueGap !== 0) return valueGap;
-  if (right.overturnRateVariance !== left.overturnRateVariance) {
-    return right.overturnRateVariance - left.overturnRateVariance;
-  }
-  return right.challengedCalls - left.challengedCalls;
 }

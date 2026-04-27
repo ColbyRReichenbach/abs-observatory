@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { Fragment } from "react";
 
 import { RangeSelector } from "@/components/range-selector";
 import { TeamIcon } from "@/components/team-icon";
@@ -13,6 +12,7 @@ import { TrendSparkline } from "@/components/analytics/trend-sparkline";
 import { ProfileBadge } from "@/components/ui/profile-badge";
 import { getTeamsPageViewCopy } from "@/lib/view-mode-contract";
 import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
+import { TeamLeaderboardTable } from "@/components/teams/team-leaderboard-table";
 
 export const dynamic = "force-dynamic";
 
@@ -72,22 +72,6 @@ async function TeamsPageBody({
         return Math.abs(bDelta) - Math.abs(aDelta);
       })[0] ?? null;
 
-  // Compute league averages for floating avg row insertion
-  const totalChallenges = teams.reduce((s, t) => s + t.challengesTotal, 0);
-  const totalSuccessful = teams.reduce((s, t) => s + t.usedSuccessful, 0);
-  const leagueAvgRate = totalChallenges > 0 ? totalSuccessful / totalChallenges : 0;
-  const leagueAvgRemaining = teams.length > 0 ? teams.reduce((s, t) => s + t.avgRemaining, 0) / teams.length : 0;
-  const leagueAvgChallengeRatePerGame =
-    teams.length > 0 ? teams.reduce((sum, team) => sum + team.challengeRatePerGame, 0) / teams.length : 0;
-  const leagueAvgLatePressureShare =
-    teams.length > 0 ? teams.reduce((sum, team) => sum + team.lateLeverageShare, 0) / teams.length : 0;
-  const leagueAvgEarlyBurnShare =
-    teams.length > 0 ? teams.reduce((sum, team) => sum + team.earlyLowLeverageShare, 0) / teams.length : 0;
-  const teamsWithRunValue = teams.filter((team) => team.avgRunExpectancyDelta !== null);
-  const leagueAvgRunExpectancyDelta =
-    teamsWithRunValue.length > 0
-      ? teamsWithRunValue.reduce((sum, team) => sum + (team.avgRunExpectancyDelta ?? 0), 0) / teamsWithRunValue.length
-      : null;
   const teamsWithWinValue = teams.filter(
     (team) => team.avgWinExpectancyDelta !== null && hasTrustedModelConfidenceBand(team.winValueConfidence),
   );
@@ -102,35 +86,8 @@ async function TeamsPageBody({
     teamsWithDecisionValue.length > 0
       ? teamsWithDecisionValue.reduce((sum, team) => sum + (team.decisionSurplus ?? 0), 0) / teamsWithDecisionValue.length
       : null;
-  const showDecisionValueColumns = viewMode === "org" && teamsWithDecisionValue.length > 0;
   const useWinValue = viewMode === "org" && leagueAvgWinExpectancyDelta !== null;
   const useDecisionValue = viewMode === "org" && leagueAvgDecisionSurplus !== null;
-
-  // Sort org view by modeled value once it exists; fan view stays overturn-rate led.
-  const sorted = [...teams].sort((a, b) => compareTeamsForTable(a, b, viewMode, useWinValue, useDecisionValue));
-
-  // Find the position where league avg row should be inserted (between teams above and below league avg overturn rate)
-  const avgInsertIdx = sorted.findIndex((team) => {
-    if (viewMode !== "org") {
-      return team.overturnRate < leagueAvgRate;
-    }
-
-    const teamMetric =
-      useDecisionValue && hasTrustedModelConfidenceBand(team.decisionValueConfidence)
-        ? team.decisionSurplus
-        : useWinValue && hasTrustedModelConfidenceBand(team.winValueConfidence)
-        ? team.avgWinExpectancyDelta
-        : team.avgRunExpectancyDelta;
-    const leagueMetric = useDecisionValue
-      ? leagueAvgDecisionSurplus
-      : useWinValue
-        ? leagueAvgWinExpectancyDelta
-        : leagueAvgRunExpectancyDelta;
-    if (leagueMetric === null) return false;
-    if (teamMetric === null) return true;
-    return teamMetric < leagueMetric;
-  });
-  const insertAt = avgInsertIdx === -1 ? sorted.length : avgInsertIdx;
 
   // Scatter plot data
   const scatterData = teams.map((t) => ({
@@ -266,202 +223,14 @@ async function TeamsPageBody({
     ) : null;
 
   const tableSection = (
-    <div className="panel overflow-hidden border-gray-100 bg-white shadow-2xl shadow-black/[0.03]">
-      <div className="overflow-x-auto">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th className="min-w-[180px]">Rank & Team</th>
-              <th className="text-left w-36">{copy.tableProfileHeader}</th>
-              <th className="text-center">Rate / Game</th>
-              <th className="text-center">Late/Close</th>
-              <th className="text-center">{viewMode === "org" ? "Deployment" : "Timing"}</th>
-              <th className="text-center">Trend</th>
-              {showDecisionValueColumns ? <th className="text-right">Review Surplus</th> : null}
-              <th className="text-right">{viewMode === "org" ? (leagueAvgWinExpectancyDelta !== null ? "Avg WE Δ" : "Avg RE Δ") : "Avg Rem"}</th>
-              <th className="text-right">{copy.tableVolumeHeader}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.length === 0 ? (
-              <tr>
-                <td colSpan={viewMode === "org" ? 8 + (showDecisionValueColumns ? 1 : 0) : 8} className="!py-32 text-center text-gray-400 font-semibold">
-                  No data points match the selected criteria.
-                </td>
-              </tr>
-            ) : null}
-            {sorted.map((t, idx) => {
-              const isBeforeAvg = idx === insertAt;
-              return (
-                <Fragment key={t.teamId}>
-                  {isBeforeAvg && (
-                    <tr key="mlb-avg" className="bg-[var(--surface-1)] border-y border-[var(--border-subtle)]">
-                      <td>
-                        <div className="flex items-center gap-5 py-1">
-                          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-100 text-[10px] font-black text-gray-400">
-                            —
-                          </span>
-                          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-[10px] font-black shrink-0 relative overflow-hidden">
-                            <span className="text-[9px] font-black tracking-[0.14em] text-gray-400">MLB</span>
-                          </span>
-                          <span className="font-bold italic text-gray-500 tracking-tight">
-                            MLB Average
-                          </span>
-                        </div>
-                      </td>
-                      <td className="text-left">
-                        <span className="text-[10px] text-[var(--ink-3)]">—</span>
-                      </td>
-                      <td className="text-center font-mono text-gray-400 italic font-bold">
-                        {leagueAvgChallengeRatePerGame.toFixed(2)}
-                      </td>
-                      <td className="text-center font-mono text-gray-400 italic font-bold">
-                        {`${Math.round(leagueAvgLatePressureShare * 100)}%`}
-                      </td>
-                      <td className="text-center">
-                        <StrategyChip
-                          label={
-                            viewMode === "org"
-                              ? getDecisionReadLabel(leagueAvgDecisionSurplus, 0.5, 0.5)
-                              : getTimingReadLabel(
-                                  leagueAvgLatePressureShare,
-                                  leagueAvgEarlyBurnShare,
-                                  leagueAvgLatePressureShare,
-                                  leagueAvgEarlyBurnShare,
-                                )
-                          }
-                          tone={
-                            viewMode === "org"
-                              ? getDecisionReadTone(leagueAvgDecisionSurplus, 0.5, 0.5)
-                              : getTimingReadTone(
-                                  leagueAvgLatePressureShare,
-                                  leagueAvgEarlyBurnShare,
-                                  leagueAvgLatePressureShare,
-                                  leagueAvgEarlyBurnShare,
-                                )
-                          }
-                        />
-                      </td>
-                      <td className="text-center">
-                        <span className="text-[10px] text-[var(--ink-3)]">—</span>
-                      </td>
-                      {showDecisionValueColumns ? (
-                        <td className="text-right font-mono text-gray-400 italic font-medium pr-8">
-                          {leagueAvgDecisionSurplus === null
-                            ? "N/A"
-                            : `${leagueAvgDecisionSurplus >= 0 ? "+" : ""}${(leagueAvgDecisionSurplus * 100).toFixed(2)}%`}
-                        </td>
-                      ) : null}
-                      <td className="text-right font-mono text-gray-400 italic font-medium pr-8">
-                        {viewMode === "org"
-                          ? leagueAvgWinExpectancyDelta !== null
-                            ? `${leagueAvgWinExpectancyDelta >= 0 ? "+" : ""}${(leagueAvgWinExpectancyDelta * 100).toFixed(2)}%`
-                            : leagueAvgRunExpectancyDelta === null
-                              ? "N/A"
-                              : `${leagueAvgRunExpectancyDelta >= 0 ? "+" : ""}${leagueAvgRunExpectancyDelta.toFixed(3)}`
-                          : leagueAvgRemaining.toFixed(2)}
-                      </td>
-                      <td className="text-right font-mono text-gray-400 italic font-medium pr-8">
-                        {viewMode === "org"
-                          ? (teams.length > 0
-                              ? teams.reduce((sum, team) => sum + team.gamesTracked, 0) / teams.length
-                              : 0
-                            ).toFixed(1)
-                          : (teams.length > 0
-                              ? teams.reduce((sum, team) => sum + team.challengesTotal, 0) / teams.length
-                              : 0
-                            ).toFixed(1)}
-                      </td>
-                    </tr>
-                  )}
-                  <tr key={t.teamId} className="group/row transition-colors hover:bg-gray-50/50">
-                    <td>
-                      <Link
-                        href={withViewModeHref(`/teams/${t.teamId}?range=${range}`, viewMode)}
-                        className="flex items-center gap-5 py-1"
-                      >
-                        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-50 text-[10px] font-black text-gray-400 group-hover/row:bg-black group-hover/row:text-white transition-all transform group-hover/row:scale-110">
-                          {(idx + 1).toString().padStart(2, '0')}
-                        </span>
-                        <TeamIcon
-                          teamId={t.teamId}
-                          name={t.teamName}
-                          size={32}
-                          variant="flat"
-                          className="shrink-0 group-hover/row:scale-110"
-                        />
-                        <span className="font-black text-gray-900 tracking-tight group-hover/row:text-blue-600 transition-colors">
-                          {t.teamName}
-                        </span>
-                      </Link>
-                    </td>
-                    <td className="text-left">
-                      <ProfileBadge
-                        label={viewMode === "org" ? t.orgStyleLabel : t.style}
-                        variant={viewMode === "org" ? "blue" : "emerald"}
-                      />
-                    </td>
-
-                    <td className="text-center font-mono text-gray-500 font-bold">
-                      {t.challengeRatePerGame.toFixed(2)}
-                    </td>
-                    <td className="text-center">
-                      <PressureShareChip value={t.lateLeverageShare} />
-                    </td>
-                    <td className="text-center">
-                      <StrategyChip
-                        label={
-                          viewMode === "org"
-                            ? getDecisionReadLabel(t.decisionSurplus, t.capturedValueShare, t.wastedValueShare)
-                            : getTimingReadLabel(
-                                t.lateLeverageShare,
-                                t.earlyLowLeverageShare,
-                                leagueAvgLatePressureShare,
-                                leagueAvgEarlyBurnShare,
-                              )
-                        }
-                        tone={
-                          viewMode === "org"
-                            ? getDecisionReadTone(t.decisionSurplus, t.capturedValueShare, t.wastedValueShare)
-                            : getTimingReadTone(
-                                t.lateLeverageShare,
-                                t.earlyLowLeverageShare,
-                                leagueAvgLatePressureShare,
-                                leagueAvgEarlyBurnShare,
-                              )
-                        }
-                      />
-                    </td>
-                    <td className="text-center">
-                      <div className="flex justify-center">
-                        <TrendSparkline data={trendlineMap.get(t.teamId) ?? []} />
-                      </div>
-                    </td>
-                    {showDecisionValueColumns ? (
-                      <td className="text-right font-mono text-gray-400 font-medium pr-8">
-                        {t.decisionSurplus === null || !hasTrustedModelConfidenceBand(t.decisionValueConfidence)
-                          ? "N/A"
-                          : `${t.decisionSurplus >= 0 ? "+" : ""}${(t.decisionSurplus * 100).toFixed(2)}%`}
-                      </td>
-                    ) : null}
-                    <td className="text-right font-mono text-gray-400 font-medium pr-8">
-                      {viewMode === "org"
-                        ? useWinValue && hasTrustedModelConfidenceBand(t.winValueConfidence) && t.avgWinExpectancyDelta !== null
-                          ? `${t.avgWinExpectancyDelta >= 0 ? "+" : ""}${(t.avgWinExpectancyDelta * 100).toFixed(2)}%`
-                          : t.avgRunExpectancyDelta === null
-                            ? "N/A"
-                            : `${t.avgRunExpectancyDelta >= 0 ? "+" : ""}${t.avgRunExpectancyDelta.toFixed(3)}`
-                        : t.avgRemaining.toFixed(2)}
-                    </td>
-                    <td className="text-right font-mono text-gray-400 font-medium pr-8">{viewMode === "org" ? t.gamesTracked : t.challengesTotal}</td>
-                  </tr>
-                </Fragment>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <TeamLeaderboardTable
+      range={range}
+      viewMode={viewMode}
+      teams={teams}
+      trendlines={trendlines}
+      profileHeader={copy.tableProfileHeader}
+      volumeHeader={copy.tableVolumeHeader}
+    />
   );
 
   return (
@@ -493,74 +262,6 @@ function TeamsPageFallback({ copy }: { copy: ReturnType<typeof getTeamsPageViewC
   );
 }
 
-function compareTeamsForTable(
-  left: {
-    overturnRate: number;
-    decisionSurplus: number | null;
-    decisionValueConfidence: "high" | "medium" | "low" | null;
-    highWinValueShare: number;
-    avgWinExpectancyDelta: number | null;
-    winValueConfidence: "high" | "medium" | "low" | null;
-    highRunValueShare: number;
-    avgRunExpectancyDelta: number | null;
-    runValueConfidence: "high" | "medium" | "low" | null;
-  },
-  right: {
-    overturnRate: number;
-    decisionSurplus: number | null;
-    decisionValueConfidence: "high" | "medium" | "low" | null;
-    highWinValueShare: number;
-    avgWinExpectancyDelta: number | null;
-    winValueConfidence: "high" | "medium" | "low" | null;
-    highRunValueShare: number;
-    avgRunExpectancyDelta: number | null;
-    runValueConfidence: "high" | "medium" | "low" | null;
-  },
-  viewMode: "fan" | "org",
-  useWinValue: boolean,
-  useDecisionValue: boolean,
-) {
-  if (viewMode !== "org") {
-    return right.overturnRate - left.overturnRate;
-  }
-
-  if (useDecisionValue) {
-    const leftDecision = hasTrustedModelConfidenceBand(left.decisionValueConfidence) ? left.decisionSurplus : null;
-    const rightDecision = hasTrustedModelConfidenceBand(right.decisionValueConfidence) ? right.decisionSurplus : null;
-    if (leftDecision !== null || rightDecision !== null) {
-      if (leftDecision === null) return 1;
-      if (rightDecision === null) return -1;
-      if (rightDecision !== leftDecision) {
-        return rightDecision - leftDecision;
-      }
-    }
-  }
-
-  const leftMetric =
-    useWinValue && hasTrustedModelConfidenceBand(left.winValueConfidence) ? left.avgWinExpectancyDelta : left.avgRunExpectancyDelta;
-  const rightMetric =
-    useWinValue && hasTrustedModelConfidenceBand(right.winValueConfidence) ? right.avgWinExpectancyDelta : right.avgRunExpectancyDelta;
-
-  if (leftMetric === null && rightMetric === null) {
-    return right.overturnRate - left.overturnRate;
-  }
-  if (leftMetric === null) return 1;
-  if (rightMetric === null) return -1;
-  if (rightMetric !== leftMetric) {
-    return rightMetric - leftMetric;
-  }
-
-  const leftShare =
-    useWinValue && hasTrustedModelConfidenceBand(left.winValueConfidence) ? left.highWinValueShare : left.highRunValueShare;
-  const rightShare =
-    useWinValue && hasTrustedModelConfidenceBand(right.winValueConfidence) ? right.highWinValueShare : right.highRunValueShare;
-  if (rightShare !== leftShare) {
-    return rightShare - leftShare;
-  }
-
-  return right.overturnRate - left.overturnRate;
-}
-
 function formatOrgValueCopy(
   team: {
     decisionSurplus: number | null;
@@ -582,99 +283,6 @@ function formatOrgValueCopy(
     return ` and ${team.avgRunExpectancyDelta >= 0 ? "+" : ""}${team.avgRunExpectancyDelta.toFixed(3)} average RE per review`;
   }
   return "";
-}
-
-function getDecisionReadLabel(
-  decisionSurplus: number | null,
-  capturedValueShare: number,
-  wastedValueShare: number,
-) {
-  if (decisionSurplus !== null && decisionSurplus >= 0.001) return "High-Value Usage";
-  if (decisionSurplus !== null && decisionSurplus <= -0.001) return "Low-Value Usage Risk";
-  if (capturedValueShare > wastedValueShare) return "High-Value Usage";
-  if (wastedValueShare > capturedValueShare) return "Low-Value Usage Risk";
-  return "Neutral";
-}
-
-function getDecisionReadTone(
-  decisionSurplus: number | null,
-  capturedValueShare: number,
-  wastedValueShare: number,
-): "emerald" | "amber" | "gray" {
-  const label = getDecisionReadLabel(decisionSurplus, capturedValueShare, wastedValueShare);
-  if (label === "High-Value Usage") return "emerald";
-  if (label === "Low-Value Usage Risk") return "amber";
-  return "gray";
-}
-
-function PressureShareChip({ value }: { value: number }) {
-  const pct = value * 100;
-  const tone =
-    pct >= 45
-      ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-      : pct >= 30
-        ? "bg-amber-50 text-amber-700 border-amber-100"
-        : "bg-gray-50 text-gray-600 border-gray-200";
-
-  return (
-    <span
-      className={`inline-flex rounded-xl border px-3 py-1.5 text-[10px] font-black font-mono uppercase tracking-widest shadow-sm ${tone}`}
-    >
-      {pct.toFixed(0)}%
-    </span>
-  );
-}
-
-function StrategyChip({
-  label,
-  tone,
-}: {
-  label: string;
-  tone: "emerald" | "amber" | "gray";
-}) {
-  const classes =
-    tone === "emerald"
-      ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-      : tone === "amber"
-        ? "bg-amber-50 text-amber-700 border-amber-100"
-        : "bg-gray-50 text-gray-600 border-gray-200";
-
-  return (
-    <span
-      className={`inline-flex rounded-xl border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm ${classes}`}
-    >
-      {label}
-    </span>
-  );
-}
-
-function getTimingReadLabel(
-  lateShare: number,
-  earlyBurnShare: number,
-  leagueLateShare: number,
-  leagueEarlyBurnShare: number,
-) {
-  const lateDelta = lateShare - leagueLateShare;
-  const earlyDelta = earlyBurnShare - leagueEarlyBurnShare;
-
-  if (lateDelta >= 0.08 && earlyDelta <= 0.03) return "Pressure-Hunting";
-  if (earlyDelta >= 0.08 && lateDelta <= 0.03) return "Front-Loaded";
-  if (Math.abs(lateDelta) <= 0.04 && Math.abs(earlyDelta) <= 0.04) return "Balanced";
-  return "Mixed";
-}
-
-function getTimingReadTone(
-  lateShare: number,
-  earlyBurnShare: number,
-  leagueLateShare: number,
-  leagueEarlyBurnShare: number,
-) {
-  const lateDelta = lateShare - leagueLateShare;
-  const earlyDelta = earlyBurnShare - leagueEarlyBurnShare;
-
-  if (lateDelta >= 0.08 && earlyDelta <= 0.03) return "emerald" as const;
-  if (earlyDelta >= 0.08 && lateDelta <= 0.03) return "amber" as const;
-  return "gray" as const;
 }
 
 function MetricSummaryCard({
