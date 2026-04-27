@@ -818,12 +818,15 @@ CREATE TABLE IF NOT EXISTS ai.usage_ledger (
   output_tokens INTEGER NOT NULL DEFAULT 0,
   total_tokens INTEGER NOT NULL DEFAULT 0,
   estimated_cost_usd NUMERIC NOT NULL DEFAULT 0,
-  usage_day DATE NOT NULL DEFAULT CURRENT_DATE,
-  usage_month DATE NOT NULL DEFAULT DATE_TRUNC('month', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date,
+  usage_day DATE NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'America/New_York')::date,
+  usage_month DATE NOT NULL DEFAULT DATE_TRUNC('month', CURRENT_TIMESTAMP AT TIME ZONE 'America/New_York')::date,
   metadata JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT ai_usage_ledger_plan_check CHECK (plan_code IN ('free', 'tier1', 'tier2', 'tier3'))
 );
+ALTER TABLE ai.usage_ledger
+  ALTER COLUMN usage_day SET DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'America/New_York')::date,
+  ALTER COLUMN usage_month SET DEFAULT DATE_TRUNC('month', CURRENT_TIMESTAMP AT TIME ZONE 'America/New_York')::date;
 
 CREATE TABLE IF NOT EXISTS ai.generation_events (
   generation_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

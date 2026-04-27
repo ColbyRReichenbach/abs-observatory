@@ -4,6 +4,7 @@ import { loadDefaultEnv } from "./lib/env.mjs";
 const ROOT = process.cwd();
 const DEFAULT_START_DATE = "2026-02-20";
 const BATCH_SIZE = 500;
+const MLB_GAME_TIME_ZONE = "America/New_York";
 
 loadDefaultEnv(ROOT);
 
@@ -24,12 +25,36 @@ if (isLocalConnection(warehouseUrl) && process.env.ALLOW_LOCAL_WAREHOUSE_SYNC !=
   );
 }
 
+function todayInTimeZone(timeZone) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const part = (type) => parts.find((entry) => entry.type === type)?.value;
+  const year = part("year");
+  const month = part("month");
+  const day = part("day");
+  if (!year || !month || !day) {
+    throw new Error(`Unable to resolve current date for ${timeZone}`);
+  }
+  return `${year}-${month}-${day}`;
+}
+
+function gameDateEtWindowClause(dateExpression) {
+  return `(${dateExpression} >= ($1::date::timestamp AT TIME ZONE '${MLB_GAME_TIME_ZONE}') AND ${dateExpression} < (($2::date + INTERVAL '1 day')::timestamp AT TIME ZONE '${MLB_GAME_TIME_ZONE}'))`;
+}
+
+const gameDateWindow = gameDateEtWindowClause("g.game_date");
+const unaliasedGameDateWindow = gameDateEtWindowClause("game_date");
+
 const startDate = process.argv.includes("--start-date")
   ? process.argv[process.argv.indexOf("--start-date") + 1]
   : DEFAULT_START_DATE;
 const endDate = process.argv.includes("--end-date")
   ? process.argv[process.argv.indexOf("--end-date") + 1]
-  : new Date().toISOString().slice(0, 10);
+  : todayInTimeZone(MLB_GAME_TIME_ZONE);
 
 function describeTarget(connectionString, role) {
   const parsed = new URL(connectionString);
@@ -96,7 +121,7 @@ async function deleteMissingAbsChallenges(target, rows) {
     DELETE FROM abs_challenges target
     USING games g
     WHERE g.game_pk = target.game_pk
-      AND g.game_date::date BETWEEN $1::date AND $2::date
+      AND ${gameDateWindow}
       AND NOT (target.dedupe_key = ANY($3::text[]))
     `,
     [startDate, endDate, sourceKeys],
@@ -141,7 +166,7 @@ const tableConfigs = [
         game_pk, game_date, game_type, season, status_abstract, status_detailed,
         home_team_id, away_team_id, home_score, away_score, has_abs, venue_name
       FROM games
-      WHERE game_date::date BETWEEN $1 AND $2
+      WHERE ${unaliasedGameDateWindow}
       ORDER BY game_date, game_pk
     `,
   },
@@ -156,7 +181,7 @@ const tableConfigs = [
         o.game_pk, o.official_id, o.official_name, o.official_type
       FROM officials o
       JOIN games g ON g.game_pk = o.game_pk
-      WHERE g.game_date::date BETWEEN $1 AND $2
+      WHERE ${gameDateWindow}
       ORDER BY o.game_pk, o.official_type, o.official_id
     `,
   },
@@ -220,7 +245,7 @@ const tableConfigs = [
         a.home_score_start, a.away_score_start, a.home_score_end, a.away_score_end
       FROM at_bats a
       JOIN games g ON g.game_pk = a.game_pk
-      WHERE g.game_date::date BETWEEN $1 AND $2
+      WHERE ${gameDateWindow}
       ORDER BY a.game_pk, a.at_bat_index
     `,
   },
@@ -324,7 +349,7 @@ const tableConfigs = [
         p.home_score_after, p.away_score_after, p.gameday_x, p.gameday_y
       FROM pitches p
       JOIN games g ON g.game_pk = p.game_pk
-      WHERE g.game_date::date BETWEEN $1 AND $2
+      WHERE ${gameDateWindow}
       ORDER BY p.game_pk, p.at_bat_index, p.pitch_number
     `,
   },
@@ -437,7 +462,7 @@ const tableConfigs = [
         c.inferred_gameday_y, c.inference_method, c.inference_confidence, c.location_source
       FROM abs_challenges c
       JOIN games g ON g.game_pk = c.game_pk
-      WHERE g.game_date::date BETWEEN $1 AND $2
+      WHERE ${gameDateWindow}
       ORDER BY c.game_pk, c.at_bat_index, c.pitch_number NULLS FIRST
     `,
   },
@@ -484,7 +509,7 @@ const tableConfigs = [
         s.abs_home_used_successful, s.abs_home_used_failed, s.abs_home_remaining
       FROM game_state_snapshots s
       JOIN games g ON g.game_pk = s.game_pk
-      WHERE g.game_date::date BETWEEN $1 AND $2
+      WHERE ${gameDateWindow}
       ORDER BY s.game_pk, s.snapshot_time
     `,
   },

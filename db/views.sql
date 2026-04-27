@@ -846,7 +846,7 @@ FROM global_rows g;
 
 CREATE OR REPLACE VIEW mart_team_abs_daily AS
 SELECT
-  g.game_date::date AS game_day,
+  (g.game_date AT TIME ZONE 'America/New_York')::date AS game_day,
   s.team_id,
   t.name AS team_name,
   SUM(s.used_successful) AS used_successful,
@@ -864,7 +864,7 @@ GROUP BY 1, 2, 3;
 
 CREATE OR REPLACE VIEW mart_umpire_abs_daily AS
 SELECT
-  g.game_date::date AS game_day,
+  (g.game_date AT TIME ZONE 'America/New_York')::date AS game_day,
   u.umpire_id,
   u.umpire_name,
   SUM(u.challenged_calls) AS challenged_calls,
@@ -3281,7 +3281,7 @@ GROUP BY cr.challenge_team_id;
 
 CREATE OR REPLACE VIEW mart_daily_editorial_summary AS
 SELECT
-  g.game_date::date AS summary_date,
+  (g.game_date AT TIME ZONE 'America/New_York')::date AS summary_date,
   COUNT(DISTINCT g.game_pk) AS games_tracked,
   COUNT(c.challenge_id) AS challenges_total,
   COUNT(*) FILTER (WHERE c.is_overturned = TRUE) AS overturns_total,
@@ -3304,11 +3304,11 @@ SELECT
 FROM games g
 LEFT JOIN mart_abs_pitch_challenges c ON c.game_pk = g.game_pk
 LEFT JOIN team_abs_game_summary team_summary ON team_summary.game_pk = g.game_pk
-GROUP BY g.game_date::date;
+GROUP BY (g.game_date AT TIME ZONE 'America/New_York')::date;
 
 CREATE OR REPLACE VIEW mart_weekly_editorial_summary AS
 SELECT
-  DATE_TRUNC('week', g.game_date AT TIME ZONE 'UTC')::date AS week_start,
+  DATE_TRUNC('week', g.game_date AT TIME ZONE 'America/New_York')::date AS week_start,
   COUNT(DISTINCT g.game_pk) AS games_tracked,
   COUNT(c.challenge_id) AS challenges_total,
   COUNT(*) FILTER (WHERE c.is_overturned = TRUE) AS overturns_total,
@@ -3321,5 +3321,5 @@ SELECT
   AVG(daily.overturn_rate)::NUMERIC AS avg_daily_overturn_rate
 FROM games g
 LEFT JOIN mart_abs_pitch_challenges c ON c.game_pk = g.game_pk
-LEFT JOIN mart_daily_editorial_summary daily ON daily.summary_date = g.game_date::date
-GROUP BY DATE_TRUNC('week', g.game_date AT TIME ZONE 'UTC')::date;
+LEFT JOIN mart_daily_editorial_summary daily ON daily.summary_date = (g.game_date AT TIME ZONE 'America/New_York')::date
+GROUP BY DATE_TRUNC('week', g.game_date AT TIME ZONE 'America/New_York')::date;

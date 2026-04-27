@@ -669,7 +669,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         eyebrow: "Live ingest",
         heading: "The scheduler is simple. The work gate is smarter.",
         paragraphs: [
-          "The live polling path runs on a fixed five-minute heartbeat. A simple cadence is easy to understand and reason about operationally. The scheduler wakes up on schedule, and the gate decides whether real work needs to happen.",
+          "The live polling path runs on a fixed ten-minute heartbeat. A simple cadence is easy to understand and reason about operationally. The scheduler wakes up on schedule, and the gate decides whether real work needs to happen.",
           "The gate is Eastern Time aware. If no relevant games exist in the current ET window, the poller exits quickly. If games are scheduled but none are live, it exits again. If the system has been stale for more than eight hours, it runs a bounded catch-up across scheduled ET dates going back up to seven days. Each wake-up does the right amount of work, not a fixed amount.",
           "Serving mode and archive mode are also separated. In serving mode, the hosted database stays focused on structured page-facing state. In archive mode, heavier raw material is preserved outside the normal serving footprint. Snapshot pruning keeps the serving environment from quietly accumulating data that belongs in an archive.",
         ],
@@ -758,7 +758,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         eyebrow: "Data freshness",
         heading: "Trust also means the product knows when its own serving state is fresh and when it is not.",
         paragraphs: [
-          "Model validation is only one dimension of trust. The product also has to trust its own data path. The polling workflow runs on a fixed five-minute heartbeat with an ET-aware gate that decides whether real ingest work needs to happen. Stale systems beyond eight hours get a bounded catch-up. Nothing relevant in the schedule means a quick exit.",
+          "Model validation is only one dimension of trust. The product also has to trust its own data path. The polling workflow runs on a fixed ten-minute heartbeat with an ET-aware gate that decides whether real ingest work needs to happen. Stale systems beyond eight hours get a bounded catch-up. Nothing relevant in the schedule means a quick exit.",
           "Live scoreboard serving reads from structured linescore state rather than depending on open-ended raw snapshot retention. Snapshot pruning keeps the serving environment from quietly accumulating archive-weight data. Those choices exist because stale or loosely shaped serving state can make the product look more certain than it should be.",
           "Blurring the line between fresh structured state, stale operational state, and deeper archive material is a specific failure mode the data design is built to prevent.",
         ],

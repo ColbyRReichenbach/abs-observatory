@@ -209,8 +209,9 @@ export_query_to_csv() {
 
 SOURCE_LABEL="$(sanitize_database_url "$SOURCE_DATABASE_URL")"
 TARGET_LABEL="$(sanitize_database_url "$TARGET_DATABASE_URL")"
+MLB_GAME_TIME_ZONE="America/New_York"
 
-SOURCE_MAX_GAME_DATE="$(psql "$SOURCE_DATABASE_URL" -Atqc "SELECT COALESCE(MAX(game_date::date)::text, '') FROM public.games")"
+SOURCE_MAX_GAME_DATE="$(psql "$SOURCE_DATABASE_URL" -Atqc "SELECT COALESCE(MAX((game_date AT TIME ZONE '$MLB_GAME_TIME_ZONE')::date)::text, '') FROM public.games")"
 : "${SOURCE_MAX_GAME_DATE:?Source database has no games rows to publish.}"
 
 SYNC_END_DATE="${SERVING_SYNC_END_DATE:-$SOURCE_MAX_GAME_DATE}"
@@ -231,7 +232,8 @@ PY
   )"
 fi
 
-GAME_WINDOW_FILTER="game_date::date BETWEEN DATE '$SYNC_START_DATE' AND DATE '$SYNC_END_DATE'"
+GAME_WINDOW_FILTER="game_date >= ((DATE '$SYNC_START_DATE')::timestamp AT TIME ZONE '$MLB_GAME_TIME_ZONE') AND game_date < ((DATE '$SYNC_END_DATE' + INTERVAL '1 day')::timestamp AT TIME ZONE '$MLB_GAME_TIME_ZONE')"
+SAVANT_DATE_WINDOW_FILTER="game_date BETWEEN DATE '$SYNC_START_DATE' AND DATE '$SYNC_END_DATE'"
 GAME_PK_WINDOW="SELECT game_pk FROM public.games WHERE $GAME_WINDOW_FILTER"
 
 echo "Publishing Warehouse -> Serving"
@@ -253,8 +255,8 @@ export_query_to_csv "$TEAM_SUMMARY_EXPORT_SQL" "$TEAM_SUMMARY_CSV"
 export_query_to_csv "$UMPIRE_SUMMARY_EXPORT_SQL" "$UMPIRE_SUMMARY_CSV"
 export_query_to_csv "SELECT * FROM public.game_reports WHERE game_pk IN ($GAME_PK_WINDOW) ORDER BY game_pk" "$GAME_REPORT_CSV"
 export_query_to_csv "SELECT * FROM ops.game_linescores ORDER BY game_pk" "$LINESCORE_CSV"
-export_query_to_csv "SELECT * FROM raw.savant_gamefeed_games WHERE game_date::date BETWEEN DATE '$SYNC_START_DATE' AND DATE '$SYNC_END_DATE' ORDER BY game_date, game_pk" "$SAVANT_GAMEFEED_CSV"
-export_query_to_csv "SELECT * FROM raw.savant_abs_events WHERE game_date::date BETWEEN DATE '$SYNC_START_DATE' AND DATE '$SYNC_END_DATE' ORDER BY game_date, game_pk, at_bat_number, COALESCE(pitch_number, 0), play_id" "$SAVANT_ABS_EVENTS_CSV"
+export_query_to_csv "SELECT * FROM raw.savant_gamefeed_games WHERE $SAVANT_DATE_WINDOW_FILTER ORDER BY game_date, game_pk" "$SAVANT_GAMEFEED_CSV"
+export_query_to_csv "SELECT * FROM raw.savant_abs_events WHERE $SAVANT_DATE_WINDOW_FILTER ORDER BY game_date, game_pk, at_bat_number, COALESCE(pitch_number, 0), play_id" "$SAVANT_ABS_EVENTS_CSV"
 
 echo "Exporting serving-safe fallback lookup tables from source views"
 psql "$SOURCE_DATABASE_URL" -v ON_ERROR_STOP=1 -c "\copy (SELECT * FROM mart_run_expectancy_fallbacks) TO '$RUN_FALLBACK_CSV' CSV"
@@ -381,7 +383,7 @@ ON CONFLICT (player_id) DO UPDATE SET
   source_updated_at = EXCLUDED.source_updated_at,
   updated_at = EXCLUDED.updated_at;
 DELETE FROM public.games
-WHERE game_date::date BETWEEN DATE '$SYNC_START_DATE' AND DATE '$SYNC_END_DATE';
+WHERE $GAME_WINDOW_FILTER;
 INSERT INTO public.games SELECT * FROM staging_games;
 INSERT INTO public.officials SELECT * FROM staging_officials;
 INSERT INTO public.at_bats SELECT * FROM staging_at_bats;
@@ -435,10 +437,10 @@ INSERT INTO public.game_reports SELECT * FROM staging_game_reports;
 TRUNCATE TABLE ops.game_linescores;
 INSERT INTO ops.game_linescores SELECT * FROM staging_game_linescores;
 DELETE FROM raw.savant_abs_events
-WHERE game_date::date BETWEEN DATE '$SYNC_START_DATE' AND DATE '$SYNC_END_DATE'
+WHERE $SAVANT_DATE_WINDOW_FILTER
    OR game_pk IN (SELECT game_pk FROM staging_savant_gamefeed_games);
 DELETE FROM raw.savant_gamefeed_games
-WHERE game_date::date BETWEEN DATE '$SYNC_START_DATE' AND DATE '$SYNC_END_DATE'
+WHERE $SAVANT_DATE_WINDOW_FILTER
    OR game_pk IN (SELECT game_pk FROM staging_savant_gamefeed_games);
 INSERT INTO raw.savant_gamefeed_games SELECT * FROM staging_savant_gamefeed_games;
 INSERT INTO raw.savant_abs_events SELECT * FROM staging_savant_abs_events;

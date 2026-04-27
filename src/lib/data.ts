@@ -199,14 +199,24 @@ async function withGlobalLiveVersionedCache<T>(
 }
 
 function rangeWhere(range: RangeKey, dateField = "g.game_date"): { clause: string; params: unknown[] } {
+  const currentEtDate = "(NOW() AT TIME ZONE 'America/New_York')::date";
+  const etDayStartUtc = (daysBack: number) =>
+    `((${currentEtDate} - INTERVAL '${daysBack} days')::timestamp AT TIME ZONE 'America/New_York')`;
+  const etNextDayStartUtc = `((${currentEtDate} + INTERVAL '1 day')::timestamp AT TIME ZONE 'America/New_York')`;
   if (range === "7d") {
-    return { clause: `${dateField} >= NOW() - INTERVAL '7 days'`, params: [] };
+    return {
+      clause: `(${dateField} >= ${etDayStartUtc(6)} AND ${dateField} < ${etNextDayStartUtc})`,
+      params: [],
+    };
   }
   if (range === "30d") {
-    return { clause: `${dateField} >= NOW() - INTERVAL '30 days'`, params: [] };
+    return {
+      clause: `(${dateField} >= ${etDayStartUtc(29)} AND ${dateField} < ${etNextDayStartUtc})`,
+      params: [],
+    };
   }
   if (range === "season") {
-    return { clause: `g.season = EXTRACT(YEAR FROM NOW())::INT`, params: [] };
+    return { clause: `g.season = EXTRACT(YEAR FROM (NOW() AT TIME ZONE 'America/New_York'))::INT`, params: [] };
   }
   return { clause: "TRUE", params: [] };
 }
@@ -1326,13 +1336,22 @@ export async function getLiveGames(): Promise<LiveGameCard[]> {
       inninghalf: string | null;
     }>(
       `
-    WITH live_game_ids AS (
+    WITH et_window AS (
+      SELECT
+        ((NOW() AT TIME ZONE 'America/New_York')::date::timestamp AT TIME ZONE 'America/New_York') AS start_utc,
+        (((NOW() AT TIME ZONE 'America/New_York')::date + INTERVAL '1 day')::timestamp AT TIME ZONE 'America/New_York') AS end_utc
+    ),
+    live_game_ids AS (
       SELECT
         g.game_pk,
         CASE WHEN g.status_abstract = 'Live' THEN 0 ELSE 1 END AS sort_bucket,
         g.game_date
       FROM games g
-      WHERE (g.game_date::date = CURRENT_DATE OR g.status_abstract = 'Live')
+      CROSS JOIN et_window w
+      WHERE (
+        (g.game_date >= w.start_utc AND g.game_date < w.end_utc)
+        OR g.status_abstract = 'Live'
+      )
       ORDER BY sort_bucket, g.game_date DESC
       LIMIT 20
     )
@@ -4503,7 +4522,7 @@ export async function getTeamIdentity(teamId: number): Promise<TeamIdentity | nu
       WHERE (home_team_id = $1 OR away_team_id = $1)
         AND status_abstract = 'Final'
         AND game_type = 'R'
-        AND season = EXTRACT(YEAR FROM CURRENT_DATE)::INT
+        AND season = EXTRACT(YEAR FROM (NOW() AT TIME ZONE 'America/New_York'))::INT
     )
     SELECT
       t.team_id AS teamId,
@@ -4655,13 +4674,13 @@ export async function getTeamTrendSparklines(range: RangeKey = "season"): Promis
     WITH daily AS (
       SELECT
         s.team_id AS team_id,
-        g.game_date::date AS game_day,
+        (g.game_date AT TIME ZONE 'America/New_York')::date AS game_day,
         SUM(s.used_successful) AS used_successful,
         SUM(s.challenges_total) AS challenges_total
       FROM team_abs_game_summary s
       JOIN games g ON g.game_pk = s.game_pk
       WHERE ${window.clause}
-      GROUP BY s.team_id, g.game_date::date
+      GROUP BY s.team_id, (g.game_date AT TIME ZONE 'America/New_York')::date
       HAVING SUM(s.challenges_total) > 0
     ),
     cumulative AS (

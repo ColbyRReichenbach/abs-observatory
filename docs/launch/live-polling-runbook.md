@@ -34,7 +34,7 @@ Env file: <repo>/.env.poll or POLL_ENV_FILE override
 The LaunchAgent should run from a non-TCC-protected working directory such as `~/Code`.
 macOS background agents cannot reliably execute from `Desktop` or `Downloads`.
 
-That heartbeat is intentionally simple. The scheduler always wakes on five-minute marks, and the poll gate decides whether real ingest work should run.
+That heartbeat is intentionally simple. The scheduler always wakes on ten-minute marks, and the poll gate decides whether real ingest work should run.
 
 Core local scripts:
 
@@ -92,7 +92,7 @@ Current serving-oriented `.env.poll` settings:
 WAREHOUSE_DATABASE_URL=<hosted warehouse>
 SERVING_DATABASE_URL=<hosted serving>
 DATABASE_URL=${SERVING_DATABASE_URL}
-POLL_INTERVAL_MINUTES=5
+POLL_INTERVAL_MINUTES=10
 POLL_CATCHUP_HOURS=8
 POLL_STALE_BACKFILL_HOURS=8
 POLL_MAX_BACKFILL_DAYS=7

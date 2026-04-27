@@ -24,7 +24,7 @@ describe("data-freshness", () => {
     getPollIntervalMinutesMock.mockReset();
     getCandidateEtDatesMock.mockReturnValue(["2026-04-02"]);
     getLatestSuccessfulEtlDataVersionMock.mockResolvedValue("2026-04-03T01:16:07.565590+00:00");
-    getPollIntervalMinutesMock.mockReturnValue(5);
+    getPollIntervalMinutesMock.mockReturnValue(10);
   });
 
   it("returns the latest poll snapshot with live-game metadata", async () => {
@@ -48,7 +48,7 @@ describe("data-freshness", () => {
       lastStatus: "success",
       liveGameCount: 3,
       dataVersion: "2026-04-03T01:16:07.565590+00:00",
-      pollIntervalMinutes: 5,
+      pollIntervalMinutes: 10,
     });
     expect(sqlOneMock).toHaveBeenCalledTimes(3);
     expect(sqlOneMock.mock.calls[1]?.[1]).toEqual([["2026-04-02"]]);

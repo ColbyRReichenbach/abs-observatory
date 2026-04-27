@@ -18,10 +18,10 @@ export function HomeExpandableGrid({ games, viewMode }: { games: LiveGameCard[];
             <div className="mb-10 flex items-end justify-between border-b border-gray-100 pb-8">
                 <div>
                     <h4 className="mb-1 text-[10px] font-bold uppercase tracking-widest text-blue-500">
-                        Live Dashboard
+                        Daily Dashboard
                     </h4>
                     <p className="text-5xl font-display leading-none text-gray-900">
-                        Active <span className="text-gray-400 italic">Matchups</span>
+                        Today&apos;s <span className="text-gray-400 italic">Matchups</span>
                     </p>
                 </div>
                 <button
@@ -45,7 +45,7 @@ export function HomeExpandableGrid({ games, viewMode }: { games: LiveGameCard[];
 
             {games.length === 0 ? (
                 <div className="panel border-2 border-dashed border-gray-200 bg-gray-50 p-20 text-center shadow-none">
-                    <p className="text-lg font-semibold text-gray-500">Stadium silence. No live games currently tracking.</p>
+                    <p className="text-lg font-semibold text-gray-500">Stadium silence. No games are currently tracking for today&apos;s slate.</p>
                 </div>
             ) : (
                 <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-3">

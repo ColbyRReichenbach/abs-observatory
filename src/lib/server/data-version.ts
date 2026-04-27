@@ -2,7 +2,7 @@ import { sqlOne } from "@/lib/db";
 import { getCacheKey, getCachedValue, setCachedValue } from "@/lib/server/scale";
 
 const DATA_VERSION_CACHE_TTL_MS = 15_000;
-const DEFAULT_POLL_INTERVAL_MINUTES = 5;
+const DEFAULT_POLL_INTERVAL_MINUTES = 10;
 
 type VersionRow = {
   version: string | null;
