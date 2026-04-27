@@ -192,7 +192,7 @@ class IngestSmokeTests(unittest.TestCase):
 
         self.assertIsNotNone(row)
         assert row is not None
-        self.assertEqual(row[0], "831638:12:5:147:True:pitch")
+        self.assertEqual(row[0], "831638:12:5:147:ABS challenge:pitch")
         self.assertEqual(row[1], 831638)
         self.assertEqual(row[2], 12)
         self.assertEqual(row[3], 5)

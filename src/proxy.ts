@@ -2,7 +2,6 @@ import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 import { hasValidClerkCredentials } from "@/lib/auth-config";
-import { getCsrfCookieName, issueCsrfToken } from "@/lib/server/csrf";
 
 const hasClerkCredentials = hasValidClerkCredentials();
 
@@ -15,15 +14,6 @@ function withSecurityHeaders(response: NextResponse) {
   response.headers.set("Content-Security-Policy", "frame-ancestors 'none'; base-uri 'self';");
   if (process.env.NODE_ENV === "production") {
     response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
-  }
-
-  if (!response.cookies.get(getCsrfCookieName())) {
-    response.cookies.set(getCsrfCookieName(), issueCsrfToken(), {
-      httpOnly: false,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-    });
   }
 
   return response;

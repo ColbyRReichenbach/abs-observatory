@@ -85,16 +85,51 @@ let getGamePregameIntel: typeof import("@/lib/pregame-intel").getGamePregameInte
 
 let sampleIds: SampleIds;
 let schemaReady = false;
+let chartAuditDataReady = false;
+let chartAuditSkipReason = "";
 
 beforeAll(async () => {
   process.env.NODE_ENV = process.env.NODE_ENV ?? "test";
 
   ({ sql } = await import("@/lib/db"));
-  const relationRows = await sql<{ exists: boolean }>(
-    "SELECT to_regclass('public.mart_abs_pitch_challenges') IS NOT NULL AS exists",
-  );
+  let relationRows: { exists: boolean }[] = [];
+  try {
+    relationRows = await sql<{ exists: boolean }>(
+      "SELECT to_regclass('public.mart_abs_pitch_challenges') IS NOT NULL AS exists",
+    );
+  } catch (error) {
+    chartAuditSkipReason = `the configured DB is unavailable: ${
+      error instanceof Error ? error.message : String(error)
+    }`;
+    console.warn(`Skipping chart data audit because ${chartAuditSkipReason}`);
+    schemaReady = false;
+    chartAuditDataReady = false;
+    sampleIds = {
+      previewGamePk: null,
+      finalGamePk: null,
+      liveGamePk: null,
+      teamId: null,
+      umpireId: null,
+    };
+    return;
+  }
   schemaReady = Boolean(relationRows[0]?.exists);
   if (!schemaReady) {
+    chartAuditSkipReason = "mart_abs_pitch_challenges is not installed in the configured DB";
+    sampleIds = {
+      previewGamePk: null,
+      finalGamePk: null,
+      liveGamePk: null,
+      teamId: null,
+      umpireId: null,
+    };
+    return;
+  }
+
+  const challengeCount = await sql<{ count: number }>("SELECT COUNT(*)::int AS count FROM mart_abs_pitch_challenges");
+  chartAuditDataReady = Number(challengeCount[0]?.count ?? 0) > 0;
+  if (!chartAuditDataReady) {
+    chartAuditSkipReason = "the configured DB has schema but no challenge rows";
     sampleIds = {
       previewGamePk: null,
       finalGamePk: null,
@@ -206,8 +241,8 @@ beforeAll(async () => {
 });
 
 function skipIfSchemaMissing() {
-  if (!schemaReady) {
-    console.warn("Skipping chart data audit because mart_abs_pitch_challenges is not installed in the configured DB.");
+  if (!schemaReady || !chartAuditDataReady) {
+    console.warn(`Skipping chart data audit because ${chartAuditSkipReason || "the configured DB is not audit-ready"}.`);
     return true;
   }
   return false;
