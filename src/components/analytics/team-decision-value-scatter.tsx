@@ -40,7 +40,7 @@ export function TeamDecisionValueScatter({
 
   return (
     <section className="mt-8">
-      <div className="panel p-8 shadow-2xl shadow-black/[0.02] border border-gray-50">
+      <div className="panel border border-gray-50 p-5 shadow-2xl shadow-black/[0.02] sm:p-8">
         <div className="mb-6 flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <h4 className="mb-1 text-[10px] font-bold uppercase tracking-widest text-blue-500">Decision Process</h4>
@@ -66,17 +66,17 @@ export function TeamDecisionValueScatter({
         </div>
 
         <div
-          className="relative h-[360px] rounded-[1.75rem] border border-gray-100 bg-[var(--surface-infield)]"
+          className="relative h-[430px] rounded-[1.75rem] border border-gray-100 bg-[var(--surface-infield)] sm:h-[360px]"
           onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}
           onMouseLeave={() => setHoveredKey(null)}
         >
-          <div className="absolute inset-x-8 top-8 bottom-12">
+          <div className="absolute bottom-16 left-10 right-4 top-16 sm:inset-x-8 sm:top-8 sm:bottom-12">
             <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-gray-200" />
             <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-gray-200" />
-            <div className="absolute left-0 top-1 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-600">Better outcomes</div>
-            <div className="absolute right-0 top-1 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-600">Good process</div>
-            <div className="absolute left-0 bottom-1 text-[10px] font-black uppercase tracking-[0.14em] text-amber-600">Bad process</div>
-            <div className="absolute right-0 bottom-1 text-[10px] font-black uppercase tracking-[0.14em] text-amber-600">Leaking value</div>
+            <div className="absolute -top-10 left-0 max-w-[11ch] text-[8px] font-black uppercase leading-4 tracking-[0.12em] text-emerald-600 sm:top-1 sm:max-w-none sm:text-[10px] sm:tracking-[0.14em]">Better outcomes</div>
+            <div className="absolute -top-10 right-0 max-w-[10ch] text-right text-[8px] font-black uppercase leading-4 tracking-[0.12em] text-emerald-600 sm:top-1 sm:max-w-none sm:text-[10px] sm:tracking-[0.14em]">Good process</div>
+            <div className="absolute bottom-3 left-0 max-w-[10ch] text-[8px] font-black uppercase leading-4 tracking-[0.12em] text-amber-600 sm:bottom-1 sm:max-w-none sm:text-[10px] sm:tracking-[0.14em]">Bad process</div>
+            <div className="absolute bottom-3 right-0 max-w-[11ch] text-right text-[8px] font-black uppercase leading-4 tracking-[0.12em] text-amber-600 sm:bottom-1 sm:max-w-none sm:text-[10px] sm:tracking-[0.14em]">Leaking value</div>
 
             {points.map((point) => {
               const x = scale(point.expected ?? 0, domain.min, domain.max, 6, 94);
@@ -107,10 +107,10 @@ export function TeamDecisionValueScatter({
               );
             })}
           </div>
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">
+          <div className="absolute bottom-4 left-14 right-4 text-center text-[9px] font-black uppercase leading-4 tracking-[0.12em] text-[var(--ink-3)] sm:bottom-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:text-[10px] sm:tracking-[0.14em]">
             Expected WE / WPA value
           </div>
-          <div className="absolute left-2 top-1/2 -translate-y-1/2 -rotate-90 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">
+          <div className="absolute left-2 top-1/2 max-w-[220px] -translate-y-1/2 -rotate-90 text-[9px] font-black uppercase leading-4 tracking-[0.12em] text-[var(--ink-3)] sm:text-[10px] sm:tracking-[0.14em]">
             Realized WE / WPA value
           </div>
 

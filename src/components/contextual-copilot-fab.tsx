@@ -88,6 +88,7 @@ export function ContextualCopilotFAB() {
     () => inferCopilotContext(pathname, { range: searchParams.get("range") ?? undefined }),
     [pathname, searchParams],
   );
+  const isMobileViewport = viewW > 0 && viewW < 640;
 
   const smartQuestions = useMemo(() => {
     if (context?.gameStatus === "Preview" || context?.gameStatus === "Warmup") {
@@ -209,8 +210,10 @@ export function ContextualCopilotFAB() {
     }
   }
 
+  const isExpanded = !isMobileViewport && isHovered;
+
   return (
-    <div className="fixed bottom-8 right-8 z-[100]">
+    <div className="fixed bottom-4 right-4 z-[100] sm:bottom-8 sm:right-8">
       <AnimatePresence>
         {/* ── Collapsed FAB ── */}
         {!isOpen && (
@@ -220,20 +223,20 @@ export function ContextualCopilotFAB() {
             onHoverStart={() => setIsHovered(true)}
             onHoverEnd={() => setIsHovered(false)}
             whileTap={{ scale: 0.95 }}
-            className="flex h-16 items-center rounded-full bg-black text-white shadow-2xl shadow-black/30 overflow-hidden whitespace-nowrap shrink-0"
+            className="flex h-14 items-center rounded-full bg-black text-white shadow-2xl shadow-black/30 overflow-hidden whitespace-nowrap shrink-0 sm:h-16"
             style={{ originX: 1 }}
             animate={{
-              width: isHovered ? 150 : 64,
-              paddingLeft: isHovered ? 20 : 18,
-              paddingRight: isHovered ? 20 : 18,
+              width: isExpanded ? 150 : isMobileViewport ? 56 : 64,
+              paddingLeft: isExpanded ? 20 : isMobileViewport ? 16 : 18,
+              paddingRight: isExpanded ? 20 : isMobileViewport ? 16 : 18,
             }}
             transition={{ type: "spring", stiffness: 400, damping: 25 }}
           >
             <div className="shrink-0 flex items-center justify-center">
-              <AiBSIcon size={28} forceHover={isHovered} showTextOnHover={false} color="#ffffff" />
+              <AiBSIcon size={isMobileViewport ? 24 : 28} forceHover={isExpanded} showTextOnHover={false} color="#ffffff" />
             </div>
             <AnimatePresence>
-              {isHovered && (
+              {isExpanded && (
                 <motion.span
                   key="text"
                   className="text-[11px] font-black uppercase tracking-widest pl-3"
@@ -253,17 +256,19 @@ export function ContextualCopilotFAB() {
         {isOpen && (
           <motion.div
             layoutId="copilot"
-            drag
+            drag={!isMobileViewport}
             dragMomentum={false}
             dragConstraints={dragConstraints}
-            className="flex flex-col bg-white rounded-[2rem] border border-gray-100 shadow-[0_32px_128px_rgba(0,0,0,0.1)] overflow-hidden"
+            className="flex flex-col overflow-hidden rounded-[1.5rem] border border-gray-100 bg-white shadow-[0_32px_128px_rgba(0,0,0,0.1)] sm:rounded-[2rem]"
             style={{
-              width: `min(${PANEL_W}px, calc(100vw - 32px))`,
-              maxHeight: `${PANEL_MAX_H}px`,
+              width: isMobileViewport ? "calc(100vw - 24px)" : `min(${PANEL_W}px, calc(100vw - 32px))`,
+              maxHeight: isMobileViewport ? "min(640px, calc(100svh - 96px))" : `${PANEL_MAX_H}px`,
             }}
           >
             {/* Header — with aiBS identity */}
-            <div className="flex items-center justify-between px-5 py-3.5 bg-gray-50/50 border-b border-gray-100 cursor-grab active:cursor-grabbing shrink-0">
+            <div className={`flex items-center justify-between border-b border-gray-100 bg-gray-50/50 px-4 py-3.5 shrink-0 sm:px-5 ${
+              isMobileViewport ? "" : "cursor-grab active:cursor-grabbing"
+            }`}>
               <div className="flex items-center gap-2.5">
                 <div className="w-7 h-7 rounded-full bg-black flex items-center justify-center shrink-0">
                   <AiBSIcon size={14} color="#ffffff" />
@@ -303,7 +308,7 @@ export function ContextualCopilotFAB() {
             </div>
 
             {/* ── Chat Thread ── */}
-            <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 space-y-4 min-h-[200px]">
+            <div ref={scrollRef} className="min-h-[180px] flex-1 space-y-4 overflow-y-auto p-4 sm:min-h-[200px] sm:p-5">
               {/* Smart question chips — only when thread is empty */}
               {messages.length === 0 && !isTyping && (
                 <motion.div
@@ -452,7 +457,7 @@ export function ContextualCopilotFAB() {
                 e.preventDefault();
                 runQuery();
               }}
-              className="p-4 bg-white border-t border-gray-100 shrink-0"
+              className="shrink-0 border-t border-gray-100 bg-white p-3 sm:p-4"
             >
               <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-2xl border border-gray-100 focus-within:border-blue-200 focus-within:bg-white transition-all">
                 <input

@@ -32,63 +32,93 @@ export function BroadcastStrip({ moments, viewMode }: BroadcastStripProps) {
   const marqueeItems = [...items, ...items];
 
   if (items.length === 0) return null;
+  const primaryItem = items[0];
 
   return (
-    <section className="relative flex items-center bg-white/40 border-b border-gray-100 overflow-hidden h-16 group">
-      <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-white/80 to-transparent z-10 pointer-events-none" />
-      <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-white/80 to-transparent z-10 pointer-events-none" />
-
-      <motion.div
-        className="flex items-center gap-12 whitespace-nowrap px-12"
-        animate={{ x: [0, -items.length * 400] }}
-        transition={{
-          duration: Math.max(items.length * 6, 20),
-          repeat: Infinity,
-          ease: "linear",
-        }}
-        style={{ width: "fit-content" }}
-      >
-        {marqueeItems.map((item, idx) => (
-          <Link
-            key={`${item.key}-${idx}`}
-            href={item.href}
-            className="flex items-center gap-6 group/item"
-          >
-            <div className="flex items-center gap-3">
-              <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${item.tag === 'Live' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-gray-50 text-gray-400 border-gray-100'}`}>
-                {item.tag === 'Live' ? 'Live' : item.tag === 'Final' ? 'Final' : item.tag}
+    <>
+      <section className="border-b border-gray-100 bg-white/70 lg:hidden">
+        <Link href={primaryItem.href} className="flex items-center justify-between gap-3 px-4 py-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-widest ${
+                primaryItem.tag === "Live"
+                  ? "border-red-100 bg-red-50 text-red-600"
+                  : "border-gray-100 bg-gray-50 text-gray-400"
+              }`}>
+                {primaryItem.tag === "Live" ? "Live" : primaryItem.tag === "Final" ? "Final" : primaryItem.tag}
               </span>
-              <div className="flex flex-col">
-                <span className="text-[13px] font-black tracking-tight text-gray-900 group-hover/item:text-blue-600 transition-colors">
-                  {item.label}
-                </span>
-                <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400">
-                  {item.subLabel}
-                </span>
-              </div>
+              <span className="truncate text-[12px] font-black tracking-tight text-gray-900">
+                {primaryItem.label}
+              </span>
             </div>
+            <p className="mt-1 truncate text-[9px] font-bold uppercase tracking-widest text-gray-400">
+              {primaryItem.subLabel}
+            </p>
+          </div>
+          <span className={`shrink-0 rounded-full px-2.5 py-1 font-mono text-[9px] font-black uppercase tracking-tight ${
+            primaryItem.score === "Overturned" ? "bg-blue-50 text-blue-600" : "bg-gray-50 text-gray-400"
+          }`}>
+            {primaryItem.score}
+          </span>
+        </Link>
+      </section>
 
-            <div className="flex items-center gap-4 bg-white/50 px-3 py-1 rounded-lg border border-gray-100 shadow-sm">
-              <span className={`font-mono text-[10px] font-black uppercase tracking-tight ${item.score === 'Overturned' ? 'text-blue-600' : 'text-gray-400'}`}>
-                {item.score}
-              </span>
-              {item.tag === 'Live' && item.inning && (
-                <div className="flex items-center gap-1">
-                  <div className="w-px h-3 bg-gray-200" />
-                  <InningIcon inning={item.inning} half={item.half ?? ""} className="scale-75" />
+      <section className="relative hidden h-16 items-center overflow-hidden border-b border-gray-100 bg-white/40 group lg:flex">
+        <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-white/80 to-transparent z-10 pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-white/80 to-transparent z-10 pointer-events-none" />
+
+        <motion.div
+          className="flex items-center gap-12 whitespace-nowrap px-12"
+          animate={{ x: [0, -items.length * 400] }}
+          transition={{
+            duration: Math.max(items.length * 6, 20),
+            repeat: Infinity,
+            ease: "linear",
+          }}
+          style={{ width: "fit-content" }}
+        >
+          {marqueeItems.map((item, idx) => (
+            <Link
+              key={`${item.key}-${idx}`}
+              href={item.href}
+              className="flex items-center gap-6 group/item"
+            >
+              <div className="flex items-center gap-3">
+                <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${item.tag === 'Live' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-gray-50 text-gray-400 border-gray-100'}`}>
+                  {item.tag === 'Live' ? 'Live' : item.tag === 'Final' ? 'Final' : item.tag}
+                </span>
+                <div className="flex flex-col">
+                  <span className="text-[13px] font-black tracking-tight text-gray-900 group-hover/item:text-blue-600 transition-colors">
+                    {item.label}
+                  </span>
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400">
+                    {item.subLabel}
+                  </span>
                 </div>
-              )}
-            </div>
+              </div>
 
-            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--ink-4)] opacity-50">
-              {item.type}
-            </span>
+              <div className="flex items-center gap-4 bg-white/50 px-3 py-1 rounded-lg border border-gray-100 shadow-sm">
+                <span className={`font-mono text-[10px] font-black uppercase tracking-tight ${item.score === 'Overturned' ? 'text-blue-600' : 'text-gray-400'}`}>
+                  {item.score}
+                </span>
+                {item.tag === 'Live' && item.inning && (
+                  <div className="flex items-center gap-1">
+                    <div className="w-px h-3 bg-gray-200" />
+                    <InningIcon inning={item.inning} half={item.half ?? ""} className="scale-75" />
+                  </div>
+                )}
+              </div>
 
-            {/* Separator Ball */}
-            <div className="w-1 h-1 rounded-full bg-gray-200 ml-6" />
-          </Link>
-        ))}
-      </motion.div>
-    </section>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--ink-4)] opacity-50">
+                {item.type}
+              </span>
+
+              {/* Separator Ball */}
+              <div className="w-1 h-1 rounded-full bg-gray-200 ml-6" />
+            </Link>
+          ))}
+        </motion.div>
+      </section>
+    </>
   );
 }

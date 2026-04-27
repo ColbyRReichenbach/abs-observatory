@@ -7,11 +7,9 @@ import {
     XAxis,
     YAxis,
     CartesianGrid,
-    Tooltip,
     ReferenceLine,
     Cell,
 } from "recharts";
-import type { TooltipContentProps } from "recharts";
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
 import { ClientOnly } from "@/components/ui/client-only";
 
@@ -30,8 +28,6 @@ type Props = {
 
 const BUCKET_SIZE = 10; // 10% increments
 const FEATURED_UMPIRE_LIMIT = 4;
-
-type UmpireDistributionTooltipProps = TooltipContentProps<number, string>;
 
 function bucketize(data: Props["data"]): UmpireBucket[] {
     const buckets: UmpireBucket[] = [];
@@ -53,50 +49,6 @@ function bucketize(data: Props["data"]): UmpireBucket[] {
     return buckets;
 }
 
-function UmpireDistributionTooltip({ active, payload, coordinate }: UmpireDistributionTooltipProps) {
-    if (!active || !payload?.length || !coordinate) return null;
-
-    const bucket = payload[0]?.payload as UmpireBucket | undefined;
-    if (!bucket) return null;
-
-    const featuredUmpires = bucket.umpireNames.slice(0, FEATURED_UMPIRE_LIMIT);
-    const remainingUmpires = Math.max(0, bucket.umpireNames.length - featuredUmpires.length);
-
-    return (
-        <div
-            className="transition-transform duration-200 ease-out"
-            style={{
-                transform: "translateX(-50%) translateY(-100%) translateY(-16px)",
-                pointerEvents: "none",
-            }}
-        >
-            <ChartTooltip
-                title={bucket.rangeLabel}
-                value={bucket.count}
-                subValueLabel={`Umpire${bucket.count !== 1 ? "s" : ""}`}
-            >
-                <div className="min-w-0">
-                    <p className="mb-2 text-[10px] font-black uppercase leading-4 tracking-[0.14em] text-gray-400">
-                        Featured Umpires
-                    </p>
-                    <div className="flex min-w-0 flex-col gap-1.5">
-                        {featuredUmpires.map((name) => (
-                            <p key={name} className="break-words text-xs font-black leading-4 text-gray-900">
-                                {name}
-                            </p>
-                        ))}
-                        {remainingUmpires > 0 ? (
-                            <p className="pt-1 text-[10px] font-black uppercase tracking-[0.14em] text-blue-600">
-                                +{remainingUmpires} more
-                            </p>
-                        ) : null}
-                    </div>
-                </div>
-            </ChartTooltip>
-        </div>
-    );
-}
-
 export function UmpireDistributionHistogram({ data, onBucketClick }: Props) {
     const buckets = useMemo(() => bucketize(data), [data]);
     const avgRate = useMemo(() => {
@@ -105,6 +57,7 @@ export function UmpireDistributionHistogram({ data, onBucketClick }: Props) {
     }, [data]);
 
     const [activeBucket, setActiveBucket] = useState<number | null>(null);
+    const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [containerWidth, setContainerWidth] = useState(0);
 
@@ -121,6 +74,7 @@ export function UmpireDistributionHistogram({ data, onBucketClick }: Props) {
 
     // Find which bucket index the avg falls in
     const avgBucketIdx = Math.min(Math.floor((avgRate * 100) / BUCKET_SIZE), buckets.length - 1);
+    const hoveredBucket = activeBucket === null ? null : buckets[activeBucket] ?? null;
 
     return (
         <div className="panel overflow-visible border-gray-100 bg-white shadow-2xl shadow-black/[0.03] p-6 mb-8">
@@ -133,7 +87,12 @@ export function UmpireDistributionHistogram({ data, onBucketClick }: Props) {
                 </p>
             </div>
 
-            <div ref={containerRef} className="h-[250px] w-full min-h-[250px]">
+            <div
+                ref={containerRef}
+                className="h-[250px] w-full min-h-[250px]"
+                onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}
+                onMouseLeave={() => setActiveBucket(null)}
+            >
                 <ClientOnly fallback={<div className="h-full w-full rounded-[1.5rem] bg-gradient-to-br from-gray-100 via-gray-50 to-white" />}>
                     {containerWidth > 0 ? (
                         <BarChart width={containerWidth} height={250} data={buckets} margin={{ top: 25, right: 10, bottom: 40, left: 0 }}>
@@ -164,12 +123,6 @@ export function UmpireDistributionHistogram({ data, onBucketClick }: Props) {
                                     style: { fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em" },
                                 }}
                             />
-                            <Tooltip
-                                wrapperStyle={{ pointerEvents: "none" }}
-                                allowEscapeViewBox={{ x: true, y: true }}
-                                content={(props) => <UmpireDistributionTooltip {...(props as UmpireDistributionTooltipProps)} />}
-                                cursor={{ fill: "rgba(0,0,0,0.02)" }}
-                            />
                             <Bar
                                 dataKey="count"
                                 radius={[4, 4, 0, 0]}
@@ -198,7 +151,49 @@ export function UmpireDistributionHistogram({ data, onBucketClick }: Props) {
                         <div className="h-full w-full rounded-[1.5rem] bg-gradient-to-br from-gray-100 via-gray-50 to-white" />
                     )}
                 </ClientOnly>
+                {hoveredBucket && mousePos ? (
+                    <UmpireBucketTooltip bucket={hoveredBucket} mousePos={mousePos} />
+                ) : null}
             </div>
         </div>
+    );
+}
+
+function UmpireBucketTooltip({
+    bucket,
+    mousePos,
+}: {
+    bucket: UmpireBucket;
+    mousePos: { x: number; y: number };
+}) {
+    const featuredUmpires = bucket.umpireNames.slice(0, FEATURED_UMPIRE_LIMIT);
+    const remainingUmpires = Math.max(0, bucket.umpireNames.length - featuredUmpires.length);
+
+    return (
+        <ChartTooltip
+            title={bucket.rangeLabel}
+            value={bucket.count}
+            subValueLabel={`Umpire${bucket.count !== 1 ? "s" : ""}`}
+            usePortal
+            portalProps={mousePos}
+        >
+            <div className="min-w-0">
+                <p className="mb-2 text-[10px] font-black uppercase leading-4 tracking-[0.14em] text-gray-400">
+                    Featured Umpires
+                </p>
+                <div className="flex min-w-0 flex-col gap-1.5">
+                    {featuredUmpires.map((name) => (
+                        <p key={name} className="break-words text-xs font-black leading-4 text-gray-900">
+                            {name}
+                        </p>
+                    ))}
+                    {remainingUmpires > 0 ? (
+                        <p className="pt-1 text-[10px] font-black uppercase tracking-[0.14em] text-blue-600">
+                            +{remainingUmpires} more
+                        </p>
+                    ) : null}
+                </div>
+            </div>
+        </ChartTooltip>
     );
 }

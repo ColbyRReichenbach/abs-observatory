@@ -26,7 +26,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       </Suspense>
 
       <div className="px-6 py-8 text-center">
-        <h1 className="font-display text-5xl uppercase tracking-[-0.04em] text-[var(--ink-0)]">
+        <h1 className="font-display text-4xl uppercase tracking-normal text-[var(--ink-0)] sm:text-5xl">
           ABS Observatory
         </h1>
         <p className="mt-2 text-sm font-medium text-[var(--ink-3)]">
@@ -153,7 +153,7 @@ async function HomePageBody({
                 <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--accent-primary)]">
                   {copy.topMomentEyebrow}
                 </p>
-                <h2 className="mt-2 text-3xl font-display uppercase tracking-[0.04em] text-[var(--ink-0)]">
+                <h2 className="mt-2 font-display text-2xl uppercase tracking-normal text-[var(--ink-0)] sm:text-3xl">
                   {topMoment?.gameLabel ?? copy.topMomentTitleFallback}
                 </h2>
                 <p className="mt-2 text-sm text-[var(--ink-2)]">
@@ -213,17 +213,17 @@ async function HomePageBody({
                 </div>
                 <div className="flex flex-wrap gap-4">
                   {topTeams.map((team, idx) => (
-                    <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
+                    <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} className="flex min-w-0 flex-1 basis-full items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl sm:min-w-[160px] sm:basis-[calc(50%-0.5rem)]">
                       <TeamIcon teamId={team.teamId} name={team.teamName} size={28} variant="flat" className="shrink-0" />
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{team.teamName}</p>
-                        <div className="mt-2 flex items-center justify-between gap-2">
+                        <div className="mt-2 flex min-w-0 items-center gap-2">
                           <ProfileBadge
                             label={team.style}
                             variant="emerald"
-                            className="min-w-0 flex-1 py-1"
+                            className="flex-1 px-2 py-1 text-[8px] tracking-[0.1em]"
                           />
-                          <span className="text-[10px] font-black text-gray-300">#{idx + 1}</span>
+                          <span className="shrink-0 text-[10px] font-black text-gray-300">#{idx + 1}</span>
                         </div>
                       </div>
                     </Link>
@@ -242,15 +242,15 @@ async function HomePageBody({
                 </div>
                 <div className="flex flex-wrap gap-4">
                   {spotlightUmps.map((u) => (
-                    <Link key={u.umpireId} href={withViewModeHref(`/umpires/${u.umpireId}`, viewMode)} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--accent-primary-soft)] text-[10px] font-bold text-[var(--accent-primary)]">U</div>
-                      <div className="min-w-0">
+                    <Link key={u.umpireId} href={withViewModeHref(`/umpires/${u.umpireId}`, viewMode)} className="flex min-w-0 flex-1 basis-full items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl sm:min-w-[160px] sm:basis-[calc(50%-0.5rem)]">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--accent-primary-soft)] text-[10px] font-bold text-[var(--accent-primary)]">U</div>
+                      <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{u.umpireName}</p>
-                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <div className="mt-1 flex min-w-0 items-center gap-2">
                           <ProfileBadge
                             label={`${(u.overturnRate * 100).toFixed(1)}% OT · ${u.fanDescriptor}`}
                             variant="blue"
-                            className="min-w-0 flex-1 py-1"
+                            className="flex-1 px-2 py-1 text-[8px] tracking-[0.1em]"
                           />
                         </div>
                       </div>
@@ -346,11 +346,11 @@ async function HomePageBody({
                 <div className="space-y-4">
                   <div className="flex flex-wrap gap-4">
                     {topTeams.map((team, idx) => (
-                      <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
-                        <TeamIcon teamId={team.teamId} name={team.teamName} size={28} variant="flat" className="shrink-0" />
-                        <div className="min-w-0">
+                        <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} className="flex min-w-0 flex-1 basis-full items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl sm:min-w-[160px] sm:basis-[calc(50%-0.5rem)]">
+                          <TeamIcon teamId={team.teamId} name={team.teamName} size={28} variant="flat" className="shrink-0" />
+                        <div className="min-w-0 flex-1">
                           <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{team.teamName}</p>
-                              <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-3)]">
+                              <p className="mt-1 truncate text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-3)]">
                                 {team.orgStyleLabel} · {formatOrgOperatorValue(team) ?? `#${idx + 1}`}
                               </p>
                         </div>
@@ -363,11 +363,11 @@ async function HomePageBody({
                       {bottomTeams.map((team, idx) => {
                         const rank = teams.length - bottomTeams.length + idx + 1;
                         return (
-                          <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} className="flex min-w-[160px] flex-1 items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl">
+                          <Link key={team.teamId} href={withViewModeHref(`/teams/${team.teamId}`, viewMode)} className="flex min-w-0 flex-1 basis-full items-center gap-3 rounded-2xl border border-gray-100 bg-white/50 p-4 transition-all hover:scale-105 hover:border-blue-100 hover:bg-white hover:shadow-2xl sm:min-w-[160px] sm:basis-[calc(50%-0.5rem)]">
                             <TeamIcon teamId={team.teamId} name={team.teamName} size={28} variant="flat" className="shrink-0" />
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <p className="truncate text-xs font-semibold text-[var(--ink-0)]">{team.teamName}</p>
-                              <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-3)]">
+                              <p className="mt-1 truncate text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-3)]">
                                 {team.orgStyleLabel} · {formatOrgOperatorValue(team) ?? `#${rank}`}
                               </p>
                             </div>

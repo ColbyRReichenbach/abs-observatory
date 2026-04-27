@@ -2,14 +2,25 @@ function isNonPlaceholder(value: string | undefined): boolean {
   return Boolean(value && !value.toLowerCase().includes("placeholder"));
 }
 
-function looksLikeClerkPublishableKey(value: string | undefined): boolean {
-  return Boolean(value && /^(pk_(test|live)_[A-Za-z0-9_]+)/.test(value) && isNonPlaceholder(value));
+type ClerkKeyMode = "test" | "live";
+
+function parseClerkKeyMode(value: string | undefined, prefix: "pk" | "sk"): ClerkKeyMode | null {
+  if (!isNonPlaceholder(value)) return null;
+  const match = value?.match(new RegExp(`^${prefix}_(test|live)_[A-Za-z0-9_]+`));
+  if (!match) return null;
+  return match[1] as ClerkKeyMode;
 }
 
-function looksLikeClerkSecretKey(value: string | undefined): boolean {
-  return Boolean(value && /^(sk_(test|live)_[A-Za-z0-9_]+)/.test(value) && isNonPlaceholder(value));
+function allowsTestKeys(env: NodeJS.ProcessEnv): boolean {
+  if (env.ALLOW_CLERK_TEST_KEYS === "true") return true;
+  const vercelEnv = env.VERCEL_ENV?.toLowerCase();
+  return !(vercelEnv === "preview" || vercelEnv === "production");
 }
 
 export function hasValidClerkCredentials(env: NodeJS.ProcessEnv = process.env): boolean {
-  return looksLikeClerkPublishableKey(env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) && looksLikeClerkSecretKey(env.CLERK_SECRET_KEY);
+  const publishableMode = parseClerkKeyMode(env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, "pk");
+  const secretMode = parseClerkKeyMode(env.CLERK_SECRET_KEY, "sk");
+  if (!publishableMode || !secretMode || publishableMode !== secretMode) return false;
+  if (publishableMode === "live") return true;
+  return allowsTestKeys(env);
 }

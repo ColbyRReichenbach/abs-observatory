@@ -130,8 +130,28 @@ export function GameScoreboard({
         ) : null}
       </div>
 
-      {/* Line score table */}
-      <div className="overflow-x-auto p-2">
+      {/* Mobile line score */}
+      <div className="grid gap-2 p-3 sm:hidden">
+        <MobileScoreRow
+          team={away}
+          side="away"
+          inningCells={inningCells}
+          innings={innings ?? []}
+          currentInning={inning}
+          brand={awayBrand}
+        />
+        <MobileScoreRow
+          team={home}
+          side="home"
+          inningCells={inningCells}
+          innings={innings ?? []}
+          currentInning={inning}
+          brand={homeBrand}
+        />
+      </div>
+
+      {/* Desktop line score table */}
+      <div className="hidden overflow-x-auto p-2 sm:block">
         <table className="min-w-full border-separate border-spacing-y-1">
           <thead>
             <tr>
@@ -178,6 +198,82 @@ export function GameScoreboard({
 }
 
 type TeamBranding = ReturnType<typeof resolveTeamBranding>;
+
+function MobileScoreRow({
+  team,
+  side,
+  inningCells,
+  innings,
+  currentInning,
+  brand,
+}: {
+  team: TeamLine;
+  side: "home" | "away";
+  inningCells: number[];
+  innings: InningLine[];
+  currentInning?: number | null;
+  brand: TeamBranding;
+}) {
+  const searchParams = useSearchParams();
+  const activeMode = resolveClientViewMode(searchParams);
+  const abbreviation = team.abbreviation?.trim() || team.name;
+  const accentColor = brand.tokens.teamPrimary;
+
+  return (
+    <div className="rounded-2xl bg-white/5 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <Link href={withViewModeHref(`/teams/${team.id}`, activeMode)} className="flex min-w-0 items-center gap-3">
+          <TeamIcon teamId={team.id} name={team.name} size={34} className="shrink-0 border-white/10 shadow-xl" />
+          <span className="truncate text-sm font-black tracking-tight text-[var(--ink-0)]">{abbreviation}</span>
+        </Link>
+        <div className="flex shrink-0 items-center gap-3">
+          <MobileScoreStat label="R" value={team.runs ?? "—"} emph />
+          <MobileScoreStat label="H" value={team.hits ?? "—"} />
+          <MobileScoreStat label="E" value={team.errors ?? "—"} />
+        </div>
+      </div>
+      <div className="mt-3 overflow-x-auto pb-1">
+        <div className="grid min-w-max gap-1" style={{ gridTemplateColumns: `repeat(${inningCells.length}, minmax(30px, 1fr))` }}>
+          {inningCells.map((val) => (
+            <span
+              key={`${side}-mobile-h-${val}`}
+              className={`text-center font-mono text-[9px] font-black ${val === currentInning ? "text-blue-500" : "text-[var(--ink-3)]"}`}
+            >
+              {val}
+            </span>
+          ))}
+          {inningCells.map((val) => {
+            const inningRuns = innings.find((entry) => entry.inning === val);
+            const runValue = side === "away" ? inningRuns?.awayRuns : inningRuns?.homeRuns;
+            const isCurrent = val === currentInning;
+            return (
+              <span
+                key={`${side}-mobile-${val}`}
+                className={`rounded-lg px-1.5 py-2 text-center font-mono text-xs ${
+                  isCurrent ? "bg-blue-500/10 font-black text-blue-500" : "text-[var(--ink-2)]"
+                }`}
+              >
+                {runValue ?? "—"}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+      <div className="mt-2 flex items-center justify-end sm:hidden">
+        <ChallengeHashes remaining={team.challengesRemaining} activeColor={accentColor} />
+      </div>
+    </div>
+  );
+}
+
+function MobileScoreStat({ label, value, emph = false }: { label: string; value: number | string; emph?: boolean }) {
+  return (
+    <div className="text-center">
+      <p className="text-[8px] font-black uppercase tracking-[0.16em] text-[var(--ink-3)]">{label}</p>
+      <p className={`font-mono text-sm ${emph ? "font-black text-[var(--ink-0)]" : "font-bold text-[var(--ink-2)]"}`}>{value}</p>
+    </div>
+  );
+}
 
 function ScoreRow({
   team,
