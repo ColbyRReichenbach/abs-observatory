@@ -103,7 +103,7 @@ export default async function TeamPage({
 
   return (
     <>
-      {viewMode === "org" ? <TeamMotifBackdrop teamId={summary.teamId} /> : null}
+      <TeamMotifBackdrop teamId={summary.teamId} />
       <main
         className="relative mx-auto max-w-7xl px-6 pt-32 pb-40"
         style={
