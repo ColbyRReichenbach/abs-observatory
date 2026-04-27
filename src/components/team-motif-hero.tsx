@@ -1,4 +1,3 @@
-import Image from "next/image";
 import type { CSSProperties } from "react";
 
 import { resolveTeamBranding } from "@/lib/team-branding";
@@ -46,7 +45,6 @@ export function TeamMotifHero({
   subtitle,
   awayTeamId,
   awayTeamName,
-  awayLogoSvgUrl,
   dateStr,
   wins,
   losses,
@@ -68,7 +66,7 @@ export function TeamMotifHero({
 
   return (
     <section
-      className="relative overflow-hidden rounded-[2.5rem] border border-gray-100 bg-white shadow-2xl shadow-black/[0.03]"
+      className="relative overflow-hidden rounded-[2rem] border border-gray-100 bg-white shadow-2xl shadow-black/[0.03] sm:rounded-[2.5rem]"
       style={
         {
           "--hero-primary": branding.tokens.teamPrimary,
@@ -84,21 +82,21 @@ export function TeamMotifHero({
       <MotifPattern verified={isVerified} />
 
       {/* Content */}
-      <div className="relative z-10 flex flex-wrap items-center justify-between gap-12 px-10 py-16 md:px-16 md:py-24">
+      <div className="relative z-10 flex flex-wrap items-center justify-between gap-8 px-6 py-10 sm:px-10 sm:py-16 md:gap-12 md:px-16 md:py-24">
         <div className="min-w-0 flex-1">
           {eyebrow && (
-            <div className="flex items-center gap-3 mb-10">
+            <div className="mb-6 flex items-center gap-3 md:mb-10">
               <span className="h-2 w-2 rounded-full shadow-sm" style={{ backgroundColor: branding.tokens.teamPrimary }} />
-              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-400">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-gray-400 md:tracking-[0.4em]">
                 {eyebrow}
               </p>
             </div>
           )}
 
-          <h1 className="text-6xl md:text-8xl font-display uppercase tracking-[-0.04em] text-gray-900 leading-[1.2] mb-2 py-4 overflow-visible flex items-baseline gap-6 flex-wrap">
+          <h1 className="mb-2 flex flex-wrap items-baseline gap-4 overflow-visible py-3 font-display text-5xl uppercase leading-[1.08] tracking-normal text-gray-900 sm:text-6xl md:gap-6 md:py-4 md:text-8xl">
             {title ?? teamName}
             {wins !== undefined && losses !== undefined && (
-              <span className="text-3xl md:text-5xl font-display text-gray-400/60 tracking-normal normal-case">
+              <span className="font-display text-2xl tracking-normal text-gray-400/60 sm:text-3xl md:text-5xl normal-case">
                 {wins}–{losses}
               </span>
             )}
@@ -119,7 +117,7 @@ export function TeamMotifHero({
 
           {subtitle ? (
             <div className="flex flex-col gap-1">
-              <p className="text-xl md:text-2xl font-medium text-gray-500 max-w-xl leading-tight tracking-tight text-balance">{subtitle}</p>
+              <p className="max-w-xl text-lg font-medium leading-tight tracking-normal text-gray-500 text-balance md:text-2xl">{subtitle}</p>
               {dateStr && (
                 <p className="text-sm font-mono font-bold text-gray-400">
                   <LocalTime dateStr={dateStr} showDate={true} />
@@ -134,8 +132,8 @@ export function TeamMotifHero({
         </div>
 
 
-        <div className="relative group">
-          <div className="flex items-center -space-x-12 md:-space-x-20">
+        <div className="relative group mx-auto md:mx-0">
+          <div className="flex scale-75 items-center -space-x-12 sm:scale-90 md:scale-100 md:-space-x-20">
             {awayTeamId && awayTeamName && (
               <div className="relative z-10 transition-all duration-700 group-hover:-translate-x-4 group-hover:-translate-y-2">
                 <TeamIcon
@@ -177,5 +175,4 @@ function MotifPattern({ verified }: { verified: boolean }) {
     </div>
   );
 }
-
 

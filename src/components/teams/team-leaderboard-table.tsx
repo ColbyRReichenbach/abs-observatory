@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, type ReactNode, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, ChevronsUpDown, RotateCcw } from "lucide-react";
 
 import { TeamIcon } from "@/components/team-icon";
@@ -159,7 +159,28 @@ export function TeamLeaderboardTable({
           Default Sort
         </button>
       </div>
-      <div className="overflow-x-auto">
+      <div className="divide-y divide-black/5 lg:hidden">
+        {sorted.length === 0 ? (
+          <div className="px-6 py-20 text-center font-semibold text-gray-400">
+            No data points match the selected criteria.
+          </div>
+        ) : null}
+        {sorted.map((team, idx) => (
+          <TeamLeaderboardMobileCard
+            key={team.teamId}
+            team={team}
+            rank={idx + 1}
+            range={range}
+            viewMode={viewMode}
+            trendline={trendlineMap.get(team.teamId) ?? []}
+            showDecisionValueColumns={showDecisionValueColumns}
+            useWinValue={useWinValue}
+            leagueAvgLatePressureShare={leagueAvgLatePressureShare}
+            leagueAvgEarlyBurnShare={leagueAvgEarlyBurnShare}
+          />
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto lg:block">
         <table className="data-table">
           <thead>
             <tr>
@@ -463,6 +484,122 @@ function AverageRow({
       </td>
     </tr>
   );
+}
+
+function TeamLeaderboardMobileCard({
+  team,
+  rank,
+  range,
+  viewMode,
+  trendline,
+  showDecisionValueColumns,
+  useWinValue,
+  leagueAvgLatePressureShare,
+  leagueAvgEarlyBurnShare,
+}: {
+  team: TeamLeaderboardEntry;
+  rank: number;
+  range: RangeKey;
+  viewMode: "fan" | "org";
+  trendline: number[];
+  showDecisionValueColumns: boolean;
+  useWinValue: boolean;
+  leagueAvgLatePressureShare: number;
+  leagueAvgEarlyBurnShare: number;
+}) {
+  const valueLabel = formatTeamValueMetric(team, viewMode, useWinValue);
+  const surplusLabel =
+    team.decisionSurplus === null || !hasTrustedModelConfidenceBand(team.decisionValueConfidence)
+      ? "N/A"
+      : `${team.decisionSurplus >= 0 ? "+" : ""}${(team.decisionSurplus * 100).toFixed(2)}%`;
+  const deploymentLabel =
+    viewMode === "org"
+      ? getDecisionReadLabel(team.decisionSurplus, team.capturedValueShare, team.wastedValueShare)
+      : getTimingReadLabel(
+          team.lateLeverageShare,
+          team.earlyLowLeverageShare,
+          leagueAvgLatePressureShare,
+          leagueAvgEarlyBurnShare,
+        );
+  const deploymentTone =
+    viewMode === "org"
+      ? getDecisionReadTone(team.decisionSurplus, team.capturedValueShare, team.wastedValueShare)
+      : getTimingReadTone(
+          team.lateLeverageShare,
+          team.earlyLowLeverageShare,
+          leagueAvgLatePressureShare,
+          leagueAvgEarlyBurnShare,
+        );
+
+  return (
+    <Link
+      href={withViewModeHref(`/teams/${team.teamId}?range=${range}`, viewMode)}
+      className="block px-5 py-5 transition hover:bg-gray-50/70"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gray-50 text-[10px] font-black text-gray-400">
+            {rank.toString().padStart(2, "0")}
+          </span>
+          <TeamIcon teamId={team.teamId} name={team.teamName} size={34} variant="flat" className="shrink-0" />
+          <div className="min-w-0">
+            <p className="truncate font-black tracking-tight text-gray-900">{team.teamName}</p>
+            <div className="mt-2">
+              <ProfileBadge label={viewMode === "org" ? team.orgStyleLabel : team.style} variant={viewMode === "org" ? "blue" : "emerald"} />
+            </div>
+          </div>
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-gray-400">
+            {viewMode === "fan" ? "Success" : useWinValue ? "Avg WE" : "Avg RE"}
+          </p>
+          <p className="mt-1 font-mono text-sm font-black text-gray-900">
+            {viewMode === "fan" ? `${(team.overturnRate * 100).toFixed(1)}%` : valueLabel}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <MobileMetric label="Rate / Game">{team.challengeRatePerGame.toFixed(2)}</MobileMetric>
+        <MobileMetric label={viewMode === "org" ? "Games" : "Challenges"}>
+          {viewMode === "org" ? team.gamesTracked : team.challengesTotal}
+        </MobileMetric>
+        <MobileMetric label="Late / Close">{`${Math.round(team.lateLeverageShare * 100)}%`}</MobileMetric>
+        <MobileMetric label={viewMode === "org" ? "Deployment" : "Timing"}>
+          <StrategyChip label={deploymentLabel} tone={deploymentTone} />
+        </MobileMetric>
+        {showDecisionValueColumns ? (
+          <MobileMetric label="Review Surplus">{surplusLabel}</MobileMetric>
+        ) : null}
+        <MobileMetric label={viewMode === "org" ? (useWinValue ? "Avg WE Delta" : "Avg RE Delta") : "Avg Remaining"}>
+          {valueLabel}
+        </MobileMetric>
+      </div>
+
+      <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3">
+        <span className="text-[9px] font-black uppercase tracking-[0.14em] text-gray-400">Trend</span>
+        <TrendSparkline data={trendline} />
+      </div>
+    </Link>
+  );
+}
+
+function MobileMetric({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="min-w-0 rounded-2xl border border-gray-100 bg-white px-3 py-3">
+      <p className="text-[9px] font-black uppercase tracking-[0.14em] text-gray-400">{label}</p>
+      <div className="mt-2 min-w-0 text-sm font-black text-gray-900">{children}</div>
+    </div>
+  );
+}
+
+function formatTeamValueMetric(team: TeamLeaderboardEntry, viewMode: "fan" | "org", useWinValue: boolean) {
+  if (viewMode === "fan") return team.avgRemaining.toFixed(2);
+  if (useWinValue && hasTrustedModelConfidenceBand(team.winValueConfidence) && team.avgWinExpectancyDelta !== null) {
+    return `${team.avgWinExpectancyDelta >= 0 ? "+" : ""}${(team.avgWinExpectancyDelta * 100).toFixed(2)}%`;
+  }
+  if (team.avgRunExpectancyDelta === null) return "N/A";
+  return `${team.avgRunExpectancyDelta >= 0 ? "+" : ""}${team.avgRunExpectancyDelta.toFixed(3)}`;
 }
 
 function sortTeams({

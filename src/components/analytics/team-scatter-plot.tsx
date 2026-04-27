@@ -11,7 +11,7 @@ import {
     ReferenceLine,
     Label,
 } from "recharts";
-import type { ScatterShapeProps, TooltipContentProps } from "recharts";
+import type { ScatterShapeProps } from "recharts";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
 import { buildLinearAxis, formatNumberTick, formatPercentTick } from "@/components/analytics/chart-axis";
@@ -31,11 +31,12 @@ type TeamScatterChartPoint = TeamScatterPoint & {
     overturnPct: number;
 };
 
-function getActiveScatterTeamId(state: unknown): number | null {
+function getActiveScatterPoint(state: unknown): TeamScatterChartPoint | null {
     if (!state || typeof state !== "object" || !("activePayload" in state)) return null;
-    const activePayload = (state as { activePayload?: Array<{ payload?: { teamId?: unknown } }> }).activePayload;
-    const teamId = activePayload?.[0]?.payload?.teamId;
-    return typeof teamId === "number" ? teamId : null;
+    const activePayload = (state as { activePayload?: Array<{ payload?: unknown }> }).activePayload;
+    const point = activePayload?.[0]?.payload;
+    if (!point || typeof point !== "object" || !("teamId" in point)) return null;
+    return point as TeamScatterChartPoint;
 }
 
 type Props = {
@@ -111,43 +112,11 @@ const TeamLogoDot = memo((props: TeamLogoDotProps) => {
 });
 TeamLogoDot.displayName = "TeamLogoDot";
 
-type ScatterTooltipContentProps = TooltipContentProps<number, string> & {
-    viewBox?: {
-        height?: number;
-    };
-};
-
-function ScatterTooltipContent({ active, payload, coordinate, viewBox }: ScatterTooltipContentProps) {
-    if (!active || !payload?.length || !coordinate) return null;
-    const point = payload[0]?.payload as TeamScatterChartPoint | undefined;
-    if (!point) return null;
-
-    const isBottomHalf = (coordinate.y || 0) > (viewBox?.height || 400) / 2;
-
-    return (
-        <div
-            className="transition-transform duration-300 ease-out"
-            style={{
-                transform: isBottomHalf
-                    ? "translateX(-50%) translateY(-100%) translateY(-50px)"
-                    : "translateX(-50%) translateY(50px)",
-                pointerEvents: "none",
-            }}
-        >
-            <ChartTooltip
-                title={point.teamName}
-                value={`${(point.overturnRate * 100).toFixed(2)}%`}
-                subValueLabel="Overturn Rate"
-                extra={[{ label: "Rate / Game", value: point.challengeRatePerGame.toFixed(2) }]}
-            />
-        </div>
-    );
-}
-
 export function TeamScatterPlot({ data, mode = "fan" }: Props) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [hoveredTeamId, setHoveredTeamId] = useState<number | null>(null);
+    const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [containerWidth, setContainerWidth] = useState(0);
 
@@ -209,7 +178,10 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
             <div
                 ref={containerRef}
                 className="relative h-[400px] w-full"
-                onMouseLeave={() => setHoveredTeamId(null)}
+                onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}
+                onMouseLeave={() => {
+                    setHoveredTeamId(null);
+                }}
             >
                 {/* Quadrant labels */}
                 <div className="pointer-events-none absolute inset-0 z-10">
@@ -235,9 +207,12 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                             margin={{ top: 40, right: 100, bottom: 60, left: 80 }}
                             style={{ overflow: 'visible' }}
                             onMouseMove={(state: unknown) => {
-                                setHoveredTeamId(getActiveScatterTeamId(state));
+                                const point = getActiveScatterPoint(state);
+                                setHoveredTeamId(point?.teamId ?? null);
                             }}
-                            onMouseLeave={() => setHoveredTeamId(null)}
+                            onMouseLeave={() => {
+                                setHoveredTeamId(null);
+                            }}
                         >
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
                             <XAxis
@@ -321,13 +296,26 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                                 isAnimationActive={false}
                             />
                             <Tooltip
-                                content={(props) => <ScatterTooltipContent {...(props as ScatterTooltipContentProps)} />}
                                 cursor={false}
                                 offset={0}
                                 allowEscapeViewBox={{ x: true, y: true }}
-                                wrapperStyle={{ zIndex: 10001, outline: "none", pointerEvents: "none" }}
+                                wrapperStyle={{ visibility: "hidden", pointerEvents: "none" }}
                                 isAnimationActive={false}
                                 animationDuration={0}
+                                content={({ active, payload }) => {
+                                    const point = payload?.[0]?.payload as TeamScatterChartPoint | undefined;
+                                    if (!active || !point || !mousePos) return null;
+                                    return (
+                                        <ChartTooltip
+                                            title={point.teamName}
+                                            value={`${(point.overturnRate * 100).toFixed(2)}%`}
+                                            subValueLabel="Overturn Rate"
+                                            extra={[{ label: "Rate / Game", value: point.challengeRatePerGame.toFixed(2) }]}
+                                            usePortal
+                                            portalProps={mousePos}
+                                        />
+                                    );
+                                }}
                             />
                         </ScatterChart>
                     ) : (

@@ -26,7 +26,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       </Suspense>
 
       <div className="px-6 py-8 text-center">
-        <h1 className="font-display text-5xl uppercase tracking-[-0.04em] text-[var(--ink-0)]">
+        <h1 className="font-display text-4xl uppercase tracking-normal text-[var(--ink-0)] sm:text-5xl">
           ABS Observatory
         </h1>
         <p className="mt-2 text-sm font-medium text-[var(--ink-3)]">
@@ -153,7 +153,7 @@ async function HomePageBody({
                 <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--accent-primary)]">
                   {copy.topMomentEyebrow}
                 </p>
-                <h2 className="mt-2 text-3xl font-display uppercase tracking-[0.04em] text-[var(--ink-0)]">
+                <h2 className="mt-2 font-display text-2xl uppercase tracking-normal text-[var(--ink-0)] sm:text-3xl">
                   {topMoment?.gameLabel ?? copy.topMomentTitleFallback}
                 </h2>
                 <p className="mt-2 text-sm text-[var(--ink-2)]">

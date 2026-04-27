@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, type ReactNode, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, ChevronsUpDown, RotateCcw } from "lucide-react";
 
 import { ProfileBadge } from "../ui/profile-badge";
@@ -96,7 +96,23 @@ export function UmpireLeaderboardTable({ range, viewMode, umpires }: UmpireLeade
           Meaningful Samples
         </button>
       </div>
-      <div className="overflow-x-auto">
+      <div className="divide-y divide-black/5 lg:hidden">
+        {umpires.length === 0 ? (
+          <div className="px-6 py-20 text-center font-semibold text-gray-400">
+            Discovery in progress. No data points for this selection.
+          </div>
+        ) : null}
+        {visibleUmpires.map((umpire, idx) => (
+          <UmpireLeaderboardMobileCard
+            key={umpire.umpireId}
+            umpire={umpire}
+            rank={idx + 1}
+            range={range}
+            viewMode={viewMode}
+          />
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto lg:block">
         <table className="data-table">
           <thead>
             <tr>
@@ -308,6 +324,76 @@ function AverageRow({
         {Math.round(totalGames / Math.max(1, umpireCount))}
       </td>
     </tr>
+  );
+}
+
+function UmpireLeaderboardMobileCard({
+  umpire,
+  rank,
+  range,
+  viewMode,
+}: {
+  umpire: UmpireLeaderboardRow;
+  rank: number;
+  range: RangeKey;
+  viewMode: "org" | "fan";
+}) {
+  return (
+    <Link
+      href={withViewModeHref(`/umpires/${umpire.umpireId}?range=${range}`, viewMode)}
+      className="block px-5 py-5 transition hover:bg-gray-50/70"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gray-50 text-[10px] font-black text-gray-400">
+            {rank.toString().padStart(2, "0")}
+          </span>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[11px] font-black uppercase text-blue-700">
+            U
+          </div>
+          <div className="min-w-0">
+            <p className="truncate font-black tracking-tight text-gray-900">{umpire.umpireName}</p>
+            <p className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-[var(--ink-3)]">
+              {getUmpireSampleTierLabel(umpire.challengedCalls, range)}
+            </p>
+          </div>
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-gray-400">OT Rate</p>
+          <p className="mt-1 font-mono text-sm font-black text-gray-900">
+            {(umpire.overturnRate * 100).toFixed(1)}%
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <MobileMetric label="Challenges">{umpire.challengedCalls}</MobileMetric>
+        <MobileMetric label="Games">{umpire.gamesWorked}</MobileMetric>
+        <MobileMetric label={viewMode === "org" ? "Avg RE Delta" : "Volatility"}>
+          {viewMode === "org" ? (
+            <ValueDeltaChip value={umpire.averageRunExpectancyDelta} kind="re" />
+          ) : (
+            umpire.overturnRateVariance.toFixed(2)
+          )}
+        </MobileMetric>
+        <MobileMetric label={viewMode === "org" ? "Avg WE Delta" : "Read"}>
+          {viewMode === "org" ? (
+            <ValueDeltaChip value={umpire.averageWinExpectancyDelta} kind="we" />
+          ) : (
+            <DescriptorChip label={umpire.fanDescriptor} />
+          )}
+        </MobileMetric>
+      </div>
+    </Link>
+  );
+}
+
+function MobileMetric({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="min-w-0 rounded-2xl border border-gray-100 bg-white px-3 py-3">
+      <p className="text-[9px] font-black uppercase tracking-[0.14em] text-gray-400">{label}</p>
+      <div className="mt-2 min-w-0 text-sm font-black text-gray-900">{children}</div>
+    </div>
   );
 }
 

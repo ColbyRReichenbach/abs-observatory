@@ -48,7 +48,7 @@ export function UmpireMatchupMatrix({
                         viewport={{ once: true }}
                         transition={{ delay: i * 0.05 }}
                         key={ump.umpireId}
-                        className="group relative flex items-center justify-between p-4 rounded-2xl bg-white border border-gray-100 shadow-sm transition-all hover:shadow-md hover:border-gray-200"
+                        className="group relative flex min-w-0 flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-gray-200 hover:shadow-md sm:flex-row sm:items-center sm:justify-between"
                     >
                         {/* Underlay Bar for Total Challenges */}
                         <div
@@ -64,12 +64,12 @@ export function UmpireMatchupMatrix({
                             }}
                         />
 
-                        <div className="flex items-center gap-4">
+                        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-[10px] font-black text-gray-500 group-hover:bg-black group-hover:text-white transition-colors">
                                 {i + 1}
                             </span>
-                            <div className="flex flex-col">
-                                <ModeAwareLink href={`/umpires/${ump.umpireId}`} className="font-bold text-gray-900 hover:text-blue-600 transition-colors flex items-center gap-1">
+                            <div className="min-w-0 flex flex-col">
+                                <ModeAwareLink href={`/umpires/${ump.umpireId}`} className="flex min-w-0 items-center gap-1 break-words font-bold text-gray-900 transition-colors hover:text-blue-600">
                                     {ump.umpireName}
                                 </ModeAwareLink>
                                 <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 mt-0.5">
@@ -78,8 +78,8 @@ export function UmpireMatchupMatrix({
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-6">
-                            <div className="flex flex-col items-end">
+                        <div className="flex w-full flex-wrap items-center justify-between gap-3 sm:w-auto sm:flex-nowrap sm:justify-end sm:gap-6">
+                            <div className="flex flex-col items-start sm:items-end">
                                 <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Overturned</span>
                                 <div className="flex items-center gap-2">
                                     <span className="font-mono font-bold text-gray-900">{ump.usedSuccessful}</span>
@@ -88,7 +88,7 @@ export function UmpireMatchupMatrix({
                                 </div>
                             </div>
 
-                            <div className="w-[100px] flex justify-end">
+                            <div className="flex justify-end sm:w-[100px]">
                                 <span
                                     className="inline-flex items-center justify-center rounded-xl border px-3 py-1.5 text-[10px] font-black font-mono shadow-[0_2px_10px_rgba(0,0,0,0.02)] transition-all group-hover:-translate-y-0.5"
                                     style={{

@@ -11,7 +11,13 @@ const VIEW_MODE_EVENT = "aibs:view-mode-change";
  * S8: Client toggle for Fan/Org mode.
  * Updates the cookie and the URL param so the server resolves the new mode on next request.
  */
-export function ViewModeToggle({ initialMode }: { initialMode?: ViewMode }) {
+export function ViewModeToggle({
+    initialMode,
+    compact = false,
+}: {
+    initialMode?: ViewMode;
+    compact?: boolean;
+}) {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
@@ -42,7 +48,9 @@ export function ViewModeToggle({ initialMode }: { initialMode?: ViewMode }) {
 
     return (
         <div
-            className="group relative flex items-center gap-2 rounded-full border border-gray-200 bg-white px-1 py-1 text-[10px] font-black uppercase tracking-widest shadow-sm transition-all hover:shadow-md hover:border-gray-300"
+            className={`group relative flex items-center rounded-full border border-gray-200 bg-white px-1 py-1 font-black uppercase tracking-widest shadow-sm transition-all hover:border-gray-300 hover:shadow-md ${
+                compact ? "gap-1 text-[9px]" : "gap-1 text-[9px] sm:gap-2 sm:text-[10px]"
+            }`}
             aria-label="View mode"
             role="tablist"
         >
@@ -52,7 +60,9 @@ export function ViewModeToggle({ initialMode }: { initialMode?: ViewMode }) {
                 aria-selected={mode === "fan"}
                 onClick={() => setMode("fan")}
                 disabled={isPending}
-                className={`rounded-full px-3 py-1.5 transition-all disabled:opacity-50 ${mode === "fan"
+                className={`rounded-full py-1.5 transition-all disabled:opacity-50 ${
+                    compact ? "px-2.5" : "px-2.5 sm:px-3"
+                } ${mode === "fan"
                     ? "bg-blue-600 text-white shadow-sm"
                     : "text-gray-400 hover:text-gray-600"
                     }`}
@@ -66,7 +76,9 @@ export function ViewModeToggle({ initialMode }: { initialMode?: ViewMode }) {
                 aria-selected={mode === "org"}
                 onClick={() => setMode("org")}
                 disabled={isPending}
-                className={`rounded-full px-3 py-1.5 transition-all disabled:opacity-50 ${mode === "org"
+                className={`rounded-full py-1.5 transition-all disabled:opacity-50 ${
+                    compact ? "px-2.5" : "px-2.5 sm:px-3"
+                } ${mode === "org"
                     ? "bg-gray-900 text-white shadow-sm"
                     : "text-gray-400 hover:text-gray-600"
                     }`}
