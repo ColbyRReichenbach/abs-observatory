@@ -19,12 +19,16 @@
 /coverage
 /htmlcov
 /playwright-report
+/blob-report
 /test-results
 .nyc_output/
 .coverage
 .coverage.*
 .coverage.xml
 coverage-final.json
+lcov.info
+junit.xml
+vitest-report.json
 
 # next.js and app builds
 /.next/
@@ -37,6 +41,7 @@ coverage-final.json
 # runtime and temp artifacts
 /.runtime
 /.runlogs
+/.tmp/
 /.tools/
 /tmp
 /temp
@@ -71,6 +76,7 @@ env/
 *.sqlite
 *.sqlite3
 *.db
+*.dump
 *.parquet
 *.feather
 *.arrow
