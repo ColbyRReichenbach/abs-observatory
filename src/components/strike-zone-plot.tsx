@@ -60,6 +60,8 @@ type StrikeZonePlotProps = {
   zoneMode?: ZoneMode;
   showCountOverlay?: boolean;
   showPitchOverlay?: boolean;
+  variant?: "default" | "compact";
+  showLegend?: boolean;
   onSelectChallenge?: (challengeId: string) => void;
   onHoverChallenge?: (challengeId: string | null) => void;
 };
@@ -71,9 +73,13 @@ function StrikeZonePlotComponent({
   zoneMode = "adjusted",
   showCountOverlay = false,
   showPitchOverlay = false,
+  variant = "default",
+  showLegend = true,
   onSelectChallenge,
   onHoverChallenge,
 }: StrikeZonePlotProps) {
+  const isCompact = variant === "compact";
+  const isInteractive = Boolean(onSelectChallenge || onHoverChallenge);
   const plotted = useMemo(
     () =>
       challenges
@@ -91,10 +97,10 @@ function StrikeZonePlotComponent({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 p-6 lg:p-12 relative flex items-center justify-center min-h-[400px]">
+      <div className={`flex-1 relative flex items-center justify-center ${isCompact ? "min-h-[190px] p-3" : "min-h-[400px] p-6 lg:p-12"}`}>
         <svg
           viewBox={`0 0 ${STRIKE_ZONE_PLOT.width} ${STRIKE_ZONE_PLOT.height}`}
-          className="w-full max-w-[420px]"
+          className={isCompact ? "w-full max-w-[190px]" : "w-full max-w-[420px]"}
           role="img"
           aria-label="Strike zone plot"
         >
@@ -187,7 +193,7 @@ function StrikeZonePlotComponent({
                   strokeWidth="1.5"
                   opacity={isSelected || isHighlighted ? "1" : "0.95"}
                   style={{ transformOrigin: `${x}px ${y}px` }}
-                  className="cursor-pointer transition-transform duration-300 hover:scale-[1.3]"
+                  className={`${isInteractive ? "cursor-pointer hover:scale-[1.3]" : ""} transition-transform duration-300`}
                   onClick={() => onSelectChallenge?.(event.challengeId)}
                   onMouseEnter={() => onHoverChallenge?.(event.challengeId)}
                   onMouseLeave={() => onHoverChallenge?.(null)}
@@ -222,22 +228,24 @@ function StrikeZonePlotComponent({
       </div>
 
       {/* Legend */}
-      <div className="border-t border-gray-100 p-8 shadow-inner bg-slate-50/20">
-        <div className="mb-6">
-          <h4 className="text-[10px] font-bold uppercase tracking-widest text-[var(--surface-4)] mb-1">
-            Visual Legend
-          </h4>
-          <p className="text-xl font-display leading-none text-gray-900">
-            Mapping <span className="text-gray-400">Decisions</span>
-          </p>
+      {showLegend ? (
+        <div className="border-t border-gray-100 p-8 shadow-inner bg-slate-50/20">
+          <div className="mb-6">
+            <h4 className="text-[10px] font-bold uppercase tracking-widest text-[var(--surface-4)] mb-1">
+              Visual Legend
+            </h4>
+            <p className="text-xl font-display leading-none text-gray-900">
+              Mapping <span className="text-gray-400">Decisions</span>
+            </p>
+          </div>
+          <div className="max-w-6xl grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
+            <LegendDot color="#10b981" label="Strike (Corrected)" description="Ball → Strike (Won)" />
+            <LegendDot color="#f59e0b" label="Ball (Corrected)" description="Strike → Ball (Won)" />
+            <LegendDot color="#ef4444" label="Confirmed" description="Call Upheld (Lost)" />
+            <LegendDot color="#06b6d4" label="Other OK" description="Misc Overturned" />
+          </div>
         </div>
-        <div className="max-w-6xl grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
-          <LegendDot color="#10b981" label="Strike (Corrected)" description="Ball → Strike (Won)" />
-          <LegendDot color="#f59e0b" label="Ball (Corrected)" description="Strike → Ball (Won)" />
-          <LegendDot color="#ef4444" label="Confirmed" description="Call Upheld (Lost)" />
-          <LegendDot color="#06b6d4" label="Other OK" description="Misc Overturned" />
-        </div>
-      </div>
+      ) : null}
     </div>
   );
 }

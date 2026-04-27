@@ -116,7 +116,7 @@ export function ChallengeExplorer({
               ABS Zone
             </ModeButton>
             <ModeButton active={zoneMode === "actual"} onClick={() => setZoneMode("actual")}>
-              Raw Feet
+              Fixed Zone
             </ModeButton>
           </fieldset>
         </div>

@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { BroadcastStrip } from "@/components/broadcast-strip";
 import { ChallengeMomentCards } from "@/components/challenge-moment-cards";
 import { HomeExpandableGrid } from "@/components/home-expandable-grid";
+import { StrikeZonePlot } from "@/components/strike-zone-plot";
 import { TeamIcon } from "@/components/team-icon";
 import { getHomeChallengeMoments, getLiveGames, getTeamLeaderboardModel, getUmpireLeaderboardModel } from "@/lib/data";
 import { resolveViewMode } from "@/lib/view-mode";
@@ -10,8 +11,7 @@ import { withViewModeHref } from "@/lib/view-mode-href";
 import { ProfileBadge } from "@/components/ui/profile-badge";
 import { getHomePageViewCopy } from "@/lib/view-mode-contract";
 import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
-import { mapZoneX, mapZoneY, STRIKE_ZONE_PLOT } from "@/lib/zone-mapping";
-import type { HomeChallengeMoment } from "@/lib/types";
+import type { ChallengeEvent, HomeChallengeMoment } from "@/lib/types";
 
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const sp = await searchParams;
@@ -535,66 +535,68 @@ function formatAbsEdge(moment: HomeChallengeMoment) {
   return `${margin.toFixed(2)} ft from the ABS edge`;
 }
 
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
-
 function ControversialCallZone({ moment }: { moment: HomeChallengeMoment }) {
-  if (!isFiniteNumber(moment.px) || !isFiniteNumber(moment.pz)) {
+  if (!isFiniteCoordinate(moment.px) || !isFiniteCoordinate(moment.pz)) {
     return (
       <div className="hidden rounded-xl border border-gray-100 bg-white p-3 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--ink-3)] md:flex md:items-center md:justify-center">
         Pitch plot pending
       </div>
     );
   }
-  const x = mapZoneX(moment.px);
-  const y = mapZoneY("adjusted", moment.pz, moment.strikeZoneTop ?? null, moment.strikeZoneBottom ?? null);
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-  const dot = moment.isOverturned ? "#2563eb" : "#ef4444";
+
+  const challenge: ChallengeEvent = {
+    challengeId: moment.challengeId,
+    gamePk: moment.gamePk,
+    challengedAt: moment.challengedAt,
+    inning: moment.inning,
+    halfInning: moment.halfInning,
+    balls: moment.balls,
+    strikes: moment.strikes,
+    outs: moment.outs ?? null,
+    basesState: moment.basesState ?? null,
+    homeScore: moment.homeScore ?? null,
+    awayScore: moment.awayScore ?? null,
+    challengeTeamId: null,
+    challengeTeamName: moment.challengeTeamName,
+    challengePlayerName: moment.playerName,
+    batterName: moment.batterName ?? null,
+    pitcherName: moment.pitcherName ?? null,
+    calledDescription: moment.calledDescription,
+    originalCall: moment.originalCall ?? null,
+    correctedCall: moment.correctedCall ?? null,
+    challengeDirection: moment.challengeDirection ?? null,
+    pitchNumber: moment.pitchNumber,
+    pitchType: moment.pitchType ?? null,
+    startSpeed: moment.pitchVelocity ?? null,
+    spinRate: null,
+    isOverturned: moment.isOverturned,
+    px: moment.px,
+    pz: moment.pz,
+    strikeZoneTop: moment.strikeZoneTop ?? null,
+    strikeZoneBottom: moment.strikeZoneBottom ?? null,
+    umpireCount: moment.umpireCount ?? null,
+    impactType: moment.impactType ?? null,
+    estimatedChallengeSwing: moment.realizedChallengeValue ?? null,
+    expectedChallengeValue: moment.expectedChallengeValue ?? null,
+    decisionValueMode: moment.decisionValueMode ?? null,
+  };
 
   return (
-    <div className="hidden rounded-xl border border-gray-100 bg-white p-3 md:block">
-      <p className="mb-2 text-[9px] font-black uppercase tracking-[0.12em] text-[var(--ink-3)]">Pitch Location</p>
-      <svg
-        viewBox={`0 0 ${STRIKE_ZONE_PLOT.width} ${STRIKE_ZONE_PLOT.height}`}
-        role="img"
-        aria-label="Reviewed pitch location"
-        className="h-36 w-full"
-      >
-        <rect x={0} y={0} width={STRIKE_ZONE_PLOT.width} height={STRIKE_ZONE_PLOT.height} fill="white" />
-        <rect
-          x={STRIKE_ZONE_PLOT.zoneX}
-          y={STRIKE_ZONE_PLOT.zoneY}
-          width={STRIKE_ZONE_PLOT.zoneW}
-          height={STRIKE_ZONE_PLOT.zoneH}
-          fill="none"
-          stroke="rgba(15,23,42,0.22)"
-          strokeWidth="4"
-          rx="2"
-        />
-        {[1, 2].map((i) => (
-          <g key={i}>
-            <line
-              x1={STRIKE_ZONE_PLOT.zoneX + (STRIKE_ZONE_PLOT.zoneW / 3) * i}
-              y1={STRIKE_ZONE_PLOT.zoneY}
-              x2={STRIKE_ZONE_PLOT.zoneX + (STRIKE_ZONE_PLOT.zoneW / 3) * i}
-              y2={STRIKE_ZONE_PLOT.zoneY + STRIKE_ZONE_PLOT.zoneH}
-              stroke="rgba(15,23,42,0.08)"
-            />
-            <line
-              x1={STRIKE_ZONE_PLOT.zoneX}
-              y1={STRIKE_ZONE_PLOT.zoneY + (STRIKE_ZONE_PLOT.zoneH / 3) * i}
-              x2={STRIKE_ZONE_PLOT.zoneX + STRIKE_ZONE_PLOT.zoneW}
-              y2={STRIKE_ZONE_PLOT.zoneY + (STRIKE_ZONE_PLOT.zoneH / 3) * i}
-              stroke="rgba(15,23,42,0.08)"
-            />
-          </g>
-        ))}
-        <circle cx={x} cy={y} r="17" fill={dot} opacity="0.16" />
-        <circle cx={x} cy={y} r="8" fill={dot} stroke="white" strokeWidth="3" />
-      </svg>
+    <div className="hidden overflow-hidden rounded-xl border border-gray-100 bg-white md:block">
+      <p className="px-4 pt-4 text-[9px] font-black uppercase tracking-[0.12em] text-[var(--ink-3)]">Pitch Location</p>
+      <StrikeZonePlot
+        challenges={[challenge]}
+        highlightedChallengeId={moment.challengeId}
+        zoneMode="adjusted"
+        variant="compact"
+        showLegend={false}
+      />
     </div>
   );
+}
+
+function isFiniteCoordinate(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
 }
 
 function HomePageFallback({
