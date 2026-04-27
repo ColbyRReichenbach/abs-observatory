@@ -49,6 +49,7 @@ type TeamLogoDotProps = {
     cy?: number;
     payload?: TeamScatterChartPoint;
     active?: boolean;
+    compact?: boolean;
     onMouseEnter?: () => void;
     onMouseLeave?: () => void;
     onClick?: () => void;
@@ -56,12 +57,12 @@ type TeamLogoDotProps = {
 
 /* ── Custom dot: Team logo image ── */
 const TeamLogoDot = memo((props: TeamLogoDotProps) => {
-    const { cx, cy, payload, active, onMouseEnter, onMouseLeave, onClick } = props;
+    const { cx, cy, payload, active, compact = false, onMouseEnter, onMouseLeave, onClick } = props;
     if (cx == null || cy == null || !payload) return null;
 
-    const logoSize = active ? 30 : 18;
-    const badgeRadius = active ? 22 : 13;
-    const ringRadius = active ? 25.5 : 15.5;
+    const logoSize = active ? (compact ? 24 : 30) : (compact ? 14 : 18);
+    const badgeRadius = active ? (compact ? 18 : 22) : (compact ? 10 : 13);
+    const ringRadius = active ? (compact ? 21 : 25.5) : (compact ? 12.5 : 15.5);
     const logoInset = logoSize / 2;
     const clipId = `team-scatter-logo-${payload.teamId}-${active ? "active" : "base"}`;
     const branding = resolveTeamBranding({ teamId: payload.teamId });
@@ -164,8 +165,23 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
 
     if (data.length === 0) return null;
 
+    const isCompact = containerWidth > 0 && containerWidth < 640;
+    const isTablet = containerWidth >= 640 && containerWidth < 900;
+    const chartHeight = isCompact ? 440 : 400;
+    const chartMargin = isCompact
+        ? { top: 42, right: 18, bottom: 62, left: 42 }
+        : isTablet
+            ? { top: 40, right: 48, bottom: 60, left: 60 }
+            : { top: 40, right: 100, bottom: 60, left: 80 };
+    const axisLabelStyle = {
+        fontSize: isCompact ? 9 : 10,
+        fill: "#86868b",
+        fontWeight: 900,
+        letterSpacing: isCompact ? "0.04em" : "0.08em",
+    };
+
     return (
-        <div className="panel overflow-visible border-gray-100 bg-white shadow-2xl shadow-black/[0.03] p-6 mb-8">
+        <div className="panel mb-8 overflow-visible border-gray-100 bg-white p-5 shadow-2xl shadow-black/[0.03] sm:p-6">
             <div className="mb-6">
                 <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
                     {mode === "org" ? "Strategy Map" : "Identity Map"}
@@ -177,7 +193,8 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
 
             <div
                 ref={containerRef}
-                className="relative h-[400px] w-full"
+                className="relative w-full"
+                style={{ height: chartHeight }}
                 onMouseMove={(event) => setMousePos({ x: event.clientX, y: event.clientY })}
                 onMouseLeave={() => {
                     setHoveredTeamId(null);
@@ -185,16 +202,16 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
             >
                 {/* Quadrant labels */}
                 <div className="pointer-events-none absolute inset-0 z-10">
-                    <span className="absolute top-2 right-4 text-[9px] font-black uppercase tracking-[0.14em] text-emerald-500/50">
+                    <span className="absolute top-2 right-1 text-[8px] font-black uppercase tracking-[0.1em] text-emerald-500/50 sm:right-4 sm:text-[9px] sm:tracking-[0.14em]">
                         {mode === "org" ? "Timely" : "High-Impact"}
                     </span>
-                    <span className="absolute top-2 left-12 text-[9px] font-black uppercase tracking-[0.14em] text-blue-500/50">
+                    <span className="absolute top-2 left-10 text-[8px] font-black uppercase tracking-[0.1em] text-blue-500/50 sm:left-12 sm:text-[9px] sm:tracking-[0.14em]">
                         Selective
                     </span>
-                    <span className="absolute bottom-6 right-4 text-[9px] font-black uppercase tracking-[0.14em] text-amber-500/50">
+                    <span className="absolute bottom-8 right-1 text-[8px] font-black uppercase tracking-[0.1em] text-amber-500/50 sm:bottom-6 sm:right-4 sm:text-[9px] sm:tracking-[0.14em]">
                         {mode === "org" ? "High-Usage" : "Overactive"}
                     </span>
-                    <span className="absolute bottom-6 left-12 text-[9px] font-black uppercase tracking-[0.14em] text-red-400/50">
+                    <span className="absolute bottom-8 left-10 text-[8px] font-black uppercase tracking-[0.1em] text-red-400/50 sm:bottom-6 sm:left-12 sm:text-[9px] sm:tracking-[0.14em]">
                         Low-Usage
                     </span>
                 </div>
@@ -203,8 +220,8 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                     {containerWidth > 0 ? (
                         <ScatterChart
                             width={containerWidth}
-                            height={400}
-                            margin={{ top: 40, right: 100, bottom: 60, left: 80 }}
+                            height={chartHeight}
+                            margin={chartMargin}
                             style={{ overflow: 'visible' }}
                             onMouseMove={(state: unknown) => {
                                 const point = getActiveScatterPoint(state);
@@ -221,7 +238,7 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                                 name="Challenge Rate / Game"
                                 tickLine={false}
                                 axisLine={false}
-                                tick={{ fontSize: 10, fill: "#86868b" }}
+                                tick={{ fontSize: isCompact ? 9 : 10, fill: "#86868b" }}
                                 tickFormatter={(v) => formatNumberTick(v, xTickDigits)}
                                 padding={{ left: 0, right: 0 }}
                                 domain={xAxis.domain}
@@ -232,7 +249,7 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                                     value="CHALLENGE RATE / GAME"
                                     position="bottom"
                                     offset={0}
-                                    style={{ fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em" }}
+                                    style={axisLabelStyle}
                                 />
                             </XAxis>
                             <YAxis
@@ -241,7 +258,7 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                                 name="Overturn Rate"
                                 tickLine={false}
                                 axisLine={false}
-                                tick={{ fontSize: 10, fill: "#86868b" }}
+                                tick={{ fontSize: isCompact ? 9 : 10, fill: "#86868b" }}
                                 tickFormatter={(v) => formatPercentTick(v)}
                                 padding={{ top: 0, bottom: 0 }}
                                 domain={yAxis.domain}
@@ -252,8 +269,8 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                                     value="OVERTURN RATE"
                                     angle={-90}
                                     position="insideLeft"
-                                    offset={10}
-                                    style={{ fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em" }}
+                                    offset={isCompact ? -2 : 10}
+                                    style={axisLabelStyle}
                                 />
                             </YAxis>
 
@@ -261,13 +278,13 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                                 x={avgChallengeRate}
                                 stroke="rgba(0,0,0,0.25)"
                                 strokeDasharray="4 4"
-                                label={{ value: `MLB AVG ${avgChallengeRate.toFixed(1)}`, position: "top", style: { fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em" } }}
+                                label={{ value: `MLB AVG ${avgChallengeRate.toFixed(1)}`, position: "top", style: axisLabelStyle }}
                             />
                             <ReferenceLine
                                 y={avgOverturnRate * 100}
                                 stroke="rgba(0,0,0,0.25)"
                                 strokeDasharray="4 4"
-                                label={{ value: `MLB AVG ${(avgOverturnRate * 100).toFixed(0)}%`, position: "right", style: { fontSize: 10, fill: "#86868b", fontWeight: 900, letterSpacing: "0.08em" } }}
+                                label={{ value: isCompact ? `${(avgOverturnRate * 100).toFixed(0)}% AVG` : `MLB AVG ${(avgOverturnRate * 100).toFixed(0)}%`, position: "right", style: axisLabelStyle }}
                             />
 
                             <Scatter
@@ -279,6 +296,7 @@ export function TeamScatterPlot({ data, mode = "fan" }: Props) {
                                             {...props}
                                             payload={payload}
                                             active={payload?.teamId === hoveredTeamId}
+                                            compact={isCompact}
                                             onClick={() => {
                                                 const currentMode = searchParams.get("view");
                                                 if (payload?.teamId) {

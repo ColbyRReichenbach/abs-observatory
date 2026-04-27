@@ -33,15 +33,15 @@ export function UmpirePitchTraitScatter({ challenges }: { challenges: ChallengeE
 
   return (
     <section className="mb-12">
-      <div className="panel p-8">
+      <div className="panel p-5 sm:p-8">
         <div className="mb-6 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <h4 className="mb-1 text-[10px] font-bold uppercase tracking-widest text-blue-500">Pitch-Trait View</h4>
-            <p className="text-3xl font-display leading-none text-gray-900">
+            <p className="text-2xl font-display leading-none text-gray-900 sm:text-3xl">
               Pitch Trait <span className="text-gray-400">WE / RE Scatter</span>
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={() => setAxis("velocity")} className={chipClass(axis === "velocity")}>
               Velocity
             </button>
@@ -56,27 +56,27 @@ export function UmpirePitchTraitScatter({ challenges }: { challenges: ChallengeE
           </div>
         </div>
 
-        <div className="rounded-[1.75rem] border border-gray-100 bg-[var(--surface-infield)] p-5">
-          <div className="relative h-[360px] overflow-hidden rounded-[1.5rem] border border-gray-100 bg-white">
-            <div className="absolute inset-x-5 top-4 flex justify-between text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">
+        <div className="rounded-[1.75rem] border border-gray-100 bg-[var(--surface-infield)] p-3 sm:p-5">
+          <div className="relative h-[420px] overflow-hidden rounded-[1.5rem] border border-gray-100 bg-white sm:h-[360px]">
+            <div className="absolute inset-x-4 top-4 flex justify-between gap-6 text-[9px] font-black uppercase leading-4 tracking-[0.12em] text-[var(--ink-3)] sm:inset-x-5 sm:text-[10px] sm:tracking-[0.14em]">
               <span>Higher overturn rate</span>
-              <span>Sample = point size</span>
+              <span className="text-right">Sample = point size</span>
             </div>
-            <div className="absolute inset-y-10 left-5 w-px bg-gray-100" />
-            <div className="absolute inset-x-5 bottom-10 h-px bg-gray-100" />
-            <div className="absolute left-7 top-1/2 -translate-y-1/2 -rotate-90 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">
+            <div className="absolute bottom-12 left-9 top-16 w-px bg-gray-100 sm:inset-y-10 sm:left-5" />
+            <div className="absolute bottom-12 left-9 right-5 h-px bg-gray-100 sm:inset-x-5 sm:bottom-10" />
+            <div className="absolute left-1 top-1/2 -translate-y-1/2 -rotate-90 text-[9px] font-black uppercase tracking-[0.12em] text-[var(--ink-3)] sm:left-7 sm:text-[10px] sm:tracking-[0.14em]">
               Overturn Rate
             </div>
-            <div className="absolute inset-x-0 bottom-3 text-center text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-3)]">
+            <div className="absolute inset-x-0 bottom-4 text-center text-[9px] font-black uppercase tracking-[0.12em] text-[var(--ink-3)] sm:bottom-3 sm:text-[10px] sm:tracking-[0.14em]">
               {axis === "velocity" ? "Average Velocity" : "Average Spin"}
             </div>
 
             {points.map((point, index) => {
               const xValue = axis === "velocity" ? point.avgVelocity : point.avgSpin;
               if (xValue === null) return null;
-              const x = scale(xValue, domain.min, domain.max, 72, 92);
-              const y = scale(point.overturnRate, domain.rateMin, domain.rateMax, 90, 18);
-              const radius = Math.max(10, Math.min(28, 8 + point.sample * 1.8));
+              const x = scale(xValue, domain.min, domain.max, 18, 88);
+              const y = scale(point.overturnRate, domain.rateMin, domain.rateMax, 86, 22);
+              const radius = Math.max(9, Math.min(24, 8 + point.sample * 1.5));
               const active = point.pitchFamily === selectedFamily;
               const trusted = point.sample >= 3;
               return (
@@ -206,11 +206,16 @@ function buildDomain(points: TraitPoint[], axis: AxisMetric) {
     .map((point) => (axis === "velocity" ? point.avgVelocity : point.avgSpin))
     .filter((value): value is number => typeof value === "number");
   const rates = points.map((point) => point.overturnRate);
+  const min = values.length > 0 ? Math.min(...values) : 0;
+  const max = values.length > 0 ? Math.max(...values) : 1;
+  const xPadding = min === max ? 1 : (max - min) * 0.08;
+  const rateMin = rates.length > 0 ? Math.min(...rates, 0) : 0;
+  const rateMax = rates.length > 0 ? Math.max(...rates, 100) : 100;
   return {
-    min: Math.min(...values),
-    max: Math.max(...values),
-    rateMin: Math.min(...rates, 0),
-    rateMax: Math.max(...rates, 100),
+    min: min - xPadding,
+    max: max + xPadding,
+    rateMin,
+    rateMax,
   };
 }
 

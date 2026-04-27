@@ -27,12 +27,12 @@ export const ProfileBadge = memo(({ label, variant = "blue", className = "" }: P
         inline-flex flex-col items-center justify-center 
         px-3 py-1.5 rounded-xl border leading-[1.1]
         text-[9px] font-black uppercase tracking-widest
-        min-w-[100px] text-center transition-all
+        min-w-0 max-w-full text-center transition-all
         ${variants[variant]} ${className}
       `}
         >
             {words.map((word, i) => (
-                <span key={i} className="block w-full">
+                <span key={i} className="block w-full whitespace-nowrap">
                     {word}
                 </span>
             ))}
