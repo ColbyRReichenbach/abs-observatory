@@ -160,7 +160,7 @@ export function ChallengeValueTimeline({
                   }
                   value={
                     entry.expectedChallengeValue !== null
-                      ? `${entry.decisionRecommendation === "challenge" ? "Challenge" : entry.decisionRecommendation === "hold" ? "Hold" : "No review"} • ${signedWinValue(entry.expectedChallengeValue)} EV`
+                      ? `${entry.decisionRecommendation === "challenge" ? "Lean challenge" : entry.decisionRecommendation === "hold" ? "Lean hold" : "No review"} • ${signedWinValue(entry.expectedChallengeValue)} EV`
                       : viewMode === "org" && entry.winExpectancyDelta !== null && hasTrustedModelConfidenceBand(entry.winExpectancyConfidence)
                       ? `${signedWinValue(entry.winExpectancyDelta)} WE`
                         : entry.runExpectancyDelta !== null && hasTrustedModelConfidenceBand(entry.runExpectancyConfidence)

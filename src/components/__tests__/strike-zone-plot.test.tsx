@@ -21,7 +21,7 @@ const challenge: ChallengeEvent = {
   challengePlayerName: "Aaron Judge",
   batterName: "Aaron Judge",
   pitcherName: "Brayan Bello",
-  calledDescription: "Ball",
+  calledDescription: "Called Strike",
   pitchNumber: 5,
   pitchType: "Slider",
   startSpeed: 87.2,
@@ -31,10 +31,13 @@ const challenge: ChallengeEvent = {
   pz: 3.3,
   strikeZoneTop: 3.5,
   strikeZoneBottom: 1.5,
+  countBefore: "0-1",
+  umpireCount: "1-1",
+  countAfter: "0-2",
 };
 
 describe("StrikeZonePlot", () => {
-  it("renders non-color legend labels and marker short code", () => {
+  it("renders non-color legend labels and corrected-strike marker short code", () => {
     const html = renderToStaticMarkup(<StrikeZonePlot challenges={[challenge]} />);
     expect(html).toContain("Strike (Corrected)");
     expect(html).toContain("Ball (Corrected)");
@@ -43,9 +46,25 @@ describe("StrikeZonePlot", () => {
     expect(html).toContain(">K<");
   });
 
+  it("classifies corrected balls from the count transition", () => {
+    const html = renderToStaticMarkup(
+      <StrikeZonePlot
+        challenges={[
+          {
+            ...challenge,
+            calledDescription: "Ball",
+            umpireCount: "0-2",
+            countAfter: "1-1",
+          },
+        ]}
+      />,
+    );
+    expect(html).toContain(">B<");
+  });
+
   it("renders optional count and pitch overlays", () => {
     const html = renderToStaticMarkup(<StrikeZonePlot challenges={[challenge]} showCountOverlay showPitchOverlay />);
-    expect(html).toContain("2-1");
+    expect(html).toContain("1-1");
     expect(html).toContain("Slider");
   });
 });

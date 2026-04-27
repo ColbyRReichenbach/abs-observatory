@@ -39,7 +39,7 @@ function formatNextUpdate(liveGameCount: number, pollIntervalMinutes: number, no
   const now = new Date(nowTick);
   const next = new Date(now);
   next.setSeconds(0, 0);
-  const interval = Math.max(1, Math.floor(pollIntervalMinutes || 5));
+  const interval = Math.max(1, Math.floor(pollIntervalMinutes || 10));
   const nextMinute = (Math.floor(now.getMinutes() / interval) + 1) * interval;
   if (nextMinute >= 60) {
     next.setHours(next.getHours() + Math.floor(nextMinute / 60), nextMinute % 60, 0, 0);

@@ -32,7 +32,7 @@ export function ChallengeValueCard({ initial }: Props) {
           <p>Challenges remaining: {initial.challengesRemaining}</p>
         </div>
         <p className="mt-4 text-xs text-white/65">
-          No challenge recommendation is shown here because the earlier prototype estimate was removed.
+          No challenge decision read is shown here because the earlier prototype estimate was removed.
         </p>
       </div>
     </section>

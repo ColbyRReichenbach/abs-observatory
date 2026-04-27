@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { BroadcastStrip } from "@/components/broadcast-strip";
 import { ChallengeMomentCards } from "@/components/challenge-moment-cards";
 import { HomeExpandableGrid } from "@/components/home-expandable-grid";
+import { StrikeZonePlot } from "@/components/strike-zone-plot";
 import { TeamIcon } from "@/components/team-icon";
 import { getHomeChallengeMoments, getLiveGames, getTeamLeaderboardModel, getUmpireLeaderboardModel } from "@/lib/data";
 import { resolveViewMode } from "@/lib/view-mode";
@@ -10,6 +11,7 @@ import { withViewModeHref } from "@/lib/view-mode-href";
 import { ProfileBadge } from "@/components/ui/profile-badge";
 import { getHomePageViewCopy } from "@/lib/view-mode-contract";
 import { hasTrustedModelConfidenceBand } from "@/lib/server/run-environment";
+import type { ChallengeEvent, HomeChallengeMoment } from "@/lib/types";
 
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const sp = await searchParams;
@@ -70,7 +72,7 @@ async function HomePageBody({
       includeDecisionMetrics: viewMode === "org",
       includeValueMetrics: viewMode === "org",
     }),
-    getUmpireLeaderboardModel("season"),
+    getUmpireLeaderboardModel("season", { includeValueMetrics: viewMode === "org" }),
   ]);
 
   const todayGames = games.length;
@@ -79,6 +81,7 @@ async function HomePageBody({
   const allTeamSuccessful = teams.reduce((s, t) => s + t.usedSuccessful, 0);
   const seasonAvgRate = allTeamChallenges > 0 ? (allTeamSuccessful / allTeamChallenges) * 100 : 0;
   const topMoment = moments[0] ?? null;
+  const topMomentDetails = topMoment ? buildTopMomentDetails(topMoment) : [];
   const highestRiskUmpire = umpires.length > 0
     ? [...umpires].sort((left, right) => getHomeUmpireWatchPriority(right) - getHomeUmpireWatchPriority(left))[0]
     : null;
@@ -154,10 +157,7 @@ async function HomePageBody({
                   {topMoment?.gameLabel ?? copy.topMomentTitleFallback}
                 </h2>
                 <p className="mt-2 text-sm text-[var(--ink-2)]">
-                  {topMoment
-                    ? `${topMoment.challengeTeamName ?? "Challenge"} in ${topMoment.halfInning ?? ""} ${topMoment.inning ?? "-"} with ${topMoment.reasonChips?.slice(0, 2).join(" · ") ?? "high-drama context"
-                    }.`
-                    : "No challenge hero is available yet for the current slate."}
+                  {describeTopMoment(topMoment)}
                 </p>
               </div>
               <div className="px-6 py-5">
@@ -166,19 +166,32 @@ async function HomePageBody({
                     href={withViewModeHref(`/game/${topMoment.gamePk}?challengeId=${topMoment.challengeId}#abs-explorer`, viewMode)}
                     className="block rounded-2xl border border-gray-100 bg-[var(--surface-infield)] p-5 transition hover:border-blue-100 hover:bg-white"
                   >
-                    <div className="flex flex-wrap items-center gap-2">
-                      {(topMoment.reasonChips ?? []).slice(0, 4).map((chip) => (
-                        <span key={chip} className="rounded-full bg-blue-50 px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-blue-700">
-                          {chip}
-                        </span>
-                      ))}
+                    <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_180px]">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {(topMoment.reasonChips ?? []).slice(0, 4).map((chip) => (
+                            <span key={chip} className="rounded-full bg-blue-50 px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-blue-700">
+                              {chip}
+                            </span>
+                          ))}
+                        </div>
+                        <p className="mt-4 text-lg font-semibold text-[var(--ink-0)]">
+                          {formatCallOutcome(topMoment)}
+                        </p>
+                        <p className="mt-2 text-xs leading-6 text-[var(--ink-3)]">
+                          {formatTopMomentScenario(topMoment)}
+                        </p>
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                          {topMomentDetails.map((detail) => (
+                            <div key={detail.label} className="rounded-xl border border-gray-100 bg-white px-3 py-2">
+                              <p className="text-[9px] font-black uppercase tracking-[0.12em] text-[var(--ink-3)]">{detail.label}</p>
+                              <p className="mt-1 text-xs font-semibold text-[var(--ink-0)]">{detail.value}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <ControversialCallZone moment={topMoment} />
                     </div>
-                    <p className="mt-4 text-lg font-semibold text-[var(--ink-0)]">
-                      {topMoment.calledDescription ?? "Reviewed challenge moment"}
-                    </p>
-                    <p className="mt-2 text-xs text-[var(--ink-3)]">
-                      {topMoment.leverageScore >= 65 ? "High leverage" : topMoment.leverageScore >= 40 ? "Medium leverage" : "Low leverage"} · {topMoment.playerName ?? "Unknown player"} · {topMoment.gameStatus}
-                    </p>
                   </Link>
                 ) : (
                   <div className="rounded-2xl border-2 border-dashed border-gray-200 p-8 text-center text-sm text-[var(--ink-3)]">
@@ -412,6 +425,178 @@ function getHomeUmpireWatchPriority(
     umpire.overturnRateVariance * 100 +
     drift * 100
   );
+}
+
+function describeTopMoment(moment: HomeChallengeMoment | null) {
+  if (!moment) return "No challenge hero is available yet for the current slate.";
+  const result = moment.isOverturned ? "overturned" : "confirmed";
+  const inning = formatInning(moment);
+  const team = moment.challengeTeamName ?? "A club";
+  const edge = formatAbsEdge(moment);
+  const matchup = formatMatchup(moment);
+  return `${team} had a ${result} review in ${inning}. ${matchup}${edge ? ` The pitch was ${edge}.` : ""}`;
+}
+
+function buildTopMomentDetails(moment: HomeChallengeMoment) {
+  return [
+    { label: "Matchup", value: formatMatchup(moment) },
+    { label: "Situation", value: formatTopMomentScenario(moment) },
+    { label: "Pitch", value: formatPitchMoment(moment) },
+    { label: "At-bat", value: moment.atBatResult ?? moment.gameStatus ?? "Result pending" },
+  ].filter((detail) => detail.value && detail.value !== "Unknown matchup");
+}
+
+function formatCallOutcome(moment: HomeChallengeMoment) {
+  const original = formatPitchCall(moment.originalCall) ?? moment.calledDescription ?? "Reviewed pitch";
+  const corrected = formatPitchCall(moment.correctedCall);
+  if (moment.isOverturned && corrected && corrected !== original) {
+    return `${original} overturned to ${corrected}`;
+  }
+  return `${original} ${moment.isOverturned ? "overturned" : "confirmed"}`;
+}
+
+function formatPitchCall(call?: HomeChallengeMoment["originalCall"]) {
+  if (call === "called_strike") return "Strike";
+  if (call === "ball") return "Ball";
+  return null;
+}
+
+function formatTopMomentScenario(moment: HomeChallengeMoment) {
+  const parts = [
+    formatInning(moment),
+    formatScore(moment),
+    formatCount(moment),
+    formatOuts(moment.outs),
+    formatBases(moment.basesState),
+  ].filter(Boolean);
+  return parts.join(" · ") || "Game context unavailable";
+}
+
+function formatInning(moment: HomeChallengeMoment) {
+  const half = moment.halfInning ? `${moment.halfInning[0]?.toUpperCase() ?? ""}${moment.halfInning.slice(1).toLowerCase()}` : "";
+  const inning = moment.inning ?? "-";
+  return `${half} ${inning}`.trim();
+}
+
+function formatScore(moment: HomeChallengeMoment) {
+  if (moment.awayScore === null || moment.awayScore === undefined || moment.homeScore === null || moment.homeScore === undefined) {
+    return null;
+  }
+  return `${moment.awayScore}-${moment.homeScore}`;
+}
+
+function formatCount(moment: HomeChallengeMoment) {
+  if (moment.umpireCount) return `${moment.umpireCount} count`;
+  if (moment.balls === null || moment.strikes === null) return null;
+  return `${moment.balls}-${moment.strikes} count`;
+}
+
+function formatOuts(outs?: number | null) {
+  if (outs === null || outs === undefined) return null;
+  return `${outs} ${outs === 1 ? "out" : "outs"}`;
+}
+
+function formatBases(basesState?: string | null) {
+  if (!basesState || basesState === "000") return "Bases empty";
+  const bases = [
+    basesState[0] === "1" ? "1st" : null,
+    basesState[1] === "1" ? "2nd" : null,
+    basesState[2] === "1" ? "3rd" : null,
+  ].filter(Boolean);
+  if (bases.length === 0) return "Bases empty";
+  return `Runner${bases.length > 1 ? "s" : ""} on ${bases.join(" and ")}`;
+}
+
+function formatMatchup(moment: HomeChallengeMoment) {
+  const batter = moment.batterName ?? moment.playerName;
+  const pitcher = moment.pitcherName;
+  if (batter && pitcher) return `${batter} vs ${pitcher}`;
+  return batter ?? pitcher ?? "Unknown matchup";
+}
+
+function formatPitchMoment(moment: HomeChallengeMoment) {
+  const parts = [
+    moment.pitchType,
+    typeof moment.pitchVelocity === "number" && Number.isFinite(moment.pitchVelocity)
+      ? `${moment.pitchVelocity.toFixed(1)} mph`
+      : null,
+    formatAbsEdge(moment),
+  ].filter(Boolean);
+  return parts.join(" · ") || moment.calledDescription || "Pitch details pending";
+}
+
+function formatAbsEdge(moment: HomeChallengeMoment) {
+  const margin = typeof moment.absMargin === "number" && Number.isFinite(moment.absMargin)
+    ? Math.abs(moment.absMargin)
+    : typeof moment.edgeDistance === "number" && Number.isFinite(moment.edgeDistance)
+      ? Math.abs(moment.edgeDistance)
+      : null;
+  if (margin === null) return null;
+  return `${margin.toFixed(2)} ft from the ABS edge`;
+}
+
+function ControversialCallZone({ moment }: { moment: HomeChallengeMoment }) {
+  if (!isFiniteCoordinate(moment.px) || !isFiniteCoordinate(moment.pz)) {
+    return (
+      <div className="hidden rounded-xl border border-gray-100 bg-white p-3 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--ink-3)] md:flex md:items-center md:justify-center">
+        Pitch plot pending
+      </div>
+    );
+  }
+
+  const challenge: ChallengeEvent = {
+    challengeId: moment.challengeId,
+    gamePk: moment.gamePk,
+    challengedAt: moment.challengedAt,
+    inning: moment.inning,
+    halfInning: moment.halfInning,
+    balls: moment.balls,
+    strikes: moment.strikes,
+    outs: moment.outs ?? null,
+    basesState: moment.basesState ?? null,
+    homeScore: moment.homeScore ?? null,
+    awayScore: moment.awayScore ?? null,
+    challengeTeamId: null,
+    challengeTeamName: moment.challengeTeamName,
+    challengePlayerName: moment.playerName,
+    batterName: moment.batterName ?? null,
+    pitcherName: moment.pitcherName ?? null,
+    calledDescription: moment.calledDescription,
+    originalCall: moment.originalCall ?? null,
+    correctedCall: moment.correctedCall ?? null,
+    challengeDirection: moment.challengeDirection ?? null,
+    pitchNumber: moment.pitchNumber,
+    pitchType: moment.pitchType ?? null,
+    startSpeed: moment.pitchVelocity ?? null,
+    spinRate: null,
+    isOverturned: moment.isOverturned,
+    px: moment.px,
+    pz: moment.pz,
+    strikeZoneTop: moment.strikeZoneTop ?? null,
+    strikeZoneBottom: moment.strikeZoneBottom ?? null,
+    umpireCount: moment.umpireCount ?? null,
+    impactType: moment.impactType ?? null,
+    estimatedChallengeSwing: moment.realizedChallengeValue ?? null,
+    expectedChallengeValue: moment.expectedChallengeValue ?? null,
+    decisionValueMode: moment.decisionValueMode ?? null,
+  };
+
+  return (
+    <div className="hidden overflow-hidden rounded-xl border border-gray-100 bg-white md:block">
+      <p className="px-4 pt-4 text-[9px] font-black uppercase tracking-[0.12em] text-[var(--ink-3)]">Pitch Location</p>
+      <StrikeZonePlot
+        challenges={[challenge]}
+        highlightedChallengeId={moment.challengeId}
+        zoneMode="adjusted"
+        variant="compact"
+        showLegend={false}
+      />
+    </div>
+  );
+}
+
+function isFiniteCoordinate(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
 }
 
 function HomePageFallback({

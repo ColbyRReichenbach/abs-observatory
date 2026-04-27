@@ -1,37 +1,12 @@
-import fs from "node:fs";
-import path from "node:path";
 import { Client } from "pg";
+import { loadDefaultEnv } from "./lib/env.mjs";
 
 const ROOT = process.cwd();
 const DEFAULT_START_DATE = "2026-02-20";
-const DEFAULT_END_DATE = "2026-04-07";
 const BATCH_SIZE = 500;
+const MLB_GAME_TIME_ZONE = "America/New_York";
 
-function loadEnvFile(filename) {
-  const filePath = path.join(ROOT, filename);
-  if (!fs.existsSync(filePath)) return;
-  const raw = fs.readFileSync(filePath, "utf8");
-  for (const line of raw.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eq = trimmed.indexOf("=");
-    if (eq === -1) continue;
-    const key = trimmed.slice(0, eq).trim();
-    if (process.env[key]) continue;
-    let value = trimmed.slice(eq + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    process.env[key] = value;
-  }
-}
-
-for (const filename of [".env", ".env.local"]) {
-  loadEnvFile(filename);
-}
+loadDefaultEnv(ROOT);
 
 const warehouseUrl = process.env.WAREHOUSE_DATABASE_URL;
 const servingUrl = process.env.SERVING_DATABASE_URL || process.env.DATABASE_URL;
@@ -39,12 +14,47 @@ const servingUrl = process.env.SERVING_DATABASE_URL || process.env.DATABASE_URL;
 if (!warehouseUrl) throw new Error("WAREHOUSE_DATABASE_URL is required");
 if (!servingUrl) throw new Error("SERVING_DATABASE_URL or DATABASE_URL is required");
 
+function isLocalConnection(connectionString) {
+  const parsed = new URL(connectionString);
+  return ["", "localhost", "127.0.0.1", "::1"].includes(parsed.hostname);
+}
+
+if (isLocalConnection(warehouseUrl) && process.env.ALLOW_LOCAL_WAREHOUSE_SYNC !== "1") {
+  throw new Error(
+    "WAREHOUSE_DATABASE_URL resolves to a local database. Set WAREHOUSE_DATABASE_URL to the hosted warehouse, or set ALLOW_LOCAL_WAREHOUSE_SYNC=1 if this local sync is intentional.",
+  );
+}
+
+function todayInTimeZone(timeZone) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const part = (type) => parts.find((entry) => entry.type === type)?.value;
+  const year = part("year");
+  const month = part("month");
+  const day = part("day");
+  if (!year || !month || !day) {
+    throw new Error(`Unable to resolve current date for ${timeZone}`);
+  }
+  return `${year}-${month}-${day}`;
+}
+
+function gameDateEtWindowClause(dateExpression) {
+  return `(${dateExpression} >= ($1::date::timestamp AT TIME ZONE '${MLB_GAME_TIME_ZONE}') AND ${dateExpression} < (($2::date + INTERVAL '1 day')::timestamp AT TIME ZONE '${MLB_GAME_TIME_ZONE}'))`;
+}
+
+const gameDateWindow = gameDateEtWindowClause("g.game_date");
+const unaliasedGameDateWindow = gameDateEtWindowClause("game_date");
+
 const startDate = process.argv.includes("--start-date")
   ? process.argv[process.argv.indexOf("--start-date") + 1]
   : DEFAULT_START_DATE;
 const endDate = process.argv.includes("--end-date")
   ? process.argv[process.argv.indexOf("--end-date") + 1]
-  : DEFAULT_END_DATE;
+  : todayInTimeZone(MLB_GAME_TIME_ZONE);
 
 function describeTarget(connectionString, role) {
   const parsed = new URL(connectionString);
@@ -104,6 +114,21 @@ async function upsertRows(target, config, rows) {
   return rows.length;
 }
 
+async function deleteMissingAbsChallenges(target, rows) {
+  const sourceKeys = rows.map((row) => row.dedupe_key).filter(Boolean);
+  const { rowCount } = await target.query(
+    `
+    DELETE FROM abs_challenges target
+    USING games g
+    WHERE g.game_pk = target.game_pk
+      AND ${gameDateWindow}
+      AND NOT (target.dedupe_key = ANY($3::text[]))
+    `,
+    [startDate, endDate, sourceKeys],
+  );
+  return rowCount ?? 0;
+}
+
 const tableConfigs = [
   {
     name: "games",
@@ -119,6 +144,7 @@ const tableConfigs = [
       "away_team_id",
       "home_score",
       "away_score",
+      "has_abs",
       "venue_name",
     ],
     conflictTarget: ["game_pk"],
@@ -132,14 +158,15 @@ const tableConfigs = [
       "away_team_id",
       "home_score",
       "away_score",
+      "has_abs",
       "venue_name",
     ],
     sourceQuery: `
       SELECT
         game_pk, game_date, game_type, season, status_abstract, status_detailed,
-        home_team_id, away_team_id, home_score, away_score, venue_name
+        home_team_id, away_team_id, home_score, away_score, has_abs, venue_name
       FROM games
-      WHERE game_date::date BETWEEN $1 AND $2
+      WHERE ${unaliasedGameDateWindow}
       ORDER BY game_date, game_pk
     `,
   },
@@ -154,7 +181,7 @@ const tableConfigs = [
         o.game_pk, o.official_id, o.official_name, o.official_type
       FROM officials o
       JOIN games g ON g.game_pk = o.game_pk
-      WHERE g.game_date::date BETWEEN $1 AND $2
+      WHERE ${gameDateWindow}
       ORDER BY o.game_pk, o.official_type, o.official_id
     `,
   },
@@ -218,7 +245,7 @@ const tableConfigs = [
         a.home_score_start, a.away_score_start, a.home_score_end, a.away_score_end
       FROM at_bats a
       JOIN games g ON g.game_pk = a.game_pk
-      WHERE g.game_date::date BETWEEN $1 AND $2
+      WHERE ${gameDateWindow}
       ORDER BY a.game_pk, a.at_bat_index
     `,
   },
@@ -322,7 +349,7 @@ const tableConfigs = [
         p.home_score_after, p.away_score_after, p.gameday_x, p.gameday_y
       FROM pitches p
       JOIN games g ON g.game_pk = p.game_pk
-      WHERE g.game_date::date BETWEEN $1 AND $2
+      WHERE ${gameDateWindow}
       ORDER BY p.game_pk, p.at_bat_index, p.pitch_number
     `,
   },
@@ -435,7 +462,7 @@ const tableConfigs = [
         c.inferred_gameday_y, c.inference_method, c.inference_confidence, c.location_source
       FROM abs_challenges c
       JOIN games g ON g.game_pk = c.game_pk
-      WHERE g.game_date::date BETWEEN $1 AND $2
+      WHERE ${gameDateWindow}
       ORDER BY c.game_pk, c.at_bat_index, c.pitch_number NULLS FIRST
     `,
   },
@@ -482,7 +509,7 @@ const tableConfigs = [
         s.abs_home_used_successful, s.abs_home_used_failed, s.abs_home_remaining
       FROM game_state_snapshots s
       JOIN games g ON g.game_pk = s.game_pk
-      WHERE g.game_date::date BETWEEN $1 AND $2
+      WHERE ${gameDateWindow}
       ORDER BY s.game_pk, s.snapshot_time
     `,
   },
@@ -504,12 +531,13 @@ async function main() {
     const results = [];
     for (const config of tableConfigs) {
       const rows = await fetchRows(source, config.sourceQuery, [startDate, endDate]);
+      const deleted = config.name === "abs_challenges" ? await deleteMissingAbsChallenges(target, rows) : 0;
       const synced = await upsertRows(target, config, rows);
-      results.push({ table: config.table, synced });
+      results.push({ table: config.table, synced, deleted });
     }
     await target.query("COMMIT");
     for (const result of results) {
-      console.info(`[sync-live-context-to-warehouse] ${result.table} synced_rows=${result.synced}`);
+      console.info(`[sync-live-context-to-warehouse] ${result.table} synced_rows=${result.synced} deleted_rows=${result.deleted}`);
     }
   } catch (error) {
     await target.query("ROLLBACK");

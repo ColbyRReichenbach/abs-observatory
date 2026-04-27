@@ -135,13 +135,14 @@ async function main() {
         SELECT
           c.challenge_id,
           c.is_overturned,
-          c.location_source,
-          COALESCE(c.px, c.inferred_px) AS px,
-          COALESCE(c.pz, c.inferred_pz) AS pz,
+          c.resolved_location_source AS location_source,
+          c.resolved_px AS px,
+          c.resolved_pz AS pz,
           resolve_abs_strike_zone_top(c.batter_id, c.strike_zone_top, c.inferred_strike_zone_top) AS strike_zone_top,
           resolve_abs_strike_zone_bottom(c.batter_id, c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strike_zone_bottom,
-          COALESCE(p.called_description, c.called_description) AS called_description
-        FROM abs_challenges c
+          c.original_call AS called_description,
+          c.challenge_direction
+        FROM mart_abs_pitch_challenges c
         JOIN games g ON g.game_pk = c.game_pk
         LEFT JOIN pitches p
           ON p.game_pk = c.game_pk
@@ -155,8 +156,7 @@ async function main() {
       )
     ).rows.map((row) => {
       const calledPitch = getCalledPitch(row.called_description);
-      const direction =
-        calledPitch === "called_strike" ? "strike_to_ball" : calledPitch === "ball" ? "ball_to_strike" : "unknown";
+      const direction = row.challenge_direction ?? "unknown";
       const geometry = {
         px: row.px === null ? null : Number(row.px),
         pz: row.pz === null ? null : Number(row.pz),

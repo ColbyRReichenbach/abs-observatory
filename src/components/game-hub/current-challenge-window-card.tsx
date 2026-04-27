@@ -234,7 +234,7 @@ function ProjectionCard({
       </p>
       {overturnProbability !== null ? (
         <p className="mt-1 text-[11px] font-medium">
-          {Math.round(overturnProbability * 100)}% overturn • {recommendation === "challenge" ? "Challenge" : recommendation === "hold" ? "Hold" : "No review"}
+          {Math.round(overturnProbability * 100)}% overturn • {recommendation === "challenge" ? "Lean challenge" : recommendation === "hold" ? "Lean hold" : "No review"}
         </p>
       ) : null}
       {useWinValue && winDelta !== null ? (

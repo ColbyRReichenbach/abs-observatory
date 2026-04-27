@@ -20,6 +20,6 @@ describe("proxy security headers", () => {
     expect(response.headers.get("x-frame-options")).toBe("DENY");
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
     expect(response.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
-    expect(response.cookies.get("aibs_csrf")?.value).toBeTruthy();
+    expect(response.cookies.get("aibs_csrf")).toBeUndefined();
   });
 });

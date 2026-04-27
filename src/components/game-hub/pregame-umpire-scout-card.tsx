@@ -19,14 +19,28 @@ export function PregameUmpireScoutCard({
 }) {
   if (!intel) return null;
 
+  const hasAssignedUmpire = Boolean(intel.umpireId);
+  const sampledZones = intel.zoneBriefing.filter((zone) => zone.hasSample);
+  const hasZoneSample = sampledZones.length > 0;
   const hottestZone =
-    [...intel.zoneBriefing].sort((left, right) => {
+    [...sampledZones].sort((left, right) => {
       if (right.overturnRate !== left.overturnRate) return right.overturnRate - left.overturnRate;
       return right.challenges - left.challenges;
     })[0] ?? null;
 
   const homePeakInning = peakInning(intel.challengeTiming.home);
   const awayPeakInning = peakInning(intel.challengeTiming.away);
+  const overallRiskValue =
+    hasAssignedUmpire && hasZoneSample
+      ? `${Math.round((1 - intel.umpireTendency.overallAccuracy) * 100)}%`
+      : hasAssignedUmpire
+        ? "No sample"
+        : "Pending";
+  const introCopy = !hasAssignedUmpire
+    ? "Scheduled plate umpire has not been published yet."
+    : hasZoneSample
+      ? `${intel.umpireName ?? "Unknown umpire"} enters with ${Math.round((1 - intel.umpireTendency.overallAccuracy) * 100)}% review volatility.`
+      : `${intel.umpireName ?? "Unknown umpire"} is assigned, but there is no tracked challenge sample yet for a zone-level read.`;
 
   return (
     <section className="panel p-6 shadow-2xl shadow-black/[0.02] border border-gray-50 bg-white">
@@ -39,13 +53,13 @@ export function PregameUmpireScoutCard({
             Tonight’s <span className="text-gray-400">Read</span>
           </p>
           <p className="mt-2 text-[11px] font-medium leading-relaxed text-[var(--ink-2)]">
-            {intel.umpireName ?? "Unknown umpire"} enters with {(Math.round((1 - intel.umpireTendency.overallAccuracy) * 100))}% review volatility.
+            {introCopy}
           </p>
         </div>
         <div className="rounded-2xl border border-purple-100 bg-purple-50/70 px-4 py-3">
           <p className="text-[9px] font-black uppercase tracking-widest text-purple-500">Hottest Zone</p>
           <p className="mt-2 text-lg font-display text-gray-900">
-            {hottestZone ? BUCKET_LABELS[hottestZone.bucket] : "Directional only"}
+            {!hasAssignedUmpire ? "Awaiting assignment" : hottestZone ? BUCKET_LABELS[hottestZone.bucket] : "No sample yet"}
           </p>
         </div>
       </div>
@@ -53,31 +67,57 @@ export function PregameUmpireScoutCard({
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <ScoutMetric
           label="Overall Risk"
-          value={`${Math.round((1 - intel.umpireTendency.overallAccuracy) * 100)}%`}
-          detail={viewMode === "org" ? "Challenge overturn profile" : "Review volatility"}
+          value={overallRiskValue}
+          detail={
+            !hasAssignedUmpire
+              ? "Pregame umpire profile unlocks once MLB posts the plate assignment."
+              : hasZoneSample
+                ? viewMode === "org" ? "Challenge overturn profile" : "Review volatility"
+                : "No tracked umpire challenge sample yet."
+          }
         />
         <ScoutMetric
           label="Home Timing Lean"
-          value={homePeakInning ? `Inning ${homePeakInning}` : "Flat"}
-          detail={`${intel.teamHistoryVsUmpire.home.challenges} tracked challenges`}
+          value={homePeakInning ? `Inning ${homePeakInning.inning}` : "Flat"}
+          detail={homePeakInning ? `${Math.round(homePeakInning.share * 100)}% of club challenges` : "No tracked team challenge trend"}
         />
         <ScoutMetric
           label="Away Timing Lean"
-          value={awayPeakInning ? `Inning ${awayPeakInning}` : "Flat"}
-          detail={`${intel.teamHistoryVsUmpire.away.challenges} tracked challenges`}
+          value={awayPeakInning ? `Inning ${awayPeakInning.inning}` : "Flat"}
+          detail={awayPeakInning ? `${Math.round(awayPeakInning.share * 100)}% of club challenges` : "No tracked team challenge trend"}
         />
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <NarrativeCard
           label="Home vs Umpire"
-          value={`${Math.round(intel.teamHistoryVsUmpire.home.overturnRate * 100)}%`}
-          detail={`${intel.teamHistoryVsUmpire.home.games} games • ${intel.teamHistoryVsUmpire.home.challenges} challenges`}
+          value={
+            !hasAssignedUmpire
+              ? "Pending"
+              : intel.teamHistoryVsUmpire.home.hasSample
+                ? `${Math.round(intel.teamHistoryVsUmpire.home.overturnRate * 100)}%`
+                : "No sample"
+          }
+          detail={
+            !hasAssignedUmpire
+              ? "Plate umpire not posted yet."
+              : `${intel.teamHistoryVsUmpire.home.games} games • ${intel.teamHistoryVsUmpire.home.challenges} challenges`
+          }
         />
         <NarrativeCard
           label="Away vs Umpire"
-          value={`${Math.round(intel.teamHistoryVsUmpire.away.overturnRate * 100)}%`}
-          detail={`${intel.teamHistoryVsUmpire.away.games} games • ${intel.teamHistoryVsUmpire.away.challenges} challenges`}
+          value={
+            !hasAssignedUmpire
+              ? "Pending"
+              : intel.teamHistoryVsUmpire.away.hasSample
+                ? `${Math.round(intel.teamHistoryVsUmpire.away.overturnRate * 100)}%`
+                : "No sample"
+          }
+          detail={
+            !hasAssignedUmpire
+              ? "Plate umpire not posted yet."
+              : `${intel.teamHistoryVsUmpire.away.games} games • ${intel.teamHistoryVsUmpire.away.challenges} challenges`
+          }
         />
       </div>
     </section>
@@ -93,7 +133,7 @@ function peakInning(values: number[]) {
       bestIndex = index;
     }
   });
-  return bestIndex >= 0 ? bestIndex + 1 : null;
+  return bestIndex >= 0 ? { inning: bestIndex + 1, share: bestValue } : null;
 }
 
 function ScoutMetric({ label, value, detail }: { label: string; value: string; detail: string }) {

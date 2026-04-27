@@ -2,7 +2,7 @@ import { sqlOne } from "@/lib/db";
 import { getCacheKey, getCachedValue, setCachedValue } from "@/lib/server/scale";
 
 const DATA_VERSION_CACHE_TTL_MS = 15_000;
-const DEFAULT_POLL_INTERVAL_MINUTES = 5;
+const DEFAULT_POLL_INTERVAL_MINUTES = 10;
 
 type VersionRow = {
   version: string | null;
@@ -103,7 +103,7 @@ export async function getGameDataVersion(gamePk: number) {
       UNION ALL
 
       SELECT MAX(c.challenged_at) AS version_at
-      FROM abs_challenges c
+      FROM mart_abs_pitch_challenges c
       WHERE c.game_pk = $1
 
       UNION ALL
@@ -166,7 +166,7 @@ export async function getGlobalLiveDataVersion() {
       UNION ALL
 
       SELECT MAX(c.challenged_at) AS version_at
-      FROM abs_challenges c
+      FROM mart_abs_pitch_challenges c
       WHERE c.game_pk IN (SELECT game_pk FROM candidate_games)
 
       UNION ALL

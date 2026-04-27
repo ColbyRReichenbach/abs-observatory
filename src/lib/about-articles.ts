@@ -438,11 +438,11 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
       },
       {
         eyebrow: "Geometry",
-        heading: "Geometry is a reconstructed layer, useful now but not settled enough to present as final ABS truth.",
+        heading: "Geometry now has one public contract, with diagnostics kept behind it.",
         paragraphs: [
-          "The geometry layer matters because ABS begins with a strike-zone decision. Public baseball data alone cannot prove the exact adjudication method the league uses. The current system retains two explicit interpretations of called-pitch geometry: center_only and radius_adjusted. Both are evaluated against challenged outcomes rather than treating one as already settled.",
-          "The current validation work points toward center_only as the leading candidate. Segmented follow-up evidence supports that direction, but one smaller held-out comparison left enough ambiguity that the geometry choice stays qualified.",
-          "Direction also matters independently. A called strike flipping to a ball is not the same baseball event as a called ball flipping to a strike. They move the count in opposite directions, create different state sequences, and produce different downstream value. The geometry layer is tied to challenge direction because the baseball consequences are direction-aware, and both geometry variants stay in the stack until the evidence for one is conclusive.",
+          "The geometry layer matters because ABS begins with a strike-zone decision. Public baseball data alone cannot prove every operational detail of MLB's internal adjudication, so the product uses a single canonical public field: Savant edge distance when it is available, otherwise a radius-adjusted ABS edge calculation.",
+          "Center-only and raw radius-adjusted variants are still retained as internal diagnostics. They are useful for validation, but they should not leak into product language as competing public truths. The user-facing strike-zone and challenge-value surfaces should all speak through the canonical ABS margin.",
+          "Direction also matters independently. A called strike flipping to a ball is not the same baseball event as a called ball flipping to a strike. They move the count in opposite directions, create different state sequences, and produce different downstream value. The geometry layer is tied to challenge direction because the baseball consequences are direction-aware.",
         ],
       },
       {
@@ -450,7 +450,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         heading: "Overturn probability is a real part of the stack, but I keep it in the product with qualified language.",
         paragraphs: [
           "Overturn probability addresses a straightforward question in the ABS challenge system: given the pitch location and challenge direction, how likely is the call to be overturned? The current model uses a tiered fallback structure. If an exact match exists for the challenge direction and edge bucket, it uses that. If not, it falls back to direction-only, then to a global baseline.",
-          "The validation path has improved substantially, but the layer is still geometry-sensitive and limited by sample size. The current held-out audit covers 245 challenged rows and shows a Brier score of 0.2519, log loss of 0.6970, and a mean absolute bucket gap of 8.3% using center_only geometry. The direction is credible, but sparse subgroups still carry wide intervals.",
+          "The validation path has improved substantially, but the layer is still geometry-sensitive and limited by sample size. The current audit covers 3,448 challenged rows, with 1,129 held out for test. The product default is canonical/radius-adjusted geometry: held-out Brier is 0.2556 and log loss is 0.7043. Center-only still slightly wins the tiny validation split, so the model remains qualified rather than declared settled.",
           "That is enough to call the model promising and usable in context. It is not enough to describe it as final or club-grade.",
         ],
       },
@@ -458,9 +458,9 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         eyebrow: "Challenge evaluation",
         heading: "Challenge-now is much better engineered than it was, and I still will not oversell it.",
         paragraphs: [
-          "The challenge-value decomposition is the most consequential layer in the stack. It combines all the upstream pieces into a single decision estimate: EV = P(overturn) x success_value + (1 - P(overturn)) x failure_value - inventory_cost.",
-          "The inputs include exact base-out state, inning, score, count, challenge direction, overturn probability, RE and WE value layers, and an inventory cost version. The full decomposition is exposed in the product output so the user can see the components, not just the final recommendation.",
-          "The current evidence does not support presenting it as org-grade live optimization. The held-out opportunity audit covers 9,768 opportunities. Historical challenge share is 2.5%. Current recommendation share is 0.8%. There are 78 positive-EV non-challenged rows and 242 negative-EV challenged rows. The most significant issue is that the budget-constrained validation slice still shows zero overlap between budget-selected rows and historically challenged rows.",
+          "The challenge-value decomposition is the most consequential layer in the stack. It combines all the upstream pieces into a single decision estimate: EV = P(overturn) x success_value + (1 - P(overturn)) x failed_challenge_value. Inventory is now paid only on the failed branch, where burning a challenge actually matters.",
+          "The inputs include exact base-out state, inning, score, count, challenge direction, canonical overturn probability, RE and WE value layers, terminal count-transition flags, and the inventory cost version. Terminal walk/strikeout branches are labeled and currently use the heuristic decision-value path until we have a dedicated post-PA terminal WE resolver.",
+          "The current evidence does not support presenting it as org-grade live optimization. The held-out opportunity audit covers 43,297 opportunities and 1,129 challenged rows. Historical challenge share is 2.6%, while the current raw recommendation share is 10.9%. A stricter 1.0% threshold brings the validation challenge share to 3.2%, and a two-per-team-game budget envelope lands at 2.6%. That is much healthier, but it is still descriptive evidence rather than causal proof.",
           "Live challenge-now is framed in the product as an experimental lens for discussion. Postgame challenge evaluation is substantially stronger and more credible for retrospective use. Letting one ambitious layer undermine the credibility of the rest of the stack is not a trade worth making.",
         ],
       },
@@ -669,7 +669,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         eyebrow: "Live ingest",
         heading: "The scheduler is simple. The work gate is smarter.",
         paragraphs: [
-          "The live polling path runs on a fixed five-minute heartbeat. A simple cadence is easy to understand and reason about operationally. The scheduler wakes up on schedule, and the gate decides whether real work needs to happen.",
+          "The live polling path runs on a fixed ten-minute heartbeat. A simple cadence is easy to understand and reason about operationally. The scheduler wakes up on schedule, and the gate decides whether real work needs to happen.",
           "The gate is Eastern Time aware. If no relevant games exist in the current ET window, the poller exits quickly. If games are scheduled but none are live, it exits again. If the system has been stale for more than eight hours, it runs a bounded catch-up across scheduled ET dates going back up to seven days. Each wake-up does the right amount of work, not a fixed amount.",
           "Serving mode and archive mode are also separated. In serving mode, the hosted database stays focused on structured page-facing state. In archive mode, heavier raw material is preserved outside the normal serving footprint. Snapshot pruning keeps the serving environment from quietly accumulating data that belongs in an archive.",
         ],
@@ -758,7 +758,7 @@ export const ABOUT_ARTICLES: AboutArticle[] = [
         eyebrow: "Data freshness",
         heading: "Trust also means the product knows when its own serving state is fresh and when it is not.",
         paragraphs: [
-          "Model validation is only one dimension of trust. The product also has to trust its own data path. The polling workflow runs on a fixed five-minute heartbeat with an ET-aware gate that decides whether real ingest work needs to happen. Stale systems beyond eight hours get a bounded catch-up. Nothing relevant in the schedule means a quick exit.",
+          "Model validation is only one dimension of trust. The product also has to trust its own data path. The polling workflow runs on a fixed ten-minute heartbeat with an ET-aware gate that decides whether real ingest work needs to happen. Stale systems beyond eight hours get a bounded catch-up. Nothing relevant in the schedule means a quick exit.",
           "Live scoreboard serving reads from structured linescore state rather than depending on open-ended raw snapshot retention. Snapshot pruning keeps the serving environment from quietly accumulating archive-weight data. Those choices exist because stale or loosely shaped serving state can make the product look more certain than it should be.",
           "Blurring the line between fresh structured state, stale operational state, and deeper archive material is a specific failure mode the data design is built to prevent.",
         ],

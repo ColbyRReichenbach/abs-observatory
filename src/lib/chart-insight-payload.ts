@@ -342,7 +342,7 @@ export function buildChallengeDecisionChartPayload(challenge: ChallengeEvent): C
     chartKey: `challenge-decision:${challenge.challengeId}`,
     chartTitle: "Challenge Decision Brief",
     baseballQuestion:
-      "Should a club challenge in this exact spot, and what do the game state, model value, and historical count context say about that decision?",
+      "How does the model read this reviewed spot, and what do the game state, model value, and historical count context say about that read?",
     chartSummary: "Single-challenge decision brief combining count change, leverage, consequence, and historical context.",
     payload: {
       challengeId: challenge.challengeId,

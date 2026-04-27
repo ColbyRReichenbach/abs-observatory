@@ -11,6 +11,10 @@ export type AiFeatureFlag = (typeof AI_FEATURE_FLAGS)[number];
 export const AI_USAGE_FEATURES = ["ai_chat_basic", "ai_chat_heavy", "ai_chart_generation", "ai_chart_followup", "ai_editorial_tools"] as const;
 export type AiUsageFeature = (typeof AI_USAGE_FEATURES)[number];
 
+export const AI_USAGE_TIME_ZONE = "America/New_York";
+export const AI_USAGE_DAY_SQL = `(CURRENT_TIMESTAMP AT TIME ZONE '${AI_USAGE_TIME_ZONE}')::date`;
+export const AI_USAGE_MONTH_SQL = `DATE_TRUNC('month', CURRENT_TIMESTAMP AT TIME ZONE '${AI_USAGE_TIME_ZONE}')::date`;
+
 export type AiEntitlement = {
   userId: string;
   planCode: AiPlanCode;
@@ -301,9 +305,9 @@ async function getUsageRollup(userId: string, modelName: string): Promise<AiUsag
     }>(
       `
       SELECT
-        COALESCE(SUM(CASE WHEN usage_day = CURRENT_DATE THEN request_count ELSE 0 END), 0)::text AS dailyRequests,
-        COALESCE(SUM(CASE WHEN usage_month = DATE_TRUNC('month', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date THEN total_tokens ELSE 0 END), 0)::text AS monthlyTokens,
-        COALESCE(SUM(CASE WHEN usage_month = DATE_TRUNC('month', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date THEN estimated_cost_usd ELSE 0 END), 0)::text AS monthlyCostUsd
+        COALESCE(SUM(CASE WHEN usage_day = ${AI_USAGE_DAY_SQL} THEN request_count ELSE 0 END), 0)::text AS dailyRequests,
+        COALESCE(SUM(CASE WHEN usage_month = ${AI_USAGE_MONTH_SQL} THEN total_tokens ELSE 0 END), 0)::text AS monthlyTokens,
+        COALESCE(SUM(CASE WHEN usage_month = ${AI_USAGE_MONTH_SQL} THEN estimated_cost_usd ELSE 0 END), 0)::text AS monthlyCostUsd
       FROM ai.usage_ledger
       WHERE user_id = $1
       `,
@@ -313,21 +317,21 @@ async function getUsageRollup(userId: string, modelName: string): Promise<AiUsag
       `
       SELECT COALESCE(SUM(estimated_cost_usd), 0)::text AS dailyCostUsd
       FROM ai.usage_ledger
-      WHERE usage_day = CURRENT_DATE
+      WHERE usage_day = ${AI_USAGE_DAY_SQL}
       `,
     ),
     sqlOne<{ monthlycostusd: string }>(
       `
       SELECT COALESCE(SUM(estimated_cost_usd), 0)::text AS monthlyCostUsd
       FROM ai.usage_ledger
-      WHERE usage_month = DATE_TRUNC('month', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date
+      WHERE usage_month = ${AI_USAGE_MONTH_SQL}
       `,
     ),
     sqlOne<{ monthlycostusd: string }>(
       `
       SELECT COALESCE(SUM(estimated_cost_usd), 0)::text AS monthlyCostUsd
       FROM ai.usage_ledger
-      WHERE usage_month = DATE_TRUNC('month', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date
+      WHERE usage_month = ${AI_USAGE_MONTH_SQL}
         AND model_name = $1
       `,
       [modelName],
@@ -453,9 +457,11 @@ export async function recordAiUsageLedger(params: {
       output_tokens,
       total_tokens,
       estimated_cost_usd,
+      usage_day,
+      usage_month,
       metadata
     )
-    VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9, $10, $11)
+    VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9, $10, ${AI_USAGE_DAY_SQL}, ${AI_USAGE_MONTH_SQL}, $11)
     `,
     [
       params.userId,

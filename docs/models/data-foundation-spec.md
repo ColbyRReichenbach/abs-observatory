@@ -2,6 +2,8 @@
 
 Last verified: `2026-04-08`
 
+> Status note: this is a dated April 8 warehouse/data snapshot. Use it as evidence of that inspection, not as a blanket claim that all row counts and cutoffs remain current today.
+
 This document is the source of truth for:
 
 - what data exists today
@@ -420,32 +422,31 @@ Current status:
 
 This is the new engineered dataset required for challenge-now, pitch-trait vulnerability, and geometry-based decision modeling.
 
-Current implemented state in Warehouse as of April 8, 2026:
+Current implemented state in Warehouse as of April 24, 2026:
 
 - table exists and is populated
-- current window built: `2026-02-20` through `2026-04-07`
-- current rows: `28,557`
+- current window built: `2026-02-20` through `2026-04-23`
+- current rows: `62,086`
 - current composition:
-  - `26,646` regular-season rows
+  - `60,175` regular-season rows
   - `1,911` spring-training rows
-  - `2,564` challenged rows reconciled to `raw.savant_abs_events`
+  - `3,448` challenged rows reconciled to `raw.savant_abs_events`
 - current recovered context coverage:
-  - `28,557` rows with non-null `bases_state`
-  - `1,912` Savant-only rows with non-null `bases_state`
-  - `28,557` rows with non-null score context
-  - `1,912` Savant-only rows with non-null score context
+  - `62,086` rows with non-null `bases_state`
+  - `62,086` rows with non-null score context
 - current split materialization under `called_pitch_decisions_phase_time_v1`:
   - `13,822` train rows
   - `4,967` validation rows
-  - `9,768` test rows
-- current validation artifact:
-  - [called-pitch-status-20260408T140553.json](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/.runtime/called-pitch-status/called-pitch-status-20260408T140553.json)
-- current geometry validation artifact:
-  - [called-pitch-geometry-validation-20260408T140829.json](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/.runtime/called-pitch-geometry/called-pitch-geometry-validation-20260408T140829.json)
-  - current challenged-sample result favors `center_only` over `radius_adjusted`
+  - `43,297` test rows
+- current model audit artifacts:
+  - [2026-04-24-overturn-calibration.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/audits/2026-04-24-overturn-calibration.md)
+  - [2026-04-24-decision-value-audit.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/audits/2026-04-24-decision-value-audit.md)
+- current geometry policy:
+  - product surfaces use canonical Savant edge distance when available, otherwise radius-adjusted ABS edge distance
+  - center-only and raw radius-adjusted fields remain diagnostics
 - current limitation:
-  - the current split policy is provisional and early-window only; it should be revisited as the 2026 sample grows
-  - geometry selection should remain provisional until rerun on a larger sample and segmented by challenge direction
+  - the current split policy should be revisited as the 2026 sample grows
+  - geometry calibration should keep refreshing, even though product surfaces now use one canonical margin
 
 ### 9.1 Purpose
 

@@ -28,7 +28,6 @@ except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test impo
     def execute_batch(*_args: Any, **_kwargs: Any) -> None:
         raise RuntimeError("psycopg2 is required for ETL database writes")
 
-from generate_game_report import generate_and_store_report
 from db_target import log_database_target, resolve_database_target
 
 load_dotenv()
@@ -53,6 +52,12 @@ def _env_bool(name: str, default: bool = True) -> bool:
     if raw is None:
         return default
     return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _optional_int(value: Any) -> Optional[int]:
+    if value is None or value == "":
+        return None
+    return int(value)
 
 
 def should_write_raw_source_snapshot(source_name: str) -> bool:
@@ -327,8 +332,8 @@ def upsert_game(cur, feed: Dict[str, Any]) -> None:
         """
         INSERT INTO games (
           game_pk, game_date, game_type, season, status_abstract, status_detailed,
-          home_team_id, away_team_id, home_score, away_score, venue_name
-        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+          home_team_id, away_team_id, home_score, away_score, has_abs, venue_name
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         ON CONFLICT (game_pk) DO UPDATE SET
           game_date = EXCLUDED.game_date,
           game_type = EXCLUDED.game_type,
@@ -337,6 +342,7 @@ def upsert_game(cur, feed: Dict[str, Any]) -> None:
           status_detailed = EXCLUDED.status_detailed,
           home_score = EXCLUDED.home_score,
           away_score = EXCLUDED.away_score,
+          has_abs = COALESCE(EXCLUDED.has_abs, games.has_abs),
           venue_name = EXCLUDED.venue_name,
           updated_at = NOW()
         """,
@@ -351,6 +357,7 @@ def upsert_game(cur, feed: Dict[str, Any]) -> None:
             teams.get("away", {}).get("id"),
             feed.get("liveData", {}).get("linescore", {}).get("teams", {}).get("home", {}).get("runs"),
             feed.get("liveData", {}).get("linescore", {}).get("teams", {}).get("away", {}).get("runs"),
+            bool(gd.get("absChallenges")) if gd.get("absChallenges") is not None else None,
             gd.get("venue", {}).get("name"),
         ),
     )
@@ -436,15 +443,21 @@ def upsert_officials(cur, game_pk: int, feed: Dict[str, Any]) -> None:
 def upsert_abs_counters(cur, game_pk: int, feed: Dict[str, Any]) -> None:
     gd = feed.get("gameData", {})
     teams = gd.get("teams", {})
-    abs_data = gd.get("absChallenges", {})
+    abs_data = gd.get("absChallenges") or {}
 
-    home = abs_data.get("home", {})
-    away = abs_data.get("away", {})
+    home = abs_data.get("home") or {}
+    away = abs_data.get("away") or {}
+    home_used_successful = int(home.get("usedSuccessful", 0))
+    home_used_failed = int(home.get("usedFailed", 0))
+    home_remaining = _optional_int(home.get("remaining"))
+    away_used_successful = int(away.get("usedSuccessful", 0))
+    away_used_failed = int(away.get("usedFailed", 0))
+    away_remaining = _optional_int(away.get("remaining"))
 
     cur.execute(
         """
         INSERT INTO team_abs_game_summary (game_pk, team_id, team_side, used_successful, used_failed, remaining)
-        VALUES (%s,%s,'home',%s,%s,%s)
+        VALUES (%s,%s,'home',%s,%s,COALESCE(%s, GREATEST(0, 2 - %s)))
         ON CONFLICT (game_pk, team_id) DO UPDATE SET
           used_successful = EXCLUDED.used_successful,
           used_failed = EXCLUDED.used_failed,
@@ -454,16 +467,17 @@ def upsert_abs_counters(cur, game_pk: int, feed: Dict[str, Any]) -> None:
         (
             game_pk,
             teams.get("home", {}).get("id"),
-            int(home.get("usedSuccessful", 0)),
-            int(home.get("usedFailed", 0)),
-            int(home.get("remaining", 0)),
+            home_used_successful,
+            home_used_failed,
+            home_remaining,
+            home_used_failed,
         ),
     )
 
     cur.execute(
         """
         INSERT INTO team_abs_game_summary (game_pk, team_id, team_side, used_successful, used_failed, remaining)
-        VALUES (%s,%s,'away',%s,%s,%s)
+        VALUES (%s,%s,'away',%s,%s,COALESCE(%s, GREATEST(0, 2 - %s)))
         ON CONFLICT (game_pk, team_id) DO UPDATE SET
           used_successful = EXCLUDED.used_successful,
           used_failed = EXCLUDED.used_failed,
@@ -473,9 +487,10 @@ def upsert_abs_counters(cur, game_pk: int, feed: Dict[str, Any]) -> None:
         (
             game_pk,
             teams.get("away", {}).get("id"),
-            int(away.get("usedSuccessful", 0)),
-            int(away.get("usedFailed", 0)),
-            int(away.get("remaining", 0)),
+            away_used_successful,
+            away_used_failed,
+            away_remaining,
+            away_used_failed,
         ),
     )
 
@@ -509,7 +524,16 @@ def _challenge_from_review(
     elif inferred_pitch:
         location_source = inferred_pitch.get("location_source") or "unresolved"
 
-    dedupe_key = f"{game_pk}:{about.get('atBatIndex')}:{pitch_number if pitch_number is not None else 'na'}:{review.get('challengeTeamId')}:{review.get('isOverturned')}:{challenge_level}"
+    dedupe_key = ":".join(
+        [
+            str(game_pk),
+            str(about.get("atBatIndex")),
+            str(pitch_number if pitch_number is not None else (inferred_pitch or {}).get("pitch_number", "na")),
+            str(review.get("challengeTeamId") or "unknown_team"),
+            str(review.get("reviewType") or "unknown_review"),
+            challenge_level,
+        ]
+    )
 
     challenge_team_id = review.get("challengeTeamId")
     home_team_id = play.get("homeTeamId")
@@ -1023,7 +1047,7 @@ def refresh_umpire_summary(cur, game_pk: int) -> None:
           COUNT(*) AS challenged_calls,
           COUNT(*) FILTER (WHERE c.is_overturned) AS overturned_calls,
           COUNT(*) FILTER (WHERE NOT c.is_overturned) AS confirmed_calls
-        FROM abs_challenges c
+        FROM mart_abs_pitch_challenges c
         JOIN officials o ON o.game_pk = c.game_pk AND o.official_type = 'Home Plate'
         WHERE c.game_pk = %s
         GROUP BY c.game_pk, o.official_id, o.official_name;
@@ -1032,9 +1056,74 @@ def refresh_umpire_summary(cur, game_pk: int) -> None:
     )
 
 
+def refresh_team_summary(cur, game_pk: int, feed: Dict[str, Any]) -> None:
+    gd = feed.get("gameData", {})
+    teams = gd.get("teams", {})
+    abs_data = gd.get("absChallenges") or {}
+    home_remaining = _optional_int((abs_data.get("home") or {}).get("remaining"))
+    away_remaining = _optional_int((abs_data.get("away") or {}).get("remaining"))
+
+    cur.execute(
+        """
+        DELETE FROM team_abs_game_summary WHERE game_pk = %(game_pk)s;
+
+        WITH team_challenges AS (
+          SELECT
+            challenge_team_id AS team_id,
+            COUNT(*) FILTER (WHERE is_overturned = TRUE) AS used_successful,
+            COUNT(*) FILTER (WHERE is_overturned = FALSE) AS used_failed
+          FROM mart_abs_pitch_challenges
+          WHERE game_pk = %(game_pk)s
+            AND challenge_team_id IS NOT NULL
+          GROUP BY challenge_team_id
+        ),
+        game_teams AS (
+          SELECT
+            %(game_pk)s::BIGINT AS game_pk,
+            %(home_team_id)s::INTEGER AS team_id,
+            'home'::TEXT AS team_side,
+            %(home_remaining)s::INTEGER AS feed_remaining
+          UNION ALL
+          SELECT
+            %(game_pk)s::BIGINT AS game_pk,
+            %(away_team_id)s::INTEGER AS team_id,
+            'away'::TEXT AS team_side,
+            %(away_remaining)s::INTEGER AS feed_remaining
+        )
+        INSERT INTO team_abs_game_summary (
+          game_pk,
+          team_id,
+          team_side,
+          used_successful,
+          used_failed,
+          remaining
+        )
+        SELECT
+          gt.game_pk,
+          gt.team_id,
+          gt.team_side,
+          COALESCE(tc.used_successful, 0) AS used_successful,
+          COALESCE(tc.used_failed, 0) AS used_failed,
+          COALESCE(gt.feed_remaining, GREATEST(0, 2 - COALESCE(tc.used_failed, 0))) AS remaining
+        FROM game_teams gt
+        LEFT JOIN team_challenges tc ON tc.team_id = gt.team_id
+        WHERE gt.team_id IS NOT NULL;
+        """,
+        {
+            "game_pk": game_pk,
+            "home_team_id": teams.get("home", {}).get("id"),
+            "away_team_id": teams.get("away", {}).get("id"),
+            "home_remaining": home_remaining,
+            "away_remaining": away_remaining,
+        },
+    )
+
+
 def write_snapshot(cur, game_pk: int, feed: Dict[str, Any]) -> None:
     linescore = feed.get("liveData", {}).get("linescore", {})
-    abs_data = feed.get("gameData", {}).get("absChallenges", {})
+    abs_data = feed.get("gameData", {}).get("absChallenges") or {}
+    away_abs = abs_data.get("away") or {}
+    home_abs = abs_data.get("home") or {}
     cur.execute(
         """
         INSERT INTO game_state_snapshots (
@@ -1053,12 +1142,12 @@ def write_snapshot(cur, game_pk: int, feed: Dict[str, Any]) -> None:
             linescore.get("outs"),
             linescore.get("teams", {}).get("home", {}).get("runs"),
             linescore.get("teams", {}).get("away", {}).get("runs"),
-            abs_data.get("away", {}).get("usedSuccessful", 0),
-            abs_data.get("away", {}).get("usedFailed", 0),
-            abs_data.get("away", {}).get("remaining", 0),
-            abs_data.get("home", {}).get("usedSuccessful", 0),
-            abs_data.get("home", {}).get("usedFailed", 0),
-            abs_data.get("home", {}).get("remaining", 0),
+            away_abs.get("usedSuccessful", 0),
+            away_abs.get("usedFailed", 0),
+            _optional_int(away_abs.get("remaining")),
+            home_abs.get("usedSuccessful", 0),
+            home_abs.get("usedFailed", 0),
+            _optional_int(home_abs.get("remaining")),
         ),
     )
 
@@ -1072,11 +1161,21 @@ def ingest_game(cur, game_pk: int) -> Tuple[int, bool]:
     upsert_officials(cur, game_pk, feed)
     upsert_abs_counters(cur, game_pk, feed)
     inserted = upsert_plays(cur, game_pk, feed)
+    refresh_team_summary(cur, game_pk, feed)
     refresh_umpire_summary(cur, game_pk)
     write_snapshot(cur, game_pk, feed)
     status = feed.get("gameData", {}).get("status", {}).get("abstractGameState", "")
     is_final = str(status).lower() == "final"
     return inserted, is_final
+
+
+def maybe_generate_game_report(cur, game_pk: int, skip_reports: bool) -> bool:
+    if skip_reports:
+        return False
+
+    from generate_game_report import generate_and_store_report
+
+    return generate_and_store_report(cur, game_pk, force=False)
 
 
 def run(
@@ -1085,11 +1184,23 @@ def run(
     end_date: str,
     game_type: str,
     skip_final_existing: bool = False,
+    skip_reports: bool = True,
 ) -> None:
     conn = psycopg2.connect(database_url)
     conn.autocommit = False
 
     cur = conn.cursor()
+    cur.execute(
+        """
+        UPDATE etl_runs
+        SET
+          status = 'failed',
+          finished_at = NOW(),
+          details = COALESCE(details, '{}'::jsonb) || jsonb_build_object('stale_timeout', TRUE)
+        WHERE status = 'running'
+          AND started_at < NOW() - INTERVAL '2 hours'
+        """
+    )
     cur.execute("INSERT INTO etl_runs (run_type) VALUES ('manual_window') RETURNING run_id")
     run_id = cur.fetchone()[0]
     conn.commit()
@@ -1104,7 +1215,7 @@ def run(
             try:
                 inserted, is_final = ingest_game(cur, game_pk)
                 rows_written += inserted
-                if is_final and generate_and_store_report(cur, game_pk, force=False):
+                if is_final and maybe_generate_game_report(cur, game_pk, skip_reports):
                     reports_generated += 1
                 conn.commit()
             except Exception as exc:  # pylint: disable=broad-except
@@ -1147,6 +1258,16 @@ def main() -> None:
         action="store_true",
         help="Skip games already marked final in the local games table",
     )
+    parser.add_argument(
+        "--skip-reports",
+        action="store_true",
+        help="Skip per-game narrative report generation during ingest. This is the default.",
+    )
+    parser.add_argument(
+        "--generate-reports",
+        action="store_true",
+        help="Generate per-game narrative reports after final games. Disabled by default.",
+    )
     args = parser.parse_args()
 
     target = resolve_database_target(cli_database_url=args.database_url, role="warehouse")
@@ -1158,6 +1279,7 @@ def main() -> None:
         args.end_date,
         args.game_type,
         skip_final_existing=args.skip_final_existing,
+        skip_reports=(not args.generate_reports) or args.skip_reports,
     )
 
 

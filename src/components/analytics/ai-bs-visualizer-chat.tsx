@@ -46,6 +46,12 @@ function formatChartType(chartType: AIVisualizerPlan["chartType"]) {
 
 type NumericDisplayKind = "number" | "percent";
 
+type PreviewPoint = {
+  x: string;
+  y: number;
+  series: string | null;
+};
+
 function niceCeil(value: number) {
   if (value <= 0) return 0;
   const magnitude = 10 ** Math.floor(Math.log10(value));
@@ -117,6 +123,40 @@ function slugifyChartTitle(value: string) {
     .slice(0, 60) || "aibs-chart";
 }
 
+export function getBarPreviewLayout(plan: AIVisualizerPlan) {
+  const points: PreviewPoint[] = plan.dataPoints
+    .filter((point) => typeof point.y === "number")
+    .map((point) => ({ x: String(point.x), y: Number(point.y), series: point.series ?? null }));
+  const scale = getNumericScale(points.map((point) => point.y), inferDisplayKind(plan, points.map((point) => point.y)));
+  const range = Math.max(scale.max - scale.min, 1);
+  const zeroPosition = ((0 - scale.min) / range) * 100;
+  const categories = Array.from(new Set(points.map((point) => point.x)));
+  const seriesNames = Array.from(new Set(points.map((point) => point.series).filter(Boolean))) as string[];
+  const resolvedSeries: Array<string | null> = seriesNames.length ? seriesNames : [null];
+  const categoryWidthPercent = categories.length > 0 ? 100 / categories.length : 100;
+  const groupWidthPercent = categoryWidthPercent * 0.74;
+  const seriesWidthPercent = groupWidthPercent / Math.max(resolvedSeries.length, 1);
+
+  return {
+    points,
+    scale,
+    zeroPosition,
+    categories,
+    seriesNames,
+    bars: points.map((point) => ({
+      ...point,
+      heightPercent: (Math.abs(point.y) / range) * 100,
+      bottomPercent: point.y >= 0 ? zeroPosition : null,
+      topPercent: point.y < 0 ? 100 - zeroPosition : null,
+      xPercent:
+        categories.indexOf(point.x) * categoryWidthPercent +
+        (categoryWidthPercent - groupWidthPercent) / 2 +
+        resolvedSeries.indexOf(point.series) * seriesWidthPercent,
+      widthPercent: seriesWidthPercent * 0.78,
+    })),
+  };
+}
+
 function PreviewShell({
   children,
   xAxis,
@@ -154,48 +194,96 @@ function BrandStamp() {
   );
 }
 
+const SERIES_COLORS = ["#2563eb", "#ef4444", "#10b981", "#8b5cf6"];
+
+function getSeriesColor(index: number) {
+  return SERIES_COLORS[index % SERIES_COLORS.length];
+}
+
 function BarPreview({ plan }: { plan: AIVisualizerPlan }) {
-  const points = plan.dataPoints
-    .filter((point) => typeof point.y === "number")
-    .map((point) => ({ x: String(point.x), y: Number(point.y) }));
-  const scale = getNumericScale(points.map((point) => point.y), inferDisplayKind(plan, points.map((point) => point.y)));
-  const zeroPosition = ((scale.max - 0) / Math.max(scale.max - scale.min, 1)) * 100;
+  const { scale, bars, seriesNames, categories } = getBarPreviewLayout(plan);
+  const width = 520;
+  const height = 240;
+  const left = 44;
+  const bottom = 30;
+  const innerW = width - left - 12;
+  const innerH = height - bottom - 12;
+  const range = Math.max(scale.max - scale.min, 1);
+  const zeroY = 12 + innerH - ((0 - scale.min) / range) * innerH;
 
   return (
     <PreviewShell xAxis={plan.xAxis} yAxis={plan.yAxis}>
-      <div className="grid grid-cols-[52px_1fr] gap-4">
-        <div className="flex h-64 flex-col justify-between text-right text-[11px] font-semibold text-gray-400">
-          {scale.ticks.slice().reverse().map((tick) => (
-            <span key={tick}>{formatTick(tick, scale.kind, scale.max)}</span>
+      {seriesNames.length ? (
+        <div className="mb-3 flex flex-wrap gap-3 text-[10px] font-black uppercase tracking-[0.14em] text-gray-500">
+          {seriesNames.map((series, index) => (
+            <div key={series} className="inline-flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: getSeriesColor(index) }} />
+              <span>{series}</span>
+            </div>
           ))}
         </div>
-        <div className="relative h-64 border-l border-b border-gray-200">
-          <div className="absolute inset-0 flex flex-col justify-between">
-            {scale.ticks.map((tick) => (
-              <div key={tick} className="border-t border-dashed border-gray-100" />
-            ))}
-          </div>
-          <div className="absolute left-0 right-0 border-t border-gray-300" style={{ bottom: `${zeroPosition}%` }} />
-          <div className="relative z-10 flex h-full items-end gap-4 px-4 pb-2">
-            {points.map((point) => (
-              <div key={point.x} className="flex min-w-0 flex-1 flex-col items-center gap-2">
-                <div className="text-xs font-bold text-gray-500">{formatTick(point.y, scale.kind, scale.max)}</div>
-                <div className="relative h-full w-full">
-                  <div
-                    className={`absolute left-0 w-full bg-blue-500/80 ${point.y >= 0 ? "rounded-t-2xl" : "rounded-b-2xl"}`}
-                    style={{
-                      height: `${(Math.abs(point.y) / Math.max(Math.abs(scale.min), Math.abs(scale.max), 1)) * zeroPosition}%`,
-                      bottom: point.y >= 0 ? `${zeroPosition}%` : undefined,
-                      top: point.y < 0 ? `${100 - zeroPosition}%` : undefined,
-                    }}
+      ) : null}
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-64 w-full">
+        {scale.ticks.map((tick) => {
+          const y = 12 + innerH - ((tick - scale.min) / range) * innerH;
+          return (
+            <g key={tick}>
+              <line x1={left} x2={width - 12} y1={y} y2={y} stroke="#e5e7eb" strokeDasharray="4 4" />
+              <text x={left - 8} y={y + 4} textAnchor="end" className="fill-gray-400 text-[11px] font-semibold">
+                {formatTick(tick, scale.kind, scale.max)}
+              </text>
+            </g>
+          );
+        })}
+        <line x1={left} x2={left} y1={12} y2={height - bottom} stroke="#d1d5db" />
+        <line x1={left} x2={width - 12} y1={height - bottom} y2={height - bottom} stroke="#d1d5db" />
+        {scale.min < 0 && scale.max > 0 ? (
+          <line x1={left} x2={width - 12} y1={zeroY} y2={zeroY} stroke="#9ca3af" />
+        ) : null}
+        {bars.map((point, index) => {
+          const x = left + (point.xPercent / 100) * innerW;
+          const barWidth = Math.max((point.widthPercent / 100) * innerW, 8);
+          const targetY = 12 + innerH - ((point.y - scale.min) / range) * innerH;
+          const barHeight = point.y === 0 ? 0 : Math.max(Math.abs(zeroY - targetY), 3);
+          const y = point.y >= 0 ? zeroY - barHeight : zeroY;
+          const seriesIndex = point.series ? seriesNames.indexOf(point.series) : 0;
+          const fill = getSeriesColor(seriesIndex >= 0 ? seriesIndex : index);
+          return (
+            <g key={`${point.x}-${point.series ?? "base"}-${index}`}>
+              {barHeight > 0 ? (
+                <>
+                  <rect
+                    x={x}
+                    y={y}
+                    width={barWidth}
+                    height={barHeight}
+                    rx={10}
+                    ry={10}
+                    fill={fill}
+                    fillOpacity={0.82}
                   />
-                </div>
-                <div className="w-full truncate text-center text-[11px] font-semibold text-gray-500">{point.x}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+                  <text
+                    x={x + barWidth / 2}
+                    y={point.y >= 0 ? y - 8 : y + barHeight + 14}
+                    textAnchor="middle"
+                    className="fill-gray-500 text-[11px] font-bold"
+                  >
+                    {formatTick(point.y, scale.kind, scale.max)}
+                  </text>
+                </>
+              ) : null}
+            </g>
+          );
+        })}
+        {categories.map((label, index) => {
+          const centerX = left + ((index + 0.5) / Math.max(categories.length, 1)) * innerW;
+          return (
+            <text key={label} x={centerX} y={height - 8} textAnchor="middle" className="fill-gray-500 text-[11px] font-semibold">
+              {label}
+            </text>
+          );
+        })}
+      </svg>
       <BrandStamp />
     </PreviewShell>
   );
@@ -448,7 +536,7 @@ export function AIBSVisualizerChat({
 }) {
   const starterPrompts = audience === "org" ? ORG_STARTER_PROMPTS : FAN_STARTER_PROMPTS;
   const heading =
-    audience === "org" ? "Build a strategy chart from AiBS data" : "Build a custom chart from AiBS data";
+    audience === "org" ? "Build an org-style chart from AiBS data" : "Build a custom chart from AiBS data";
   const subtitle =
     audience === "org"
       ? "Ask for the exact workflow view you need, or describe the baseball question and AiBS will choose the strongest chart form."
@@ -653,14 +741,13 @@ export function AIBSVisualizerChat({
         setError("Sign in and verify your email to use AiBS AI.");
         return;
       }
-      const prompt = `For ${context}, return one strict chart specification for this request using only AiBS data. If the user names a chart type and it is implementable, use it. If they describe what they want to see without naming a chart, choose the best chart type and define it. Do not write explanation outside the chart spec. Request: ${query.trim()}`;
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-csrf-token": csrfToken,
         },
-        body: JSON.stringify({ message: prompt, delivery: "sync", surface: "visualizer", context: aiContext }),
+        body: JSON.stringify({ message: query.trim(), delivery: "sync", surface: "visualizer", context: aiContext }),
       });
       const payload = (await response.json()) as AIChatResponse;
 

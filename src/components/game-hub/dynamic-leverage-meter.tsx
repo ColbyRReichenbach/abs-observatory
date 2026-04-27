@@ -113,7 +113,7 @@ export function DynamicLeverageMeter({
         <p className="text-[9px] font-black uppercase tracking-[0.18em] text-gray-400">Decision Read</p>
         <p className="mt-2 text-sm font-medium leading-6 text-gray-600">
           {pressureTone} in a {homeScore === awayScore ? "tied" : "live-score"} spot with {formatBasesStateLabel(basesState).toLowerCase()} and a{" "}
-          {balls}-{strikes} count. This card is here to orient the moment, not to compete with the actual recommendation panel.
+          {balls}-{strikes} count. This card is here to orient the moment, not to compete with the decision panel.
         </p>
       </div>
     </div>

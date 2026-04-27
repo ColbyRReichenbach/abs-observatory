@@ -2,6 +2,8 @@
 
 Date: April 8, 2026
 
+> Status note: this is a dated final-sprint planning memo for the April 2026 model program. It is retained for lineage, not as a current execution tracker.
+
 Purpose:
 
 - close the remaining yellow and red publication blockers

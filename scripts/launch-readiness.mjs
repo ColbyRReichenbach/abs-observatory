@@ -76,10 +76,17 @@ async function fetchJson(path, options) {
 }
 
 async function getCsrfToken(extraCookie = "") {
-  const response = await fetchResponse("/", {
+  const response = await fetchResponse("/api/csrf", {
     headers: extraCookie ? { cookie: extraCookie } : {},
   });
-  const token = extractCookie(getSetCookieHeaders(response), "aibs_csrf");
+  const text = await response.text();
+  let json = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+  const token = json?.csrfToken ?? extractCookie(getSetCookieHeaders(response), "aibs_csrf");
   if (!token) {
     throw new Error("Unable to obtain aibs_csrf cookie");
   }

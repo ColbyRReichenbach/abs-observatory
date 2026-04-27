@@ -54,7 +54,7 @@ export function ChallengeExplorer({
     }
   }, [initialChallengeId, challenges]);
   const [hoveredChallengeId, setHoveredChallengeId] = useState<string | null>(null);
-  const [zoneMode, setZoneMode] = useState<ZoneMode>("actual");
+  const [zoneMode, setZoneMode] = useState<ZoneMode>("adjusted");
   const [showCountOverlay, setShowCountOverlay] = useState(false);
   const [showPitchOverlay, setShowPitchOverlay] = useState(false);
   const [replayEnabled, setReplayEnabled] = useState(false);
@@ -112,11 +112,11 @@ export function ChallengeExplorer({
           {/* Zone mode toggle */}
           <fieldset className="flex items-center gap-1 rounded-full border border-gray-200 p-0.5 bg-white shadow-sm">
             <legend className="sr-only">Zone Mode</legend>
-            <ModeButton active={zoneMode === "actual"} onClick={() => setZoneMode("actual")}>
-              Actual
-            </ModeButton>
             <ModeButton active={zoneMode === "adjusted"} onClick={() => setZoneMode("adjusted")}>
-              Adjusted
+              ABS Zone
+            </ModeButton>
+            <ModeButton active={zoneMode === "actual"} onClick={() => setZoneMode("actual")}>
+              Fixed Zone
             </ModeButton>
           </fieldset>
         </div>

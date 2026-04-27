@@ -143,6 +143,7 @@ These controls live in the server policy and entitlement layers, not only in fro
 ## 9. Secrets And Environment Validation
 
 Current server environment requirements are validated in `src/lib/server/env.ts`.
+Runtime Clerk enablement is separately guarded by `src/lib/auth-config.ts`, which treats placeholder test keys as disabled rather than valid credentials.
 
 Always required:
 

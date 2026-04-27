@@ -203,7 +203,7 @@ async function main() {
       await client.query(`
         SELECT DISTINCT g.game_pk
         FROM games g
-        JOIN abs_challenges c ON c.game_pk = g.game_pk
+        JOIN mart_abs_pitch_challenges c ON c.game_pk = g.game_pk
         WHERE g.status_detailed = 'Final'
         ORDER BY g.game_pk
       `)
@@ -215,7 +215,7 @@ async function main() {
         WITH benchmark_games AS (
           SELECT DISTINCT g.game_pk
           FROM games g
-          JOIN abs_challenges c ON c.game_pk = g.game_pk
+          JOIN mart_abs_pitch_challenges c ON c.game_pk = g.game_pk
           WHERE g.status_detailed = 'Final'
         ),
         ordered_at_bats AS (

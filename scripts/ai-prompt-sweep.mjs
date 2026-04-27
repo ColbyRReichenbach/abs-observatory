@@ -168,11 +168,20 @@ function ensureStructuredSuccess(result, surface) {
 
 async function callAi(page, body) {
   return page.evaluate(async (requestBody) => {
-    const csrfToken =
+    let csrfToken =
       document.cookie
         .split("; ")
         .find((entry) => entry.startsWith("aibs_csrf="))
         ?.split("=")[1] ?? "";
+    if (!csrfToken) {
+      const csrfResponse = await fetch("/api/csrf", {
+        method: "GET",
+        cache: "no-store",
+        credentials: "include",
+      });
+      const csrfBody = await csrfResponse.json().catch(() => null);
+      csrfToken = csrfBody?.csrfToken ?? "";
+    }
     const response = await fetch("/api/ai/chat", {
       method: "POST",
       credentials: "include",

@@ -1,5 +1,7 @@
 # AiBS AI Implementation Sequence
 
+> Status note: this is a retained April 2026 implementation sequence. It remains useful for lineage and sequencing history, but it is not the canonical current-state runtime doc.
+
 This document translates the AI backend design into an implementation order.
 
 It is based on current best practices reflected in official OpenAI and Anthropic guidance:

@@ -27,13 +27,13 @@ describe("data-version", () => {
     delete process.env.POLL_INTERVAL_MINUTES;
   });
 
-  it("defaults poll interval to five minutes when unset or invalid", async () => {
+  it("defaults poll interval to ten minutes when unset or invalid", async () => {
     const { getPollIntervalMinutes } = await import("@/lib/server/data-version");
 
-    expect(getPollIntervalMinutes()).toBe(5);
+    expect(getPollIntervalMinutes()).toBe(10);
 
     process.env.POLL_INTERVAL_MINUTES = "0";
-    expect(getPollIntervalMinutes()).toBe(5);
+    expect(getPollIntervalMinutes()).toBe(10);
 
     process.env.POLL_INTERVAL_MINUTES = "7";
     expect(getPollIntervalMinutes()).toBe(7);

@@ -135,6 +135,7 @@ export function incrementStrikeCount(balls, strikes) {
 
 export function getCalledPitch(calledDescription) {
   const normalized = String(calledDescription ?? "").toUpperCase();
+  if (normalized === "CALLED_STRIKE" || normalized === "STRIKE") return "called_strike";
   if (normalized.startsWith("CALLED STRIKE")) return "called_strike";
   if (normalized.startsWith("BALL")) return "ball";
   return null;
@@ -159,9 +160,11 @@ export function countRunnersOnBase(basesState) {
 
 export function getEdgeBucketFromDistance(edgeDistance) {
   if (edgeDistance === null || edgeDistance === undefined || Number.isNaN(edgeDistance)) return null;
-  if (edgeDistance <= 0.25) return "edge";
-  if (edgeDistance <= 0.75) return "near_edge";
-  return "clear_miss";
+  if (edgeDistance <= -0.15) return "strong_confirm";
+  if (edgeDistance <= -0.03) return "lean_confirm";
+  if (edgeDistance < 0.03) return "borderline";
+  if (edgeDistance < 0.15) return "lean_overturn";
+  return "strong_overturn";
 }
 
 const STRIKE_TO_BALL_EDGE_MAX = 0.015;

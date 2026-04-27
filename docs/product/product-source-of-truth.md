@@ -51,6 +51,7 @@ Current shipped product families:
   - profile editing and onboarding
   - public profile pages
   - saved AI artifact workspace
+  - public shared visualization pages for public-share-enabled chart artifacts
   - comments
   - editorial admin tooling
   - moderation-aware identity surfaces
@@ -182,13 +183,13 @@ Current shipped capabilities include:
 - profile editing and onboarding
 - public profile pages
 - saved AI artifact workspace
+- public visualization sharing for public-share-enabled visualizer artifacts
 - editorial persistence and generation telemetry
 - authenticated comments and moderation flows
 
 Currently deferred or intentionally disabled:
 
 - follow relationships
-- public visualization sharing
 
 ## Analytical Truth Boundaries
 
@@ -247,7 +248,7 @@ These should not be overstated in product or docs:
 - full multi-provider live AI runtime
 - fully distinct fan and org products with separate route structures
 - enterprise-grade org workflows beyond the current public org-mode framing
-- broad public social graph or visualization-sharing loops
+- broad public social graph or feed-style visualization-sharing loops
 
 ## Documentation Rule
 

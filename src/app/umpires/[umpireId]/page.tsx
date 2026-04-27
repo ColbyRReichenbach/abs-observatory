@@ -9,7 +9,7 @@ import { UmpireHeadshot } from "@/components/umpire-headshot";
 import { FilterStrip } from "@/components/analytics/filter-strip";
 import { AIInsightBubble } from "@/components/analytics/ai-insight-bubble";
 import { HeatmapDeepDive } from "@/components/analytics/heatmap-deep-dive";
-import { getUmpireChallenges, getUmpireLeaderboardModel, getUmpireMatchupVulnerabilities, getUmpirePerformanceDNA, getUmpireProfile, getUmpireSeasonTrend, getUmpireSummary, getUmpireTrend } from "@/lib/data";
+import { getUmpireLeaderboardModel, getUmpireMatchupVulnerabilities, getUmpirePageChallengeEvents, getUmpirePerformanceDNA, getUmpireProfile, getUmpireSeasonTrend, getUmpireSummary, getUmpireTrend } from "@/lib/data";
 import { ExtremeMissesSection } from "@/components/analytics/extreme-misses-section";
 import { SeasonOverSeasonChart } from "@/components/analytics/season-over-season-chart";
 import { parseRange } from "@/lib/range";
@@ -24,6 +24,7 @@ import { UmpireConsequenceMatrix } from "@/components/analytics/umpire-consequen
 import { UmpireHandednessBoard } from "@/components/analytics/umpire-handedness-board";
 import { UmpirePitchTraitScatter } from "@/components/analytics/umpire-pitch-trait-scatter";
 import { buildUmpireZoneMapChartPayload } from "@/lib/chart-insight-payload";
+import { compareUmpiresForDefaultSort } from "@/lib/umpire-ranking";
 
 function toInningRange(value?: string): SituationalFilters["inningRange"] {
   if (value === "early" || value === "middle" || value === "late" || value === "extras") return value;
@@ -75,13 +76,13 @@ export default async function UmpirePage({
 
   const [summary, allUmpires] = await Promise.all([
     getUmpireSummary(Number(umpireId), range, filters),
-    getUmpireLeaderboardModel(range),
+    getUmpireLeaderboardModel(range, { includeValueMetrics: viewMode === "org" }),
   ]);
 
   if (!summary) return notFound();
   const currentUmpire = allUmpires.find((umpire) => umpire.umpireId === summary.umpireId) ?? null;
   const rankedUmpires = [...allUmpires].sort((left, right) =>
-    viewMode === "org" ? compareOrgUmpires(left, right) : compareFanUmpires(left, right),
+    compareUmpiresForDefaultSort(left, right, range, viewMode),
   );
   const rankIndex = rankedUmpires.findIndex((umpire) => umpire.umpireId === summary.umpireId);
   const displayRank = rankIndex >= 0 ? rankIndex + 1 : null;
@@ -210,7 +211,7 @@ async function UmpireExposureStatCard({
   range: ReturnType<typeof parseRange>;
   filters: SituationalFilters;
 }) {
-  const challenges = await getUmpireChallenges(umpireId, range, filters);
+  const challenges = await getUmpirePageChallengeEvents(umpireId, range, filters);
   const highPressureExposure =
     challenges.length > 0
       ? challenges.filter((challenge) => computeEstimatedLeverageIndex(challenge) >= 65).length / challenges.length
@@ -244,10 +245,10 @@ async function UmpireAnalyticsSections({
   const [profile, trend, challenges, dna, seasonTrend, matchupVulnerabilities] = await Promise.all([
     getUmpireProfile(umpireId, range, filters),
     getUmpireTrend(umpireId, range, filters),
-    getUmpireChallenges(umpireId, range, filters),
-    getUmpirePerformanceDNA(umpireId, range),
+    getUmpirePageChallengeEvents(umpireId, range, filters),
+    viewMode === "fan" ? getUmpirePerformanceDNA(umpireId, range) : Promise.resolve({ rhythm: [], extremes: [] }),
     getUmpireSeasonTrend(umpireId),
-    getUmpireMatchupVulnerabilities(umpireId, range, filters),
+    viewMode === "org" ? getUmpireMatchupVulnerabilities(umpireId, range, filters) : Promise.resolve([]),
   ]);
 
   const shouldShowSeasonTrend = seasonTrend.filter((point) => point.gamesWorked > 0).length >= 2;
@@ -634,9 +635,9 @@ function FanUmpireSummaryCard({
         What kind of <span className="text-gray-400">ABS umpire</span> is this?
       </p>
       <p className="mt-4 max-w-3xl text-sm leading-7 text-[var(--ink-2)]">
-        {umpireName} is currently running a {(overturnRate * 100).toFixed(1)}% overturn rate
-        {currentUmpire ? ` with a ${currentUmpire.fanDescriptor.toLowerCase()} read` : ""}. The public read here is simple:
-        does this umpire stay steady game to game, and where do reviews actually find daylight once clubs challenge the call?
+        Teams have won {(overturnRate * 100).toFixed(1)}% of their ABS challenges with {umpireName} behind the plate
+        {currentUmpire ? `, which puts this profile in the ${currentUmpire.fanDescriptor.toLowerCase()} bucket` : ""}.
+        For fans, the useful question is where those misses show up: certain zones, certain counts, or just a few close pitches that happened to matter.
       </p>
     </div>
   );
@@ -746,31 +747,4 @@ function getNineZoneColor(overturnRate: number, sampleSize: number) {
   if (overturnRate >= 0.4) return "rgba(245, 158, 11, 0.22)";
   if (overturnRate >= 0.2) return "rgba(59, 130, 246, 0.18)";
   return "rgba(16, 185, 129, 0.14)";
-}
-
-function getOrgRankingValue(umpire: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number]) {
-  if (typeof umpire.averageWinExpectancyDelta === "number") return umpire.averageWinExpectancyDelta;
-  if (typeof umpire.averageRunExpectancyDelta === "number") return umpire.averageRunExpectancyDelta;
-  return umpire.overturnRate;
-}
-
-function compareFanUmpires(
-  left: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
-  right: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
-) {
-  if (left.overturnRate !== right.overturnRate) return left.overturnRate - right.overturnRate;
-  if (right.challengedCalls !== left.challengedCalls) return right.challengedCalls - left.challengedCalls;
-  return right.gamesWorked - left.gamesWorked;
-}
-
-function compareOrgUmpires(
-  left: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
-  right: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
-) {
-  const valueGap = getOrgRankingValue(right) - getOrgRankingValue(left);
-  if (valueGap !== 0) return valueGap;
-  if (right.overturnRateVariance !== left.overturnRateVariance) {
-    return right.overturnRateVariance - left.overturnRateVariance;
-  }
-  return right.challengedCalls - left.challengedCalls;
 }

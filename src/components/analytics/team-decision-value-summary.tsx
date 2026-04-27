@@ -19,7 +19,7 @@ export function TeamDecisionValueSummaryCard({
   const surplus = summary.decisionSurplus;
 
   const orgNarrative = !trusted
-    ? "This review read is still stabilizing. AiBS is tracking challenge timing, but the expected-value model needs a larger confident sample before it becomes a primary recommendation layer."
+    ? "This review read is still stabilizing. AiBS is tracking challenge timing, but the expected-value model needs a larger confident sample before it becomes a primary decision-value layer."
     : surplus === null
       ? "Review-value coverage is available, but the current sample is not large enough to separate expected and realized value cleanly."
       : surplus >= 0

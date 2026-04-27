@@ -1,5 +1,7 @@
 # AiBS AI Backend Plan
 
+> Status note: this is a retained April 2026 backend implementation plan. Use [../reference/technical.md](../reference/technical.md), [../reference/security.md](../reference/security.md), and [../product/product-source-of-truth.md](../product/product-source-of-truth.md) for current runtime truth.
+
 This document defines the production AI backend for AiBS:
 - endpoint surface
 - tool architecture

@@ -5,6 +5,8 @@ Branch: `spec/frontend-hierarchy-rebuild`
 Scope: `/`, `/teams`, `/teams/[teamId]`, `/umpires`, `/umpires/[umpireId]`
 Out of scope: `/articles`, `/about`, `/profile`
 
+> Status note: this is the completed April 20 hierarchy rewrite spec for the branch implementation. Use current product and route docs for the shipped current-state surface.
+
 ## Purpose
 
 This spec replaces the current “additive dashboard” approach with a clear audience split:

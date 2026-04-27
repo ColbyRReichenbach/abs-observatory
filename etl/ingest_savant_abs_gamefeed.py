@@ -9,6 +9,7 @@ import time
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
+from zoneinfo import ZoneInfo
 
 try:
     import requests
@@ -39,6 +40,7 @@ STATSAPI_BASE = "https://statsapi.mlb.com/api/v1"
 SAVANT_GAMEFEED_BASE = "https://baseballsavant.mlb.com/gf"
 REQUEST_TIMEOUT = 30
 USER_AGENT = "AiBS/1.0 (+https://github.com/ColbyRReichenbach)"
+EASTERN = ZoneInfo("America/New_York")
 
 
 def require_psycopg2() -> None:
@@ -403,7 +405,7 @@ def run(
         with conn.cursor() as cur:
             work_items: List[ScheduleGame] = []
             if game_pk is not None:
-                today = datetime.now().date()
+                today = datetime.now(EASTERN).date()
                 work_items = [
                     ScheduleGame(
                         game_pk=game_pk,

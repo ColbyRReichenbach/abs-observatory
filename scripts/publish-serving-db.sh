@@ -5,22 +5,47 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 if [[ -f "$ROOT_DIR/.env" ]]; then
+  set +u
   set -a
   # shellcheck disable=SC1091
   . "$ROOT_DIR/.env"
   set +a
+  set -u
 fi
 
 if [[ -f "$ROOT_DIR/.env.local" ]]; then
+  set +u
   set -a
   # shellcheck disable=SC1091
   . "$ROOT_DIR/.env.local"
   set +a
+  set -u
 fi
 
-: "${SOURCE_DATABASE_URL:=${WAREHOUSE_DATABASE_URL:-postgresql://colbyreichenbach@localhost:5432/abs_observatory}}"
-: "${TARGET_DATABASE_URL:=${SERVING_DATABASE_URL:-}}"
-: "${TARGET_DATABASE_URL:?TARGET_DATABASE_URL or SERVING_DATABASE_URL is required. Set it to the hosted serving database URL.}"
+: "${SOURCE_DATABASE_URL:=${WAREHOUSE_DATABASE_URL:-}}"
+: "${TARGET_DATABASE_URL:=${SERVING_DATABASE_URL:-${DATABASE_URL:-}}}"
+: "${SOURCE_DATABASE_URL:?SOURCE_DATABASE_URL or WAREHOUSE_DATABASE_URL is required. Refusing to publish from an implicit local database.}"
+: "${TARGET_DATABASE_URL:?TARGET_DATABASE_URL, SERVING_DATABASE_URL, or DATABASE_URL is required. Set it to the hosted serving database URL.}"
+
+is_local_database_url() {
+  python3 - "$1" <<'PY'
+import sys
+from urllib.parse import urlparse
+
+parsed = urlparse(sys.argv[1])
+host = parsed.hostname
+path = parsed.path.lstrip("/")
+is_local = host in (None, "", "localhost", "127.0.0.1", "::1") or (
+    host is None and path == "abs_observatory"
+)
+print("true" if is_local else "false")
+PY
+}
+
+if [[ "${ALLOW_LOCAL_SOURCE_DATABASE:-0}" != "1" && "$(is_local_database_url "$SOURCE_DATABASE_URL")" == "true" ]]; then
+  echo "[publish-serving-db] Refusing to publish from local SOURCE_DATABASE_URL. Set SOURCE_DATABASE_URL to the hosted warehouse or ALLOW_LOCAL_SOURCE_DATABASE=1 for an intentional local dry run." >&2
+  exit 1
+fi
 
 DUMP_PATH="${SERVING_DUMP_PATH:-$ROOT_DIR/.runtime/serving-db.dump}"
 DUMP_DIR="$(dirname "$DUMP_PATH")"
@@ -40,10 +65,104 @@ TEAM_SUMMARY_CSV="$(mktemp)"
 UMPIRE_SUMMARY_CSV="$(mktemp)"
 GAME_REPORT_CSV="$(mktemp)"
 LINESCORE_CSV="$(mktemp)"
+SAVANT_GAMEFEED_CSV="$(mktemp)"
+SAVANT_ABS_EVENTS_CSV="$(mktemp)"
 RUN_FALLBACK_CSV="$(mktemp)"
 WIN_FALLBACK_CSV="$(mktemp)"
 COUNT_BASELINE_CSV="$(mktemp)"
 OVERTURN_FALLBACK_CSV="$(mktemp)"
+
+read -r -d '' TEAM_SUMMARY_EXPORT_SQL <<'SQL' || true
+WITH latest_snapshot AS (
+  SELECT DISTINCT ON (game_pk)
+    game_pk,
+    abs_home_remaining,
+    abs_away_remaining
+  FROM public.game_state_snapshots
+  ORDER BY game_pk, snapshot_time DESC
+),
+team_challenges AS (
+  SELECT
+    game_pk,
+    challenge_team_id AS team_id,
+    COUNT(*) FILTER (WHERE is_overturned = TRUE) AS used_successful,
+    COUNT(*) FILTER (WHERE is_overturned = FALSE) AS used_failed
+  FROM public.mart_abs_pitch_challenges
+  WHERE challenge_team_id IS NOT NULL
+  GROUP BY game_pk, challenge_team_id
+),
+all_team_games AS (
+  SELECT
+    g.game_pk,
+    g.home_team_id AS team_id,
+    'home'::TEXT AS team_side,
+    COALESCE(tc.used_successful, 0) AS used_successful,
+    COALESCE(tc.used_failed, 0) AS used_failed,
+    COALESCE(ls.abs_home_remaining, GREATEST(0, 2 - COALESCE(tc.used_failed, 0))) AS remaining
+  FROM public.games g
+  LEFT JOIN latest_snapshot ls ON ls.game_pk = g.game_pk
+  LEFT JOIN team_challenges tc ON tc.game_pk = g.game_pk AND tc.team_id = g.home_team_id
+  WHERE g.home_team_id IS NOT NULL
+
+  UNION ALL
+
+  SELECT
+    g.game_pk,
+    g.away_team_id AS team_id,
+    'away'::TEXT AS team_side,
+    COALESCE(tc.used_successful, 0) AS used_successful,
+    COALESCE(tc.used_failed, 0) AS used_failed,
+    COALESCE(ls.abs_away_remaining, GREATEST(0, 2 - COALESCE(tc.used_failed, 0))) AS remaining
+  FROM public.games g
+  LEFT JOIN latest_snapshot ls ON ls.game_pk = g.game_pk
+  LEFT JOIN team_challenges tc ON tc.game_pk = g.game_pk AND tc.team_id = g.away_team_id
+  WHERE g.away_team_id IS NOT NULL
+)
+SELECT
+  game_pk,
+  team_id,
+  team_side,
+  used_successful,
+  used_failed,
+  remaining,
+  NOW() AS created_at,
+  NOW() AS updated_at
+FROM all_team_games
+ORDER BY game_pk, team_id
+SQL
+
+read -r -d '' UMPIRE_SUMMARY_EXPORT_SQL <<'SQL' || true
+WITH home_plate_officials AS (
+  SELECT DISTINCT ON (o.game_pk)
+    o.game_pk,
+    o.official_id AS umpire_id,
+    o.official_name AS umpire_name
+  FROM public.officials o
+  WHERE o.official_type = 'Home Plate'
+  ORDER BY o.game_pk, o.official_id
+),
+umpire_challenges AS (
+  SELECT
+    game_pk,
+    COUNT(*) AS challenged_calls,
+    COUNT(*) FILTER (WHERE is_overturned = TRUE) AS overturned_calls,
+    COUNT(*) FILTER (WHERE is_overturned = FALSE) AS confirmed_calls
+  FROM public.mart_abs_pitch_challenges
+  GROUP BY game_pk
+)
+SELECT
+  o.game_pk,
+  o.umpire_id,
+  o.umpire_name,
+  COALESCE(c.challenged_calls, 0) AS challenged_calls,
+  COALESCE(c.overturned_calls, 0) AS overturned_calls,
+  COALESCE(c.confirmed_calls, 0) AS confirmed_calls,
+  NOW() AS created_at,
+  NOW() AS updated_at
+FROM home_plate_officials o
+LEFT JOIN umpire_challenges c ON c.game_pk = o.game_pk
+ORDER BY o.game_pk, o.umpire_id
+SQL
 
 cleanup() {
   rm -f \
@@ -60,6 +179,8 @@ cleanup() {
     "$UMPIRE_SUMMARY_CSV" \
     "$GAME_REPORT_CSV" \
     "$LINESCORE_CSV" \
+    "$SAVANT_GAMEFEED_CSV" \
+    "$SAVANT_ABS_EVENTS_CSV" \
     "$RUN_FALLBACK_CSV" \
     "$WIN_FALLBACK_CSV" \
     "$COUNT_BASELINE_CSV" \
@@ -88,8 +209,9 @@ export_query_to_csv() {
 
 SOURCE_LABEL="$(sanitize_database_url "$SOURCE_DATABASE_URL")"
 TARGET_LABEL="$(sanitize_database_url "$TARGET_DATABASE_URL")"
+MLB_GAME_TIME_ZONE="America/New_York"
 
-SOURCE_MAX_GAME_DATE="$(psql "$SOURCE_DATABASE_URL" -Atqc "SELECT COALESCE(MAX(game_date::date)::text, '') FROM public.games")"
+SOURCE_MAX_GAME_DATE="$(psql "$SOURCE_DATABASE_URL" -Atqc "SELECT COALESCE(MAX((game_date AT TIME ZONE '$MLB_GAME_TIME_ZONE')::date)::text, '') FROM public.games")"
 : "${SOURCE_MAX_GAME_DATE:?Source database has no games rows to publish.}"
 
 SYNC_END_DATE="${SERVING_SYNC_END_DATE:-$SOURCE_MAX_GAME_DATE}"
@@ -110,7 +232,8 @@ PY
   )"
 fi
 
-GAME_WINDOW_FILTER="game_date::date BETWEEN DATE '$SYNC_START_DATE' AND DATE '$SYNC_END_DATE'"
+GAME_WINDOW_FILTER="game_date >= ((DATE '$SYNC_START_DATE')::timestamp AT TIME ZONE '$MLB_GAME_TIME_ZONE') AND game_date < ((DATE '$SYNC_END_DATE' + INTERVAL '1 day')::timestamp AT TIME ZONE '$MLB_GAME_TIME_ZONE')"
+SAVANT_DATE_WINDOW_FILTER="game_date BETWEEN DATE '$SYNC_START_DATE' AND DATE '$SYNC_END_DATE'"
 GAME_PK_WINDOW="SELECT game_pk FROM public.games WHERE $GAME_WINDOW_FILTER"
 
 echo "Publishing Warehouse -> Serving"
@@ -128,10 +251,12 @@ export_query_to_csv "SELECT * FROM public.play_events WHERE game_pk IN ($GAME_PK
 export_query_to_csv "SELECT * FROM public.pitches WHERE game_pk IN ($GAME_PK_WINDOW) ORDER BY game_pk, at_bat_index, pitch_number" "$PITCH_CSV"
 export_query_to_csv "SELECT * FROM public.abs_challenges WHERE game_pk IN ($GAME_PK_WINDOW) ORDER BY game_pk, at_bat_index, COALESCE(pitch_number, 0), challenged_at" "$CHALLENGE_CSV"
 export_query_to_csv "SELECT * FROM public.game_state_snapshots WHERE game_pk IN ($GAME_PK_WINDOW) ORDER BY game_pk, snapshot_time" "$SNAPSHOT_CSV"
-export_query_to_csv "SELECT game_pk, team_id, team_side, used_successful, used_failed, remaining, created_at, updated_at FROM public.team_abs_game_summary ORDER BY game_pk, team_id" "$TEAM_SUMMARY_CSV"
-export_query_to_csv "SELECT game_pk, umpire_id, umpire_name, challenged_calls, overturned_calls, confirmed_calls, created_at, updated_at FROM public.umpire_abs_game_summary ORDER BY game_pk, umpire_id" "$UMPIRE_SUMMARY_CSV"
+export_query_to_csv "$TEAM_SUMMARY_EXPORT_SQL" "$TEAM_SUMMARY_CSV"
+export_query_to_csv "$UMPIRE_SUMMARY_EXPORT_SQL" "$UMPIRE_SUMMARY_CSV"
 export_query_to_csv "SELECT * FROM public.game_reports WHERE game_pk IN ($GAME_PK_WINDOW) ORDER BY game_pk" "$GAME_REPORT_CSV"
 export_query_to_csv "SELECT * FROM ops.game_linescores ORDER BY game_pk" "$LINESCORE_CSV"
+export_query_to_csv "SELECT * FROM raw.savant_gamefeed_games WHERE $SAVANT_DATE_WINDOW_FILTER ORDER BY game_date, game_pk" "$SAVANT_GAMEFEED_CSV"
+export_query_to_csv "SELECT * FROM raw.savant_abs_events WHERE $SAVANT_DATE_WINDOW_FILTER ORDER BY game_date, game_pk, at_bat_number, COALESCE(pitch_number, 0), play_id" "$SAVANT_ABS_EVENTS_CSV"
 
 echo "Exporting serving-safe fallback lookup tables from source views"
 psql "$SOURCE_DATABASE_URL" -v ON_ERROR_STOP=1 -c "\copy (SELECT * FROM mart_run_expectancy_fallbacks) TO '$RUN_FALLBACK_CSV' CSV"
@@ -148,12 +273,17 @@ psql "$SOURCE_DATABASE_URL" -v ON_ERROR_STOP=1 -c "\copy (
 ) TO '$COUNT_BASELINE_CSV' CSV"
 psql "$SOURCE_DATABASE_URL" -v ON_ERROR_STOP=1 -c "\copy (SELECT * FROM mart_modeled_abs_overturn_probability_fallbacks) TO '$OVERTURN_FALLBACK_CSV' CSV"
 
-echo "Applying schema and views to target database"
-psql "$TARGET_DATABASE_URL" -v ON_ERROR_STOP=1 <<SQL
+if [[ "${RUN_SCHEMA_ON_SERVING_PUBLISH:-false}" == "true" ]]; then
+  echo "Applying schema and views to target database"
+  psql "$TARGET_DATABASE_URL" -v ON_ERROR_STOP=1 <<SQL
+SET lock_timeout = '${SERVING_SCHEMA_LOCK_TIMEOUT:-5s}';
 SET search_path TO public;
 \i $ROOT_DIR/db/schema.sql
 \i $ROOT_DIR/db/views.sql
 SQL
+else
+  echo "Skipping target schema/view application; run scripts/run-db-schema.sh separately for serving DDL changes"
+fi
 
 echo "Loading serving contract rows into target database"
 psql "$TARGET_DATABASE_URL" -v ON_ERROR_STOP=1 <<SQL
@@ -171,6 +301,8 @@ CREATE TEMP TABLE staging_team_abs_game_summary (LIKE public.team_abs_game_summa
 CREATE TEMP TABLE staging_umpire_abs_game_summary (LIKE public.umpire_abs_game_summary INCLUDING DEFAULTS) ON COMMIT DROP;
 CREATE TEMP TABLE staging_game_reports (LIKE public.game_reports INCLUDING DEFAULTS) ON COMMIT DROP;
 CREATE TEMP TABLE staging_game_linescores (LIKE ops.game_linescores INCLUDING DEFAULTS) ON COMMIT DROP;
+CREATE TEMP TABLE staging_savant_gamefeed_games (LIKE raw.savant_gamefeed_games INCLUDING DEFAULTS) ON COMMIT DROP;
+CREATE TEMP TABLE staging_savant_abs_events (LIKE raw.savant_abs_events INCLUDING DEFAULTS) ON COMMIT DROP;
 \copy staging_teams FROM '$TEAM_CSV' CSV
 \copy staging_players FROM '$PLAYER_CSV' CSV
 \copy staging_games FROM '$GAME_CSV' CSV
@@ -184,6 +316,8 @@ CREATE TEMP TABLE staging_game_linescores (LIKE ops.game_linescores INCLUDING DE
 \copy staging_umpire_abs_game_summary(game_pk, umpire_id, umpire_name, challenged_calls, overturned_calls, confirmed_calls, created_at, updated_at) FROM '$UMPIRE_SUMMARY_CSV' CSV
 \copy staging_game_reports FROM '$GAME_REPORT_CSV' CSV
 \copy staging_game_linescores FROM '$LINESCORE_CSV' CSV
+\copy staging_savant_gamefeed_games FROM '$SAVANT_GAMEFEED_CSV' CSV
+\copy staging_savant_abs_events FROM '$SAVANT_ABS_EVENTS_CSV' CSV
 INSERT INTO public.teams AS target (
   team_id,
   name,
@@ -249,7 +383,7 @@ ON CONFLICT (player_id) DO UPDATE SET
   source_updated_at = EXCLUDED.source_updated_at,
   updated_at = EXCLUDED.updated_at;
 DELETE FROM public.games
-WHERE game_date::date BETWEEN DATE '$SYNC_START_DATE' AND DATE '$SYNC_END_DATE';
+WHERE $GAME_WINDOW_FILTER;
 INSERT INTO public.games SELECT * FROM staging_games;
 INSERT INTO public.officials SELECT * FROM staging_officials;
 INSERT INTO public.at_bats SELECT * FROM staging_at_bats;
@@ -302,6 +436,14 @@ FROM staging_umpire_abs_game_summary;
 INSERT INTO public.game_reports SELECT * FROM staging_game_reports;
 TRUNCATE TABLE ops.game_linescores;
 INSERT INTO ops.game_linescores SELECT * FROM staging_game_linescores;
+DELETE FROM raw.savant_abs_events
+WHERE $SAVANT_DATE_WINDOW_FILTER
+   OR game_pk IN (SELECT game_pk FROM staging_savant_gamefeed_games);
+DELETE FROM raw.savant_gamefeed_games
+WHERE $SAVANT_DATE_WINDOW_FILTER
+   OR game_pk IN (SELECT game_pk FROM staging_savant_gamefeed_games);
+INSERT INTO raw.savant_gamefeed_games SELECT * FROM staging_savant_gamefeed_games;
+INSERT INTO raw.savant_abs_events SELECT * FROM staging_savant_abs_events;
 TRUNCATE TABLE serving_run_expectancy_fallbacks;
 TRUNCATE TABLE serving_win_expectancy_fallbacks;
 TRUNCATE TABLE serving_count_state_outcome_baselines;
@@ -336,6 +478,10 @@ SELECT
 FROM ops.game_linescores;
 
 SELECT
+  'raw.savant_abs_events=' || COUNT(*)
+FROM raw.savant_abs_events;
+
+SELECT
   'serving_run_expectancy_fallbacks=' || COUNT(*)
 FROM public.serving_run_expectancy_fallbacks;
 
@@ -350,6 +496,59 @@ FROM public.serving_count_state_outcome_baselines;
 SELECT
   'serving_abs_overturn_probability_fallbacks=' || COUNT(*)
 FROM public.serving_abs_overturn_probability_fallbacks;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    WITH duplicate_lookup AS (
+      SELECT 'run_expectancy' AS source
+      FROM public.serving_run_expectancy_fallbacks
+      GROUP BY fallback_tier, inning_bucket, outs, bases_state, count_key
+      HAVING COUNT(*) > 1
+      UNION ALL
+      SELECT 'win_expectancy' AS source
+      FROM public.serving_win_expectancy_fallbacks
+      GROUP BY fallback_tier, inning, inning_bucket, half_inning, score_diff_bucket, outs, bases_state, count_key
+      HAVING COUNT(*) > 1
+      UNION ALL
+      SELECT 'overturn_probability' AS source
+      FROM public.serving_abs_overturn_probability_fallbacks
+      GROUP BY fallback_tier, geometry_variant, challenge_direction, edge_bucket
+      HAVING COUNT(*) > 1
+    )
+    SELECT 1 FROM duplicate_lookup
+  ) THEN
+    RAISE EXCEPTION 'serving fallback lookup tables contain duplicate mart join keys';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM public.mart_abs_pitch_challenges
+    WHERE effective_pitch_number IS NULL
+  ) THEN
+    RAISE EXCEPTION 'canonical ABS pitch challenges include rows without effective_pitch_number';
+  END IF;
+
+  IF EXISTS (
+    WITH fact AS (
+      SELECT
+        game_pk,
+        challenge_team_id AS team_id,
+        COUNT(*) FILTER (WHERE is_overturned = TRUE) AS used_successful,
+        COUNT(*) FILTER (WHERE is_overturned = FALSE) AS used_failed
+      FROM public.mart_abs_pitch_challenges
+      WHERE challenge_team_id IS NOT NULL
+      GROUP BY game_pk, challenge_team_id
+    )
+    SELECT 1
+    FROM public.team_abs_game_summary s
+    FULL OUTER JOIN fact f ON f.game_pk = s.game_pk AND f.team_id = s.team_id
+    WHERE COALESCE(s.used_successful, 0) <> COALESCE(f.used_successful, 0)
+       OR COALESCE(s.used_failed, 0) <> COALESCE(f.used_failed, 0)
+  ) THEN
+    RAISE EXCEPTION 'team_abs_game_summary does not reconcile to canonical ABS pitch challenges';
+  END IF;
+END $$;
 SQL
 
 publish_timestamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
@@ -357,10 +556,12 @@ manifest_path="$MANIFEST_DIR/publish-${publish_timestamp//:/-}.json"
 git_sha="$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 source_games_count="$(psql "$SOURCE_DATABASE_URL" -Atqc "SELECT COUNT(*) FROM public.games")"
 source_abs_count="$(psql "$SOURCE_DATABASE_URL" -Atqc "SELECT COUNT(*) FROM public.abs_challenges")"
+source_savant_abs_count="$(psql "$SOURCE_DATABASE_URL" -Atqc "SELECT COUNT(*) FROM raw.savant_abs_events")"
 source_games_max_date="$(psql "$SOURCE_DATABASE_URL" -Atqc "SELECT COALESCE(MAX(game_date)::text, '') FROM public.games")"
 source_abs_max_ts="$(psql "$SOURCE_DATABASE_URL" -Atqc "SELECT COALESCE(MAX(challenged_at)::text, '') FROM public.abs_challenges")"
 target_games_count="$(psql "$TARGET_DATABASE_URL" -Atqc "SELECT COUNT(*) FROM public.games")"
 target_abs_count="$(psql "$TARGET_DATABASE_URL" -Atqc "SELECT COUNT(*) FROM public.abs_challenges")"
+target_savant_abs_count="$(psql "$TARGET_DATABASE_URL" -Atqc "SELECT COUNT(*) FROM raw.savant_abs_events")"
 target_run_fallbacks="$(psql "$TARGET_DATABASE_URL" -Atqc "SELECT COUNT(*) FROM public.serving_run_expectancy_fallbacks")"
 target_win_fallbacks="$(psql "$TARGET_DATABASE_URL" -Atqc "SELECT COUNT(*) FROM public.serving_win_expectancy_fallbacks")"
 target_count_baselines="$(psql "$TARGET_DATABASE_URL" -Atqc "SELECT COUNT(*) FROM public.serving_count_state_outcome_baselines")"
@@ -383,11 +584,13 @@ cat > "$manifest_path" <<JSON
   "rowCounts": {
     "source": {
       "games": $source_games_count,
-      "absChallenges": $source_abs_count
+      "absChallenges": $source_abs_count,
+      "rawSavantAbsEvents": $source_savant_abs_count
     },
     "target": {
       "games": $target_games_count,
       "absChallenges": $target_abs_count,
+      "rawSavantAbsEvents": $target_savant_abs_count,
       "servingRunExpectancyFallbacks": $target_run_fallbacks,
       "servingWinExpectancyFallbacks": $target_win_fallbacks,
       "servingCountStateOutcomeBaselines": $target_count_baselines,

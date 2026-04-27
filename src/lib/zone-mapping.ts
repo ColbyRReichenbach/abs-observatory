@@ -1,44 +1,47 @@
 export type ZoneMode = "actual" | "adjusted";
 
-const WIDTH = 420;
-const HEIGHT = 480;
-const ZONE_TOP_PX = 120;
-const ZONE_BOTTOM_PX = 330;
+export const STRIKE_ZONE_PLOT = {
+  width: 420,
+  height: 480,
+  zoneX: 110,
+  zoneY: 110,
+  zoneW: 200,
+  zoneH: 230,
+  horizontalHalfWidthFt: 0.83,
+  referenceTopFt: 3.5,
+  referenceBottomFt: 1.5,
+} as const;
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-export function mapZoneX(px: number): number {
-  const min = -2.2;
-  const max = 2.2;
-  return ((px - min) / (max - min)) * WIDTH;
-}
-
-export function mapZoneYActual(pz: number, top: number | null, bottom: number | null): number {
-  const safeTop = isFiniteNumber(top) ? top : 3.5;
-  const safeBottom = isFiniteNumber(bottom) ? bottom : 1.5;
-  const rangeTop = Math.max(safeTop + 1, 4.5);
-  const rangeBottom = Math.min(safeBottom - 1, 0.5);
-  const denom = rangeTop - rangeBottom;
-  if (!Number.isFinite(denom) || denom <= 0) return HEIGHT / 2;
-  const mapped = ((rangeTop - pz) / denom) * HEIGHT;
-  if (!Number.isFinite(mapped)) return HEIGHT / 2;
+function mapToZoneY(pz: number, top: number, bottom: number): number {
+  const span = top - bottom;
+  if (!Number.isFinite(span) || span <= 0) return STRIKE_ZONE_PLOT.height / 2;
+  const normalized = (top - pz) / span;
+  const mapped = STRIKE_ZONE_PLOT.zoneY + normalized * STRIKE_ZONE_PLOT.zoneH;
+  if (!Number.isFinite(mapped)) return STRIKE_ZONE_PLOT.height / 2;
   return mapped;
 }
 
+export function mapZoneX(px: number): number {
+  const zoneMid = STRIKE_ZONE_PLOT.zoneX + STRIKE_ZONE_PLOT.zoneW / 2;
+  const scale = STRIKE_ZONE_PLOT.zoneW / (STRIKE_ZONE_PLOT.horizontalHalfWidthFt * 2);
+  return zoneMid + px * scale;
+}
+
+export function mapZoneYActual(pz: number): number {
+  return mapToZoneY(pz, STRIKE_ZONE_PLOT.referenceTopFt, STRIKE_ZONE_PLOT.referenceBottomFt);
+}
+
 export function mapZoneYAdjusted(pz: number, top: number | null, bottom: number | null): number {
-  const safeTop = isFiniteNumber(top) ? top : 3.5;
-  const safeBottom = isFiniteNumber(bottom) ? bottom : 1.5;
-  const span = safeTop - safeBottom;
-  if (!Number.isFinite(span) || span <= 0) return HEIGHT / 2;
-  const normalized = (pz - safeBottom) / span;
-  const padded = 1.1 - normalized;
-  return ZONE_TOP_PX + padded * (ZONE_BOTTOM_PX - ZONE_TOP_PX);
+  const safeTop = isFiniteNumber(top) ? top : STRIKE_ZONE_PLOT.referenceTopFt;
+  const safeBottom = isFiniteNumber(bottom) ? bottom : STRIKE_ZONE_PLOT.referenceBottomFt;
+  return mapToZoneY(pz, safeTop, safeBottom);
 }
 
 export function mapZoneY(mode: ZoneMode, pz: number, top: number | null, bottom: number | null) {
   if (mode === "adjusted") return mapZoneYAdjusted(pz, top, bottom);
-  return mapZoneYActual(pz, top, bottom);
+  return mapZoneYActual(pz);
 }
-

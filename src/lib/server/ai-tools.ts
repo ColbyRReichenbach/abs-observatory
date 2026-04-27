@@ -23,42 +23,61 @@ export type ToolResult = {
   payload: unknown;
 };
 
+type ResolveToolResultsOptions = {
+  preferredToolNames?: string[];
+  maxArrayItems?: number;
+};
+
 function getEntityRange(range?: CopilotContext["range"]) {
   if (!range || range === "24h") return "season";
   return range;
 }
 
-export async function resolveToolResults(context?: CopilotContext): Promise<ToolResult[]> {
+export async function resolveToolResults(
+  context?: CopilotContext,
+  options?: ResolveToolResultsOptions,
+): Promise<ToolResult[]> {
   const allowed = new Set(getAllowedToolNames(context));
+  const preferred =
+    options?.preferredToolNames && options.preferredToolNames.length
+      ? new Set(options.preferredToolNames.filter((toolName) => allowed.has(toolName)))
+      : null;
+  const shouldLoad = (toolName: string) => allowed.has(toolName) && (!preferred || preferred.has(toolName));
 
   if (context?.scope === "game" && context.entityId) {
     const gamePk = Number(context.entityId);
     const [game, liveStatus, challenges] = await Promise.all([
-      getGame(gamePk),
-      getGameLiveStatus(gamePk),
-      getGameChallenges(gamePk),
+      shouldLoad("get_game_summary") ? getGame(gamePk) : Promise.resolve(null),
+      shouldLoad("get_game_live_status") ? getGameLiveStatus(gamePk) : Promise.resolve(null),
+      shouldLoad("get_game_challenges") ? getGameChallenges(gamePk) : Promise.resolve([]),
     ]);
     return [
       { toolName: "get_game_summary", payload: game },
       { toolName: "get_game_live_status", payload: liveStatus },
       { toolName: "get_game_challenges", payload: challenges.slice(-20) },
     ]
-      .filter((tool) => allowed.has(tool.toolName))
-      .map((tool) => ({ ...tool, payload: sanitizeToolPayload(tool.payload) }));
+      .filter((tool) => shouldLoad(tool.toolName))
+      .map((tool) => ({ ...tool, payload: sanitizeToolPayload(tool.payload, { maxArrayItems: options?.maxArrayItems }) }));
   }
 
   if (context?.scope === "team" && context.entityId) {
     const teamId = Number(context.entityId);
     const range = getEntityRange(context.range);
     const [summary, trend, inningEfficiency, sideSplits, aggression, challengeScenarioMatrix, challengeValueSummary, decisionValueReport] = await Promise.all([
-      getTeamSummary(teamId, range),
-      getTeamTrend(teamId, range),
-      getTeamInningEfficiency(teamId, range),
-      getTeamSideSplits(teamId, range),
-      getTeamAggression(teamId, range),
-      getTeamChallengeScenarioMatrix(teamId, range),
-      getTeamChallengeValueSummary(teamId, range),
-      getTeamDecisionValueReport(teamId, range),
+      shouldLoad("get_team_summary") ? getTeamSummary(teamId, range) : Promise.resolve(null),
+      shouldLoad("get_team_trend") ? getTeamTrend(teamId, range) : Promise.resolve([]),
+      shouldLoad("get_team_inning_efficiency") ? getTeamInningEfficiency(teamId, range) : Promise.resolve([]),
+      shouldLoad("get_team_side_splits") ? getTeamSideSplits(teamId, range) : Promise.resolve([]),
+      shouldLoad("get_team_aggression") ? getTeamAggression(teamId, range) : Promise.resolve([]),
+      shouldLoad("get_team_challenge_scenario_matrix")
+        ? getTeamChallengeScenarioMatrix(teamId, range)
+        : Promise.resolve([]),
+      shouldLoad("get_team_challenge_value_summary")
+        ? getTeamChallengeValueSummary(teamId, range)
+        : Promise.resolve(null),
+      shouldLoad("get_team_decision_value_report")
+        ? getTeamDecisionValueReport(teamId, range)
+        : Promise.resolve(null),
     ]);
     return [
       { toolName: "get_team_summary", payload: summary },
@@ -70,26 +89,32 @@ export async function resolveToolResults(context?: CopilotContext): Promise<Tool
       { toolName: "get_team_challenge_value_summary", payload: challengeValueSummary },
       { toolName: "get_team_decision_value_report", payload: decisionValueReport },
     ]
-      .filter((tool) => allowed.has(tool.toolName))
-      .map((tool) => ({ ...tool, payload: sanitizeToolPayload(tool.payload) }));
+      .filter((tool) => shouldLoad(tool.toolName))
+      .map((tool) => ({ ...tool, payload: sanitizeToolPayload(tool.payload, { maxArrayItems: options?.maxArrayItems }) }));
   }
 
   if (context?.scope === "umpire" && context.entityId) {
     const umpireId = Number(context.entityId);
-    const [summary, profile] = await Promise.all([getUmpireSummary(umpireId), getUmpireProfile(umpireId)]);
+    const [summary, profile] = await Promise.all([
+      shouldLoad("get_umpire_summary") ? getUmpireSummary(umpireId) : Promise.resolve(null),
+      shouldLoad("get_umpire_profile") ? getUmpireProfile(umpireId) : Promise.resolve(null),
+    ]);
     return [
       { toolName: "get_umpire_summary", payload: summary },
       { toolName: "get_umpire_profile", payload: profile },
     ]
-      .filter((tool) => allowed.has(tool.toolName))
-      .map((tool) => ({ ...tool, payload: sanitizeToolPayload(tool.payload) }));
+      .filter((tool) => shouldLoad(tool.toolName))
+      .map((tool) => ({ ...tool, payload: sanitizeToolPayload(tool.payload, { maxArrayItems: options?.maxArrayItems }) }));
   }
 
-  const [games, moments] = await Promise.all([getLiveGames(), getHomeChallengeMoments(8)]);
+  const [games, moments] = await Promise.all([
+    shouldLoad("get_live_games") ? getLiveGames() : Promise.resolve([]),
+    shouldLoad("get_home_challenge_moments") ? getHomeChallengeMoments(8) : Promise.resolve([]),
+  ]);
   return [
     { toolName: "get_live_games", payload: games.slice(0, 10) },
     { toolName: "get_home_challenge_moments", payload: moments },
   ]
-    .filter((tool) => allowed.has(tool.toolName))
-    .map((tool) => ({ ...tool, payload: sanitizeToolPayload(tool.payload) }));
+    .filter((tool) => shouldLoad(tool.toolName))
+    .map((tool) => ({ ...tool, payload: sanitizeToolPayload(tool.payload, { maxArrayItems: options?.maxArrayItems }) }));
 }

@@ -20,7 +20,7 @@ export type ChallengeDirection = "strike_to_ball" | "ball_to_strike";
 export type OverturnProbabilityFallbackTier = "exact" | "direction_only" | "global";
 export type DecisionValueMode = "win_expectancy" | "heuristic";
 export type OverturnGeometryVariant = "center_only" | "radius_adjusted";
-export type InventoryCostVersion = "inventory_future_opportunity_v1";
+export type InventoryCostVersion = "inventory_future_opportunity_failure_weighted_v2";
 
 export type OverturnProbabilityLookupRow = {
   fallbackTier: OverturnProbabilityFallbackTier;
@@ -75,8 +75,14 @@ export type ChallengeDecisionValueResponse = {
 const OVERTURN_CACHE_TTL_MS = 60_000;
 let cachedLookupRows: OverturnProbabilityLookupRow[] | null = null;
 let cachedAt = 0;
-const INVENTORY_COST_VERSION: InventoryCostVersion = "inventory_future_opportunity_v1";
-const INVENTORY_COST_BY_BUCKET: Record<string, number> = {
+const DEFAULT_OVERTURN_GEOMETRY_VARIANT: OverturnGeometryVariant = "radius_adjusted";
+const INVENTORY_COST_VERSION: InventoryCostVersion = "inventory_future_opportunity_failure_weighted_v2";
+const INVENTORY_UPPER_BOUND_REALIZATION_RATE = 0.04;
+const INVENTORY_MAX_COST_BY_REMAINING: Record<1 | 2, number> = {
+  1: 0.015,
+  2: 0.0075,
+};
+const INVENTORY_UPPER_BOUND_BY_BUCKET: Record<string, number> = {
   "1|1-3|close": 0.28954352014010387,
   "1|1-3|not_close": 0.23589356435643613,
   "1|4-6|close": 0.24681330022075038,
@@ -99,7 +105,7 @@ const DEFAULT_OVERTURN_FALLBACK_ROWS: OverturnProbabilityLookupRow[] = [
   {
     fallbackTier: "global",
     splitPolicyVersion: null,
-    geometryVariant: "center_only",
+    geometryVariant: "radius_adjusted",
     challengeDirection: null,
     edgeBucket: null,
     sampleSize: 0,
@@ -111,7 +117,7 @@ const DEFAULT_OVERTURN_FALLBACK_ROWS: OverturnProbabilityLookupRow[] = [
   {
     fallbackTier: "global",
     splitPolicyVersion: null,
-    geometryVariant: "radius_adjusted",
+    geometryVariant: "center_only",
     challengeDirection: null,
     edgeBucket: null,
     sampleSize: 0,
@@ -182,11 +188,16 @@ function synthesizeScores(scoreDiffBattingTeam: number, halfInning: "Top" | "Bot
 
 function inventoryCostApprox(req: ChallengeDecisionValueRequest, leverageIndex: number) {
   void leverageIndex;
-  const remainingChallenges = req.challengesRemaining >= 2 ? 2 : 1;
+  const remainingChallenges: 1 | 2 = req.challengesRemaining >= 2 ? 2 : 1;
   const inningKey = req.inning >= 9 ? "9+" : req.inning >= 7 ? "7-8" : req.inning >= 4 ? "4-6" : "1-3";
   const closeKey = Math.abs(req.scoreDiffBattingTeam) <= 1 ? "close" : "not_close";
   const bucketKey = `${remainingChallenges}|${inningKey}|${closeKey}`;
-  return Number((INVENTORY_COST_BY_BUCKET[bucketKey] ?? 0).toFixed(4));
+  const upperBound = INVENTORY_UPPER_BOUND_BY_BUCKET[bucketKey] ?? 0;
+  const boundedCost = Math.min(
+    upperBound * INVENTORY_UPPER_BOUND_REALIZATION_RATE,
+    INVENTORY_MAX_COST_BY_REMAINING[remainingChallenges],
+  );
+  return Number(boundedCost.toFixed(4));
 }
 
 export async function getOverturnProbabilityFallbackRows(forceRefresh = false) {
@@ -242,6 +253,14 @@ export async function getOverturnProbabilityFallbackRows(forceRefresh = false) {
       }>(`
         ${selectColumns}
         FROM ${source}
+        ORDER BY
+          CASE
+            WHEN geometry_variant = 'radius_adjusted' THEN 0
+            WHEN geometry_variant = 'center_only' THEN 1
+            ELSE 2
+          END,
+          sample_size DESC,
+          split_policy_version DESC NULLS LAST
       `);
       if (rawRows.length > 0) break;
     } catch {
@@ -250,7 +269,18 @@ export async function getOverturnProbabilityFallbackRows(forceRefresh = false) {
   }
 
   const rows = Array.isArray(rawRows) ? rawRows : [];
-  cachedLookupRows = rows.length > 0 ? rows.map((row) => ({
+  const dedupedRows = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) {
+    const key = [
+      row.fallback_tier,
+      row.geometry_variant,
+      row.challenge_direction ?? "global",
+      row.edge_bucket ?? "all",
+    ].join("::");
+    if (!dedupedRows.has(key)) dedupedRows.set(key, row);
+  }
+
+  cachedLookupRows = dedupedRows.size > 0 ? [...dedupedRows.values()].map((row) => ({
     fallbackTier: row.fallback_tier,
     splitPolicyVersion: row.split_policy_version ?? null,
     geometryVariant: row.geometry_variant,
@@ -277,7 +307,11 @@ export function resolveOverturnProbabilityWithFallback(
 ): OverturnProbabilityResolution | null {
   const challengeDirection = getChallengeDirection(input.calledPitch);
   const resolvedEdgeBucket = input.edgeBucket ?? getEdgeBucketFromDistance(input.edgeDistance);
-  const geometryVariant = input.geometryVariant ?? "center_only";
+  const preferredGeometry = input.geometryVariant ?? DEFAULT_OVERTURN_GEOMETRY_VARIANT;
+  const geometryCandidates = [
+    preferredGeometry,
+    preferredGeometry === "radius_adjusted" ? "center_only" : "radius_adjusted",
+  ] satisfies OverturnGeometryVariant[];
 
   const lookups: Array<{
     tier: OverturnProbabilityFallbackTier;
@@ -289,15 +323,17 @@ export function resolveOverturnProbabilityWithFallback(
     { tier: "global", challengeDirection: null, edgeBucket: null },
   ];
 
-  for (const lookup of lookups) {
-    const match = rows.find(
-      (row) =>
-        row.fallbackTier === lookup.tier &&
-        row.geometryVariant === geometryVariant &&
-        row.challengeDirection === lookup.challengeDirection &&
-        row.edgeBucket === lookup.edgeBucket,
-    );
-    if (match) return match;
+  for (const geometryVariant of geometryCandidates) {
+    for (const lookup of lookups) {
+      const match = rows.find(
+        (row) =>
+          row.fallbackTier === lookup.tier &&
+          row.geometryVariant === geometryVariant &&
+          row.challengeDirection === lookup.challengeDirection &&
+          row.edgeBucket === lookup.edgeBucket,
+      );
+      if (match) return match;
+    }
   }
 
   return null;
@@ -388,10 +424,10 @@ export async function estimateChallengeDecisionValue(
       : heuristicSuccess;
   const failureCost = Number((-0.0025 * li).toFixed(4));
   const inventoryCost = inventoryCostApprox(req, li);
+  const failureDelta = Number((failureCost - inventoryCost).toFixed(4));
   const expected =
     estimatedOverturnProbability * successDelta +
-    (1 - estimatedOverturnProbability) * failureCost -
-    inventoryCost;
+    (1 - estimatedOverturnProbability) * failureDelta;
 
   const recommendation = expected > 0 ? "challenge" : "hold";
   const rationaleParts = [
@@ -401,7 +437,7 @@ export async function estimateChallengeDecisionValue(
     winDelta !== null
       ? "Success value uses historical win-expectancy count swing for the challenging team in this game state."
       : "Success value falls back to heuristic leverage because the challenged call leads to a terminal or sparse count state.",
-    `Inventory cost is ${inventoryCost.toFixed(4)} expected WP.`,
+    `Inventory cost is ${inventoryCost.toFixed(4)} expected WP and is applied only on the failed-challenge branch.`,
     recommendation === "challenge"
       ? "Expected challenge value is positive after inventory cost."
       : "Expected challenge value is negative after inventory cost.",
@@ -415,10 +451,10 @@ export async function estimateChallengeDecisionValue(
     overturnGeometryVariant: overturn?.geometryVariant ?? null,
     overturnSplitPolicyVersion: overturn?.splitPolicyVersion ?? null,
     wpDeltaIfSuccess: successDelta,
-    wpDeltaIfFail: failureCost,
+    wpDeltaIfFail: failureDelta,
     expectedWpDelta: Number(expected.toFixed(4)),
     successValue: successDelta,
-    failureValue: failureCost,
+    failureValue: failureDelta,
     inventoryCost,
     inventoryCostVersion: INVENTORY_COST_VERSION,
     expectedChallengeValue: Number(expected.toFixed(4)),

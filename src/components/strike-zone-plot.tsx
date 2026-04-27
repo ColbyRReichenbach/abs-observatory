@@ -2,18 +2,26 @@
 
 import { memo, useMemo } from "react";
 
-import { mapZoneX, mapZoneY, type ZoneMode } from "@/lib/zone-mapping";
+import { parseCountKey } from "@/lib/challenge-context";
+import { mapZoneX, mapZoneY, STRIKE_ZONE_PLOT, type ZoneMode } from "@/lib/zone-mapping";
 import type { ChallengeEvent } from "@/lib/types";
-
-const WIDTH = 420;
-const HEIGHT = 480;
-const ZONE_X = 110;
-const ZONE_Y = 110;
-const ZONE_W = 200;
-const ZONE_H = 230;
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
+}
+
+function classifyFromCounts(event: ChallengeEvent) {
+  const umpireCount = parseCountKey(event.umpireCount ?? event.countBefore ?? null);
+  const correctedCount = parseCountKey(event.countAfter ?? null);
+  if (!umpireCount || !correctedCount) return null;
+
+  if (correctedCount.strikes > umpireCount.strikes || correctedCount.balls < umpireCount.balls) {
+    return "ball_to_strike";
+  }
+  if (correctedCount.balls > umpireCount.balls || correctedCount.strikes < umpireCount.strikes) {
+    return "strike_to_ball";
+  }
+  return null;
 }
 
 function classifyTransition(event: ChallengeEvent):
@@ -22,9 +30,15 @@ function classifyTransition(event: ChallengeEvent):
   | "overturned_other"
   | "confirmed" {
   if (!event.isOverturned) return "confirmed";
+  if (event.challengeDirection) return event.challengeDirection;
+  const countTransition = classifyFromCounts(event);
+  if (countTransition) return countTransition;
+
+  // MLB's live feed stores the corrected post-review call, so an overturned
+  // Called Strike means the original ball became a strike.
   const call = (event.calledDescription ?? "").toLowerCase();
-  if (call.includes("called strike") || call === "strike") return "strike_to_ball";
-  if (call.includes("ball")) return "ball_to_strike";
+  if (call.includes("called strike") || call === "strike") return "ball_to_strike";
+  if (call.includes("ball")) return "strike_to_ball";
   return "overturned_other";
 }
 
@@ -46,6 +60,8 @@ type StrikeZonePlotProps = {
   zoneMode?: ZoneMode;
   showCountOverlay?: boolean;
   showPitchOverlay?: boolean;
+  variant?: "default" | "compact";
+  showLegend?: boolean;
   onSelectChallenge?: (challengeId: string) => void;
   onHoverChallenge?: (challengeId: string | null) => void;
 };
@@ -54,12 +70,16 @@ function StrikeZonePlotComponent({
   challenges,
   selectedChallengeId,
   highlightedChallengeId,
-  zoneMode = "actual",
+  zoneMode = "adjusted",
   showCountOverlay = false,
   showPitchOverlay = false,
+  variant = "default",
+  showLegend = true,
   onSelectChallenge,
   onHoverChallenge,
 }: StrikeZonePlotProps) {
+  const isCompact = variant === "compact";
+  const isInteractive = Boolean(onSelectChallenge || onHoverChallenge);
   const plotted = useMemo(
     () =>
       challenges
@@ -77,8 +97,13 @@ function StrikeZonePlotComponent({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 p-6 lg:p-12 relative flex items-center justify-center min-h-[400px]">
-        <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full max-w-[420px]" role="img" aria-label="Strike zone plot">
+      <div className={`flex-1 relative flex items-center justify-center ${isCompact ? "min-h-[190px] p-3" : "min-h-[400px] p-6 lg:p-12"}`}>
+        <svg
+          viewBox={`0 0 ${STRIKE_ZONE_PLOT.width} ${STRIKE_ZONE_PLOT.height}`}
+          className={isCompact ? "w-full max-w-[190px]" : "w-full max-w-[420px]"}
+          role="img"
+          aria-label="Strike zone plot"
+        >
           <defs>
             <radialGradient id="zoneGlow" cx="50%" cy="50%" r="50%">
               <stop offset="0%" stopColor="rgba(59,130,246,0.05)" />
@@ -90,14 +115,14 @@ function StrikeZonePlotComponent({
           </defs>
 
           {/* Background glow */}
-          <rect x="0" y="0" width={WIDTH} height={HEIGHT} fill="url(#zoneGlow)" />
+          <rect x="0" y="0" width={STRIKE_ZONE_PLOT.width} height={STRIKE_ZONE_PLOT.height} fill="url(#zoneGlow)" />
 
           {/* Strike zone box */}
           <rect
-            x={ZONE_X}
-            y={ZONE_Y}
-            width={ZONE_W}
-            height={ZONE_H}
+            x={STRIKE_ZONE_PLOT.zoneX}
+            y={STRIKE_ZONE_PLOT.zoneY}
+            width={STRIKE_ZONE_PLOT.zoneW}
+            height={STRIKE_ZONE_PLOT.zoneH}
             fill="white"
             stroke="rgba(0,0,0,0.15)"
             strokeWidth="3"
@@ -109,18 +134,18 @@ function StrikeZonePlotComponent({
           {[1, 2].map((i) => (
             <g key={`grid-${i}`}>
               <line
-                x1={ZONE_X + (ZONE_W / 3) * i}
-                y1={ZONE_Y}
-                x2={ZONE_X + (ZONE_W / 3) * i}
-                y2={ZONE_Y + ZONE_H}
+                x1={STRIKE_ZONE_PLOT.zoneX + (STRIKE_ZONE_PLOT.zoneW / 3) * i}
+                y1={STRIKE_ZONE_PLOT.zoneY}
+                x2={STRIKE_ZONE_PLOT.zoneX + (STRIKE_ZONE_PLOT.zoneW / 3) * i}
+                y2={STRIKE_ZONE_PLOT.zoneY + STRIKE_ZONE_PLOT.zoneH}
                 stroke="rgba(0,0,0,0.05)"
                 strokeWidth="1"
               />
               <line
-                x1={ZONE_X}
-                y1={ZONE_Y + (ZONE_H / 3) * i}
-                x2={ZONE_X + ZONE_W}
-                y2={ZONE_Y + (ZONE_H / 3) * i}
+                x1={STRIKE_ZONE_PLOT.zoneX}
+                y1={STRIKE_ZONE_PLOT.zoneY + (STRIKE_ZONE_PLOT.zoneH / 3) * i}
+                x2={STRIKE_ZONE_PLOT.zoneX + STRIKE_ZONE_PLOT.zoneW}
+                y2={STRIKE_ZONE_PLOT.zoneY + (STRIKE_ZONE_PLOT.zoneH / 3) * i}
                 stroke="rgba(0,0,0,0.05)"
                 strokeWidth="1"
               />
@@ -129,7 +154,7 @@ function StrikeZonePlotComponent({
 
           {/* Home plate */}
           <polygon
-            points={`${WIDTH / 2 - 30},${HEIGHT - 20} ${WIDTH / 2},${HEIGHT} ${WIDTH / 2 + 30},${HEIGHT - 20} ${WIDTH / 2 + 30},${HEIGHT - 35} ${WIDTH / 2 - 30},${HEIGHT - 35}`}
+            points={`${STRIKE_ZONE_PLOT.width / 2 - 30},${STRIKE_ZONE_PLOT.height - 20} ${STRIKE_ZONE_PLOT.width / 2},${STRIKE_ZONE_PLOT.height} ${STRIKE_ZONE_PLOT.width / 2 + 30},${STRIKE_ZONE_PLOT.height - 20} ${STRIKE_ZONE_PLOT.width / 2 + 30},${STRIKE_ZONE_PLOT.height - 35} ${STRIKE_ZONE_PLOT.width / 2 - 30},${STRIKE_ZONE_PLOT.height - 35}`}
             fill="white"
             stroke="rgba(0,0,0,0.1)"
             strokeWidth="2"
@@ -141,7 +166,6 @@ function StrikeZonePlotComponent({
             const style = styleForTransition(transition);
             const isSelected = selectedChallengeId === event.challengeId;
             const isHighlighted = highlightedChallengeId === event.challengeId;
-            const baseR = 10;
             const radius = isSelected ? 12 : isHighlighted ? 14 : 9;
             const isFaded = (selectedChallengeId || highlightedChallengeId) && !isSelected && !isHighlighted;
 
@@ -169,7 +193,7 @@ function StrikeZonePlotComponent({
                   strokeWidth="1.5"
                   opacity={isSelected || isHighlighted ? "1" : "0.95"}
                   style={{ transformOrigin: `${x}px ${y}px` }}
-                  className="cursor-pointer transition-transform duration-300 hover:scale-[1.3]"
+                  className={`${isInteractive ? "cursor-pointer hover:scale-[1.3]" : ""} transition-transform duration-300`}
                   onClick={() => onSelectChallenge?.(event.challengeId)}
                   onMouseEnter={() => onHoverChallenge?.(event.challengeId)}
                   onMouseLeave={() => onHoverChallenge?.(null)}
@@ -204,22 +228,24 @@ function StrikeZonePlotComponent({
       </div>
 
       {/* Legend */}
-      <div className="border-t border-gray-100 p-8 shadow-inner bg-slate-50/20">
-        <div className="mb-6">
-          <h4 className="text-[10px] font-bold uppercase tracking-widest text-[var(--surface-4)] mb-1">
-            Visual Legend
-          </h4>
-          <p className="text-xl font-display leading-none text-gray-900">
-            Mapping <span className="text-gray-400">Decisions</span>
-          </p>
+      {showLegend ? (
+        <div className="border-t border-gray-100 p-8 shadow-inner bg-slate-50/20">
+          <div className="mb-6">
+            <h4 className="text-[10px] font-bold uppercase tracking-widest text-[var(--surface-4)] mb-1">
+              Visual Legend
+            </h4>
+            <p className="text-xl font-display leading-none text-gray-900">
+              Mapping <span className="text-gray-400">Decisions</span>
+            </p>
+          </div>
+          <div className="max-w-6xl grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
+            <LegendDot color="#10b981" label="Strike (Corrected)" description="Ball → Strike (Won)" />
+            <LegendDot color="#f59e0b" label="Ball (Corrected)" description="Strike → Ball (Won)" />
+            <LegendDot color="#ef4444" label="Confirmed" description="Call Upheld (Lost)" />
+            <LegendDot color="#06b6d4" label="Other OK" description="Misc Overturned" />
+          </div>
         </div>
-        <div className="max-w-6xl grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
-          <LegendDot color="#10b981" label="Strike (Corrected)" description="Ball → Strike (Won)" />
-          <LegendDot color="#f59e0b" label="Ball (Corrected)" description="Strike → Ball (Won)" />
-          <LegendDot color="#ef4444" label="Confirmed" description="Call Upheld (Lost)" />
-          <LegendDot color="#06b6d4" label="Other OK" description="Misc Overturned" />
-        </div>
-      </div>
+      ) : null}
     </div>
   );
 }
@@ -242,5 +268,3 @@ function LegendDot({ color, label, description }: { color: string; label: string
     </div>
   );
 }
-
-

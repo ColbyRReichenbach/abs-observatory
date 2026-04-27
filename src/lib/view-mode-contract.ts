@@ -148,13 +148,13 @@ const GAME_VIEW_COPY: Record<
       eyebrow: "Postgame Review",
       title: "ABS Game Story",
       deck: "A chart-first postgame recap of which club handled the challenge game better, where the biggest swings landed, and what the umpire looked like by final out.",
-      sectionOrder: ["summary", "waterfall", "debrief", "explorer"],
+      sectionOrder: ["summary", "waterfall", "explorer"],
     },
     org: {
       eyebrow: "Postgame Review",
       title: "ABS Game Analysis",
       deck: "Analytics-first postgame review of actual value gained, modeled opportunity captured, and whether the challenge plan held up across the full game.",
-      sectionOrder: ["summary", "waterfall", "debrief", "explorer"],
+      sectionOrder: ["summary", "waterfall", "explorer"],
     },
   },
 };

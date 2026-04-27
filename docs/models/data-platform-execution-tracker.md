@@ -1,8 +1,10 @@
 # Data Platform Execution Tracker
 
-Status: `Execution Plan`
+Status: `Historical Execution Tracker`
 
 Last updated: April 8, 2026
+
+> Status note: this tracker records the April 2026 data-platform execution program. Current operating truth for polling, warehouse/serving deployment, and publish flow now lives in the launch runbooks and current reference docs.
 
 Primary methodology and architecture sources:
 
@@ -184,9 +186,9 @@ Tasks:
 - [x] update active poller to run warehouse-targeted ingest only
 - [x] update local-window poller to run warehouse-targeted ingest only
 - [x] add poll startup banner with target DB role
-- [x] point scheduled GitHub Actions poller secret to `WAREHOUSE_DATABASE_URL`
+- [x] point active scheduled poller environment to `WAREHOUSE_DATABASE_URL`
 - [x] deprecate any dual-writer polling pattern
-- [x] disable and remove the old local launchd poller from active use
+- [x] keep the local launchd poller as the active operator path, with Warehouse -> Serving publish gates
 
 Primary file targets:
 
@@ -206,7 +208,7 @@ Exit criteria:
 Current progress:
 
 - GitHub Actions is now the intended live polling authority
-- the old Mac launchd poller has been disabled and its plist has been removed from active `~/Library/LaunchAgents`
+- the Mac launchd poller is the active operator path when enabled; it must use the hosted Warehouse URL and publish to Serving after QA
 - the scheduled live polling workflow now includes a follow-on serving publish job after successful warehouse ingest
 
 ### Phase 4: Warehouse And Serving Reconciliation Layer
@@ -411,37 +413,33 @@ Exit criteria:
 
 Current observed warehouse state after rebuilt full-window canonical build:
 
-- `modeling.called_pitch_decisions`: `28,557` rows for `2026-02-20` through `2026-04-07`
+- `modeling.called_pitch_decisions`: `62,086` rows for `2026-02-20` through `2026-04-23`
 - composition:
-  - `26,646` regular-season rows
+  - `60,175` regular-season rows
   - `1,911` spring-training rows
 - challenge coverage in current build:
-  - `2,564` rows with `was_challenged = TRUE`
-  - `2,564` challenged rows reconciled to `raw.savant_abs_events`
+  - `3,448` rows with `was_challenged = TRUE`
+  - `3,448` challenged rows reconciled to `raw.savant_abs_events`
 - ABS geometry coverage:
-  - `28,557` rows with batter-specific zone bounds
-  - `28,369` rows with non-null center-only and radius-adjusted modeled ABS outcomes
+  - canonical product margin uses Savant `edge_distance_calc` when present, otherwise radius-adjusted ABS edge distance
+  - center-only and raw radius-adjusted modeled ABS outcomes remain available as diagnostics
 - context coverage after Warehouse live-feed sync:
-  - `28,557` rows with non-null `bases_state`
-  - `1,912` Savant-only rows with non-null `bases_state`
-  - `28,557` rows with non-null score context
-  - `1,912` Savant-only rows with non-null score context
+  - `62,086` rows with non-null `bases_state`
+  - `62,086` rows with non-null score context
 - split coverage under `called_pitch_decisions_phase_time_v1`:
   - `13,822` train rows
   - `4,967` validation rows
-  - `9,768` test rows
+  - `43,297` test rows
 - artifact-backed validation:
-  - [called-pitch-status-20260408T140553.json](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/.runtime/called-pitch-status/called-pitch-status-20260408T140553.json)
-  - strict report passed with zero duplicate natural keys and zero strict failures
+  - [2026-04-24-overturn-calibration.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/audits/2026-04-24-overturn-calibration.md)
+  - [2026-04-24-decision-value-audit.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/audits/2026-04-24-decision-value-audit.md)
 - geometry head-to-head validation:
-  - [called-pitch-geometry-validation-20260408T140829.json](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/.runtime/called-pitch-geometry/called-pitch-geometry-validation-20260408T140829.json)
-  - `center_only` outperformed `radius_adjusted` on the current challenged sample:
-    - accuracy: `0.4938` vs `0.4590`
-    - overturn precision: `0.5733` vs `0.4707`
-    - overturn recall: `0.1922` vs `0.1299`
+  - `center_only` slightly wins the current validation split by Brier
+  - `radius_adjusted` slightly wins the held-out test split by Brier/log loss
+  - product serving uses one canonical Savant/radius-compatible margin instead of exposing competing geometry variants
 - current limitation:
-  - split policy is provisional and early-window only; it is good enough for current governance, but should be revisited as the 2026 sample grows
-  - geometry selection is still provisional until we rerun the comparison on a larger sample and by challenge direction
+  - split policy should be revisited as the 2026 sample grows
+  - geometry calibration should keep refreshing, even though product surfaces now use one canonical margin
 
 ### Phase 9: Audit Runtime Cutover
 

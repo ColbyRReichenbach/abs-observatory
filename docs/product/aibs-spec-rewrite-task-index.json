@@ -1,5 +1,7 @@
 {
   "version": "2026-04-20",
+  "status": "historical execution tracker",
+  "note": "This index records the April 20 rewrite program. Use current product, route, technical, security, and launch docs for live repo truth.",
   "source": "repo-specific rewrite of aibs_standout_specs_bundle",
   "branch": "review/aibs-standout-specs",
   "updated": "2026-04-20",

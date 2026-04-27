@@ -1,8 +1,10 @@
 # AI Surface And Terminology Master Plan
 
-Status: `Current Source Of Truth`
+Status: `Dated Implementation Reference`
 
 Last updated: April 10, 2026
+
+> Status note: this file records the April 2026 AI surface terminology program. Use current product, technical, and security docs for live repo truth.
 
 Supersedes:
 
@@ -593,4 +595,3 @@ The wrong move today would be:
 - building a database-backed terminology CMS before prompt quality is stable
 - building a large generic AI framework
 - feeding the model a baseball encyclopedia on every request
-

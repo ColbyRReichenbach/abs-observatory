@@ -2,6 +2,8 @@
 
 Date: April 8, 2026
 
+> Status note: this is a dated April 8 model-stack verdict snapshot. It remains useful, but it should be read together with later model cards and current-reference docs.
+
 Purpose:
 
 - summarize the actual current state of the AiBS model stack
@@ -133,39 +135,39 @@ Verdict:
 
 Sources:
 
-- [2026-04-08-overturn-calibration.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-overturn-calibration.md)
-- geometry validation artifacts under [audits/artifacts](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/artifacts)
+- [2026-04-24-overturn-calibration.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/audits/2026-04-24-overturn-calibration.md)
+- geometry validation artifacts under [audits/artifacts](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/audits/artifacts)
 
 Current state:
 
-- `center_only` won on validation
-- `radius_adjusted` slightly edged it on one small held-out test Brier comparison
-- segmented follow-up evidence points more strongly toward `center_only`
+- product geometry is canonicalized to Savant edge distance when available, otherwise radius-adjusted ABS edge distance
+- `center_only` still wins the tiny validation split by a small Brier margin
+- `radius_adjusted` slightly edges center-only on held-out test Brier and log loss
+- center-only and raw radius-adjusted variants remain diagnostic checks, not competing product contracts
 
 Verdict:
 
-- geometry framework is useful and now much more explicit
-- geometry choice is still provisional
-- this is a data-maturity and validation-closure issue, not a structural failure
+- geometry framework is useful and now explicit enough for product use
+- public/product surfaces should use the canonical Savant/radius-compatible margin
+- empirical geometry validation is still provisional and should keep getting refreshed
 
 ### Overturn Probability
 
 Source:
 
-- [2026-04-08-overturn-calibration.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-overturn-calibration.md)
+- [2026-04-24-overturn-calibration.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/audits/2026-04-24-overturn-calibration.md)
 
 Held-out test:
 
-- challenged rows: `245`
-- Brier: `0.2519` using current leading `center_only`
-- log loss: `0.6970`
-- mean absolute bucket gap: `8.3%`
+- challenged rows: `1,129`
+- Brier: `0.2556` using product-default `radius_adjusted`
+- log loss: `0.7043`
 
 Current audit shape:
 
 - challenge direction is close to calibrated
 - sparse subgroups have wide intervals
-- geometry choice still matters
+- geometry choice still matters, but product defaults now prefer canonical/radius rows and fall back only when needed
 
 Verdict:
 
@@ -177,24 +179,28 @@ Verdict:
 
 Source:
 
-- [2026-04-08-decision-value-audit.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/archive/models/audits/2026-04-08-decision-value-audit.md)
+- [2026-04-24-decision-value-audit.md](/Users/colbyreichenbach/Downloads/mlb/abs-observatory/docs/models/audits/2026-04-24-decision-value-audit.md)
 
 Held-out opportunity set:
 
-- opportunities: `9,768`
-- historical challenge share: `2.5%`
-- current recommendation share: `0.8%`
-- positive-EV non-challenged rows: `78`
-- negative-EV challenged rows: `242`
+- opportunities: `43,297`
+- challenged rows: `1,129`
+- historical challenge share: `2.6%`
+- raw positive-EV recommendation share: `10.9%`
+- validation share at a `1.0%` EV threshold: `3.2%`
+- validation share with a two-per-team-game budget: `2.6%`
+- positive-EV non-challenged rows: `4,261`
+- negative-EV challenged rows: `688`
 
 Most important current red flag:
 
-- budget-constrained validation still shows `0` overlap between budget-selected rows and historically challenged rows
+- opportunity-level policy validation is still descriptive rather than causal, and the raw positive-EV threshold is more aggressive than observed challenge behavior
 
 Verdict:
 
 - the policy is much better engineered than before
-- the decomposition is correct
+- the decomposition is now challenger-perspective, terminal-aware, and inventory is bounded on the failed-challenge branch
+- terminal walk/strikeout branches are labeled honestly and use heuristic decision value until a dedicated post-PA terminal WE resolver exists
 - the audit is now asking the right question
 - but the evidence is still not strong enough for org-grade live optimization claims
 

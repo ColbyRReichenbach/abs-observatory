@@ -3,8 +3,9 @@ import argparse
 import hashlib
 import json
 import os
-from datetime import date
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
+from zoneinfo import ZoneInfo
 
 try:
     import requests
@@ -30,6 +31,7 @@ except ModuleNotFoundError:  # pragma: no cover - exercised in CI/unit-test impo
 load_dotenv()
 
 API_BASE = "https://statsapi.mlb.com/api/v1"
+EASTERN = ZoneInfo("America/New_York")
 
 
 def require_psycopg2() -> None:
@@ -154,7 +156,7 @@ def run(database_url: str, snapshot_date: str, season: Optional[int] = None) -> 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Sync MLB standings snapshot into editorial schema")
-    parser.add_argument("--snapshot-date", default=date.today().isoformat(), help="YYYY-MM-DD")
+    parser.add_argument("--snapshot-date", default=datetime.now(EASTERN).date().isoformat(), help="YYYY-MM-DD")
     parser.add_argument("--season", type=int)
     args = parser.parse_args()
 

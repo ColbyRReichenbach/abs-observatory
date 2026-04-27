@@ -30,6 +30,7 @@ export function AtBatContextCard({
   const leverage = summarizeEstimatedLeverage(challenge);
   const pitchVelocity = challenge.startSpeed ? `${challenge.startSpeed.toFixed(1)} MPH` : "N/A";
   const pitchType = challenge.pitchType || "Unknown";
+  const compactCountLabel = challenge.umpireCount ? "Umpire Count" : "Count Before";
   const countSnapshot =
     challenge.countBefore ??
     (challenge.balls !== null && challenge.strikes !== null ? `${challenge.balls}-${challenge.strikes}` : "Unavailable");
@@ -84,7 +85,7 @@ export function AtBatContextCard({
           : `Comparable plate appearances from ${stabilizedCountLabel} shift offensive success rate by ${formatSignedPoints(challenge.positiveOutcomeDelta)}.`;
   const decisionNarrative =
     estimatedOverturnProbability === null || expectedChallengeValue === null
-      ? "Model recommendation is unavailable for this review."
+      ? "Model read is unavailable for this review."
       : `${Math.round(estimatedOverturnProbability * 100)}% overturn probability and ${formatWinDelta(expectedChallengeValue)} expected value at challenge time.`;
   const hasBaselineContext =
     viewMode === "org" &&
@@ -107,11 +108,11 @@ export function AtBatContextCard({
         {viewMode === "org" && showDecisionAssistant ? (
           <div className="mb-4 flex justify-end">
             <AIInsightBubble
-              insight="Given this count shift, leverage, and historical baseline, explain whether a club should challenge here and why."
+              insight="Given this count shift, leverage, and historical baseline, explain how the model weighed this reviewed spot and what drove the read."
               insightId={`challenge-decision:${challenge.challengeId}`}
               metadata={{ surface: "challenge_decision_brief", challengeId: challenge.challengeId, viewMode }}
               chartContext={chartContext}
-              spotlightTitle="Should aiBS Challenge?"
+              spotlightTitle="Challenge Decision Lens"
               spotlight={<AtBatContextCard challenge={challenge} viewMode={viewMode} showDecisionAssistant={false} />}
             />
           </div>
@@ -146,7 +147,7 @@ export function AtBatContextCard({
           <CompactStat label="Pitch" value={pitchType} />
           <CompactStat label="Velocity" value={pitchVelocity} />
           <CompactStat label="Location" value={location} />
-          <CompactStat label="Count Before" value={countState.beforeLabel} />
+          <CompactStat label={compactCountLabel} value={countState.beforeLabel} />
         </div>
 
         <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr]">
@@ -160,12 +161,12 @@ export function AtBatContextCard({
               <p className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-500">Decision Read</p>
               <p className="mt-1 text-sm font-bold text-slate-900">
                 {challenge.decisionRecommendation === "challenge"
-                  ? "Model favored a challenge"
+                  ? "Model leaned challenge"
                   : challenge.decisionRecommendation === "hold"
-                    ? "Model favored holding"
+                    ? "Model leaned hold"
                     : challenge.decisionRecommendation === "cannot_challenge"
                       ? "No challenge inventory remained"
-                      : "No recommendation available"}
+                      : "No model read available"}
               </p>
               <p className="mt-1 text-[11px] font-medium leading-relaxed text-slate-600">{decisionNarrative}</p>
             </div>

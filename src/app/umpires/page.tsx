@@ -8,6 +8,7 @@ import { withViewModeHref } from "@/lib/view-mode-href";
 import { UmpireDistributionHistogram } from "@/components/analytics/umpire-distribution-histogram";
 import { UmpireRiskScatter } from "@/components/analytics/umpire-risk-scatter";
 import { UmpireLeaderboardTable } from "@/components/umpires/umpire-leaderboard-table";
+import { getUmpireOrgWatchPriority } from "@/lib/umpire-ranking";
 import { getUmpiresPageViewCopy } from "@/lib/view-mode-contract";
 
 
@@ -17,28 +18,10 @@ export default async function UmpiresPage({ searchParams }: { searchParams: Prom
   const sp = await searchParams;
   const range = parseRange(sp.range);
   const viewMode = await resolveViewMode(sp);
-  const umpires = await getUmpireLeaderboardModel(range);
-
-  const sorted = [...umpires].sort((left, right) =>
-    viewMode === "org" ? compareOrgUmpires(left, right) : compareFanUmpires(left, right),
-  );
-
-  // Compute league averages
-  const totalChallenged = umpires.reduce((s, u) => s + u.challengedCalls, 0);
-  const totalOverturned = umpires.reduce((s, u) => s + u.overturnedCalls, 0);
-  const totalGames = umpires.reduce((s, u) => s + u.gamesWorked, 0);
+  const umpires = await getUmpireLeaderboardModel(range, { includeValueMetrics: viewMode === "org" });
+  const totalChallenged = umpires.reduce((sum, umpire) => sum + umpire.challengedCalls, 0);
+  const totalOverturned = umpires.reduce((sum, umpire) => sum + umpire.overturnedCalls, 0);
   const leagueAvgRate = totalChallenged > 0 ? totalOverturned / totalChallenged : 0;
-  const avgOrgValue =
-    umpires.length > 0
-      ? umpires.reduce((sum, umpire) => sum + getOrgRankingValue(umpire), 0) / umpires.length
-      : 0;
-  const avgFanValue = umpires.length > 0 ? umpires.reduce((sum, umpire) => sum + umpire.overturnRate, 0) / umpires.length : 0;
-
-  // S4-2: Find insert position for floating avg row
-  const avgInsertIdx = sorted.findIndex((umpire) =>
-    viewMode === "org" ? getOrgRankingValue(umpire) < avgOrgValue : umpire.overturnRate > avgFanValue,
-  );
-  const insertAt = avgInsertIdx === -1 ? sorted.length : avgInsertIdx;
 
   const histogramData = umpires.map((u) => ({
     umpireName: u.umpireName,
@@ -51,18 +34,13 @@ export default async function UmpiresPage({ searchParams }: { searchParams: Prom
     overturnRateVariance: u.overturnRateVariance,
     riskTier: u.riskTier,
   }));
-  const watchList = [...umpires].sort((left, right) => getOrgWatchPriority(right) - getOrgWatchPriority(left)).slice(0, 3);
+  const watchList = [...umpires].sort((left, right) => getUmpireOrgWatchPriority(right) - getUmpireOrgWatchPriority(left)).slice(0, 3);
   const copy = getUmpiresPageViewCopy(viewMode);
   const leaderboardSection = (
     <UmpireLeaderboardTable
       range={range}
       viewMode={viewMode}
-      umpires={sorted}
-      insertAt={insertAt}
-      totalChallenged={totalChallenged}
-      totalOverturned={totalOverturned}
-      totalGames={totalGames}
-      leagueAvgRate={leagueAvgRate}
+      umpires={umpires}
     />
   );
   const volatilityWatch = [...umpires]
@@ -95,9 +73,9 @@ export default async function UmpiresPage({ searchParams }: { searchParams: Prom
           <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <SummaryCard
               eyebrow="Top WE Signal"
-              title={bestByMetric(umpires, (umpire) => umpire.averageWinExpectancyDelta ?? Number.NEGATIVE_INFINITY)?.umpireName ?? "No signal"}
+              title={bestByOptionalMetric(umpires, (umpire) => umpire.averageWinExpectancyDelta)?.umpireName ?? "No signal"}
               body={(() => {
-                const umpire = bestByMetric(umpires, (item) => item.averageWinExpectancyDelta ?? Number.NEGATIVE_INFINITY);
+                const umpire = bestByOptionalMetric(umpires, (item) => item.averageWinExpectancyDelta);
                 return umpire?.averageWinExpectancyDelta !== null && umpire?.averageWinExpectancyDelta !== undefined
                   ? `${umpire.averageWinExpectancyDelta >= 0 ? "+" : ""}${(umpire.averageWinExpectancyDelta * 100).toFixed(2)}% average WE change per review.`
                   : "Win-probability coverage has not stabilized enough yet.";
@@ -105,9 +83,13 @@ export default async function UmpiresPage({ searchParams }: { searchParams: Prom
             />
             <SummaryCard
               eyebrow="Lowest WE Signal"
-              title={bestByMetric(umpires, (umpire) => -(umpire.averageWinExpectancyDelta ?? Number.POSITIVE_INFINITY))?.umpireName ?? "No signal"}
+              title={bestByOptionalMetric(umpires, (umpire) =>
+                typeof umpire.averageWinExpectancyDelta === "number" ? -umpire.averageWinExpectancyDelta : null,
+              )?.umpireName ?? "No signal"}
               body={(() => {
-                const umpire = bestByMetric(umpires, (item) => -(item.averageWinExpectancyDelta ?? Number.POSITIVE_INFINITY));
+                const umpire = bestByOptionalMetric(umpires, (item) =>
+                  typeof item.averageWinExpectancyDelta === "number" ? -item.averageWinExpectancyDelta : null,
+                );
                 return umpire?.averageWinExpectancyDelta !== null && umpire?.averageWinExpectancyDelta !== undefined
                   ? `${umpire.averageWinExpectancyDelta >= 0 ? "+" : ""}${(umpire.averageWinExpectancyDelta * 100).toFixed(2)}% average WE change per review.`
                   : "Win-probability coverage has not stabilized enough yet.";
@@ -206,44 +188,6 @@ export default async function UmpiresPage({ searchParams }: { searchParams: Prom
   );
 }
 
-function getOrgRankingValue(umpire: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number]) {
-  if (typeof umpire.averageWinExpectancyDelta === "number") return umpire.averageWinExpectancyDelta;
-  if (typeof umpire.averageRunExpectancyDelta === "number") return umpire.averageRunExpectancyDelta;
-  return umpire.overturnRate;
-}
-
-function compareFanUmpires(
-  left: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
-  right: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
-) {
-  if (left.overturnRate !== right.overturnRate) return left.overturnRate - right.overturnRate;
-  if (right.challengedCalls !== left.challengedCalls) return right.challengedCalls - left.challengedCalls;
-  return right.gamesWorked - left.gamesWorked;
-}
-
-function compareOrgUmpires(
-  left: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
-  right: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number],
-) {
-  const valueGap = getOrgRankingValue(right) - getOrgRankingValue(left);
-  if (valueGap !== 0) return valueGap;
-  if (right.overturnRateVariance !== left.overturnRateVariance) {
-    return right.overturnRateVariance - left.overturnRateVariance;
-  }
-  return right.challengedCalls - left.challengedCalls;
-}
-
-function getOrgWatchPriority(umpire: Awaited<ReturnType<typeof getUmpireLeaderboardModel>>[number]) {
-  const drift =
-    typeof umpire.recentOverturnRate === "number" ? Math.abs(umpire.recentOverturnRate - umpire.overturnRate) : 0;
-  return (
-    Math.abs(umpire.averageWinExpectancyDelta ?? 0) * 100 +
-    Math.abs(umpire.averageRunExpectancyDelta ?? 0) * 10 +
-    umpire.overturnRateVariance * 100 +
-    drift * 100
-  );
-}
-
 function buildWatchCopy(umpire: {
   orgDescriptor: string;
   overturnRateVariance: number;
@@ -296,4 +240,12 @@ function SummaryCard({
 function bestByMetric<T>(items: T[], getValue: (item: T) => number) {
   if (items.length === 0) return null;
   return [...items].sort((left, right) => getValue(right) - getValue(left))[0] ?? null;
+}
+
+function bestByOptionalMetric<T>(items: T[], getValue: (item: T) => number | null | undefined) {
+  const scored = items
+    .map((item) => ({ item, value: getValue(item) }))
+    .filter((entry): entry is { item: T; value: number } => typeof entry.value === "number" && Number.isFinite(entry.value));
+  if (scored.length === 0) return null;
+  return scored.sort((left, right) => right.value - left.value)[0]?.item ?? null;
 }

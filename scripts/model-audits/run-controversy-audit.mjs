@@ -404,14 +404,14 @@ async function main() {
           c.bases_state,
           COALESCE(p.balls_before, c.balls) AS balls_before,
           COALESCE(p.strikes_before, c.strikes) AS strikes_before,
-          COALESCE(p.called_description, c.called_description) AS called_description,
+          c.original_call AS called_description,
           c.is_overturned,
           timeline.impact_type,
-          COALESCE(c.px, c.inferred_px) AS px,
-          COALESCE(c.pz, c.inferred_pz) AS pz,
-          COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) AS strike_zone_top,
-          COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strike_zone_bottom
-        FROM abs_challenges c
+          c.resolved_px AS px,
+          c.resolved_pz AS pz,
+          c.resolved_strike_zone_top AS strike_zone_top,
+          c.resolved_strike_zone_bottom AS strike_zone_bottom
+        FROM mart_abs_pitch_challenges c
         JOIN games g ON g.game_pk = c.game_pk
         LEFT JOIN pitches p
           ON p.game_pk = c.game_pk

@@ -24,11 +24,16 @@ const ARTIFACT_PATH = path.join(
   `docs/models/audits/artifacts/${AUDIT_DATE}-decision-value-audit.json`,
 );
 
-const CURRENT_GEOMETRY_VARIANT = "center_only";
+const CURRENT_GEOMETRY_VARIANT = "radius_adjusted";
 const HEURISTIC_SUCCESS_PER_LI = 0.012;
 const HEURISTIC_FAILURE_COST_PER_LI = 0.0025;
-const INVENTORY_COST_VERSION = "inventory_future_opportunity_v1";
-const INVENTORY_COST_BY_BUCKET = {
+const INVENTORY_COST_VERSION = "inventory_future_opportunity_failure_weighted_v2";
+const INVENTORY_UPPER_BOUND_REALIZATION_RATE = 0.04;
+const INVENTORY_MAX_COST_BY_REMAINING = {
+  1: 0.015,
+  2: 0.0075,
+};
+const INVENTORY_UPPER_BOUND_BY_BUCKET = {
   "1|1-3|close": 0.28954352014010387,
   "1|1-3|not_close": 0.23589356435643613,
   "1|4-6|close": 0.24681330022075038,
@@ -133,7 +138,12 @@ function inventoryCostApprox(req, leverageIndex) {
   const inningKey = req.inning >= 9 ? "9+" : req.inning >= 7 ? "7-8" : req.inning >= 4 ? "4-6" : "1-3";
   const closeKey = Math.abs(req.scoreDiffBattingTeam) <= 1 ? "close" : "not_close";
   const bucketKey = `${remainingChallenges}|${inningKey}|${closeKey}`;
-  return Number((INVENTORY_COST_BY_BUCKET[bucketKey] ?? 0).toFixed(4));
+  return Number(
+    Math.min(
+      (INVENTORY_UPPER_BOUND_BY_BUCKET[bucketKey] ?? 0) * INVENTORY_UPPER_BOUND_REALIZATION_RATE,
+      INVENTORY_MAX_COST_BY_REMAINING[remainingChallenges],
+    ).toFixed(4),
+  );
 }
 
 function resolveOverturnProbabilityWithFallback(input, rows) {
@@ -465,7 +475,7 @@ async function main() {
           c.away_score,
           c.score_diff_batting,
           c.observed_call,
-          c.min_edge_distance_center_only,
+          c.min_edge_distance_radius_adjusted,
           COALESCE(c.challenge_dedupe_key, '') AS challenge_dedupe_key,
           c.batting_team_id,
           c.fielding_team_id,
@@ -486,7 +496,7 @@ async function main() {
       const calledPitch = calledPitchFromObservedCall(observedCall);
       const challengeDirection = challengeDirectionFromObservedCall(observedCall);
       const rawMargin =
-        row.min_edge_distance_center_only == null ? null : Number(row.min_edge_distance_center_only);
+        row.min_edge_distance_radius_adjusted == null ? null : Number(row.min_edge_distance_radius_adjusted);
       const alignedMargin = toChallengeAlignedMargin(challengeDirection, rawMargin);
       const edgeBucket = toEdgeBucket(alignedMargin);
       return {
@@ -574,12 +584,12 @@ async function main() {
           leverageIndex,
         );
         const overturnProbability = overturn?.overturnProbability ?? 0.5;
+        const failureBranchValue = Number((failureValue - inventoryCost).toFixed(4));
         const expectedChallengeValue =
           overturnProbability * successValue +
-          (1 - overturnProbability) * failureValue -
-          inventoryCost;
+          (1 - overturnProbability) * failureBranchValue;
         const realizedChallengeValue = row.wasChallenged
-          ? (row.isOverturned ? successValue : failureValue) - inventoryCost
+          ? (row.isOverturned ? successValue : failureBranchValue)
           : null;
 
         return {
@@ -590,7 +600,8 @@ async function main() {
           overturnProbabilityFallbackTier: overturn?.fallbackTier ?? "global",
           overturnProbabilityConfidence: overturn?.confidenceBand ?? null,
           successValue,
-          failureValue,
+          failureValue: failureBranchValue,
+          rawFailureValue: failureValue,
           inventoryCost,
           expectedChallengeValue: Number(expectedChallengeValue.toFixed(4)),
           realizedChallengeValue:
@@ -656,8 +667,7 @@ async function main() {
       const rescored = validationRows.map((row) => {
         const adjustedExpectedChallengeValue =
           row.overturnProbability * row.successValue +
-          (1 - row.overturnProbability) * row.failureValue -
-          row.inventoryCost * multiplier;
+          (1 - row.overturnProbability) * (row.rawFailureValue - row.inventoryCost * multiplier);
         return {
           ...row,
           adjustedExpectedChallengeValue,

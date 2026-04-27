@@ -16,7 +16,7 @@ describe("runVisualizerSurface", () => {
     resolveToolResultsMock.mockResolvedValue([]);
   });
 
-  it("returns a structured fallback plan when OpenAI is unavailable", async () => {
+  it("fails closed when non-team visualizer requests have no deterministic support", async () => {
     const result = await runVisualizerSurface({
       openaiClient: null,
       modelName: "gpt-4.1-mini",
@@ -29,11 +29,11 @@ describe("runVisualizerSurface", () => {
       context: { scope: "global" },
     });
 
-    expect(result.structuredPlan?.chartType).toBeTruthy();
-    expect(result.answer).toContain("Chart Type:");
+    expect(result.structuredPlan).toBeNull();
+    expect(result.answer).toMatch(/deterministic team charts/i);
   });
 
-  it("falls back to a valid structured plan when the model returns invalid output", async () => {
+  it("fails closed when the non-team model returns invalid output", async () => {
     const result = await runVisualizerSurface({
       openaiClient: {
         responses: {
@@ -56,11 +56,8 @@ describe("runVisualizerSurface", () => {
       context: { scope: "global" },
     });
 
-    expect(result.structuredPlan?.chartType).toBe("heatmap");
-    expect(result.structuredPlan?.chartTitle).toBe("Timing And Leverage Map");
-    expect(result.structuredPlan?.highlight).toMatch(/challenge value/i);
-    expect(result.answer).toContain("Chart Title:");
-    expect(result.answer).not.toContain("vague essay");
+    expect(result.structuredPlan).toBeNull();
+    expect(result.answer).toMatch(/could not produce a truthful chart specification/i);
   });
 
   it("builds a deterministic team count-state plan from page-scoped tool data", async () => {
@@ -120,6 +117,159 @@ describe("runVisualizerSurface", () => {
       { x: "Even Count", y: 0.75 },
       { x: "Hitter Ahead", y: 0.625 },
       { x: "Full Count", y: 0.5 },
+    ]);
+  });
+
+  it("treats explicit offense-v-defense heatmap requests as overturn-rate heatmaps on team pages", async () => {
+    resolveToolResultsMock.mockResolvedValueOnce([
+      {
+        toolName: "get_team_summary",
+        payload: {
+          teamName: "St. Louis Cardinals",
+        },
+      },
+      {
+        toolName: "get_team_inning_efficiency",
+        payload: [
+          { inning: 1, category: "Offensive", sampleSize: 6, overturnRate: 0.5 },
+          { inning: 1, category: "Defensive", sampleSize: 4, overturnRate: 0.25 },
+          { inning: 2, category: "Offensive", sampleSize: 3, overturnRate: 0.67 },
+          { inning: 2, category: "Defensive", sampleSize: 2, overturnRate: 0.5 },
+        ],
+      },
+    ]);
+
+    const result = await runVisualizerSurface({
+      openaiClient: null,
+      modelName: "gpt-4.1-mini",
+      surface: "visualizer",
+      audienceMode: "fan",
+      taskFamily: "question_to_visual_plan",
+      message: "Show a heatmap of offense vs defense challenge results by inning.",
+      transcript: "No prior turns.",
+      terminologyAppendix: "",
+      context: { scope: "team", entityId: "138", range: "season" },
+    });
+
+    expect(result.structuredPlan?.chartType).toBe("heatmap");
+    expect(result.structuredPlan?.chartTitle).toBe("St. Louis Cardinals Offensive vs Defensive Overturn Rate by Inning");
+    expect(result.structuredPlan?.dataPoints).toEqual([
+      { x: "Inning 1", y: "Offensive", value: 0.5 },
+      { x: "Inning 1", y: "Defensive", value: 0.25 },
+      { x: "Inning 2", y: "Offensive", value: 0.67 },
+      { x: "Inning 2", y: "Defensive", value: 0.5 },
+    ]);
+  });
+
+  it("builds grouped bar data for offense-v-defense challenge volume by inning", async () => {
+    const inningEfficiencyPayload = Array.from({ length: 9 }, (_, index) => {
+      const inning = index + 1;
+      return [
+        { inning, category: "Defensive", sampleSize: inning + 3, overturnRate: 0.25 },
+        { inning, category: "Offensive", sampleSize: inning + 4, overturnRate: 0.5 },
+      ];
+    }).flat();
+
+    resolveToolResultsMock.mockResolvedValueOnce([
+      {
+        toolName: "get_team_summary",
+        payload: {
+          teamName: "St. Louis Cardinals",
+        },
+      },
+      {
+        toolName: "get_team_inning_efficiency",
+        payload: inningEfficiencyPayload,
+      },
+    ]);
+
+    const result = await runVisualizerSurface({
+      openaiClient: null,
+      modelName: "gpt-4.1-mini",
+      surface: "visualizer",
+      audienceMode: "fan",
+      taskFamily: "question_to_visual_plan",
+      message: "Show me challenges per offense v defense by inning in a bar chart.",
+      transcript: "No prior turns.",
+      terminologyAppendix: "",
+      context: { scope: "team", entityId: "138", range: "season" },
+    });
+
+    expect(result.structuredPlan?.chartType).toBe("bar_chart");
+    expect(result.structuredPlan?.chartTitle).toBe("St. Louis Cardinals Offense vs Defense Challenge Volume by Inning");
+    expect(result.structuredPlan?.dataPoints).toHaveLength(18);
+    expect(result.structuredPlan?.dataPoints.at(0)).toEqual({ x: "Inning 1", y: 4, series: "Defensive" });
+    expect(result.structuredPlan?.dataPoints.at(-1)).toEqual({ x: "Inning 9", y: 13, series: "Offensive" });
+  });
+
+  it("builds decision-value charts from the requested breakdown dimension", async () => {
+    resolveToolResultsMock.mockResolvedValueOnce([
+      {
+        toolName: "get_team_summary",
+        payload: {
+          teamName: "Cincinnati Reds",
+        },
+      },
+      {
+        toolName: "get_team_decision_value_report",
+        payload: {
+          breakdownSections: [
+            {
+              key: "count_state",
+              title: "Count State",
+              entries: [
+                {
+                  label: "Hitter Ahead",
+                  challenges: 18,
+                  averageExpectedChallengeValue: -0.1728,
+                  averageRealizedChallengeValue: 0.0338,
+                  decisionSurplus: 0.2066,
+                  modelConfidence: "low",
+                },
+                {
+                  label: "Even Count",
+                  challenges: 27,
+                  averageExpectedChallengeValue: -0.1791,
+                  averageRealizedChallengeValue: -0.0034,
+                  decisionSurplus: 0.1757,
+                  modelConfidence: "low",
+                },
+                {
+                  label: "Pitcher Ahead",
+                  challenges: 14,
+                  averageExpectedChallengeValue: -0.1803,
+                  averageRealizedChallengeValue: -0.0165,
+                  decisionSurplus: 0.1638,
+                  modelConfidence: "low",
+                },
+              ],
+            },
+          ],
+        },
+      },
+    ]);
+
+    const result = await runVisualizerSurface({
+      openaiClient: null,
+      modelName: "gpt-4.1-mini",
+      surface: "visualizer",
+      audienceMode: "org",
+      taskFamily: "question_to_visual_plan",
+      message: "Compare expected vs realized value by count state in a bar chart.",
+      transcript: "No prior turns.",
+      terminologyAppendix: "",
+      context: { scope: "team", entityId: "113", range: "season" },
+    });
+
+    expect(result.structuredPlan?.chartTitle).toBe("Cincinnati Reds Expected vs Realized Value by Count State");
+    expect(result.structuredPlan?.chartType).toBe("bar_chart");
+    expect(result.structuredPlan?.dataPoints).toEqual([
+      { x: "Hitter Ahead", y: -0.1728, series: "Expected" },
+      { x: "Hitter Ahead", y: 0.0338, series: "Realized" },
+      { x: "Even Count", y: -0.1791, series: "Expected" },
+      { x: "Even Count", y: -0.0034, series: "Realized" },
+      { x: "Pitcher Ahead", y: -0.1803, series: "Expected" },
+      { x: "Pitcher Ahead", y: -0.0165, series: "Realized" },
     ]);
   });
 });

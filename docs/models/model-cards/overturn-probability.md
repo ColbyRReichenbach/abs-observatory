@@ -4,8 +4,8 @@
 
 - Layer type: empirical binary classification via grouped fallback rates
 - Source table: `modeling.called_pitch_decisions`
-- Audit source: [2026-04-08-overturn-calibration.md](../audits/2026-04-08-overturn-calibration.md)
-- Current status: active, provisional geometry choice
+- Audit source: [2026-04-24-overturn-calibration.md](../audits/2026-04-24-overturn-calibration.md)
+- Current status: active, canonical/radius product default with diagnostic geometry retained
 
 ## Purpose
 
@@ -27,7 +27,7 @@ Estimate `P(overturn | challenge-time information)` for challenge-eligible taken
 ## Features
 
 - challenge direction
-- geometry variant
+- canonical ABS geometry variant
 - edge bucket
 - exact baseball state
 - pitch-time context available immediately after the pitch
@@ -40,27 +40,32 @@ Current fallback hierarchy:
 
 ## Current Evidence
 
-- Challenged rows available: `2,564`
-- Train / validation / test: `2,197 / 122 / 245`
-- Validation geometry winner: `center_only`
+- Challenged rows available: `3,448`
+- Train / validation / test: `2,197 / 122 / 1,129`
+- Validation geometry winner: `center_only` by a very small margin
+- Product default: `radius_adjusted` / canonical Savant-compatible geometry
+
+Held-out performance for `radius_adjusted`:
+
+- Brier: `0.2556`
+- log loss: `0.7043`
 
 Held-out performance for `center_only`:
 
-- Brier: `0.2519`
-- log loss: `0.6970`
-- mean absolute bucket gap: `8.3%`
+- Brier: `0.2567`
+- log loss: `0.7067`
 
 ## Serving Contract
 
 - emit probability
 - emit fallback tier
 - emit geometry version
-- keep geometry choice explicit in downstream outputs
+- prefer canonical/radius rows first; fall back to center-only only when canonical rows are unavailable
 
 ## Known Limitations
 
 - sample is still early and only covers 2026 ABS challenges
-- geometry variant is not fully settled
+- empirical geometry validation is not fully settled, even though product geometry is canonicalized
 - fallback estimates are still relatively coarse
 
 ## Publication Boundary

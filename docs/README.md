@@ -21,7 +21,10 @@ Use these first:
   - current runtime, data, route, and subsystem implementation overview
 
 - [launch/live-polling-runbook.md](./launch/live-polling-runbook.md)
-  - current local scheduled polling, ET-aware gating, prune behavior, and manual recovery workflow
+  - current local operator polling workflow, ET-aware gating, prune behavior, and manual recovery workflow
+
+- [launch/vercel-neon-runbook.md](./launch/vercel-neon-runbook.md)
+  - current hosted app / warehouse / serving deployment reference, including the scheduled GitHub Actions warehouse poller
 
 - [reference/security.md](./reference/security.md)
   - current security controls and enforcement boundaries
@@ -29,28 +32,28 @@ Use these first:
 - [reference/gap-list.md](./reference/gap-list.md)
   - current documentation and platform truth boundaries
 
-- [product/aibs-spec-rewrite-task-index.json](./product/aibs-spec-rewrite-task-index.json)
-  - current execution tracker for the repo-specific cleanup and product rewrite
-
-- [reference/repo-drift-audit-2026-04-20.md](./reference/repo-drift-audit-2026-04-20.md)
-  - current inventory of deleted drift, retained historical docs, and archive guidance
-
 - [models/README.md](./models/README.md)
-  - model audit framework and retained model-history references
+  - model audit framework, current model references, and retained dated model-program records
 
 ## Secondary Reference
 
 These remain useful, but are narrower in scope:
 
 - `architecture/`
-  - retained architecture decisions and implementation references
+  - retained architecture decisions plus dated AI implementation/program plans
 
 - `editorial/`
   - editorial workflow and Absolute Observer system references
 
 - `launch/`
   - operational runbooks and launch records
-  - some files are historical and should not be treated as current product truth
+  - only specific runbooks are current operating references; dated launch notes remain historical
+
+- `product/frontend-hierarchy-spec-2026-04-20.md`
+  - completed implementation spec for the April 20 hierarchy rebuild
+
+- `reference/repo-drift-audit-2026-04-20.md`
+  - dated cleanup audit for the April 20 repo-drift pass
 
 - `archive/`
   - dated product specs, historical launch/status material, and dated model audit evidence
@@ -62,4 +65,4 @@ Historical planning material is intentionally not part of the retained docs set.
 Practical rule:
 
 - dated files are historical by default unless a current-reference doc links to them as active support material
-- `docs/archive/models/audits/`, `docs/launch/lighthouse/`, dated launch notes, and dated product verdict/spec files should not be treated as current product truth
+- `docs/archive/models/audits/`, `docs/launch/lighthouse/`, dated launch notes, dated sprint/final-sprint plans, and implementation trackers should not be treated as current product truth

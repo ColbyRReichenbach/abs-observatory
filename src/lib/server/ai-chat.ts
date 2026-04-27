@@ -43,6 +43,9 @@ function hasUsableOpenAiKey(rawKey: string | undefined): rawKey is string {
   return !normalized.startsWith("test-") && !normalized.includes("placeholder");
 }
 
+const AI_USAGE_DAY_SQL = "(CURRENT_TIMESTAMP AT TIME ZONE 'America/New_York')::date";
+const AI_USAGE_MONTH_SQL = "DATE_TRUNC('month', CURRENT_TIMESTAMP AT TIME ZONE 'America/New_York')::date";
+
 function buildScopeCheckMessage(params: {
   message: string;
   context?: CopilotContext;
@@ -623,9 +626,11 @@ async function completeChatTurn(params: {
           output_tokens,
           total_tokens,
           estimated_cost_usd,
+          usage_day,
+          usage_month,
           metadata
         )
-        VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9, $10, $11)
+        VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9, $10, ${AI_USAGE_DAY_SQL}, ${AI_USAGE_MONTH_SQL}, $11)
         `,
         [
           params.userId,

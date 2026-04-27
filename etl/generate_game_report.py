@@ -93,20 +93,20 @@ def load_challenge_evidence(cur, game_pk: int) -> List[Dict]:
           p.pitch_type_description AS pitch_type,
           p.start_speed,
           c.is_overturned,
-          COALESCE(c.px, c.inferred_px) AS px,
-          COALESCE(c.pz, c.inferred_pz) AS pz,
-          COALESCE(c.strike_zone_top, c.inferred_strike_zone_top) AS strike_zone_top,
-          COALESCE(c.strike_zone_bottom, c.inferred_strike_zone_bottom) AS strike_zone_bottom,
+          c.resolved_px AS px,
+          c.resolved_pz AS pz,
+          c.resolved_strike_zone_top AS strike_zone_top,
+          c.resolved_strike_zone_bottom AS strike_zone_bottom,
           p.balls_before,
           p.strikes_before,
           p.balls_after,
           p.strikes_after,
           timeline.impact_type,
           timeline.impact_summary,
-          c.location_source,
+          c.resolved_location_source AS location_source,
           c.inference_method,
           c.inference_confidence
-        FROM abs_challenges c
+        FROM mart_abs_pitch_challenges c
         LEFT JOIN teams t ON t.team_id = c.challenge_team_id
         LEFT JOIN pitches p
           ON p.game_pk = c.game_pk
