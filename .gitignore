@@ -81,6 +81,9 @@ env/
 *.feather
 *.arrow
 *.csv.tmp
+docs/editorial/*-abs-observatory.pdf
+docs/launch/article-ideas.md
+docs/launch/trust-your-catcher-rough-draft.md
 
 # env files and secrets
 .env

@@ -20,6 +20,23 @@ export function WeeklyArticleSection({
   section: ArticleDetail["sections"][number];
 }) {
   const chartEvidence = isWeeklyArticleChartEvidence(section.evidencePayload) ? section.evidencePayload : null;
+  const isMethodologySection = section.sectionKey === "evidence_notes";
+
+  if (isMethodologySection) {
+    return (
+      <details className="mx-auto max-w-[70ch] overflow-hidden rounded-2xl border border-black/10 bg-[#fffdf8] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.04)]">
+        <summary className="cursor-pointer list-none text-[11px] font-black uppercase tracking-[0.24em] text-[#7d6c54] marker:hidden">
+          <span className="inline-flex w-full items-center justify-between gap-4">
+            <span>{section.heading}</span>
+            <span className="rounded-full border border-black/10 px-2 py-1 text-[9px] text-[#5a554d]">Open</span>
+          </span>
+        </summary>
+        <EditorialProse className="mt-4 min-w-0 max-w-full border-t border-black/10 pt-4">
+          <ReactMarkdown>{section.bodyMd}</ReactMarkdown>
+        </EditorialProse>
+      </details>
+    );
+  }
 
   return (
     <div>
