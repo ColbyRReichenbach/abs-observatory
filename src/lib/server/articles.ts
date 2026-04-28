@@ -657,8 +657,13 @@ export async function listPublishedArticles(limit = 20): Promise<ArticleListItem
   });
 }
 
-export async function getArticleBySlug(slug: string): Promise<ArticleDetail | null> {
-  return withCachedValue(getCacheKey(["published-article", slug]), 30_000, async () => {
+export async function getArticleBySlug(
+  slug: string,
+  options: { includeDrafts?: boolean } = {},
+): Promise<ArticleDetail | null> {
+  const includeDrafts = options.includeDrafts === true;
+
+  return withCachedValue(getCacheKey(["article", slug, includeDrafts ? "preview" : "published"]), 30_000, async () => {
     const article = await sqlOne<{
       articleid: string;
       slug: string;
@@ -699,10 +704,10 @@ export async function getArticleBySlug(slug: string): Promise<ArticleDetail | nu
       evidence_payload AS evidencePayload
     FROM editorial.articles
     WHERE slug = $1
-      AND status = 'published'
+      AND ($2::boolean OR status = 'published')
     LIMIT 1
     `,
-      [slug],
+      [slug, includeDrafts],
     );
 
     if (!article) return null;

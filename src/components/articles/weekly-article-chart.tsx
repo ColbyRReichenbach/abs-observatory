@@ -3,11 +3,19 @@
 import { SpringTeamIdentityScatter, type SpringTeamIdentityPoint } from "@/components/articles/spring-team-identity-scatter";
 import { SpringTimingConversionChart, type SpringTimingConversionPoint } from "@/components/articles/spring-timing-conversion-chart";
 import { SpringUmpireExposureScatter, type SpringUmpireExposurePoint } from "@/components/articles/spring-umpire-exposure-scatter";
+import { AbsActorComparisonChart, type AbsActorComparisonPoint } from "@/components/articles/abs-actor-comparison-chart";
+import { AbsCatcherGameflowChart, type AbsCatcherGameflowPoint } from "@/components/articles/abs-catcher-gameflow-chart";
+import { AbsCountPressureGapChart, type AbsCountPressurePoint } from "@/components/articles/abs-count-pressure-gap-chart";
+import { AbsPitchFamilyGapChart, type AbsPitchFamilyGapPoint } from "@/components/articles/abs-pitch-family-gap-chart";
 
 type SupportedChartKey =
   | "spring_team_identity_scatter"
   | "spring_timing_conversion"
-  | "spring_umpire_exposure_scatter";
+  | "spring_umpire_exposure_scatter"
+  | "abs_actor_comparison"
+  | "abs_count_pressure_gap"
+  | "abs_pitch_family_gap"
+  | "abs_catcher_gameflow";
 
 export type WeeklyArticleChartEvidence = {
   chartKey: SupportedChartKey;
@@ -45,6 +53,50 @@ function isSpringUmpireExposurePoint(value: unknown): value is SpringUmpireExpos
     && typeof value.overturnRate === "number";
 }
 
+function isAbsActorComparisonPoint(value: unknown): value is AbsActorComparisonPoint {
+  return isRecord(value)
+    && (value.actor === "catcher" || value.actor === "batter" || value.actor === "pitcher")
+    && typeof value.label === "string"
+    && typeof value.challenges === "number"
+    && typeof value.overturned === "number"
+    && typeof value.overturnRate === "number";
+}
+
+function isAbsCountPressurePoint(value: unknown): value is AbsCountPressurePoint {
+  return isRecord(value)
+    && typeof value.bucket === "string"
+    && typeof value.label === "string"
+    && typeof value.catcherChallenges === "number"
+    && typeof value.catcherOverturned === "number"
+    && typeof value.catcherRate === "number"
+    && typeof value.batterChallenges === "number"
+    && typeof value.batterOverturned === "number"
+    && typeof value.batterRate === "number"
+    && typeof value.gap === "number";
+}
+
+function isAbsCatcherGameflowPoint(value: unknown): value is AbsCatcherGameflowPoint {
+  return isRecord(value)
+    && typeof value.bucket === "string"
+    && typeof value.label === "string"
+    && typeof value.challenges === "number"
+    && typeof value.overturned === "number"
+    && typeof value.overturnRate === "number";
+}
+
+function isAbsPitchFamilyGapPoint(value: unknown): value is AbsPitchFamilyGapPoint {
+  return isRecord(value)
+    && typeof value.family === "string"
+    && typeof value.label === "string"
+    && typeof value.catcherChallenges === "number"
+    && typeof value.catcherOverturned === "number"
+    && typeof value.catcherRate === "number"
+    && typeof value.batterChallenges === "number"
+    && typeof value.batterOverturned === "number"
+    && typeof value.batterRate === "number"
+    && typeof value.gap === "number";
+}
+
 function renderChart(evidence: WeeklyArticleChartEvidence) {
   switch (evidence.chartKey) {
     case "spring_team_identity_scatter":
@@ -58,6 +110,22 @@ function renderChart(evidence: WeeklyArticleChartEvidence) {
     case "spring_umpire_exposure_scatter":
       return evidence.data.every(isSpringUmpireExposurePoint)
         ? <SpringUmpireExposureScatter data={evidence.data} />
+        : null;
+    case "abs_actor_comparison":
+      return evidence.data.every(isAbsActorComparisonPoint)
+        ? <AbsActorComparisonChart data={evidence.data} />
+        : null;
+    case "abs_count_pressure_gap":
+      return evidence.data.every(isAbsCountPressurePoint)
+        ? <AbsCountPressureGapChart data={evidence.data} />
+        : null;
+    case "abs_pitch_family_gap":
+      return evidence.data.every(isAbsPitchFamilyGapPoint)
+        ? <AbsPitchFamilyGapChart data={evidence.data} />
+        : null;
+    case "abs_catcher_gameflow":
+      return evidence.data.every(isAbsCatcherGameflowPoint)
+        ? <AbsCatcherGameflowChart data={evidence.data} />
         : null;
     default:
       return null;
