@@ -312,11 +312,11 @@ async function queryChartData(client) {
   }
 
   const bucketLabels = {
-    first: "0-0",
-    middle: "Middle",
-    two_strike: "2-Strike, Not Full",
-    walk: "3-Ball",
-    full: "Full",
+    first: "First Pitch",
+    middle: "Middle Counts",
+    two_strike: "Two Strikes, Not Full",
+    walk: "Three Balls, Not Full",
+    full: "Full Count",
   };
   const countPressure = ["first", "middle", "two_strike", "walk", "full"]
     .map((bucket) => {
