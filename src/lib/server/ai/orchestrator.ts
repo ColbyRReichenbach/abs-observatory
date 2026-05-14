@@ -20,6 +20,12 @@ export type SurfaceRunnerResult = {
     inputTokens?: number;
     outputTokens?: number;
   };
+  trace?: {
+    provider: "openai" | "template" | "deterministic";
+    modelName: string;
+    requestEnvelope?: unknown;
+    responseEnvelope?: unknown;
+  };
 };
 
 export type SurfaceRunnerParams = {

@@ -34,16 +34,18 @@ describe("runVisualizerSurface", () => {
   });
 
   it("fails closed when the non-team model returns invalid output", async () => {
+    const createMock = vi.fn(async () => ({
+      output_text: "Here is a vague essay instead of the requested JSON.",
+      usage: {
+        input_tokens: 100,
+        output_tokens: 50,
+      },
+    }));
+
     const result = await runVisualizerSurface({
       openaiClient: {
         responses: {
-          create: async () => ({
-            output_text: "Here is a vague essay instead of the requested JSON.",
-            usage: {
-              input_tokens: 100,
-              output_tokens: 50,
-            },
-          }),
+          create: createMock,
         },
       } as never,
       modelName: "gpt-4.1-mini",
@@ -58,6 +60,14 @@ describe("runVisualizerSurface", () => {
 
     expect(result.structuredPlan).toBeNull();
     expect(result.answer).toMatch(/could not produce a truthful chart specification/i);
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: [
+          expect.objectContaining({ role: "developer" }),
+          expect.objectContaining({ role: "user", content: expect.stringContaining("Planning request:") }),
+        ],
+      }),
+    );
   });
 
   it("builds a deterministic team count-state plan from page-scoped tool data", async () => {

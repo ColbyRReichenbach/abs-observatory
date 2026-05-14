@@ -857,6 +857,33 @@ CREATE TABLE IF NOT EXISTS ai.generation_events (
   CONSTRAINT ai_generation_events_status_check CHECK (status IN ('succeeded', 'fallback', 'failed', 'cached'))
 );
 
+CREATE TABLE IF NOT EXISTS ai.model_traces (
+  trace_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  generation_id UUID REFERENCES ai.generation_events(generation_id) ON DELETE SET NULL,
+  conversation_id UUID REFERENCES ai.conversations(conversation_id) ON DELETE SET NULL,
+  user_message_id UUID REFERENCES ai.messages(message_id) ON DELETE SET NULL,
+  assistant_message_id UUID REFERENCES ai.messages(message_id) ON DELETE SET NULL,
+  user_id UUID REFERENCES product.users(user_id) ON DELETE SET NULL,
+  surface_key TEXT NOT NULL,
+  surface_detail TEXT,
+  route_scope TEXT,
+  route_entity_id TEXT,
+  provider TEXT NOT NULL,
+  model_name TEXT NOT NULL,
+  prompt_version TEXT,
+  status TEXT NOT NULL,
+  request_envelope JSONB,
+  response_envelope JSONB,
+  policy_snapshot JSONB,
+  eval_tags TEXT[] NOT NULL DEFAULT '{}',
+  input_tokens INTEGER NOT NULL DEFAULT 0,
+  output_tokens INTEGER NOT NULL DEFAULT 0,
+  latency_ms INTEGER,
+  blocked_reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT ai_model_traces_status_check CHECK (status IN ('succeeded', 'fallback', 'failed', 'cached', 'blocked'))
+);
+
 CREATE TABLE IF NOT EXISTS ai.saved_artifacts (
   artifact_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES product.users(user_id) ON DELETE CASCADE,
@@ -1378,6 +1405,12 @@ CREATE INDEX IF NOT EXISTS idx_ai_generation_events_provider_model_created ON ai
 CREATE INDEX IF NOT EXISTS idx_ai_generation_events_target_created ON ai.generation_events (target_type, target_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_generation_events_game_created ON ai.generation_events (game_pk, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_generation_events_article_created ON ai.generation_events (article_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_model_traces_created ON ai.model_traces (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_model_traces_generation ON ai.model_traces (generation_id) WHERE generation_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_ai_model_traces_conversation_created ON ai.model_traces (conversation_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_model_traces_surface_created ON ai.model_traces (surface_key, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_model_traces_status_created ON ai.model_traces (status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_model_traces_prompt_created ON ai.model_traces (prompt_version, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_saved_artifacts_user_updated ON ai.saved_artifacts (user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_saved_artifacts_generation ON ai.saved_artifacts (generation_id) WHERE generation_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_ai_saved_artifacts_target_updated ON ai.saved_artifacts (target_type, target_id, updated_at DESC);

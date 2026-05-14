@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 import type { StructuredChartInsight } from "@/lib/chart-insight-payload";
-import { buildChartInsightPrompt } from "@/lib/server/ai/prompts/chart-insight";
+import { buildResponsesInput } from "@/lib/server/ai/prompts/base";
+import { buildChartInsightPromptMessages } from "@/lib/server/ai/prompts/chart-insight";
 import type { SurfaceRunner } from "@/lib/server/ai/orchestrator";
 
 const structuredInsightSchema = z.object({
@@ -78,7 +79,7 @@ If the sample is thin or directional, say so plainly.`
 2. what the actual signal is,
 3. what the baseball implication is.`;
 
-  const prompt = buildChartInsightPrompt(
+  const promptMessages = buildChartInsightPromptMessages(
     {
       audienceMode: params.audienceMode,
       taskFamily: params.taskFamily,
@@ -135,16 +136,46 @@ ${params.message}`,
         inputTokens: Math.ceil(params.message.length / 4),
         outputTokens: Math.ceil(flattenStructuredInsight(fallback).length / 4),
       },
+      trace: {
+        provider: "template",
+        modelName: "local_fallback",
+        requestEnvelope: {
+          surface: params.surface,
+          message: params.message,
+          transcript: params.transcript || "No prior turns.",
+          chartContext: params.chartContext,
+        },
+        responseEnvelope: {
+          finalAnswer: flattenStructuredInsight(fallback),
+          structuredInsight: fallback,
+          source: "openai_unavailable_fallback",
+        },
+      },
     };
   }
 
+  const input = buildResponsesInput(promptMessages);
   const response = await params.openaiClient.responses.create({
     model: params.modelName,
     temperature: 0.2,
-    input: prompt,
+    input,
   });
 
   const raw = response.output_text?.trim() || "";
+  const trace = {
+    provider: "openai" as const,
+    modelName: params.modelName,
+    requestEnvelope: {
+      input,
+      temperature: 0.2,
+    },
+    responseEnvelope: {
+      responseId: response.id ?? null,
+      status: response.status ?? null,
+      rawOutputText: raw,
+      usage: response.usage ?? null,
+    },
+  };
   const parsed = tryParseJsonObject(raw);
   const structuredInsight = structuredInsightSchema.safeParse(parsed);
 
@@ -158,6 +189,15 @@ ${params.message}`,
       usage: {
         inputTokens: response.usage?.input_tokens,
         outputTokens: response.usage?.output_tokens,
+      },
+      trace: {
+        ...trace,
+        responseEnvelope: {
+          ...trace.responseEnvelope,
+          finalAnswer: flattenStructuredInsight(structuredInsight.data),
+          structuredInsight: structuredInsight.data,
+          outputShape: "structured_json",
+        },
       },
     };
   }
@@ -185,6 +225,15 @@ ${params.message}`,
     usage: {
       inputTokens: response.usage?.input_tokens,
       outputTokens: response.usage?.output_tokens,
+    },
+    trace: {
+      ...trace,
+      responseEnvelope: {
+        ...trace.responseEnvelope,
+        finalAnswer: flattenStructuredInsight(fallback),
+        structuredInsight: fallback,
+        outputShape: "coerced_fallback",
+      },
     },
   };
 };

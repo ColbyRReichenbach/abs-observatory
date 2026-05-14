@@ -23,7 +23,7 @@ const CONFIDENCE_COLORS = {
 type Confidence = keyof typeof CONFIDENCE_COLORS;
 
 type Message = {
-  role: "user" | "ai";
+  role: "user" | "ai" | "error";
   content: string;
   confidence?: Confidence;
   citations?: string[];
@@ -187,6 +187,17 @@ export function ContextualCopilotFAB() {
         body: JSON.stringify({ message: q, context, delivery: "sync", surface: "copilot" }),
       });
       const payload = (await res.json()) as AIChatResponse;
+      if (!res.ok || payload.safetyDisposition === "blocked") {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "error",
+            content: payload.error || "AiBS can only answer baseball-related analytics questions.",
+          },
+        ]);
+        return;
+      }
+
       setMessages((prev) => [
         ...prev,
         {
@@ -203,7 +214,7 @@ export function ContextualCopilotFAB() {
     } catch {
       setMessages((prev) => [
         ...prev,
-        { role: "ai", content: "Failed to connect to AiBS brain.", confidence: "low" },
+        { role: "error", content: "Failed to connect to AiBS brain." },
       ]);
     } finally {
       setIsTyping(false);
@@ -345,12 +356,19 @@ export function ContextualCopilotFAB() {
                   transition={{ duration: 0.2 }}
                   className={`flex gap-2.5 items-start ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
                 >
+                  {msg.role === "error" ? (
+                    <div className="w-full rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold leading-relaxed text-red-700">
+                      {msg.content}
+                    </div>
+                  ) : null}
+
                   {msg.role === "ai" && (
                     <div className="w-7 h-7 rounded-full bg-black flex items-center justify-center shrink-0 mt-0.5">
                       <AiBSIcon size={12} color="#ffffff" />
                     </div>
                   )}
 
+                  {msg.role !== "error" ? (
                   <div className={`flex flex-col gap-1.5 ${msg.role === "user" ? "items-end" : "items-start"} max-w-[85%]`}>
                     {/* Bubble */}
                     <div
@@ -431,6 +449,7 @@ export function ContextualCopilotFAB() {
                       />
                     ) : null}
                   </div>
+                  ) : null}
                 </motion.div>
               ))}
 

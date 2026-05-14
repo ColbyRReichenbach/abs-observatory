@@ -73,12 +73,16 @@ COUNT_BASELINE_CSV="$(mktemp)"
 OVERTURN_FALLBACK_CSV="$(mktemp)"
 
 read -r -d '' TEAM_SUMMARY_EXPORT_SQL <<'SQL' || true
-WITH latest_snapshot AS (
+WITH published_games AS (
+  __GAME_PK_WINDOW__
+),
+latest_snapshot AS (
   SELECT DISTINCT ON (game_pk)
     game_pk,
     abs_home_remaining,
     abs_away_remaining
   FROM public.game_state_snapshots
+  WHERE game_pk IN (SELECT game_pk FROM published_games)
   ORDER BY game_pk, snapshot_time DESC
 ),
 team_challenges AS (
@@ -89,6 +93,7 @@ team_challenges AS (
     COUNT(*) FILTER (WHERE is_overturned = FALSE) AS used_failed
   FROM public.mart_abs_pitch_challenges
   WHERE challenge_team_id IS NOT NULL
+    AND game_pk IN (SELECT game_pk FROM published_games)
   GROUP BY game_pk, challenge_team_id
 ),
 all_team_games AS (
@@ -100,6 +105,7 @@ all_team_games AS (
     COALESCE(tc.used_failed, 0) AS used_failed,
     COALESCE(ls.abs_home_remaining, GREATEST(0, 2 - COALESCE(tc.used_failed, 0))) AS remaining
   FROM public.games g
+  JOIN published_games pg ON pg.game_pk = g.game_pk
   LEFT JOIN latest_snapshot ls ON ls.game_pk = g.game_pk
   LEFT JOIN team_challenges tc ON tc.game_pk = g.game_pk AND tc.team_id = g.home_team_id
   WHERE g.home_team_id IS NOT NULL
@@ -114,6 +120,7 @@ all_team_games AS (
     COALESCE(tc.used_failed, 0) AS used_failed,
     COALESCE(ls.abs_away_remaining, GREATEST(0, 2 - COALESCE(tc.used_failed, 0))) AS remaining
   FROM public.games g
+  JOIN published_games pg ON pg.game_pk = g.game_pk
   LEFT JOIN latest_snapshot ls ON ls.game_pk = g.game_pk
   LEFT JOIN team_challenges tc ON tc.game_pk = g.game_pk AND tc.team_id = g.away_team_id
   WHERE g.away_team_id IS NOT NULL
@@ -132,12 +139,16 @@ ORDER BY game_pk, team_id
 SQL
 
 read -r -d '' UMPIRE_SUMMARY_EXPORT_SQL <<'SQL' || true
-WITH home_plate_officials AS (
+WITH published_games AS (
+  __GAME_PK_WINDOW__
+),
+home_plate_officials AS (
   SELECT DISTINCT ON (o.game_pk)
     o.game_pk,
     o.official_id AS umpire_id,
     o.official_name AS umpire_name
   FROM public.officials o
+  JOIN published_games pg ON pg.game_pk = o.game_pk
   WHERE o.official_type = 'Home Plate'
   ORDER BY o.game_pk, o.official_id
 ),
@@ -148,6 +159,7 @@ umpire_challenges AS (
     COUNT(*) FILTER (WHERE is_overturned = TRUE) AS overturned_calls,
     COUNT(*) FILTER (WHERE is_overturned = FALSE) AS confirmed_calls
   FROM public.mart_abs_pitch_challenges
+  WHERE game_pk IN (SELECT game_pk FROM published_games)
   GROUP BY game_pk
 )
 SELECT
@@ -211,7 +223,7 @@ SOURCE_LABEL="$(sanitize_database_url "$SOURCE_DATABASE_URL")"
 TARGET_LABEL="$(sanitize_database_url "$TARGET_DATABASE_URL")"
 MLB_GAME_TIME_ZONE="America/New_York"
 
-SOURCE_MAX_GAME_DATE="$(psql "$SOURCE_DATABASE_URL" -Atqc "SELECT COALESCE(MAX((game_date AT TIME ZONE '$MLB_GAME_TIME_ZONE')::date)::text, '') FROM public.games")"
+SOURCE_MAX_GAME_DATE="$(psql "$SOURCE_DATABASE_URL" -Atqc "SELECT COALESCE(MAX((game_date AT TIME ZONE '$MLB_GAME_TIME_ZONE')::date)::text, '') FROM public.games WHERE (game_date AT TIME ZONE '$MLB_GAME_TIME_ZONE')::date <= (CURRENT_TIMESTAMP AT TIME ZONE '$MLB_GAME_TIME_ZONE')::date")"
 : "${SOURCE_MAX_GAME_DATE:?Source database has no games rows to publish.}"
 
 SYNC_END_DATE="${SERVING_SYNC_END_DATE:-$SOURCE_MAX_GAME_DATE}"
@@ -235,6 +247,8 @@ fi
 GAME_WINDOW_FILTER="game_date >= ((DATE '$SYNC_START_DATE')::timestamp AT TIME ZONE '$MLB_GAME_TIME_ZONE') AND game_date < ((DATE '$SYNC_END_DATE' + INTERVAL '1 day')::timestamp AT TIME ZONE '$MLB_GAME_TIME_ZONE')"
 SAVANT_DATE_WINDOW_FILTER="game_date BETWEEN DATE '$SYNC_START_DATE' AND DATE '$SYNC_END_DATE'"
 GAME_PK_WINDOW="SELECT game_pk FROM public.games WHERE $GAME_WINDOW_FILTER"
+TEAM_SUMMARY_EXPORT_SQL="${TEAM_SUMMARY_EXPORT_SQL//__GAME_PK_WINDOW__/$GAME_PK_WINDOW}"
+UMPIRE_SUMMARY_EXPORT_SQL="${UMPIRE_SUMMARY_EXPORT_SQL//__GAME_PK_WINDOW__/$GAME_PK_WINDOW}"
 
 echo "Publishing Warehouse -> Serving"
 echo "  source=$SOURCE_LABEL"
@@ -254,7 +268,7 @@ export_query_to_csv "SELECT * FROM public.game_state_snapshots WHERE game_pk IN 
 export_query_to_csv "$TEAM_SUMMARY_EXPORT_SQL" "$TEAM_SUMMARY_CSV"
 export_query_to_csv "$UMPIRE_SUMMARY_EXPORT_SQL" "$UMPIRE_SUMMARY_CSV"
 export_query_to_csv "SELECT * FROM public.game_reports WHERE game_pk IN ($GAME_PK_WINDOW) ORDER BY game_pk" "$GAME_REPORT_CSV"
-export_query_to_csv "SELECT * FROM ops.game_linescores ORDER BY game_pk" "$LINESCORE_CSV"
+export_query_to_csv "SELECT * FROM ops.game_linescores WHERE game_pk IN ($GAME_PK_WINDOW) ORDER BY game_pk" "$LINESCORE_CSV"
 export_query_to_csv "SELECT * FROM raw.savant_gamefeed_games WHERE $SAVANT_DATE_WINDOW_FILTER ORDER BY game_date, game_pk" "$SAVANT_GAMEFEED_CSV"
 export_query_to_csv "SELECT * FROM raw.savant_abs_events WHERE $SAVANT_DATE_WINDOW_FILTER ORDER BY game_date, game_pk, at_bat_number, COALESCE(pitch_number, 0), play_id" "$SAVANT_ABS_EVENTS_CSV"
 
@@ -383,7 +397,8 @@ ON CONFLICT (player_id) DO UPDATE SET
   source_updated_at = EXCLUDED.source_updated_at,
   updated_at = EXCLUDED.updated_at;
 DELETE FROM public.games
-WHERE $GAME_WINDOW_FILTER;
+WHERE $GAME_WINDOW_FILTER
+   OR game_pk IN (SELECT game_pk FROM staging_games);
 INSERT INTO public.games SELECT * FROM staging_games;
 INSERT INTO public.officials SELECT * FROM staging_officials;
 INSERT INTO public.at_bats SELECT * FROM staging_at_bats;
@@ -391,7 +406,8 @@ INSERT INTO public.play_events SELECT * FROM staging_play_events;
 INSERT INTO public.pitches SELECT * FROM staging_pitches;
 INSERT INTO public.abs_challenges SELECT * FROM staging_abs_challenges;
 INSERT INTO public.game_state_snapshots SELECT * FROM staging_game_state_snapshots;
-TRUNCATE TABLE public.team_abs_game_summary;
+DELETE FROM public.team_abs_game_summary
+WHERE game_pk IN (SELECT game_pk FROM staging_games);
 INSERT INTO public.team_abs_game_summary (
   game_pk,
   team_id,
@@ -412,7 +428,8 @@ SELECT
   created_at,
   updated_at
 FROM staging_team_abs_game_summary;
-TRUNCATE TABLE public.umpire_abs_game_summary;
+DELETE FROM public.umpire_abs_game_summary
+WHERE game_pk IN (SELECT game_pk FROM staging_games);
 INSERT INTO public.umpire_abs_game_summary (
   game_pk,
   umpire_id,
@@ -434,11 +451,13 @@ SELECT
   updated_at
 FROM staging_umpire_abs_game_summary;
 INSERT INTO public.game_reports SELECT * FROM staging_game_reports;
-TRUNCATE TABLE ops.game_linescores;
+DELETE FROM ops.game_linescores
+WHERE game_pk IN (SELECT game_pk FROM staging_games);
 INSERT INTO ops.game_linescores SELECT * FROM staging_game_linescores;
 DELETE FROM raw.savant_abs_events
 WHERE $SAVANT_DATE_WINDOW_FILTER
-   OR game_pk IN (SELECT game_pk FROM staging_savant_gamefeed_games);
+   OR game_pk IN (SELECT game_pk FROM staging_savant_gamefeed_games)
+   OR game_pk IN (SELECT game_pk FROM staging_savant_abs_events);
 DELETE FROM raw.savant_gamefeed_games
 WHERE $SAVANT_DATE_WINDOW_FILTER
    OR game_pk IN (SELECT game_pk FROM staging_savant_gamefeed_games);
@@ -452,6 +471,32 @@ TRUNCATE TABLE serving_abs_overturn_probability_fallbacks;
 \copy serving_win_expectancy_fallbacks FROM '$WIN_FALLBACK_CSV' CSV
 \copy serving_count_state_outcome_baselines FROM '$COUNT_BASELINE_CSV' CSV
 \copy serving_abs_overturn_probability_fallbacks FROM '$OVERTURN_FALLBACK_CSV' CSV
+INSERT INTO public.etl_runs (
+  run_type,
+  status,
+  started_at,
+  finished_at,
+  rows_written,
+  details
+)
+VALUES (
+  'serving_publish',
+  'success',
+  NOW(),
+  NOW(),
+  (
+    SELECT
+      (SELECT COUNT(*) FROM staging_games)
+      + (SELECT COUNT(*) FROM staging_abs_challenges)
+      + (SELECT COUNT(*) FROM staging_savant_abs_events)
+  ),
+  jsonb_build_object(
+    'sync_start_date', '$SYNC_START_DATE',
+    'sync_end_date', '$SYNC_END_DATE',
+    'source_database', '$SOURCE_LABEL',
+    'target_database', '$TARGET_LABEL'
+  )
+);
 COMMIT;
 SQL
 

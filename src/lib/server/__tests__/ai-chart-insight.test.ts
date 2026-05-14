@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { runChartInsightSurface } from "@/lib/server/ai/surfaces/chart-insight";
 
@@ -36,16 +36,18 @@ describe("runChartInsightSurface", () => {
   });
 
   it("coerces invalid model output into a safe structured chart insight", async () => {
+    const createMock = vi.fn(async () => ({
+      output_text: "This is an unstructured answer that ignored the JSON contract.",
+      usage: {
+        input_tokens: 140,
+        output_tokens: 80,
+      },
+    }));
+
     const result = await runChartInsightSurface({
       openaiClient: {
         responses: {
-          create: async () => ({
-            output_text: "This is an unstructured answer that ignored the JSON contract.",
-            usage: {
-              input_tokens: 140,
-              output_tokens: 80,
-            },
-          }),
+          create: createMock,
         },
       } as never,
       modelName: "gpt-4.1-mini",
@@ -61,5 +63,13 @@ describe("runChartInsightSurface", () => {
     expect(result.structuredInsight?.sections.length).toBeGreaterThanOrEqual(2);
     expect(result.answer).toContain("How to use it");
     expect(result.citations).toEqual([chartContext.chartType]);
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: [
+          expect.objectContaining({ role: "developer" }),
+          expect.objectContaining({ role: "user", content: expect.stringContaining("LATEST USER REQUEST:") }),
+        ],
+      }),
+    );
   });
 });

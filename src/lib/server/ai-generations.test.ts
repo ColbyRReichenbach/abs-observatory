@@ -10,7 +10,12 @@ vi.mock("@/lib/db", () => ({
   sqlOne: sqlOneMock,
 }));
 
-import { getPublicAiArtifactById, listViewerAiArtifacts, registerAiArtifact } from "@/lib/server/ai-generations";
+import {
+  getPublicAiArtifactById,
+  listViewerAiArtifacts,
+  recordAiModelTrace,
+  registerAiArtifact,
+} from "@/lib/server/ai-generations";
 
 describe("ai artifact persistence", () => {
   beforeEach(() => {
@@ -151,6 +156,55 @@ describe("ai artifact persistence", () => {
         surfaceKey: "visualizer",
         title: "Cardinals Count-State Overturn Rate",
       }),
+    );
+  });
+
+  it("records replayable model traces for evals", async () => {
+    sqlMock.mockResolvedValueOnce([{ trace_id: "trace-1" }]);
+
+    const traceId = await recordAiModelTrace({
+      generationId: "gen-1",
+      conversationId: "conversation-1",
+      userMessageId: "message-user",
+      assistantMessageId: "message-assistant",
+      userId: "user-1",
+      surfaceKey: "copilot",
+      surfaceDetail: "contextual_copilot",
+      routeScope: "global",
+      provider: "openai",
+      modelName: "gpt-4.1-mini",
+      promptVersion: "copilot_v2",
+      status: "succeeded",
+      requestEnvelope: {
+        input: [
+          { role: "developer", content: "developer instructions" },
+          { role: "user", content: "user request" },
+        ],
+      },
+      responseEnvelope: {
+        rawOutputText: "raw model output",
+        finalAnswer: "final answer",
+      },
+      policySnapshot: {
+        outputSafety: { blocked: false },
+      },
+      evalTags: ["copilot", "comparison"],
+      inputTokens: 100,
+      outputTokens: 40,
+      latencyMs: 250,
+    });
+
+    expect(traceId).toBe("trace-1");
+    expect(sqlMock).toHaveBeenCalledWith(
+      expect.stringContaining("INSERT INTO ai.model_traces"),
+      expect.arrayContaining([
+        "gen-1",
+        "conversation-1",
+        "message-user",
+        "message-assistant",
+        "user-1",
+        "copilot",
+      ]),
     );
   });
 });

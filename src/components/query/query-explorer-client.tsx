@@ -76,6 +76,13 @@ export function QueryExplorerClient({ mode }: { mode: ViewMode }) {
         body: JSON.stringify({ message: question, context, delivery: "sync", surface: "copilot" }),
       });
       const payload = (await res.json()) as AIChatResponse;
+      if (!res.ok || payload.safetyDisposition === "blocked") {
+        setResult({
+          ...payload,
+          error: payload.error || "AiBS can only answer baseball-related analytics questions.",
+        });
+        return;
+      }
       setResult(payload);
     } finally {
       setLoading(false);
@@ -137,51 +144,52 @@ export function QueryExplorerClient({ mode }: { mode: ViewMode }) {
       </form>
 
       {result ? (
-        <section className="mt-6 panel overflow-hidden animate-fade-in-up">
-          {result.error ? (
-            <div className="border-b border-[var(--state-confirmed)]/20 bg-[var(--state-confirmed)]/8 px-5 py-3 text-sm text-[#fca5a5]">
-              {result.error}
-            </div>
-          ) : null}
-          <div className="p-5 space-y-4">
-            <div className="flex items-baseline justify-between gap-3">
-              <p className="text-[10px] uppercase tracking-[0.12em] text-[var(--ink-3)]">{modeCopy.answerHeading}</p>
-              {result.confidence ? (
-                <span
-                  className="status-chip text-[9px]"
-                  style={{
-                    borderColor: `${CONFIDENCE_COLORS[result.confidence]}44`,
-                    color: CONFIDENCE_COLORS[result.confidence],
-                    backgroundColor: `${CONFIDENCE_COLORS[result.confidence]}15`,
-                  }}
-                >
-                  {result.confidence}
-                </span>
+        result.error ? (
+          <section className="mt-6 animate-fade-in-up rounded-[var(--radius-lg)] border border-red-100 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700">
+            {result.error}
+          </section>
+        ) : (
+          <section className="mt-6 panel overflow-hidden animate-fade-in-up">
+            <div className="p-5 space-y-4">
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="text-[10px] uppercase tracking-[0.12em] text-[var(--ink-3)]">{modeCopy.answerHeading}</p>
+                {result.confidence ? (
+                  <span
+                    className="status-chip text-[9px]"
+                    style={{
+                      borderColor: `${CONFIDENCE_COLORS[result.confidence]}44`,
+                      color: CONFIDENCE_COLORS[result.confidence],
+                      backgroundColor: `${CONFIDENCE_COLORS[result.confidence]}15`,
+                    }}
+                  >
+                    {result.confidence}
+                  </span>
+                ) : null}
+              </div>
+
+              {result.answer ? (
+                <p className="text-sm leading-relaxed text-[var(--ink-0)]">{result.answer}</p>
+              ) : null}
+
+              {result.citations?.length ? (
+                <p className="text-[11px] text-[var(--ink-3)]">
+                  Sources: {result.citations.join(", ")}
+                </p>
+              ) : null}
+
+              {result.toolResults?.length ? (
+                <div>
+                  <p className="mb-2 text-[10px] uppercase tracking-[0.1em] text-[var(--ink-3)]">
+                    {mode === "org" ? "Structured Tool Output" : "Supporting Tool Output"}
+                  </p>
+                  <pre className="overflow-x-auto rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-infield)] p-3 text-xs font-mono text-[var(--ink-1)]">
+                    {JSON.stringify(result.toolResults, null, 2)}
+                  </pre>
+                </div>
               ) : null}
             </div>
-
-            {result.answer ? (
-              <p className="text-sm leading-relaxed text-[var(--ink-0)]">{result.answer}</p>
-            ) : null}
-
-            {result.citations?.length ? (
-              <p className="text-[11px] text-[var(--ink-3)]">
-                Sources: {result.citations.join(", ")}
-              </p>
-            ) : null}
-
-            {result.toolResults?.length ? (
-              <div>
-                <p className="mb-2 text-[10px] uppercase tracking-[0.1em] text-[var(--ink-3)]">
-                  {mode === "org" ? "Structured Tool Output" : "Supporting Tool Output"}
-                </p>
-                <pre className="overflow-x-auto rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-infield)] p-3 text-xs font-mono text-[var(--ink-1)]">
-                  {JSON.stringify(result.toolResults, null, 2)}
-                </pre>
-              </div>
-            ) : null}
-          </div>
-        </section>
+          </section>
+        )
       ) : null}
     </>
   );

@@ -19,11 +19,17 @@ import type { AIVisualizerPlan } from "@/lib/types";
 import { writeAuditLog } from "./audit";
 import { assertValidCsrf } from "./csrf";
 import { enqueueJob } from "./job-queue";
-import { recordAiGenerationEventWithQuery } from "./ai-generations";
+import {
+  recordAiGenerationEventWithQuery,
+  recordAiModelTrace,
+  recordAiModelTraceWithQuery,
+  type AiModelTraceStatus,
+} from "./ai-generations";
 import {
   AI_ERROR_CODES,
   AiPolicyError,
   buildAiErrorPayload,
+  classifyAnswerLeak,
   classifyPromptMisuse,
   estimateCostUsd,
   estimateTokenCount,
@@ -59,6 +65,18 @@ function buildScopeCheckMessage(params: {
     `[Chart Title: ${params.chartContext.chartTitle}]`,
     `[Baseball Question: ${params.chartContext.baseballQuestion}]`,
   ].join(" ");
+}
+
+function getSurfaceDetail(surface: AiChatSurface, chartContext?: ChartInsightPayload) {
+  if (surface === "visualizer") {
+    return "ai_bs_visualizer";
+  }
+
+  if (surface === "chart_insight") {
+    return chartContext?.chartType ?? "chart_insight";
+  }
+
+  return "contextual_copilot";
 }
 
 const openai = hasUsableOpenAiKey(process.env.OPENAI_API_KEY)
@@ -211,7 +229,13 @@ async function recordSafetyEvent(params: {
   );
 }
 
-async function applyAiStrike(userId: string, reason: string, conversationId: string, messageId: string | null) {
+async function applyAiStrike(
+  userId: string,
+  reason: string,
+  conversationId: string,
+  messageId: string | null,
+  details?: Record<string, unknown>,
+) {
   const row = await sqlOne<{ aistrikecount: number }>(
     `
     UPDATE product.user_profiles
@@ -238,7 +262,7 @@ async function applyAiStrike(userId: string, reason: string, conversationId: str
     messageId,
     disposition: "blocked",
     reason,
-    details: { strikeCount: row ? Number(row.aistrikecount) : null },
+    details: { ...details, strikeCount: row ? Number(row.aistrikecount) : null },
   });
 
   await writeAuditLog({
@@ -257,6 +281,116 @@ async function recordAiRateLimitEvent(subjectKey: string, subjectType: "user" | 
     VALUES ($1, $2, 'ai.chat', 60, $3)
     `,
     [subjectKey, subjectType, requestCount],
+  );
+}
+
+async function recordBlockedAiEvalTrace(params: {
+  userId?: string | null;
+  conversationId: string;
+  userMessageId: string | null;
+  surface: AiChatSurface;
+  taskFamily: SurfaceTaskFamily;
+  message: string;
+  context?: CopilotContext;
+  chartContext?: ChartInsightPayload;
+  scopedMessage?: string | null;
+  reason: string;
+  policySnapshot: unknown;
+}) {
+  const promptVersion = getAiPromptDefinition(params.surface).version;
+  await recordAiModelTrace({
+    userId: params.userId ?? null,
+    conversationId: params.conversationId,
+    userMessageId: params.userMessageId,
+    surfaceKey: params.surface,
+    surfaceDetail: getSurfaceDetail(params.surface, params.chartContext),
+    routeScope: params.context?.scope ?? "global",
+    routeEntityId: params.context?.entityId ?? null,
+    provider: "policy",
+    modelName: "prefilter",
+    promptVersion,
+    status: "blocked",
+    requestEnvelope: {
+      message: params.message,
+      scopedMessage: params.scopedMessage ?? null,
+      context: params.context ?? null,
+      chartContext: params.chartContext ?? null,
+    },
+    responseEnvelope: null,
+    policySnapshot: params.policySnapshot,
+    evalTags: [params.surface, params.taskFamily, "input_safety_block"],
+    inputTokens: estimateTokenCount(params.message),
+    outputTokens: 0,
+    blockedReason: params.reason,
+  });
+}
+
+async function assertAssistantAnswerIsSafe(params: {
+  conversationId: string;
+  userMessageId: string | null;
+  userId?: string | null;
+  surface: AiChatSurface;
+  surfaceDetail: string;
+  routeScope?: string | null;
+  routeEntityId?: string | null;
+  provider: string;
+  modelName: string;
+  promptVersion: string;
+  answer: string;
+  requestEnvelope?: unknown;
+  responseEnvelope?: unknown;
+  policySnapshot?: unknown;
+  inputTokens?: number;
+  outputTokens?: number;
+  latencyMs?: number | null;
+}) {
+  const leak = classifyAnswerLeak(params.answer);
+  if (!leak.blocked) return;
+
+  await recordSafetyEvent({
+    conversationId: params.conversationId,
+    messageId: params.userMessageId,
+    disposition: "blocked",
+    reason: leak.reason ?? "AI response blocked by output safety filter.",
+    details: {
+      surface: params.surface,
+      category: "response_leak",
+      matchedSignals: leak.matchedSignals,
+    },
+  });
+
+  await recordAiModelTrace({
+    userId: params.userId ?? null,
+    conversationId: params.conversationId,
+    userMessageId: params.userMessageId,
+    surfaceKey: params.surface,
+    surfaceDetail: params.surfaceDetail,
+    routeScope: params.routeScope ?? null,
+    routeEntityId: params.routeEntityId ?? null,
+    provider: params.provider,
+    modelName: params.modelName,
+    promptVersion: params.promptVersion,
+    status: "blocked",
+    requestEnvelope: params.requestEnvelope ?? null,
+    responseEnvelope: {
+      ...(params.responseEnvelope && typeof params.responseEnvelope === "object" ? params.responseEnvelope : {}),
+      blockedOutputPreview: params.answer.slice(0, 2000),
+    },
+    policySnapshot: {
+      ...(params.policySnapshot && typeof params.policySnapshot === "object" ? params.policySnapshot : {}),
+      outputSafety: leak,
+    },
+    evalTags: [params.surface, "output_safety_block"],
+    inputTokens: params.inputTokens ?? 0,
+    outputTokens: params.outputTokens ?? 0,
+    latencyMs: params.latencyMs ?? null,
+    blockedReason: leak.reason ?? "AI response blocked by output safety filter.",
+  });
+
+  throw new AiPolicyError(
+    leak.reason ?? "AI response blocked by output safety filter.",
+    AI_ERROR_CODES.RESPONSE_BLOCKED,
+    400,
   );
 }
 
@@ -381,6 +515,7 @@ async function completeChatTurn(params: {
   const promptDefinition = getAiPromptDefinition(params.surface);
   const promptRegistry = buildAiPromptRegistrySnapshot(params.surface);
   const promptVersion = promptDefinition.version;
+  const surfaceDetail = getSurfaceDetail(params.surface, params.chartContext);
   const semanticTags = deriveSemanticTags({
     message: params.message,
     taskFamily: params.taskFamily,
@@ -454,6 +589,13 @@ async function completeChatTurn(params: {
   let citations: string[] = [];
   let structuredInsight: StructuredChartInsight | null = null;
   let structuredPlan: AIVisualizerPlan | null = null;
+  let answerSafetyChecked = false;
+  let modelTrace: {
+    provider: string;
+    modelName: string;
+    requestEnvelope?: unknown;
+    responseEnvelope?: unknown;
+  } | null = null;
 
   if (cached) {
     toolResults = cached.toolResults;
@@ -463,6 +605,23 @@ async function completeChatTurn(params: {
     citations = cached.citations;
     confidence = cached.confidence;
     modelName = cached.modelName || "cache";
+    modelTrace = {
+      provider: "internal",
+      modelName: "cache",
+      requestEnvelope: {
+        cacheKey: responseCacheKey,
+        cacheHit: true,
+        message: params.message,
+        context: params.context ?? null,
+        chartContext: params.chartContext ?? null,
+      },
+      responseEnvelope: {
+        finalAnswer: answer,
+        structuredInsight,
+        structuredPlan,
+        citations,
+      },
+    };
     usage = {
       inputTokens: estimateTokenCount(params.message),
       outputTokens: estimateTokenCount(answer),
@@ -498,6 +657,7 @@ async function completeChatTurn(params: {
       structuredPlan = uncached.structuredPlan ?? null;
       confidence = uncached.confidence;
       usage = uncached.usage;
+      modelTrace = uncached.trace ?? null;
     } catch (error) {
       if (error instanceof ConcurrencyLimitError) {
         throw new AiPolicyError("AI temporarily overloaded", AI_ERROR_CODES.OVERLOADED, 429);
@@ -506,6 +666,38 @@ async function completeChatTurn(params: {
     }
 
     citations = toolResults.map((tool) => tool.toolName);
+    const traceInputTokens = usage?.inputTokens ?? estimateTokenCount(params.message);
+    const traceOutputTokens = usage?.outputTokens ?? estimateTokenCount(answer);
+    await assertAssistantAnswerIsSafe({
+      conversationId: params.conversationId,
+      userMessageId: params.userMessageId,
+      userId: params.userId ?? null,
+      surface: params.surface,
+      surfaceDetail,
+      routeScope: params.context?.scope ?? "global",
+      routeEntityId: params.context?.entityId ?? null,
+      provider: modelTrace?.provider ?? (openai ? "openai" : "template"),
+      modelName: modelTrace?.modelName ?? modelName,
+      promptVersion,
+      answer,
+      requestEnvelope: modelTrace?.requestEnvelope ?? null,
+      responseEnvelope: {
+        ...(modelTrace?.responseEnvelope && typeof modelTrace.responseEnvelope === "object" ? modelTrace.responseEnvelope : {}),
+        finalAnswer: answer,
+        structuredInsight,
+        structuredPlan,
+        citations,
+      },
+      policySnapshot: {
+        promptRegistry,
+        aiExecution: executionTelemetry,
+        semanticTags,
+      },
+      inputTokens: traceInputTokens,
+      outputTokens: traceOutputTokens,
+      latencyMs: Date.now() - startedAt,
+    });
+    answerSafetyChecked = true;
     answer = postProcessAnswer(answer, citations);
     if (responseCacheKey) {
       setCachedValue(
@@ -525,11 +717,66 @@ async function completeChatTurn(params: {
   }
 
   citations = citations.length > 0 ? citations : toolResults.map((tool) => tool.toolName);
+  if (!answerSafetyChecked) {
+    const traceInputTokens = usage?.inputTokens ?? estimateTokenCount(params.message);
+    const traceOutputTokens = usage?.outputTokens ?? estimateTokenCount(answer);
+    await assertAssistantAnswerIsSafe({
+      conversationId: params.conversationId,
+      userMessageId: params.userMessageId,
+      userId: params.userId ?? null,
+      surface: params.surface,
+      surfaceDetail,
+      routeScope: params.context?.scope ?? "global",
+      routeEntityId: params.context?.entityId ?? null,
+      provider: modelTrace?.provider ?? (cached ? "internal" : openai ? "openai" : "template"),
+      modelName: modelTrace?.modelName ?? (cached ? "cache" : modelName),
+      promptVersion,
+      answer,
+      requestEnvelope: modelTrace?.requestEnvelope ?? null,
+      responseEnvelope: {
+        ...(modelTrace?.responseEnvelope && typeof modelTrace.responseEnvelope === "object" ? modelTrace.responseEnvelope : {}),
+        finalAnswer: answer,
+        structuredInsight,
+        structuredPlan,
+        citations,
+      },
+      policySnapshot: {
+        promptRegistry,
+        aiExecution: executionTelemetry,
+        semanticTags,
+      },
+      inputTokens: traceInputTokens,
+      outputTokens: traceOutputTokens,
+      latencyMs: Date.now() - startedAt,
+    });
+  }
   answer = postProcessAnswer(answer, citations);
   const latencyMs = Date.now() - startedAt;
   const inputTokens = usage?.inputTokens ?? estimateTokenCount(params.message);
   const outputTokens = usage?.outputTokens ?? estimateTokenCount(answer);
   const estimatedCostUsd = estimateCostUsd(modelName, inputTokens, outputTokens);
+  const traceProvider = modelTrace?.provider ?? (cached ? "internal" : openai ? "openai" : "template");
+  const traceModelName = modelTrace?.modelName ?? (cached ? "cache" : modelName);
+  const traceStatus: AiModelTraceStatus = cached ? "cached" : traceProvider === "template" ? "fallback" : "succeeded";
+  const responseEnvelope = {
+    ...(modelTrace?.responseEnvelope && typeof modelTrace.responseEnvelope === "object" ? modelTrace.responseEnvelope : {}),
+    finalAnswer: answer,
+    structuredInsight,
+    structuredPlan,
+    citations,
+  };
+  const policySnapshot = {
+    inputSafety: {
+      blocked: false,
+      scope: "baseball",
+    },
+    outputSafety: {
+      blocked: false,
+    },
+    promptRegistry,
+    aiExecution: executionTelemetry,
+    semanticTags,
+  };
 
   let assistantMessageId: string | null = null;
   let generationId: string | null = null;
@@ -663,26 +910,21 @@ async function completeChatTurn(params: {
       ? await recordAiGenerationEventWithQuery(query, {
           userId: params.userId ?? null,
           surfaceKey: params.surface,
-          surfaceDetail:
-            params.surface === "visualizer"
-              ? "ai_bs_visualizer"
-              : params.surface === "chart_insight"
-                ? params.chartContext?.chartType ?? "chart_insight"
-                : "contextual_copilot",
+          surfaceDetail,
           targetType: "ai_message",
           targetId: assistantMessageId,
           routeScope: params.context?.scope ?? "global",
           routeEntityId: params.context?.entityId ?? null,
           conversationId: params.conversationId,
           messageId: assistantMessageId,
-          provider: cached ? "internal" : openai ? "openai" : "template",
-          modelName: cached ? "cache" : modelName,
+          provider: traceProvider,
+          modelName: traceModelName,
           promptVersion,
           inputTokens,
           outputTokens,
           estimatedCostUsd,
           latencyMs,
-          status: cached ? "cached" : openai ? "succeeded" : "fallback",
+          status: traceStatus,
           cacheHit: Boolean(cached),
           metadata: {
             featureKey: params.featureKey ?? null,
@@ -699,6 +941,31 @@ async function completeChatTurn(params: {
           },
         })
       : null;
+
+    if (assistantMessageId) {
+      await recordAiModelTraceWithQuery(query, {
+        generationId,
+        userId: params.userId ?? null,
+        conversationId: params.conversationId,
+        userMessageId: params.userMessageId,
+        assistantMessageId,
+        surfaceKey: params.surface,
+        surfaceDetail,
+        routeScope: params.context?.scope ?? "global",
+        routeEntityId: params.context?.entityId ?? null,
+        provider: traceProvider,
+        modelName: traceModelName,
+        promptVersion,
+        status: traceStatus,
+        requestEnvelope: modelTrace?.requestEnvelope ?? null,
+        responseEnvelope,
+        policySnapshot,
+        evalTags: [params.surface, params.taskFamily, params.audienceMode],
+        inputTokens,
+        outputTokens,
+        latencyMs,
+      });
+    }
   });
 
   return {
@@ -822,12 +1089,21 @@ export async function runChat(request: Request): Promise<ChatResponse> {
 
   const misuse = classifyPromptMisuse(body.message);
   if (misuse.blocked) {
+    const policySnapshot = {
+      inputSafety: misuse,
+      scopeSafety: null,
+    };
     if (viewer?.userId) {
       await applyAiStrike(
         viewer.userId,
         misuse.reason ?? "AI misuse detected",
         persistedTurn.conversationId,
         persistedTurn.userMessageId,
+        {
+          surface: body.surface,
+          category: misuse.category,
+          matchedSignals: misuse.matchedSignals,
+        },
       );
     } else {
       await recordSafetyEvent({
@@ -835,9 +1111,26 @@ export async function runChat(request: Request): Promise<ChatResponse> {
         messageId: persistedTurn.userMessageId,
         disposition: "blocked",
         reason: misuse.reason ?? "AI misuse detected",
-        details: { message: body.message, surface: body.surface },
+        details: {
+          message: body.message,
+          surface: body.surface,
+          category: misuse.category,
+          matchedSignals: misuse.matchedSignals,
+        },
       });
     }
+    await recordBlockedAiEvalTrace({
+      userId: viewer?.userId ?? null,
+      conversationId: persistedTurn.conversationId,
+      userMessageId: persistedTurn.userMessageId,
+      surface: body.surface,
+      taskFamily,
+      message: body.message,
+      context,
+      chartContext: body.chartContext,
+      reason: misuse.reason ?? "AI misuse detected",
+      policySnapshot,
+    });
     throw new AiPolicyError(misuse.reason ?? "AI misuse detected", AI_ERROR_CODES.MISUSE, 403);
   }
 
@@ -854,14 +1147,37 @@ export async function runChat(request: Request): Promise<ChatResponse> {
   });
 
   if (!isBaseballRelated(scopedMessage)) {
+    const reason = "Question rejected by baseball scope classifier.";
     await recordSafetyEvent({
       conversationId: persistedTurn.conversationId,
       messageId: persistedTurn.userMessageId,
       disposition: "blocked",
-      reason: "Question rejected by baseball scope classifier.",
+      reason,
       details: { message: body.message, scopedMessage },
     });
-    throw new AiPolicyError("Question rejected by baseball scope classifier.", AI_ERROR_CODES.OUT_OF_SCOPE, 400);
+    await recordBlockedAiEvalTrace({
+      userId: viewer?.userId ?? null,
+      conversationId: persistedTurn.conversationId,
+      userMessageId: persistedTurn.userMessageId,
+      surface: body.surface,
+      taskFamily,
+      message: body.message,
+      context,
+      chartContext: body.chartContext,
+      scopedMessage,
+      reason,
+      policySnapshot: {
+        inputSafety: {
+          blocked: false,
+          category: "allowed",
+        },
+        scopeSafety: {
+          blocked: true,
+          reason,
+        },
+      },
+    });
+    throw new AiPolicyError(reason, AI_ERROR_CODES.OUT_OF_SCOPE, 400);
   }
 
   const shouldQueue = isPublicChartInsight ? false : shouldQueueAiRequest({ message: body.message, context, delivery: body.delivery });

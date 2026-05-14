@@ -14,6 +14,7 @@ export const AI_GENERATION_SURFACES = [
 
 export type AiGenerationSurfaceKey = (typeof AI_GENERATION_SURFACES)[number];
 export type AiGenerationStatus = "succeeded" | "fallback" | "failed" | "cached";
+export type AiModelTraceStatus = AiGenerationStatus | "blocked";
 
 type QueryFn = <T extends QueryResultRow>(statement: string, values?: unknown[]) => Promise<T[]>;
 
@@ -40,6 +41,30 @@ export type AiGenerationEventInput = {
   status: AiGenerationStatus;
   cacheHit?: boolean;
   metadata?: unknown;
+};
+
+export type AiModelTraceInput = {
+  generationId?: string | null;
+  conversationId?: string | null;
+  userMessageId?: string | null;
+  assistantMessageId?: string | null;
+  userId?: string | null;
+  surfaceKey: AiGenerationSurfaceKey;
+  surfaceDetail?: string | null;
+  routeScope?: string | null;
+  routeEntityId?: string | null;
+  provider: string;
+  modelName: string;
+  promptVersion?: string | null;
+  status: AiModelTraceStatus;
+  requestEnvelope?: unknown;
+  responseEnvelope?: unknown;
+  policySnapshot?: unknown;
+  evalTags?: string[];
+  inputTokens?: number;
+  outputTokens?: number;
+  latencyMs?: number | null;
+  blockedReason?: string | null;
 };
 
 export type AiSavedArtifact = {
@@ -156,6 +181,64 @@ async function insertGenerationEvent(
   );
 }
 
+async function insertModelTrace(
+  query: QueryFn,
+  input: AiModelTraceInput,
+) {
+  return query<{ trace_id: string }>(
+    `
+    INSERT INTO ai.model_traces (
+      generation_id,
+      conversation_id,
+      user_message_id,
+      assistant_message_id,
+      user_id,
+      surface_key,
+      surface_detail,
+      route_scope,
+      route_entity_id,
+      provider,
+      model_name,
+      prompt_version,
+      status,
+      request_envelope,
+      response_envelope,
+      policy_snapshot,
+      eval_tags,
+      input_tokens,
+      output_tokens,
+      latency_ms,
+      blocked_reason
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+    RETURNING trace_id
+    `,
+    [
+      input.generationId ?? null,
+      input.conversationId ?? null,
+      input.userMessageId ?? null,
+      input.assistantMessageId ?? null,
+      input.userId ?? null,
+      input.surfaceKey,
+      input.surfaceDetail ?? null,
+      input.routeScope ?? null,
+      input.routeEntityId ?? null,
+      input.provider,
+      input.modelName,
+      input.promptVersion ?? null,
+      input.status,
+      input.requestEnvelope ?? null,
+      input.responseEnvelope ?? null,
+      input.policySnapshot ?? null,
+      input.evalTags ?? [],
+      input.inputTokens ?? 0,
+      input.outputTokens ?? 0,
+      input.latencyMs ?? null,
+      input.blockedReason ?? null,
+    ],
+  );
+}
+
 export async function recordAiGenerationEvent(input: AiGenerationEventInput): Promise<string | null> {
   const row = await sqlOne<{ generation_id: string }>(
     `
@@ -223,6 +306,19 @@ export async function recordAiGenerationEventWithQuery(
 ): Promise<string | null> {
   const rows = await insertGenerationEvent(query, input);
   return rows[0]?.generation_id ?? null;
+}
+
+export async function recordAiModelTrace(input: AiModelTraceInput): Promise<string | null> {
+  const rows = await insertModelTrace(sql, input);
+  return rows[0]?.trace_id ?? null;
+}
+
+export async function recordAiModelTraceWithQuery(
+  query: QueryFn,
+  input: AiModelTraceInput,
+): Promise<string | null> {
+  const rows = await insertModelTrace(query, input);
+  return rows[0]?.trace_id ?? null;
 }
 
 export async function getOrCreateAiArtifactGeneration(

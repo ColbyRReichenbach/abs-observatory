@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 import { formatContextWindow } from "@/lib/copilot-context";
-import { buildVisualizerPrompt } from "@/lib/server/ai/prompts/visualizer";
+import { buildResponsesInput } from "@/lib/server/ai/prompts/base";
+import { buildVisualizerPromptMessages } from "@/lib/server/ai/prompts/visualizer";
 import type { SurfaceRunner } from "@/lib/server/ai/orchestrator";
 import { resolveToolResults, type ToolResult } from "@/lib/server/ai-tools";
 import type { AIVisualizerPlan } from "@/lib/types";
@@ -697,9 +698,11 @@ export const runVisualizerSurface: SurfaceRunner = async (params) => {
   const toolResults = await resolveToolResults(params.context);
 
   if (!params.openaiClient) {
+    const answer =
+      "Visualizer planning currently supports deterministic team charts in AiBS. For other scopes, use a team page or ask a more specific baseball question once broader deterministic support is added.";
     return {
       answer:
-        "Visualizer planning currently supports deterministic team charts in AiBS. For other scopes, use a team page or ask a more specific baseball question once broader deterministic support is added.",
+        answer,
       confidence: "low",
       structuredPlan: null,
       citations: toolResults.map((tool) => tool.toolName),
@@ -708,10 +711,25 @@ export const runVisualizerSurface: SurfaceRunner = async (params) => {
         inputTokens: Math.ceil(params.message.length / 4),
         outputTokens: 0,
       },
+      trace: {
+        provider: "template",
+        modelName: "local_fallback",
+        requestEnvelope: {
+          surface: params.surface,
+          message: params.message,
+          context: params.context ?? null,
+          toolNames: toolResults.map((tool) => tool.toolName),
+        },
+        responseEnvelope: {
+          finalAnswer: answer,
+          structuredPlan: null,
+          source: "openai_unavailable_fallback",
+        },
+      },
     };
   }
 
-  const prompt = buildVisualizerPrompt(
+  const promptMessages = buildVisualizerPromptMessages(
     {
       audienceMode: params.audienceMode,
       taskFamily: params.taskFamily,
@@ -748,20 +766,36 @@ Planning request: ${params.message}
 Tool results: ${JSON.stringify(toolResults).slice(0, 18000)}`,
   );
 
+  const input = buildResponsesInput(promptMessages);
   const response = await params.openaiClient.responses.create({
     model: params.modelName,
     temperature: 0.2,
-    input: prompt,
+    input,
   });
 
   const raw = response.output_text?.trim() || "";
+  const trace = {
+    provider: "openai" as const,
+    modelName: params.modelName,
+    requestEnvelope: {
+      input,
+      temperature: 0.2,
+    },
+    responseEnvelope: {
+      responseId: response.id ?? null,
+      status: response.status ?? null,
+      rawOutputText: raw,
+      usage: response.usage ?? null,
+    },
+  };
   const parsed = tryParseJsonObject(raw);
   const structuredPlan = normalizePlan(parsed);
 
   if (!structuredPlan) {
+    const answer =
+      "AiBS could not produce a truthful chart specification from the available data for that request. Try a team page request with a clearer baseball split such as count state, inning, offense vs defense, or decision value.";
     return {
-      answer:
-        "AiBS could not produce a truthful chart specification from the available data for that request. Try a team page request with a clearer baseball split such as count state, inning, offense vs defense, or decision value.",
+      answer,
       confidence: "low",
       structuredPlan: null,
       citations: toolResults.map((tool) => tool.toolName),
@@ -770,11 +804,21 @@ Tool results: ${JSON.stringify(toolResults).slice(0, 18000)}`,
         inputTokens: response.usage?.input_tokens,
         outputTokens: response.usage?.output_tokens,
       },
+      trace: {
+        ...trace,
+        responseEnvelope: {
+          ...trace.responseEnvelope,
+          finalAnswer: answer,
+          structuredPlan: null,
+          outputShape: "invalid_json",
+        },
+      },
     };
   }
 
+  const answer = flattenStructuredPlan(structuredPlan);
   return {
-    answer: flattenStructuredPlan(structuredPlan),
+    answer,
     confidence,
     structuredPlan,
     citations: toolResults.map((tool) => tool.toolName),
@@ -782,6 +826,15 @@ Tool results: ${JSON.stringify(toolResults).slice(0, 18000)}`,
     usage: {
       inputTokens: response.usage?.input_tokens,
       outputTokens: response.usage?.output_tokens,
+    },
+    trace: {
+      ...trace,
+      responseEnvelope: {
+        ...trace.responseEnvelope,
+        finalAnswer: answer,
+        structuredPlan,
+        outputShape: "structured_json",
+      },
     },
   };
 };
