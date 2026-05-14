@@ -64,6 +64,12 @@ describe("ai-policy", () => {
       "get_team_challenge_value_summary",
       "get_team_decision_value_report",
     ]);
+    expect(getAllowedToolNames({ scope: "global" })).toEqual([
+      "get_live_games",
+      "get_home_challenge_moments",
+      "get_home_team_leaderboard",
+      "get_home_umpire_leaderboard",
+    ]);
   });
 
   it("caps tool payload arrays and nested strings", () => {

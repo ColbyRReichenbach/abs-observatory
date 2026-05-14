@@ -173,7 +173,7 @@ describe("ai artifact persistence", () => {
       routeScope: "global",
       provider: "openai",
       modelName: "gpt-4.1-mini",
-      promptVersion: "copilot_v2",
+      promptVersion: "copilot_v3",
       status: "succeeded",
       requestEnvelope: {
         input: [

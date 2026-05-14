@@ -302,7 +302,7 @@ export function getAllowedToolNames(context?: CopilotContext): string[] {
     return ["get_umpire_summary", "get_umpire_profile"];
   }
 
-  return ["get_live_games", "get_home_challenge_moments"];
+  return ["get_live_games", "get_home_challenge_moments", "get_home_team_leaderboard", "get_home_umpire_leaderboard"];
 }
 
 function truncateString(value: string, maxLength: number): string {

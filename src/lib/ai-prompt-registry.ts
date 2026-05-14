@@ -53,13 +53,17 @@ export const AI_BASE_PROMPT_TEMPLATE: AiBasePromptTemplate = {
 const AI_SURFACE_PROMPT_REGISTRY: Record<AiChatSurface, AiSurfacePromptDefinition> = {
   copilot: {
     surface: "copilot",
-    version: "copilot_v2",
+    version: "copilot_v3",
     label: "Copilot Answer Prompt",
     summary: "Direct baseball-native Q&A for fan and org chat requests.",
     terminologyMode: "deterministic_seed_bundle_v1",
     promptBodyRole: "question_answer",
     instructionBlocks: [
-      "Lead with the answer, then support it with evidence and one baseball implication.",
+      "Return one concise answer by default: 2-4 sentences in one paragraph unless the user asks for a list, table, or deeper breakdown.",
+      "Lead with the answer, metric, and range; then add only the most relevant supporting datapoint or caveat.",
+      "Do not use labels such as Evidence or Implication unless the user asks for that format.",
+      "For global team-leader questions, prefer get_home_team_leaderboard. Use get_live_games only for today's slate, live-game, or current-game questions; its gameChallengeCount is game-level, not team-owned.",
+      "Do not use these words in copilot answers: strategy, strategic, intent, philosophy, emphasis, approach. Use usage profile, result profile, data signal, or decision window instead.",
     ],
   },
   chart_insight: {
