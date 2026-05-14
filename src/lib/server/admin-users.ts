@@ -18,6 +18,7 @@ export type AdminUserRow = {
   isPublic: boolean;
   postingEnabled: boolean;
   aiHistoryEnabled: boolean;
+  aiStrikesExempt: boolean;
   aiStrikeCount: number;
   aiSuspendedUntil: string | null;
   aiBannedAt: string | null;
@@ -110,6 +111,7 @@ function buildFilteredUsersCte(filters: AdminUserFilters) {
           p.is_public AS isPublic,
           p.posting_enabled AS postingEnabled,
           p.ai_history_enabled AS aiHistoryEnabled,
+          COALESCE(p.ai_strikes_exempt, FALSE) AS aiStrikesExempt,
           p.ai_strike_count AS aiStrikeCount,
           p.ai_suspended_until AS aiSuspendedUntil,
           p.ai_banned_at AS aiBannedAt,
@@ -152,6 +154,7 @@ function buildFilteredUsersCte(filters: AdminUserFilters) {
           p.is_public,
           p.posting_enabled,
           p.ai_history_enabled,
+          p.ai_strikes_exempt,
           p.ai_strike_count,
           p.ai_suspended_until,
           p.ai_banned_at,
@@ -212,6 +215,7 @@ export async function listAdminUsers(filters: AdminUserFilters, limit = 100): Pr
     ispublic: boolean;
     postingenabled: boolean;
     aihistoryenabled: boolean;
+    aistrikesexempt: boolean;
     aistrikecount: number;
     aisuspendeduntil: string | null;
     aibannedat: string | null;
@@ -243,6 +247,7 @@ export async function listAdminUsers(filters: AdminUserFilters, limit = 100): Pr
       isPublic: row.ispublic,
       postingEnabled: row.postingenabled,
       aiHistoryEnabled: row.aihistoryenabled,
+      aiStrikesExempt: row.aistrikesexempt,
       aiStrikeCount: Number(row.aistrikecount ?? 0),
       aiSuspendedUntil: row.aisuspendeduntil,
       aiBannedAt: row.aibannedat,

@@ -105,6 +105,12 @@ export type ChatResponse = {
   code?: string;
 };
 
+type AiViewerAccessState = Pick<
+  ViewerProfile,
+  "userId" | "isVerified" | "aiBannedAt" | "aiSuspendedUntil" | "roles"
+> &
+  Partial<Pick<ViewerProfile, "aiStrikesExempt">>;
+
 async function createConversation(
   userId: string | null,
   context?: CopilotContext,
@@ -274,6 +280,30 @@ async function applyAiStrike(
   });
 }
 
+async function recordExemptAiStrike(
+  userId: string,
+  reason: string,
+  conversationId: string,
+  messageId: string | null,
+  details?: Record<string, unknown>,
+) {
+  await recordSafetyEvent({
+    conversationId,
+    messageId,
+    disposition: "blocked",
+    reason,
+    details: { ...details, strikeExempt: true },
+  });
+
+  await writeAuditLog({
+    actorUserId: userId,
+    action: "ai_strike_exempted",
+    targetType: "product.user",
+    targetId: userId,
+    metadata: { conversationId, reason, strikeExempt: true },
+  });
+}
+
 async function recordAiRateLimitEvent(subjectKey: string, subjectType: "user" | "global", requestCount: number) {
   await sqlOne(
     `
@@ -403,12 +433,13 @@ function getAnonymousRateLimitSubject(request: Request) {
 
 async function getAiViewerState(
   userId: string,
-): Promise<Pick<ViewerProfile, "userId" | "isVerified" | "aiBannedAt" | "aiSuspendedUntil" | "roles"> | null> {
+): Promise<(AiViewerAccessState & Pick<ViewerProfile, "aiStrikesExempt">) | null> {
   const row = await sqlOne<{
     userid: string;
     isverified: boolean;
     aibannedat: string | null;
     aisuspendeduntil: string | null;
+    aistrikesexempt: boolean;
     roles: string[] | null;
   }>(
     `
@@ -417,6 +448,7 @@ async function getAiViewerState(
       u.is_verified AS isVerified,
       p.ai_banned_at AS aiBannedAt,
       p.ai_suspended_until AS aiSuspendedUntil,
+      COALESCE(p.ai_strikes_exempt, FALSE) AS aiStrikesExempt,
       ARRAY_REMOVE(ARRAY_AGG(DISTINCT r.role), NULL) AS roles
     FROM product.users u
     LEFT JOIN product.user_profiles p ON p.user_id = u.user_id
@@ -426,7 +458,8 @@ async function getAiViewerState(
       u.user_id,
       u.is_verified,
       p.ai_banned_at,
-      p.ai_suspended_until
+      p.ai_suspended_until,
+      p.ai_strikes_exempt
     `,
     [userId],
   );
@@ -438,18 +471,22 @@ async function getAiViewerState(
     isVerified: row.isverified,
     aiBannedAt: row.aibannedat,
     aiSuspendedUntil: row.aisuspendeduntil,
+    aiStrikesExempt: row.aistrikesexempt,
     roles: row.roles ?? [],
   };
 }
 
 function assertViewerCanUseAi(
-  viewer: Pick<ViewerProfile, "userId" | "isVerified" | "aiBannedAt" | "aiSuspendedUntil" | "roles"> | null,
-): asserts viewer is Pick<ViewerProfile, "userId" | "isVerified" | "aiBannedAt" | "aiSuspendedUntil" | "roles"> {
+  viewer: AiViewerAccessState | null,
+): asserts viewer is AiViewerAccessState {
   if (!viewer) {
     throw new AiPolicyError("Authentication required", AI_ERROR_CODES.AUTH_REQUIRED, 401);
   }
   if (!viewer.isVerified) {
     throw new AiPolicyError("Verified identity required", AI_ERROR_CODES.VERIFIED_REQUIRED, 403);
+  }
+  if (viewer.aiStrikesExempt) {
+    return;
   }
   if (viewer.aiBannedAt) {
     throw new AiPolicyError("AI access banned", AI_ERROR_CODES.BANNED, 403);
@@ -1094,17 +1131,28 @@ export async function runChat(request: Request): Promise<ChatResponse> {
       scopeSafety: null,
     };
     if (viewer?.userId) {
-      await applyAiStrike(
-        viewer.userId,
-        misuse.reason ?? "AI misuse detected",
-        persistedTurn.conversationId,
-        persistedTurn.userMessageId,
-        {
-          surface: body.surface,
-          category: misuse.category,
-          matchedSignals: misuse.matchedSignals,
-        },
-      );
+      const strikeDetails = {
+        surface: body.surface,
+        category: misuse.category,
+        matchedSignals: misuse.matchedSignals,
+      };
+      if (viewer.aiStrikesExempt) {
+        await recordExemptAiStrike(
+          viewer.userId,
+          misuse.reason ?? "AI misuse detected",
+          persistedTurn.conversationId,
+          persistedTurn.userMessageId,
+          strikeDetails,
+        );
+      } else {
+        await applyAiStrike(
+          viewer.userId,
+          misuse.reason ?? "AI misuse detected",
+          persistedTurn.conversationId,
+          persistedTurn.userMessageId,
+          strikeDetails,
+        );
+      }
     } else {
       await recordSafetyEvent({
         conversationId: persistedTurn.conversationId,

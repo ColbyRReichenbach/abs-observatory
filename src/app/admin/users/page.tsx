@@ -123,6 +123,7 @@ export default async function AdminUsersPage({
                       <StatusPill label={user.isPublic && user.username ? "Public Card Live" : "Private Card"} tone={statusTone(user.isPublic && Boolean(user.username))} />
                       <StatusPill label={user.postingEnabled ? "Comments On" : "Comments Off"} tone={statusTone(user.postingEnabled)} />
                       <StatusPill label={user.aiHistoryEnabled ? "History On" : "History Off"} tone={statusTone(user.aiHistoryEnabled)} />
+                      {user.aiStrikesExempt ? <StatusPill label="AI Test Exempt" tone="border-sky-200 bg-sky-50 text-sky-700" /> : null}
                       <StatusPill label={hasAiFlag ? "AI Flagged" : "AI Clear"} tone={riskTone(hasAiFlag)} />
                     </div>
                   </div>
@@ -151,6 +152,7 @@ export default async function AdminUsersPage({
                 {(user.openReportCount > 0 || hasAiFlag) ? (
                   <div className="mt-4 flex flex-wrap gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                     {user.openReportCount > 0 ? <span>{user.openReportCount} open comment reports</span> : null}
+                    {user.aiStrikesExempt ? <span>AI strike penalties disabled</span> : null}
                     {user.aiStrikeCount > 0 ? <span>{user.aiStrikeCount} AI strike{user.aiStrikeCount === 1 ? "" : "s"}</span> : null}
                     {user.aiSuspendedUntil ? <span>Suspended until {formatDate(user.aiSuspendedUntil)}</span> : null}
                     {user.aiBannedAt ? <span>Banned {formatDate(user.aiBannedAt)}</span> : null}
