@@ -1,10 +1,9 @@
 import Link from "next/link";
 
-import { normalizeAuthNextHref } from "@/lib/auth-entry";
+import { resolveAuthNextHref } from "@/lib/auth-entry";
 import { ClerkSignUpShell } from "@/components/auth/clerk-auth-shell";
 import { isClerkConfigured } from "@/lib/server/auth";
 import { resolveViewMode } from "@/lib/view-mode";
-import { withViewModeHref } from "@/lib/view-mode-href";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +14,7 @@ export default async function SignUpPage({
 }) {
   const sp = await searchParams;
   const viewMode = await resolveViewMode(sp);
-  const nextHref = withViewModeHref(normalizeAuthNextHref(sp.next), viewMode);
+  const nextHref = resolveAuthNextHref(sp.next, viewMode);
 
   if (!isClerkConfigured()) {
     return (

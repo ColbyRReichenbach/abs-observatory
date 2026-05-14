@@ -71,7 +71,7 @@
     "model:audit:zone-edge": "node scripts/model-audits/run-zone-edge-audit.mjs"
   },
   "dependencies": {
-    "@clerk/nextjs": "^7.0.1",
+    "@clerk/nextjs": "^7.3.4",
     "@fontsource/bebas-neue": "^5.2.7",
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@fontsource/inter": "^5.2.8",

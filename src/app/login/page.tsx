@@ -1,11 +1,10 @@
 import { redirect } from "next/navigation";
 
 import { LoginEntryPanel } from "@/components/auth/login-entry-panel";
-import { normalizeAuthNextHref } from "@/lib/auth-entry";
+import { resolveAuthNextHref } from "@/lib/auth-entry";
 import { isClerkConfigured } from "@/lib/server/auth";
 import { getViewerProfile } from "@/lib/server/profiles";
 import { resolveViewMode } from "@/lib/view-mode";
-import { withViewModeHref } from "@/lib/view-mode-href";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +16,7 @@ export default async function LoginPage({
   const sp = await searchParams;
   const viewer = await getViewerProfile();
   const viewMode = await resolveViewMode(sp);
-  const nextHref = withViewModeHref(normalizeAuthNextHref(sp.next), viewMode);
+  const nextHref = resolveAuthNextHref(sp.next, viewMode);
   const authEnabled = isClerkConfigured();
 
   if (viewer) {
