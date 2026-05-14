@@ -9,6 +9,7 @@ import type {
 import { getChallengeCountState } from "@/lib/challenge-context";
 
 export type StructuredChartInsight = {
+  answer?: string;
   headline: string;
   sections: Array<{
     label: string;

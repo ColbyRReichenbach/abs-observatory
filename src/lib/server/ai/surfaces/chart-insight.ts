@@ -6,6 +6,7 @@ import { buildChartInsightPromptMessages } from "@/lib/server/ai/prompts/chart-i
 import type { SurfaceRunner } from "@/lib/server/ai/orchestrator";
 
 const structuredInsightSchema = z.object({
+  answer: z.string().min(1).max(900).optional(),
   headline: z.string().min(1).max(320),
   sections: z
     .array(
@@ -19,6 +20,10 @@ const structuredInsightSchema = z.object({
 });
 
 function flattenStructuredInsight(insight: StructuredChartInsight) {
+  if (insight.answer?.trim()) {
+    return insight.answer.trim();
+  }
+
   return [insight.headline, ...insight.sections.map((section) => `${section.label}: ${section.body}`)].join("\n\n");
 }
 
@@ -50,6 +55,7 @@ export const runChartInsightSurface: SurfaceRunner = async (params) => {
   const responseShape = hasPriorTurns
     ? `Return strict JSON with this shape:
 {
+  "answer": "one cohesive 2-3 sentence answer that directly answers the follow-up, includes the key supporting data, and states the baseball implication without labels",
   "headline": "one concise direct answer",
   "sections": [
     {"label": "Direct answer", "body": "..."},
@@ -57,8 +63,9 @@ export const runChartInsightSurface: SurfaceRunner = async (params) => {
     {"label": "Baseball implication", "body": "..."}
   ]
 }
-Keep each follow-up section to one short sentence. The UI will combine these fields into one compact answer, so avoid repeating the same point across sections.
-The direct answer should stand on its own; the data and implication sections should add only the most important supporting detail.`
+The answer field is what users will see. It must read as one complete, natural answer, not as labeled fragments.
+Keep answer under 90 words. Do not truncate, trail off, or end mid-thought.
+Keep each follow-up section to one short sentence for evaluation/debug support. Do not repeat the same point across fields.`
     : `Return strict JSON with this shape:
 {
   "headline": "one concise chart thesis",
@@ -113,6 +120,9 @@ ${params.message}`,
 
   if (!params.openaiClient) {
     const fallback: StructuredChartInsight = {
+      answer: hasPriorTurns
+        ? `Live AI follow-up is unavailable, so I cannot answer "${params.message}" beyond the supplied chart summary. The available chart summary is: ${params.chartContext.chartSummary}`
+        : undefined,
       headline: params.chartContext.chartSummary,
       sections: [
         {

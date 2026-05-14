@@ -33,17 +33,9 @@ function buildInitialChartPrompt(chartContext: ChartInsightPayload) {
   ].join(" ");
 }
 
-function firstSentenceOrClip(value: string | undefined, maxChars: number) {
+function cleanInsightText(value: string | undefined) {
   const normalized = value?.replace(/\s+/g, " ").trim() ?? "";
-  if (!normalized) return "";
-  if (normalized.length <= maxChars) return normalized;
-
-  const sentenceMatch = normalized.match(/^.{40,}?[.!?](?=\s|$)/);
-  if (sentenceMatch && sentenceMatch[0].length <= maxChars) {
-    return sentenceMatch[0];
-  }
-
-  return `${normalized.slice(0, maxChars).replace(/\s+\S*$/, "").trim()}…`;
+  return normalized;
 }
 
 function findInsightSection(insight: StructuredInsight, pattern: RegExp) {
@@ -51,16 +43,18 @@ function findInsightSection(insight: StructuredInsight, pattern: RegExp) {
 }
 
 function buildFollowUpSummary(insight: StructuredInsight) {
+  if (insight.answer?.trim()) {
+    return cleanInsightText(insight.answer);
+  }
+
   const direct = findInsightSection(insight, /direct|answer/i);
   const data = findInsightSection(insight, /data|evidence|behind/i);
   const implication = findInsightSection(insight, /implication|meaning|use/i);
-  const directText = firstSentenceOrClip(direct?.body || insight.headline, 360);
-  const dataText = firstSentenceOrClip(data?.body, 180);
-  const implicationText = firstSentenceOrClip(implication?.body, 180);
+  const directText = cleanInsightText(direct?.body || insight.headline);
+  const dataText = cleanInsightText(data?.body);
+  const implicationText = cleanInsightText(implication?.body);
 
-  return [directText, dataText ? `Data: ${dataText}` : "", implicationText ? `Implication: ${implicationText}` : ""]
-    .filter(Boolean)
-    .join(" ");
+  return [directText, dataText, implicationText].filter(Boolean).join(" ");
 }
 
 function StructuredInsightView({

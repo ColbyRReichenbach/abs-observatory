@@ -707,6 +707,7 @@ export type AIChatResponse = {
   modelName?: string;
   answer: string;
   structuredInsight?: {
+    answer?: string;
     headline: string;
     sections: Array<{
       label: string;

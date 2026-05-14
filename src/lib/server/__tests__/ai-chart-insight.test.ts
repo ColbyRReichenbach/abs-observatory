@@ -72,4 +72,53 @@ describe("runChartInsightSurface", () => {
       }),
     );
   });
+
+  it("uses a cohesive follow-up answer when the model returns one", async () => {
+    const answer =
+      "The club is getting value because its better challenge windows are carrying enough surplus to offset weaker states. Middle-inning challenges are the strongest support point, while the poor pitcher-ahead and late-inning buckets are the warning that timing still matters.";
+    const createMock = vi.fn(async () => ({
+      output_text: JSON.stringify({
+        answer,
+        headline: "Middle innings carry the surplus.",
+        sections: [
+          { label: "Direct answer", body: "The club's stronger windows are offsetting weaker challenge states." },
+          { label: "Data behind it", body: "Middle innings have positive surplus while pitcher-ahead and late buckets are negative." },
+          { label: "Baseball implication", body: "The pattern points to selective value, not random success." },
+        ],
+      }),
+      usage: {
+        input_tokens: 140,
+        output_tokens: 80,
+      },
+    }));
+
+    const result = await runChartInsightSurface({
+      openaiClient: {
+        responses: {
+          create: createMock,
+        },
+      } as never,
+      modelName: "gpt-4.1-mini",
+      surface: "chart_insight",
+      audienceMode: "org",
+      taskFamily: "inventory_deployment",
+      message: "Can you explain it better?",
+      transcript: "USER: Explain this chart.\nASSISTANT: Initial chart explanation.",
+      terminologyAppendix: "",
+      chartContext,
+    });
+
+    expect(result.answer).toBe(answer);
+    expect(result.structuredInsight?.answer).toBe(answer);
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.arrayContaining([
+          expect.objectContaining({
+            role: "user",
+            content: expect.stringContaining('"answer": "one cohesive 2-3 sentence answer'),
+          }),
+        ]),
+      }),
+    );
+  });
 });
