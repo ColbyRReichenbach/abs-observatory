@@ -676,6 +676,56 @@ describe("ai-chat", () => {
     ).rejects.toMatchObject({ code: "AI_AUTH_REQUIRED", status: 401 });
   });
 
+  it("rejects non-baseball chart follow-ups before model generation", async () => {
+    const { runChat } = await import("@/lib/server/ai-chat");
+    getViewerProfileMock.mockResolvedValueOnce({
+      userId: "user-1",
+      isVerified: true,
+      aiStrikeCount: 0,
+      aiBannedAt: null,
+      aiSuspendedUntil: null,
+    });
+    isBaseballRelatedMock.mockReturnValueOnce(false);
+    sqlOneMock
+      .mockResolvedValueOnce({ conversationid: "conversation-1" })
+      .mockResolvedValueOnce({ messageid: "message-1" })
+      .mockResolvedValueOnce(null);
+
+    await expect(
+      runChat(
+        new Request("http://localhost/api/ai/chat", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-dev-user-id": "user-1",
+          },
+          body: JSON.stringify({
+            conversationId: "123e4567-e89b-42d3-a456-426614174000",
+            message: "how do you bake a sweet potato",
+            surface: "chart_insight",
+            chartContext: {
+              chartType: "heatmap",
+              chartKey: "chart-1",
+              chartTitle: "Zone heatmap",
+              baseballQuestion: "Where are challenges clustering?",
+              chartSummary: "Heatmap summary.",
+              payload: { sample: true },
+            },
+          }),
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "AI_OUT_OF_SCOPE", status: 400 });
+
+    expect(isBaseballRelatedMock).toHaveBeenCalledWith("how do you bake a sweet potato");
+    expect(withTransactionMock).not.toHaveBeenCalled();
+    expect(assertAiUsageAllowedMock).not.toHaveBeenCalled();
+    expect(writeAuditLogMock).not.toHaveBeenCalled();
+    expect(sqlMock).toHaveBeenCalledWith(
+      expect.stringContaining("INSERT INTO ai.model_traces"),
+      expect.arrayContaining(["123e4567-e89b-42d3-a456-426614174000", "message-1", "chart_insight", "blocked"]),
+    );
+  });
+
   it("keeps using the supplied chart payload for authenticated chart-insight follow-ups", async () => {
     const { runChat } = await import("@/lib/server/ai-chat");
     getViewerProfileMock.mockResolvedValueOnce({

@@ -79,6 +79,16 @@ function getSurfaceDetail(surface: AiChatSurface, chartContext?: ChartInsightPay
   return "contextual_copilot";
 }
 
+function isChartInsightMessageScoped(message: string) {
+  const normalized = message.toLowerCase();
+  const chartTermPattern =
+    /\b(chart|visual|graph|plot|data|payload|signal|takeaway|insight|trend|outlier|bucket|quadrant|axis|zone|inning|umpire|challenge|abs|strike|pitch|team|game|value|expected|realized|modeled|inventory|deployment|sample)\b/;
+  const contextualFollowUpPattern =
+    /\b(explain|summarize|read|interpret|compare|use)\b.{0,80}\b(this|that|it)\b|\b(this|that|it)\b.{0,80}\b(mean|show|say|tell|signal)\b/;
+
+  return chartTermPattern.test(normalized) || contextualFollowUpPattern.test(normalized) || isBaseballRelated(message);
+}
+
 const openai = hasUsableOpenAiKey(process.env.OPENAI_API_KEY)
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null;
@@ -1212,6 +1222,51 @@ export async function runChat(request: Request): Promise<ChatResponse> {
       bannedAt: strikeResult?.bannedAt ?? null,
       strikeExempt,
     });
+  }
+
+  if (body.surface === "chart_insight" && !isChartInsightMessageScoped(body.message)) {
+    const reason = "Question rejected by baseball scope classifier.";
+    await recordSafetyEvent({
+      conversationId: persistedTurn.conversationId,
+      messageId: persistedTurn.userMessageId,
+      disposition: "blocked",
+      reason,
+      details: {
+        message: body.message,
+        surface: body.surface,
+        chartContext: body.chartContext
+          ? {
+              chartType: body.chartContext.chartType,
+              chartKey: body.chartContext.chartKey,
+              chartTitle: body.chartContext.chartTitle,
+            }
+          : null,
+        scopeStage: "raw_chart_user_message",
+      },
+    });
+    await recordBlockedAiEvalTrace({
+      userId: viewer?.userId ?? null,
+      conversationId: persistedTurn.conversationId,
+      userMessageId: persistedTurn.userMessageId,
+      surface: body.surface,
+      taskFamily,
+      message: body.message,
+      context,
+      chartContext: body.chartContext,
+      reason,
+      policySnapshot: {
+        inputSafety: {
+          blocked: false,
+          category: "allowed",
+        },
+        scopeSafety: {
+          blocked: true,
+          reason,
+          stage: "raw_chart_user_message",
+        },
+      },
+    });
+    throw new AiPolicyError(reason, AI_ERROR_CODES.OUT_OF_SCOPE, 400);
   }
 
   const scopedMessage = buildScopeCheckMessage({
