@@ -56,7 +56,9 @@ export const runChartInsightSurface: SurfaceRunner = async (params) => {
     {"label": "Data behind it", "body": "..."},
     {"label": "Baseball implication", "body": "..."}
   ]
-}`
+}
+Keep each follow-up section to one short sentence. The UI will combine these fields into one compact answer, so avoid repeating the same point across sections.
+The direct answer should stand on its own; the data and implication sections should add only the most important supporting detail.`
     : `Return strict JSON with this shape:
 {
   "headline": "one concise chart thesis",

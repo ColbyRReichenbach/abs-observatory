@@ -22,6 +22,8 @@ type ChartThreadMessage = {
   generationId?: string | null;
 };
 
+type StructuredInsight = NonNullable<AIChatResponse["structuredInsight"]>;
+
 function buildInitialChartPrompt(chartContext: ChartInsightPayload) {
   return [
     `Explain the "${chartContext.chartTitle}" chart in baseball terms.`,
@@ -31,10 +33,40 @@ function buildInitialChartPrompt(chartContext: ChartInsightPayload) {
   ].join(" ");
 }
 
+function firstSentenceOrClip(value: string | undefined, maxChars: number) {
+  const normalized = value?.replace(/\s+/g, " ").trim() ?? "";
+  if (!normalized) return "";
+  if (normalized.length <= maxChars) return normalized;
+
+  const sentenceMatch = normalized.match(/^.{40,}?[.!?](?=\s|$)/);
+  if (sentenceMatch && sentenceMatch[0].length <= maxChars) {
+    return sentenceMatch[0];
+  }
+
+  return `${normalized.slice(0, maxChars).replace(/\s+\S*$/, "").trim()}…`;
+}
+
+function findInsightSection(insight: StructuredInsight, pattern: RegExp) {
+  return insight.sections.find((section) => pattern.test(section.label));
+}
+
+function buildFollowUpSummary(insight: StructuredInsight) {
+  const direct = findInsightSection(insight, /direct|answer/i);
+  const data = findInsightSection(insight, /data|evidence|behind/i);
+  const implication = findInsightSection(insight, /implication|meaning|use/i);
+  const directText = firstSentenceOrClip(direct?.body || insight.headline, 360);
+  const dataText = firstSentenceOrClip(data?.body, 180);
+  const implicationText = firstSentenceOrClip(implication?.body, 180);
+
+  return [directText, dataText ? `Data: ${dataText}` : "", implicationText ? `Implication: ${implicationText}` : ""]
+    .filter(Boolean)
+    .join(" ");
+}
+
 function StructuredInsightView({
   insight,
 }: {
-  insight: NonNullable<AIChatResponse["structuredInsight"]>;
+  insight: StructuredInsight;
 }) {
   return (
     <div className="space-y-4">
@@ -50,6 +82,14 @@ function StructuredInsightView({
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function FollowUpInsightView({ insight }: { insight: StructuredInsight }) {
+  return (
+    <div className="rounded-[1.25rem] border border-gray-100 bg-gray-50/70 px-4 py-4 text-sm leading-relaxed text-gray-700">
+      {buildFollowUpSummary(insight)}
     </div>
   );
 }
@@ -360,7 +400,7 @@ export function AIInsightBubble({
                                 ) : (
                                   <div key={`${message.role}-${index}`} className="space-y-3">
                                     {message.structuredInsight ? (
-                                      <StructuredInsightView insight={message.structuredInsight} />
+                                      <FollowUpInsightView insight={message.structuredInsight} />
                                     ) : (
                                       <div className="rounded-[1.25rem] border border-gray-100 bg-gray-50/60 px-4 py-4 text-sm leading-relaxed text-gray-700">
                                         {message.content}
