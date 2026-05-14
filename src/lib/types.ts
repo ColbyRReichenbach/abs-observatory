@@ -723,6 +723,10 @@ export type AIChatResponse = {
   pollAfterSeconds?: number;
   code?: string;
   error?: string;
+  strikeCount?: number;
+  strikeExempt?: boolean;
+  suspendedUntil?: string;
+  bannedAt?: string;
 };
 
 export type PregameIntel = {

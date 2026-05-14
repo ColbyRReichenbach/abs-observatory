@@ -115,4 +115,42 @@ describe("ai-policy", () => {
       error: "AiBS can only answer baseball-related analytics questions.",
     });
   });
+
+  it("surfaces strike-specific misconduct messages", () => {
+    expect(
+      buildAiErrorPayload(
+        new AiPolicyError("AI misuse detected", AI_ERROR_CODES.MISUSE, 403, {
+          strikeCount: 1,
+          suspendedUntil: "2026-05-14T21:00:00.000Z",
+        }),
+      ),
+    ).toMatchObject({
+      code: "AI_MISUSE_DETECTED",
+      strikeCount: 1,
+      suspendedUntil: "2026-05-14T21:00:00.000Z",
+      error: expect.stringContaining("1 hour AI timeout"),
+    });
+
+    expect(
+      buildAiErrorPayload(
+        new AiPolicyError("AI misuse detected", AI_ERROR_CODES.MISUSE, 403, {
+          strikeCount: 2,
+        }),
+      ),
+    ).toMatchObject({
+      error: expect.stringContaining("You now have 2 strikes"),
+    });
+
+    expect(
+      buildAiErrorPayload(
+        new AiPolicyError("AI misuse detected", AI_ERROR_CODES.MISUSE, 403, {
+          strikeCount: 3,
+          bannedAt: "2026-05-14T21:00:00.000Z",
+        }),
+      ),
+    ).toMatchObject({
+      bannedAt: "2026-05-14T21:00:00.000Z",
+      error: expect.stringContaining("colbyrreichenbach@gmail.com"),
+    });
+  });
 });

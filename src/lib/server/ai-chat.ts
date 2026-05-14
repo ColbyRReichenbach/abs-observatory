@@ -107,7 +107,7 @@ export type ChatResponse = {
 
 type AiViewerAccessState = Pick<
   ViewerProfile,
-  "userId" | "isVerified" | "aiBannedAt" | "aiSuspendedUntil" | "roles"
+  "userId" | "isVerified" | "aiStrikeCount" | "aiBannedAt" | "aiSuspendedUntil" | "roles"
 > &
   Partial<Pick<ViewerProfile, "aiStrikesExempt">>;
 
@@ -241,8 +241,12 @@ async function applyAiStrike(
   conversationId: string,
   messageId: string | null,
   details?: Record<string, unknown>,
-) {
-  const row = await sqlOne<{ aistrikecount: number }>(
+): Promise<{ strikeCount: number | null; suspendedUntil: string | null; bannedAt: string | null }> {
+  const row = await sqlOne<{
+    aistrikecount: number;
+    aisuspendeduntil: string | null;
+    aibannedat: string | null;
+  }>(
     `
     UPDATE product.user_profiles
     SET
@@ -258,17 +262,21 @@ async function applyAiStrike(
         ELSE ai_banned_at
       END
     WHERE user_id = $1
-    RETURNING ai_strike_count AS aiStrikeCount
+    RETURNING
+      ai_strike_count AS aiStrikeCount,
+      ai_suspended_until AS aiSuspendedUntil,
+      ai_banned_at AS aiBannedAt
     `,
     [userId],
   );
+  const strikeCount = row ? Number(row.aistrikecount) : null;
 
   await recordSafetyEvent({
     conversationId,
     messageId,
     disposition: "blocked",
     reason,
-    details: { ...details, strikeCount: row ? Number(row.aistrikecount) : null },
+    details: { ...details, strikeCount },
   });
 
   await writeAuditLog({
@@ -276,8 +284,14 @@ async function applyAiStrike(
     action: "ai_strike_applied",
     targetType: "product.user",
     targetId: userId,
-    metadata: { conversationId, reason, strikeCount: row ? Number(row.aistrikecount) : null },
+    metadata: { conversationId, reason, strikeCount },
   });
+
+  return {
+    strikeCount,
+    suspendedUntil: row?.aisuspendeduntil ?? null,
+    bannedAt: row?.aibannedat ?? null,
+  };
 }
 
 async function recordExemptAiStrike(
@@ -437,6 +451,7 @@ async function getAiViewerState(
   const row = await sqlOne<{
     userid: string;
     isverified: boolean;
+    aistrikecount: number;
     aibannedat: string | null;
     aisuspendeduntil: string | null;
     aistrikesexempt: boolean;
@@ -446,6 +461,7 @@ async function getAiViewerState(
     SELECT
       u.user_id AS userId,
       u.is_verified AS isVerified,
+      COALESCE(p.ai_strike_count, 0) AS aiStrikeCount,
       p.ai_banned_at AS aiBannedAt,
       p.ai_suspended_until AS aiSuspendedUntil,
       COALESCE(p.ai_strikes_exempt, FALSE) AS aiStrikesExempt,
@@ -457,6 +473,7 @@ async function getAiViewerState(
     GROUP BY
       u.user_id,
       u.is_verified,
+      p.ai_strike_count,
       p.ai_banned_at,
       p.ai_suspended_until,
       p.ai_strikes_exempt
@@ -469,6 +486,7 @@ async function getAiViewerState(
   return {
     userId: row.userid,
     isVerified: row.isverified,
+    aiStrikeCount: Number(row.aistrikecount ?? 0),
     aiBannedAt: row.aibannedat,
     aiSuspendedUntil: row.aisuspendeduntil,
     aiStrikesExempt: row.aistrikesexempt,
@@ -489,10 +507,16 @@ function assertViewerCanUseAi(
     return;
   }
   if (viewer.aiBannedAt) {
-    throw new AiPolicyError("AI access banned", AI_ERROR_CODES.BANNED, 403);
+    throw new AiPolicyError("AI access banned", AI_ERROR_CODES.BANNED, 403, {
+      strikeCount: viewer.aiStrikeCount,
+      bannedAt: viewer.aiBannedAt,
+    });
   }
   if (viewer.aiSuspendedUntil && Date.parse(viewer.aiSuspendedUntil) > Date.now()) {
-    throw new AiPolicyError("AI access temporarily suspended", AI_ERROR_CODES.SUSPENDED, 403);
+    throw new AiPolicyError("AI access temporarily suspended", AI_ERROR_CODES.SUSPENDED, 403, {
+      strikeCount: viewer.aiStrikeCount,
+      suspendedUntil: viewer.aiSuspendedUntil,
+    });
   }
 }
 
@@ -1130,6 +1154,8 @@ export async function runChat(request: Request): Promise<ChatResponse> {
       inputSafety: misuse,
       scopeSafety: null,
     };
+    let strikeResult: { strikeCount: number | null; suspendedUntil: string | null; bannedAt: string | null } | null = null;
+    let strikeExempt = false;
     if (viewer?.userId) {
       const strikeDetails = {
         surface: body.surface,
@@ -1137,6 +1163,7 @@ export async function runChat(request: Request): Promise<ChatResponse> {
         matchedSignals: misuse.matchedSignals,
       };
       if (viewer.aiStrikesExempt) {
+        strikeExempt = true;
         await recordExemptAiStrike(
           viewer.userId,
           misuse.reason ?? "AI misuse detected",
@@ -1145,7 +1172,7 @@ export async function runChat(request: Request): Promise<ChatResponse> {
           strikeDetails,
         );
       } else {
-        await applyAiStrike(
+        strikeResult = await applyAiStrike(
           viewer.userId,
           misuse.reason ?? "AI misuse detected",
           persistedTurn.conversationId,
@@ -1179,7 +1206,12 @@ export async function runChat(request: Request): Promise<ChatResponse> {
       reason: misuse.reason ?? "AI misuse detected",
       policySnapshot,
     });
-    throw new AiPolicyError(misuse.reason ?? "AI misuse detected", AI_ERROR_CODES.MISUSE, 403);
+    throw new AiPolicyError(misuse.reason ?? "AI misuse detected", AI_ERROR_CODES.MISUSE, 403, {
+      strikeCount: strikeResult?.strikeCount ?? null,
+      suspendedUntil: strikeResult?.suspendedUntil ?? null,
+      bannedAt: strikeResult?.bannedAt ?? null,
+      strikeExempt,
+    });
   }
 
   const scopedMessage = buildScopeCheckMessage({

@@ -175,11 +175,19 @@ export const AI_ERROR_CODES = {
 
 export type AiErrorCode = (typeof AI_ERROR_CODES)[keyof typeof AI_ERROR_CODES];
 
+export type AiPolicyErrorMetadata = {
+  strikeCount?: number | null;
+  strikeExempt?: boolean;
+  suspendedUntil?: string | null;
+  bannedAt?: string | null;
+};
+
 export class AiPolicyError extends Error {
   constructor(
     message: string,
     readonly code: AiErrorCode,
     readonly status: number,
+    readonly metadata: AiPolicyErrorMetadata = {},
   ) {
     super(message);
   }
@@ -358,11 +366,38 @@ export function estimateCostUsd(modelName: string, inputTokens: number, outputTo
 
 export function buildAiErrorPayload(error: AiPolicyError) {
   const detail = error.message.toLowerCase();
+  const supportContact = process.env.AI_SUPPORT_EMAIL?.trim() || "colbyrreichenbach@gmail.com";
+  const strikeCount = typeof error.metadata.strikeCount === "number" ? error.metadata.strikeCount : null;
+  const misuseMessage = (() => {
+    if (error.metadata.strikeExempt) {
+      return "Your message was flagged for review for AI misconduct. This test account is exempt from strike penalties, but the event was recorded.";
+    }
+    if (strikeCount === 1) {
+      return "Your message has been flagged for review for AI misconduct. Your account has been placed on a 1 hour AI timeout. After three strikes, you're out.";
+    }
+    if (strikeCount === 2) {
+      return "You swung and missed. You now have 2 strikes. One more strike and you're out. Use AiBS AI responsibly. Your account has been placed on a 24 hour AI timeout.";
+    }
+    if (strikeCount !== null && strikeCount >= 3) {
+      return `Strike three. You're out. Your AI access has been ejected for misuse. Contact ${supportContact} for review.`;
+    }
+    return "Your message has been flagged for review for AI misconduct. Use AiBS AI responsibly. After three strikes, you're out.";
+  })();
+  const suspendedMessage = (() => {
+    if (strikeCount === 1) {
+      return "Your account is in a 1 hour AI timeout after a misconduct strike. After three strikes, you're out.";
+    }
+    if (strikeCount === 2) {
+      return "Your account is in a 24 hour AI timeout after strike 2. One more strike and you're out. Use AiBS AI responsibly.";
+    }
+    return "Your AI access is temporarily suspended after a misconduct strike. Use AiBS AI responsibly.";
+  })();
+  const bannedMessage = `Strike three. You're out. Your AI access has been ejected for misuse. Contact ${supportContact} for review.`;
   const messageByCode: Record<AiErrorCode, string> = {
     AI_AUTH_REQUIRED: "Sign in and set up your profile to use AiBS AI.",
     AI_VERIFIED_REQUIRED: "Verify your email before using AiBS AI.",
-    AI_SUSPENDED_USER: "You’ve been ejected. Appeal via support.",
-    AI_BANNED_USER: "You’ve been ejected. Appeal via support.",
+    AI_SUSPENDED_USER: suspendedMessage,
+    AI_BANNED_USER: bannedMessage,
     AI_PLAN_RESTRICTED: "Your current plan does not include that AI action.",
     AI_QUOTA_EXCEEDED: detail.includes("weekly chart insight")
       ? "You’ve used this week’s chart follow-up."
@@ -370,8 +405,7 @@ export function buildAiErrorPayload(error: AiPolicyError) {
         ? "You’ve used today’s copilot allowance."
         : "You’ve used your current AiBS AI allowance.",
     AI_OUT_OF_SCOPE: "I can help with baseball-related questions and AiBS analytics.",
-    AI_MISUSE_DETECTED:
-      "We detected misuse of the copilot. Your account has been timed out and flagged for review.",
+    AI_MISUSE_DETECTED: misuseMessage,
     AI_RESPONSE_BLOCKED: "AiBS can only answer baseball-related analytics questions.",
     AI_INVALID_REQUEST: "That request could not be processed.",
     AI_OVERLOADED: "The stadium is packed. Please try again in a few minutes.",
@@ -381,6 +415,10 @@ export function buildAiErrorPayload(error: AiPolicyError) {
     error: messageByCode[error.code],
     code: error.code,
     detail: error.message,
+    strikeCount: error.metadata.strikeCount ?? undefined,
+    strikeExempt: error.metadata.strikeExempt || undefined,
+    suspendedUntil: error.metadata.suspendedUntil ?? undefined,
+    bannedAt: error.metadata.bannedAt ?? undefined,
   };
 }
 
